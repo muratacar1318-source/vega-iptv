@@ -1190,9 +1190,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playVod(vod: VodStream, resume: Boolean = false) {
-        currentPlayingEpisode.value = null
-        activePreviewChannel.value = null
         isMiniPlayerActive.value = false
+        activePreviewChannel.value = null
+        currentPlayingEpisode.value = null
         playerManager.stopAndClear()
         viewModelScope.launch {
             var startPos = 0L
@@ -1220,9 +1220,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playSeriesEpisode(episode: SeriesEpisode, seriesTitle: String, resume: Boolean = true) {
-        currentPlayingEpisode.value = Pair(episode, seriesTitle)
-        activePreviewChannel.value = null
         isMiniPlayerActive.value = false
+        activePreviewChannel.value = null
+        currentPlayingEpisode.value = Pair(episode, seriesTitle)
         playerManager.stopAndClear()
         viewModelScope.launch {
             val epId = episode.id.toIntOrNull() ?: 0

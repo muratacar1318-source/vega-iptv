@@ -143,7 +143,8 @@ fun LiveTvScreen(viewModel: MainViewModel) {
     DisposableEffect(Unit) {
         onDispose {
             if (viewModel.currentScreen.value !is Screen.Player) {
-                viewModel.detachMiniPlayer()
+                viewModel.closeMiniPlayer()
+                viewModel.playerManager.stopAndClear()
             }
         }
     }

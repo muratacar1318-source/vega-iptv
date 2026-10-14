@@ -290,12 +290,10 @@ fun PlayerScreen(
         }
     }
 
-    // Oynatıcı başlatılmamışsa veya boşsa akışı başlat
+    // Oynatıcı başlatılmamışsa veya boşsa akışı başlat (ViewModel zaten başlatmışsa mükerrer istek atılmaz)
     LaunchedEffect(streamUrl, streamId) {
-        if (playerManager.player == null || playerManager.player?.currentMediaItem == null) {
-            if (streamUrl.isNotBlank()) {
-                playerManager.play(streamUrl, isLive = isLive)
-            }
+        if (playerManager.currentPlayingUrl == null && streamUrl.isNotBlank()) {
+            playerManager.play(streamUrl, isLive = isLive)
         }
     }
 
