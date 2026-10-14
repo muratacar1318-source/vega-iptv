@@ -12,10 +12,15 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.LoadControl
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import okhttp3.ConnectionPool
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 import com.tivimax.player.data.config.AppConfig
 import kotlinx.coroutines.CoroutineScope
@@ -70,6 +75,33 @@ class TiviPlayerManager(private val context: Context) {
             .setTunnelingEnabled(false)
             .build()
     }
+
+    private val streamingHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .connectionPool(ConnectionPool(16, 5, TimeUnit.MINUTES))
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val request = original.newBuilder()
+                    .header("User-Agent", "IPTV Smarters Pro")
+                    .header("Accept", "*/*")
+                    .header("Connection", "keep-alive")
+                    .build()
+                chain.proceed(request)
+            }
+            .build()
+    }
+
+    fun createDataSourceFactory(): DataSource.Factory {
+        return OkHttpDataSource.Factory(streamingHttpClient)
+            .setUserAgent("IPTV Smarters Pro")
+    }
+
     private var bufferingRecoveryJob: Job? = null
 
     private val _isPlaying = MutableStateFlow(false)
@@ -248,9 +280,10 @@ class TiviPlayerManager(private val context: Context) {
 
         val renderersFactory = DefaultRenderersFactory(context).apply {
             setEnableDecoderFallback(true) // Donanım başarısız olursa otomatik yazılıma geç
-            setAllowedVideoJoiningTimeMs(10000) // Yavaş dekoder başlangıçlarında video senkron hatasını önle
+            setAllowedVideoJoiningTimeMs(15000) // Yavaş dekoder başlangıçlarında video senkron hatasını ve kare düşmesini önle
             // AC3, EAC3 ve DTS ses kodeklerini FFmpeg eklentisiyle öncelikli çözmek için PREFER modu
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            forceEnableMediaCodecAsynchronousQueueing() // Modern cihazlarda mikro takılmaları önleyen asenkron buffer kuyruğu
             if (_decoderMode == "SOFTWARE") {
                 setMediaCodecSelector { mimeType, requiresSecure, requiresTunneling ->
                     try {
@@ -288,23 +321,9 @@ class TiviPlayerManager(private val context: Context) {
             .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
 
-        val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
-            .setUserAgent("IPTV Smarters Pro")
-            .setDefaultRequestProperties(
-                mapOf(
-                    "User-Agent" to "IPTV Smarters Pro",
-                    "Accept" to "*/*",
-                    "Connection" to "keep-alive"
-                )
-            )
-            .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(15000)
-            .setReadTimeoutMs(30000)
-            .setKeepPostFor302Redirects(true)
-
-        val mediaSourceFactory = DefaultMediaSourceFactory(httpDataSourceFactory, extractorsFactory)
+        val mediaSourceFactory = DefaultMediaSourceFactory(createDataSourceFactory(), extractorsFactory)
             .setLoadErrorHandlingPolicy(
-                androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(5)
+                androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(6)
             )
 
         val player = ExoPlayer.Builder(context, renderersFactory)
@@ -398,18 +417,30 @@ class TiviPlayerManager(private val context: Context) {
 
             override fun onPlayerError(error: PlaybackException) {
                 _isBuffering.value = false
+                android.util.Log.e("VegaIPTV", "Player error: ${error.errorCodeName} (${error.errorCode})", error)
 
-                // Canlı yayın izlerken yayın anlık koparsa siyah ekranda kalmaması için
-                // 2 saniye arayla maksimum 3 kez otomatik yeniden bağlanma (retry/prepare) mekanizması
-                if (isLiveStream && liveRetryCount < 3) {
+                // 1. Donanım Dekoder Hatası Durumunda Otomatik Yazılıma (Software) Geçiş
+                val isDecoderError = error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
+                        error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED ||
+                        error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
+
+                if (isDecoderError && _decoderMode != "SOFTWARE") {
+                    android.util.Log.w("VegaIPTV", "Decoder error encountered. Automatically switching to SOFTWARE decoder mode...")
+                    setDecoderMode("SOFTWARE")
+                    return
+                }
+
+                // 2. Canlı yayın izlerken yayın anlık koparsa siyah ekranda kalmaması için
+                // Üstel gecikmeyle (exponential backoff) maksimum 4 kez otomatik yeniden bağlanma
+                if (isLiveStream && liveRetryCount < 4) {
                     liveRetryCount++
                     _isBuffering.value = true
-                    _errorMessage.value = "Yayın yeniden bağlanıyor ($liveRetryCount/3)..."
+                    _errorMessage.value = "Yayın yeniden bağlanıyor ($liveRetryCount/4)..."
                     liveRetryJob?.cancel()
                     liveRetryJob = scope.launch {
-                        delay(2000)
+                        delay(1500L * liveRetryCount)
                         if (isLiveStream && exoPlayer != null) {
-                            android.util.Log.i("VegaIPTV", "Canlı yayın otomatik yeniden bağlanma denemesi: $liveRetryCount/3")
+                            android.util.Log.i("VegaIPTV", "Canlı yayın otomatik yeniden bağlanma denemesi: $liveRetryCount/4")
                             player.seekToDefaultPosition()
                             player.prepare()
                             player.play()
@@ -418,7 +449,7 @@ class TiviPlayerManager(private val context: Context) {
                     return
                 }
 
-                // Otomatik Alternatif Format Deneme (Örn: .mp4 -> .mkv veya sunucu hatası)
+                // 3. Otomatik Alternatif Format Deneme (Örn: .mp4 -> .mkv -> .ts veya sunucu hatası)
                 if (fallbackAttempt + 1 < fallbackUrls.size) {
                     val currentPos = exoPlayer?.currentPosition ?: 0L
                     liveRetryCount = 0
@@ -649,22 +680,65 @@ class TiviPlayerManager(private val context: Context) {
         return true
     }
 
+    private var lastRecordedPosition = -1L
+    private var consecutiveStallSeconds = 0
+
     private fun startPositionUpdates() {
         positionJob?.cancel()
+        lastRecordedPosition = -1L
+        consecutiveStallSeconds = 0
         positionJob = scope.launch {
             while (isActive) {
-                exoPlayer?.let {
+                exoPlayer?.let { player ->
                     if (!isLiveStream) {
-                        _currentPosition.value = it.currentPosition
-                        _duration.value = it.duration.coerceAtLeast(0L)
-                        _bufferedPosition.value = it.bufferedPosition
+                        val pos = player.currentPosition
+                        _currentPosition.value = pos
+                        _duration.value = player.duration.coerceAtLeast(0L)
+                        _bufferedPosition.value = player.bufferedPosition
+
+                        // VOD Sessiz Donma (Silent Stall) Dedektörü:
+                        // Oynatıcı çalıyor modunda (isPlaying && STATE_READY) iken
+                        // 4 saniye boyunca pozisyon hiç ilerlemezse otomatik taze bağlantı kur
+                        if (player.isPlaying && player.playbackState == Player.STATE_READY) {
+                            if (pos == lastRecordedPosition && pos > 0L) {
+                                consecutiveStallSeconds++
+                                if (consecutiveStallSeconds >= 4) {
+                                    android.util.Log.w("VegaIPTV", "VOD sessiz donma tespit edildi ($pos ms), otomatik taze bağlantı kuruluyor...")
+                                    consecutiveStallSeconds = 0
+                                    player.seekTo(pos)
+                                    player.prepare()
+                                    player.play()
+                                }
+                            } else {
+                                lastRecordedPosition = pos
+                                consecutiveStallSeconds = 0
+                            }
+                        }
                     } else {
-                        val offset = it.currentLiveOffset
+                        val offset = player.currentLiveOffset
                         if (offset > 0) {
                             _liveOffsetMs.value = offset
                             val syncThreshold = (_liveBufferSeconds * 1000L) + 2000L
                             if (autoSyncLive && offset > syncThreshold) {
-                                it.seekToDefaultPosition()
+                                player.seekToDefaultPosition()
+                            }
+                        }
+
+                        // Canlı TV Sessiz Donma Dedektörü:
+                        val pos = player.currentPosition
+                        if (player.isPlaying && player.playbackState == Player.STATE_READY) {
+                            if (pos == lastRecordedPosition && pos > 0L) {
+                                consecutiveStallSeconds++
+                                if (consecutiveStallSeconds >= 5) {
+                                    android.util.Log.w("VegaIPTV", "Canlı yayın sessiz donma tespit edildi, canlı sınıra yeniden bağlanılıyor...")
+                                    consecutiveStallSeconds = 0
+                                    player.seekToDefaultPosition()
+                                    player.prepare()
+                                    player.play()
+                                }
+                            } else {
+                                lastRecordedPosition = pos
+                                consecutiveStallSeconds = 0
                             }
                         }
                     }
@@ -902,11 +976,25 @@ class TiviPlayerManager(private val context: Context) {
 
         val renderersFactory = DefaultRenderersFactory(context)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            .setEnableDecoderFallback(true)
         val loadControl = buildLoadControl(isLive = true)
+
+        val extractorsFactory = androidx.media3.extractor.DefaultExtractorsFactory().apply {
+            setConstantBitrateSeekingEnabled(true)
+            setTsExtractorFlags(
+                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
+            )
+        }
+        val mediaSourceFactory = DefaultMediaSourceFactory(createDataSourceFactory(), extractorsFactory)
+            .setLoadErrorHandlingPolicy(
+                androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(4)
+            )
 
         val player = ExoPlayer.Builder(context)
             .setRenderersFactory(renderersFactory)
             .setLoadControl(loadControl)
+            .setMediaSourceFactory(mediaSourceFactory)
             .build()
 
         player.volume = 0f

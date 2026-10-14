@@ -289,6 +289,15 @@ fun PlayerScreen(
         }
     }
 
+    // Video izlerken ekranın kapanmasını önle (KEEP_SCREEN_ON)
+    DisposableEffect(Unit) {
+        val window = activity?.window
+        window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     // Android 12+ (API 31+) için Otomatik PiP Kaydı (Sistem Seviyesi Akıcı Animasyon)
     DisposableEffect(isPlaying, autoPipEnabled) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && activity != null) {
@@ -462,6 +471,7 @@ fun PlayerScreen(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
                         useController = false
+                        keepScreenOn = true
                         layoutParams = FrameLayout.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -2833,6 +2843,7 @@ fun DualViewSingleWindow(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     useController = false
+                    keepScreenOn = true
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
