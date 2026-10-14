@@ -12,4 +12,5 @@ app/build
 .cxx
 *.apk
 *.aab
+.gemini/
 
