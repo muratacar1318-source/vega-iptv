@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuOpen
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.tivimax.player.ui.components.CategoryManagementDialog
 import com.tivimax.player.ui.components.GlobalSearchOptionsCard
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,7 @@ fun VodScreen(viewModel: MainViewModel) {
     val globalQuery by viewModel.globalSearchQuery.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var isSortMenuOpen by remember { mutableStateOf(false) }
+    var showCategoryDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(globalQuery) {
         if (globalQuery.isNotBlank() && searchQuery != globalQuery) {
@@ -121,8 +123,7 @@ fun VodScreen(viewModel: MainViewModel) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { isSidebarExpanded = !isSidebarExpanded }
-                            .padding(horizontal = 8.dp, vertical = 9.dp),
+                            .padding(horizontal = 8.dp, vertical = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = if (isSidebarExpanded) Arrangement.SpaceBetween else Arrangement.Center
                     ) {
@@ -134,13 +135,43 @@ fun VodScreen(viewModel: MainViewModel) {
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.sp
                             )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { showCategoryDialog = true },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Tune,
+                                        contentDescription = "Kategorileri Düzenle",
+                                        tint = TiviSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { isSidebarExpanded = false },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.MenuOpen,
+                                        contentDescription = "Türleri Kapat",
+                                        tint = TiviTextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            IconButton(
+                                onClick = { isSidebarExpanded = true },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "Türleri Aç",
+                                    tint = TiviSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
-                        Icon(
-                            imageVector = if (isSidebarExpanded) Icons.AutoMirrored.Filled.MenuOpen else Icons.Default.Menu,
-                            contentDescription = "Türleri Aç/Kapa",
-                            tint = TiviSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
                     }
 
                     HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
@@ -543,6 +574,14 @@ fun VodScreen(viewModel: MainViewModel) {
                     }
                 }
             }
+        }
+
+        if (showCategoryDialog) {
+            CategoryManagementDialog(
+                viewModel = viewModel,
+                initialTab = 1,
+                onDismiss = { showCategoryDialog = false }
+            )
         }
     }
 

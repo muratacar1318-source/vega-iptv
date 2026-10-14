@@ -50,6 +50,7 @@ import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.CategoryManagementDialog
 import com.tivimax.player.ui.components.GlobalSearchOptionsCard
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
@@ -199,78 +200,12 @@ fun LiveTvScreen(viewModel: MainViewModel) {
             )
         }
 
-        // --- KATEGORİ YÖNETİMİ DİYALOGU ---
+        // --- KATEGORİ YÖNETİMİ DİYALOGU (GİZLEME, SABİTLEME VE TOPLU İŞLEMLER) ---
         if (showCategoryManagerDialog) {
-            var catSearch by remember { mutableStateOf("") }
-            val filteredAllCats = remember(allCategories, catSearch) {
-                if (catSearch.isBlank()) allCategories.filter { it.categoryId != "all" }
-                else allCategories.filter { it.categoryId != "all" && it.categoryName.lowercase().contains(catSearch.lowercase()) }
-            }
-
-            AlertDialog(
-                onDismissRequest = { showCategoryManagerDialog = false },
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Tune, contentDescription = null, tint = OpusCyan)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Kategori Yönetimi", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    }
-                },
-                text = {
-                    Column(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
-                        Text(
-                            "İzlemediğiniz yabancı veya gereksiz kategorileri gizleyerek listenizi sadeleştirin.",
-                            color = TiviTextSecondary,
-                            fontSize = 12.sp
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        OutlinedTextField(
-                            value = catSearch,
-                            onValueChange = { catSearch = it },
-                            placeholder = { Text("Kategori ara...", fontSize = 12.sp) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = OpusCyan,
-                                unfocusedBorderColor = TiviCardBorder
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        LazyColumn(modifier = Modifier.weight(1f)) {
-                            items(filteredAllCats, key = { it.categoryId }) { cat ->
-                                val isHidden = hiddenCategories.contains(cat.categoryId)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { viewModel.toggleCategoryHidden(cat.categoryId) }
-                                        .padding(vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = cat.categoryName,
-                                        color = if (isHidden) TiviTextSecondary.copy(alpha = 0.5f) else Color.White,
-                                        fontSize = 13.sp,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Icon(
-                                        imageVector = if (isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (isHidden) "Gizli" else "Görünür",
-                                        tint = if (isHidden) Color(0xFFEF5350) else OpusCyan,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.3f), thickness = 0.5.dp)
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showCategoryManagerDialog = false }) {
-                        Text("Tamam", color = OpusCyan, fontWeight = FontWeight.Bold)
-                    }
-                },
-                containerColor = TiviSurface
+            CategoryManagementDialog(
+                viewModel = viewModel,
+                initialTab = 0,
+                onDismiss = { showCategoryManagerDialog = false }
             )
         }
 

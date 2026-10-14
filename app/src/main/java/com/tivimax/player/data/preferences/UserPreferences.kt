@@ -47,9 +47,13 @@ class UserPreferences(private val context: Context) {
         // İzleme Geçmişi ve Kaldığı Yer (JSON String)
         val KEY_WATCH_PROGRESS = stringPreferencesKey("watch_progress_json")
 
-        // Ebeveyn Kilidi
+        // Ebeveyn Kilidi & Gizlenen Kategoriler
         val KEY_PARENTAL_PIN = stringPreferencesKey("parental_pin")
         val KEY_LOCKED_CATEGORIES = stringSetPreferencesKey("locked_categories")
+        val KEY_PINNED_CATEGORIES = stringSetPreferencesKey("pinned_categories")
+
+        // Son İzlenen Canlı Kanallar (Son 20 Kanal - JSON StreamId Listesi)
+        val KEY_RECENT_LIVE_CHANNELS = stringPreferencesKey("recent_live_channels_json")
 
         // Oynatıcı Tercihleri
         val KEY_ASPECT_RATIO = stringPreferencesKey("aspect_ratio") // "FIT", "FILL", "ZOOM", "16:9"
@@ -294,6 +298,50 @@ class UserPreferences(private val context: Context) {
     }
 
     val lockedCategoriesFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_LOCKED_CATEGORIES] ?: emptySet() }
+    val pinnedCategoriesFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_PINNED_CATEGORIES] ?: emptySet() }
+    val recentLiveChannelsFlow: Flow<String> = context.dataStore.data.map { it[KEY_RECENT_LIVE_CHANNELS] ?: "[]" }
+
+    suspend fun saveRecentLiveChannels(streamIds: List<Int>) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_RECENT_LIVE_CHANNELS] = gson.toJson(streamIds)
+        }
+    }
+
+    suspend fun toggleCategoryPinned(categoryId: String) {
+        context.dataStore.edit { prefs ->
+            val current = (prefs[KEY_PINNED_CATEGORIES] ?: emptySet()).toMutableSet()
+            if (current.contains(categoryId)) {
+                current.remove(categoryId)
+            } else {
+                current.add(categoryId)
+            }
+            prefs[KEY_PINNED_CATEGORIES] = current
+        }
+    }
+
+    suspend fun setCategoryHidden(categoryId: String, isHidden: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = (prefs[KEY_LOCKED_CATEGORIES] ?: emptySet()).toMutableSet()
+            if (isHidden) {
+                current.add(categoryId)
+            } else {
+                current.remove(categoryId)
+            }
+            prefs[KEY_LOCKED_CATEGORIES] = current
+        }
+    }
+
+    suspend fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = (prefs[KEY_LOCKED_CATEGORIES] ?: emptySet()).toMutableSet()
+            if (isHidden) {
+                current.addAll(categoryIds)
+            } else {
+                current.removeAll(categoryIds.toSet())
+            }
+            prefs[KEY_LOCKED_CATEGORIES] = current
+        }
+    }
 
     val subtitleSizeFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_SIZE] ?: "ORTA" }
     val subtitleColorFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_COLOR] ?: "BEYAZ" }

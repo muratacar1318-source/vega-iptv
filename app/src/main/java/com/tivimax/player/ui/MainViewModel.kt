@@ -13,9 +13,12 @@ import com.tivimax.player.player.TiviPlayerManager
 import com.tivimax.player.ui.main.HomeTab
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -166,8 +169,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Kategori Yönetimi & Ebeveyn Kilidi
     val hiddenCategories = preferences.lockedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    val pinnedCategories = preferences.pinnedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val isParentalUnlocked = MutableStateFlow(false)
     val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "0000")
+
+    // Hızlı Kanal Numarasıyla Geçiş (Numeric Zapper)
+    val zapperNumber = MutableStateFlow("")
+    val isZapperActive = MutableStateFlow(false)
+    val zapperMatchedChannel = MutableStateFlow<LiveStream?>(null)
+    private var zapperJob: Job? = null
 
     fun isAdultCategory(name: String): Boolean {
         val clean = name.lowercase()
@@ -176,31 +186,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 clean.contains("porn")
     }
 
-    val visibleLiveCategories: StateFlow<List<LiveCategory>> = combine(liveCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
+    val visibleLiveCategories: StateFlow<List<LiveCategory>> = combine(liveCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
         cats.filter { cat ->
             if (cat.categoryId == "all") return@filter true
             if (hidden.contains(cat.categoryId)) return@filter false
             if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
             true
-        }
+        }.sortedWith(
+            compareByDescending<LiveCategory> { it.categoryId == "all" }
+                .thenByDescending { pinned.contains(it.categoryId) }
+                .thenBy { it.categoryName }
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val visibleVodCategories: StateFlow<List<VodCategory>> = combine(vodCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
+    val visibleVodCategories: StateFlow<List<VodCategory>> = combine(vodCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
         cats.filter { cat ->
             if (cat.categoryId == "all") return@filter true
             if (hidden.contains(cat.categoryId)) return@filter false
             if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
             true
-        }
+        }.sortedWith(
+            compareByDescending<VodCategory> { it.categoryId == "all" }
+                .thenByDescending { pinned.contains(it.categoryId) }
+                .thenBy { it.categoryName }
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val visibleSeriesCategories: StateFlow<List<SeriesCategory>> = combine(seriesCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
+    val visibleSeriesCategories: StateFlow<List<SeriesCategory>> = combine(seriesCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
         cats.filter { cat ->
             if (cat.categoryId == "all") return@filter true
             if (hidden.contains(cat.categoryId)) return@filter false
             if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
             true
-        }
+        }.sortedWith(
+            compareByDescending<SeriesCategory> { it.categoryId == "all" }
+                .thenByDescending { pinned.contains(it.categoryId) }
+                .thenBy { it.categoryName }
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Hız Testi Durumu
@@ -409,6 +431,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } else {
                 _currentScreen.value = Screen.Login
+            }
+        }
+
+        // Kaydedilmiş son izlenen canlı kanalları geri yükle (Son 20 Kanal)
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val json = preferences.recentLiveChannelsFlow.first()
+                val type = object : TypeToken<List<Int>>() {}.type
+                val ids: List<Int> = Gson().fromJson(json, type) ?: emptyList()
+                if (ids.isNotEmpty()) {
+                    val list = mutableListOf<LiveStream>()
+                    for (id in ids) {
+                        repository.database?.liveDao()?.getStreamById(id)?.let {
+                            list.add(it.toModel())
+                        }
+                    }
+                    if (list.isNotEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            recentChannels.value = list
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore parsing errors
             }
         }
     }
@@ -923,12 +969,72 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun recordRecentChannel(channel: LiveStream) {
         val current = recentChannels.value.filter { it.streamId != channel.streamId }.toMutableList()
         current.add(0, channel)
-        if (current.size > 10) current.removeAt(current.size - 1)
+        if (current.size > 20) current.removeAt(current.size - 1)
         recentChannels.value = current
+        viewModelScope.launch(Dispatchers.IO) {
+            preferences.saveRecentLiveChannels(current.map { it.streamId })
+        }
     }
 
     fun clearRecentChannels() {
         recentChannels.value = emptyList()
+        viewModelScope.launch(Dispatchers.IO) {
+            preferences.saveRecentLiveChannels(emptyList())
+        }
+    }
+
+    fun toggleCategoryHidden(categoryId: String, isHidden: Boolean) {
+        viewModelScope.launch {
+            preferences.setCategoryHidden(categoryId, isHidden)
+        }
+    }
+
+    fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) {
+        viewModelScope.launch {
+            preferences.setAllCategoriesHidden(categoryIds, isHidden)
+        }
+    }
+
+    fun toggleCategoryPinned(categoryId: String) {
+        viewModelScope.launch {
+            preferences.toggleCategoryPinned(categoryId)
+        }
+    }
+
+    fun onNumericKeyPressed(digit: Int) {
+        val current = zapperNumber.value
+        val newNumber = if (current.length >= 4) digit.toString() else current + digit.toString()
+        zapperNumber.value = newNumber
+        isZapperActive.value = true
+
+        val targetNum = newNumber.toIntOrNull() ?: return
+        val list = liveStreams.value
+        val matched = list.firstOrNull { it.num == targetNum }
+            ?: list.firstOrNull { it.streamId == targetNum }
+            ?: list.getOrNull(targetNum - 1)
+        zapperMatchedChannel.value = matched
+
+        zapperJob?.cancel()
+        zapperJob = viewModelScope.launch {
+            delay(1500L)
+            executeZapperSwitch()
+        }
+    }
+
+    fun executeZapperSwitch() {
+        zapperJob?.cancel()
+        val matched = zapperMatchedChannel.value
+        if (matched != null) {
+            playLiveChannel(matched)
+        }
+        dismissZapper()
+    }
+
+    fun dismissZapper() {
+        zapperJob?.cancel()
+        zapperNumber.value = ""
+        isZapperActive.value = false
+        zapperMatchedChannel.value = null
     }
 
     fun previewChannel(channel: LiveStream) {

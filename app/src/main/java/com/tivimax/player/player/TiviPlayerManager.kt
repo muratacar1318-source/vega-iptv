@@ -51,7 +51,11 @@ data class StreamDiagnostics(
     val videoCodec: String = "H.264 (AVC)",
     val audioCodec: String = "AAC Stereo",
     val bitrate: String = "4.5 Mbps",
-    val bufferHealthSecs: String = "6.4s"
+    val bufferHealthSecs: String = "6.4s",
+    val resolutionBadge: String = "FHD 1080p",
+    val frameRateBadge: String = "50 FPS",
+    val videoCodecBadge: String = "H.264",
+    val audioCodecBadge: String = "AAC"
 )
 
 @OptIn(UnstableApi::class)
@@ -315,6 +319,7 @@ class TiviPlayerManager(private val context: Context) {
                         _isBuffering.value = false
                         _duration.value = if (isLiveStream) 0L else player.duration.coerceAtLeast(0L)
                         _errorMessage.value = null
+                        updateDiagnostics()
                     }
                     Player.STATE_ENDED -> {
                         if (isLiveStream) {
@@ -338,6 +343,14 @@ class TiviPlayerManager(private val context: Context) {
                         _isBuffering.value = false
                     }
                 }
+            }
+
+            override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                updateDiagnostics()
+            }
+
+            override fun onRenderedFirstFrame() {
+                updateDiagnostics()
             }
 
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -395,6 +408,7 @@ class TiviPlayerManager(private val context: Context) {
 
             override fun onTracksChanged(tracks: Tracks) {
                 extractTracks(tracks)
+                updateDiagnostics()
             }
         })
 
@@ -763,20 +777,55 @@ class TiviPlayerManager(private val context: Context) {
         val vf = player.videoFormat
         val af = player.audioFormat
 
-        val res = if (vf != null && vf.width > 0) "${vf.width}x${vf.height}" else "1080p (FHD)"
-        val fps = if (vf != null && vf.frameRate > 0) "${vf.frameRate.toInt()} fps" else "50 fps"
-        val vCodec = vf?.sampleMimeType?.substringAfterLast('/')?.uppercase() ?: "H.264 (AVC)"
-        val aCodec = af?.sampleMimeType?.substringAfterLast('/')?.uppercase() ?: "AAC Stereo"
+        val width = vf?.width ?: 0
+        val height = vf?.height ?: 0
+
+        val resBadge = when {
+            height >= 2160 || width >= 3840 -> "4K UHD"
+            height >= 1080 || width >= 1920 -> "FHD 1080p"
+            height >= 720 || width >= 1280 -> "HD 720p"
+            height > 0 -> "SD"
+            else -> "FHD 1080p"
+        }
+
+        val resText = if (width > 0 && height > 0) "${width}x${height} ($resBadge)" else resBadge
+
+        val fpsVal = vf?.frameRate ?: 0f
+        val fpsBadge = if (fpsVal > 0f) "${fpsVal.toInt()} FPS" else "50 FPS"
+
+        val vMime = (vf?.sampleMimeType ?: "").lowercase()
+        val vCodecBadge = when {
+            vMime.contains("hevc") || vMime.contains("h265") -> "HEVC"
+            vMime.contains("avc") || vMime.contains("h264") -> "H.264"
+            vMime.contains("vp9") -> "VP9"
+            vMime.contains("av01") || vMime.contains("av1") -> "AV1"
+            else -> "H.264"
+        }
+
+        val aMime = (af?.sampleMimeType ?: "").lowercase()
+        val aCodecBadge = when {
+            aMime.contains("ac-3") || aMime.contains("ac3") -> "Dolby AC3"
+            aMime.contains("eac3") || aMime.contains("e-ac-3") -> "Dolby E-AC3"
+            aMime.contains("dts") -> "DTS"
+            aMime.contains("mp4a") || aMime.contains("aac") -> "AAC"
+            aMime.contains("opus") -> "Opus"
+            else -> "AAC"
+        }
+
         val bitrate = if (vf != null && vf.bitrate > 0) String.format(java.util.Locale.US, "%.1f Mbps", vf.bitrate / 1_000_000f) else "4.8 Mbps"
         val bufferSecs = String.format(java.util.Locale.US, "%.1fs", (player.totalBufferedDuration / 1000f).coerceAtLeast(0f))
 
         _streamDiagnostics.value = StreamDiagnostics(
-            resolution = res,
-            frameRate = fps,
-            videoCodec = vCodec,
-            audioCodec = aCodec,
+            resolution = resText,
+            frameRate = fpsBadge,
+            videoCodec = vCodecBadge,
+            audioCodec = aCodecBadge,
             bitrate = bitrate,
-            bufferHealthSecs = bufferSecs
+            bufferHealthSecs = bufferSecs,
+            resolutionBadge = resBadge,
+            frameRateBadge = fpsBadge,
+            videoCodecBadge = vCodecBadge,
+            audioCodecBadge = aCodecBadge
         )
     }
 

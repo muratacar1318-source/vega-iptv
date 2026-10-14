@@ -53,6 +53,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import androidx.compose.foundation.BorderStroke
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.TrackInfo
@@ -60,6 +61,12 @@ import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.CategoryManagementDialog
+import com.tivimax.player.ui.player.components.NumericKeypadDialog
+import com.tivimax.player.ui.player.components.TiviBottomInfoCard
+import com.tivimax.player.ui.player.components.TiviNumericZapperBox
+import com.tivimax.player.ui.player.components.TiviOverlayGuide
+import com.tivimax.player.ui.player.components.TiviRecentChannelsBar
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -108,6 +115,16 @@ fun PlayerScreen(
     var showDiagnosticsHUD by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showAudioBrightnessHUD by remember { mutableStateOf(false) }
+    var showOverlayGuide by remember { mutableStateOf(false) }
+    var showRecentChannelsBar by remember { mutableStateOf(false) }
+    var showNumericKeypad by remember { mutableStateOf(false) }
+    var showCategoryManagementDialog by remember { mutableStateOf(false) }
+    var showBottomInfoCard by remember { mutableStateOf(true) }
+
+    val isZapperActive by viewModel.isZapperActive.collectAsState()
+    val zapperNumber by viewModel.zapperNumber.collectAsState()
+    val zapperMatchedChannel by viewModel.zapperMatchedChannel.collectAsState()
+    val recentLiveChannels by viewModel.recentChannels.collectAsState()
 
     // Dokunmatik Hareket Geri Bildirimleri (Parlaklık & Ses)
     var brightnessFeedback by remember { mutableStateOf<Int?>(null) }
@@ -149,10 +166,30 @@ fun PlayerScreen(
     var scrubPosition by remember { mutableFloatStateOf(0f) }
 
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val isUserInteracting = isScrubbing || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showDiagnosticsHUD || showAudioBrightnessHUD || (dragStartOffset != null)
+    val isUserInteracting = isScrubbing || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showDiagnosticsHUD || showAudioBrightnessHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || (dragStartOffset != null)
 
     val registerInteraction: () -> Unit = remember {
         { lastInteractionTime = System.currentTimeMillis() }
+    }
+
+    // TiviMate İmzası: Kanal değiştiğinde alt bilgi paneli 5 saniye görünür ve otomatik kaybolur
+    LaunchedEffect(streamId) {
+        if (isLive) {
+            showBottomInfoCard = true
+            delay(5000L)
+            if (!isUserInteracting) {
+                showBottomInfoCard = false
+            }
+        }
+    }
+
+    LaunchedEffect(showBottomInfoCard, isPlaying, lastInteractionTime, isUserInteracting) {
+        if (showBottomInfoCard && isLive && isPlaying && !isUserInteracting && !showControls) {
+            delay(5000L)
+            if (!isUserInteracting && !showControls) {
+                showBottomInfoCard = false
+            }
+        }
     }
 
     // Akıllı HUD Zamanlayıcısı (5000ms - Kullanıcı işlem yaparken ASLA kapanmaz)
@@ -286,7 +323,17 @@ fun PlayerScreen(
 
     // Geri Tuşu Davranışı
     BackHandler {
-        if (showDualViewPicker) {
+        if (showOverlayGuide) {
+            showOverlayGuide = false
+        } else if (showRecentChannelsBar) {
+            showRecentChannelsBar = false
+        } else if (showNumericKeypad) {
+            showNumericKeypad = false
+        } else if (showCategoryManagementDialog) {
+            showCategoryManagementDialog = false
+        } else if (isZapperActive) {
+            viewModel.dismissZapper()
+        } else if (showDualViewPicker) {
             showDualViewPicker = false
         } else if (showChannelDrawer) {
             showChannelDrawer = false
@@ -312,8 +359,17 @@ fun PlayerScreen(
                         if (isControlsLocked) {
                             showControls = !showControls
                         } else {
-                            showControls = !showControls
-                            showChannelDrawer = false
+                            if (showOverlayGuide) {
+                                showOverlayGuide = false
+                            } else if (showRecentChannelsBar) {
+                                showRecentChannelsBar = false
+                            } else {
+                                showControls = !showControls
+                                showChannelDrawer = false
+                                if (isLive) {
+                                    showBottomInfoCard = true
+                                }
+                            }
                         }
                     },
                     onDoubleTap = { offset ->
@@ -914,16 +970,19 @@ fun PlayerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(if (isPortrait) 2.dp else 4.dp)
                     ) {
-                        // Canlı yayında Hızlı Kanal Değiştirici & Çift Ekran Butonları (Yatayda gösterilir, dikeyde alt barda bulunur)
+                        // Canlı yayında TiviMate Rehber Katmanı & Çift Ekran Butonları (Yatayda gösterilir)
                         if (isLive && !isPortrait) {
                             IconButton(
-                                onClick = { showChannelDrawer = !showChannelDrawer },
+                                onClick = {
+                                    showOverlayGuide = !showOverlayGuide
+                                    showChannelDrawer = false
+                                },
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.FormatListBulleted,
-                                    contentDescription = "Kanal Listesi",
-                                    tint = if (showChannelDrawer) TiviPrimary else Color.White,
+                                    contentDescription = "Rehber / Kanal Listesi",
+                                    tint = if (showOverlayGuide) OpusCyan else Color.White,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -1184,345 +1243,218 @@ fun PlayerScreen(
                             )
                     ) {
                         if (isLive) {
-                            // TIVIMATE TARZI CANLI TV BİLGİ KARTI (OSD)
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = TiviOverlayDark),
-                                shape = RoundedCornerShape(if (isPortrait) 12.dp else 16.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(
-                                        horizontal = if (isPortrait) 10.dp else 14.dp,
-                                        vertical = if (isPortrait) 8.dp else 12.dp
-                                    )
-                                ) {
-                                    // 1. Üst Satır: Kanal Logosu, Adı, Çözünürlük ve CANLIYA GEÇ Butonu
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        // Sol: Kanal Logosu ve Bilgileri
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .padding(end = 8.dp)
-                                        ) {
-                                            val currentChannel = viewModel.liveStreams.collectAsState().value.find { it.streamId == streamId }
-                                            if (!currentChannel?.streamIcon.isNullOrEmpty()) {
-                                                AsyncImage(
-                                                    model = currentChannel?.streamIcon,
-                                                    contentDescription = null,
-                                                    contentScale = ContentScale.Fit,
-                                                    modifier = Modifier
-                                                        .size(if (isPortrait) 34.dp else 44.dp)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(TiviCard)
-                                                        .border(0.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                                )
-                                                Spacer(modifier = Modifier.width(if (isPortrait) 8.dp else 10.dp))
-                                            }
-                                            Column {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Text(
-                                                        text = title,
-                                                        color = Color.White,
-                                                        fontSize = if (isPortrait) 14.sp else 16.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(4.dp))
-                                                            .background(TiviPrimary.copy(alpha = 0.2f))
-                                                            .padding(
-                                                                horizontal = if (isPortrait) 5.dp else 6.dp,
-                                                                vertical = 1.dp
-                                                            )
-                                                    ) {
-                                                        Text(
-                                                            text = streamDiagnostics.resolution.ifEmpty { "1080p FHD" },
-                                                            color = TiviPrimary,
-                                                            fontSize = if (isPortrait) 9.sp else 11.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                }
-                                                val currentProgram = epgList.firstOrNull()
-                                                if (currentProgram != null && currentProgram.getDecodedTitle().isNotBlank()) {
-                                                    Text(
-                                                        text = "Şu An: ${currentProgram.getDecodedTitle()}",
-                                                        color = TiviGold,
-                                                        fontSize = if (isPortrait) 11.sp else 12.sp,
-                                                        fontWeight = FontWeight.Medium,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                } else {
-                                                    Text(
-                                                        text = "Canlı Yayın Akışı",
-                                                        color = TiviTextSecondary,
-                                                        fontSize = if (isPortrait) 11.sp else 12.sp
-                                                    )
-                                                }
-                                            }
-                                        }
+                            val currentChannel = allLiveStreams.find { it.streamId == streamId }
+                                ?: LiveStream(streamId = streamId, name = title, categoryId = categoryId)
 
-                                        // Sağ: CANLIYA GEÇ Butonu (Geniş, Işıltılı ve Anlık Tampon Göstergeli)
+                            // TIVIMATE 2: GERÇEK TEKNİK ROZETLİ ALT BİLGİ PANELİ (BOTTOM INFO OSD)
+                            TiviBottomInfoCard(
+                                visible = (showControls || showBottomInfoCard) && !showOverlayGuide,
+                                channel = currentChannel,
+                                epg = epgList.firstOrNull(),
+                                isFavorite = isFavorite,
+                                diagnostics = streamDiagnostics,
+                                onToggleFavorite = { viewModel.toggleFavoriteLive(streamId.toString()) }
+                            )
+
+                            // TIVIMATE AKSIYON ÇUBUĞU (KULLANICI DOKUNDUĞUNDA GÖZÜKÜR)
+                            if (showControls && !showOverlayGuide) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // 1. Rehber (TiviMate Overlay Guide)
+                                    Surface(
+                                        onClick = {
+                                            showOverlayGuide = true
+                                            showControls = false
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = OpusCyan.copy(alpha = 0.2f),
+                                        border = BorderStroke(1.dp, OpusCyan),
+                                        modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.FormatListBulleted, contentDescription = "Rehber", tint = OpusCyan, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Rehber", color = OpusCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    // 2. Son İzlenen Kanallar Şeridi
+                                    Surface(
+                                        onClick = { showRecentChannelsBar = !showRecentChannelsBar },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (showRecentChannelsBar) OpusCyan.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
+                                        border = BorderStroke(1.dp, if (showRecentChannelsBar) OpusCyan else Color.White.copy(alpha = 0.18f)),
+                                        modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.History, contentDescription = "Son Kanallar", tint = if (showRecentChannelsBar) OpusCyan else Color.White, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Son Kanallar", color = if (showRecentChannelsBar) OpusCyan else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
+
+                                    // 3. Önceki Kanal (Recall)
+                                    if (lastPlayedLiveChannel != null && lastPlayedLiveChannel?.streamId != streamId) {
                                         Surface(
                                             onClick = {
-                                                val synced = viewModel.syncToLive()
-                                                if (synced) {
-                                                    seekRipple = "🔴 Canlıya Geçildi (Tampon: 2-3s)"
-                                                }
+                                                val prev = viewModel.zapRecall()
+                                                if (prev != null) seekRipple = "↩ ${prev.name}"
                                             },
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = TiviAccentLive.copy(alpha = 0.2f),
-                                            border = androidx.compose.foundation.BorderStroke(1.2.dp, TiviAccentLive)
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = TiviGold.copy(alpha = 0.2f),
+                                            border = BorderStroke(1.dp, TiviGold),
+                                            modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
                                         ) {
                                             Row(
-                                                modifier = Modifier.padding(
-                                                    horizontal = if (isPortrait) 9.dp else 12.dp,
-                                                    vertical = if (isPortrait) 5.dp else 7.dp
-                                                ),
+                                                modifier = Modifier.padding(horizontal = 10.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(if (isPortrait) 7.dp else 8.dp)
-                                                        .clip(CircleShape)
-                                                        .background(TiviAccentLive)
-                                                )
-                                                Spacer(modifier = Modifier.width(5.dp))
-                                                Column(horizontalAlignment = Alignment.Start) {
-                                                    Text(
-                                                        text = "CANLIYA GEÇ",
-                                                        color = Color.White,
-                                                        fontSize = if (isPortrait) 10.sp else 12.sp,
-                                                        fontWeight = FontWeight.Bold
-                                                    )
-                                                    Text(
-                                                        text = "Tampon: ${streamDiagnostics.bufferHealthSecs}",
-                                                        color = TiviAccentLive,
-                                                        fontSize = if (isPortrait) 8.sp else 9.sp,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                }
+                                                Icon(Icons.Default.History, contentDescription = "Önceki Kanal", tint = TiviGold, modifier = Modifier.size(15.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("↩ ${lastPlayedLiveChannel?.name ?: "Önceki"}", color = TiviGold, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                             }
                                         }
                                     }
 
-                                    // EPG Sonraki Program (Yatay modda gösterilir)
-                                    if (!isPortrait) {
-                                        val nextProgram = epgList.getOrNull(1)
-                                        if (nextProgram != null && nextProgram.getDecodedTitle().isNotBlank()) {
-                                            Spacer(modifier = Modifier.height(4.dp))
+                                    // 4. Numaratör (123 Keypad)
+                                    Surface(
+                                        onClick = { showNumericKeypad = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color.White.copy(alpha = 0.08f),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                                        modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Dialpad, contentDescription = "Numaratör", tint = Color.White, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("123", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    // 5. Kategorileri Düzenle (Pin & Hide)
+                                    Surface(
+                                        onClick = { showCategoryManagementDialog = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color.White.copy(alpha = 0.08f),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                                        modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.Tune, contentDescription = "Kategorileri Düzenle", tint = Color.White, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Kategoriler", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
+
+                                    // 6. Çift Ekran (Dual View)
+                                    Surface(
+                                        onClick = { showDualViewPicker = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isDualViewActive) TiviPrimary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
+                                        border = BorderStroke(1.dp, if (isDualViewActive) TiviPrimary else Color.White.copy(alpha = 0.18f)),
+                                        modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.GridView, contentDescription = "Çift Ekran", tint = if (isDualViewActive) TiviPrimary else Color.White, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(if (isDualViewActive) "Çift Ekran Açık" else "Çift Ekran", color = if (isDualViewActive) TiviPrimary else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                                        }
+                                    }
+
+                                    // 7. Ekran Oranı (Fit, Fill, Zoom, 16:9)
+                                    Surface(
+                                        onClick = {
+                                            val newMode = playerManager.cycleAspectRatio()
+                                            seekRipple = when (newMode) {
+                                                AspectRatioMode.FIT -> "Orijinal Oran"
+                                                AspectRatioMode.FILL -> "Ekranı Doldur"
+                                                AspectRatioMode.ZOOM -> "Yakınlaştır"
+                                                AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color.White.copy(alpha = 0.08f),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                                        modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Default.AspectRatio, contentDescription = "Oran", tint = TiviPrimary, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                text = "Sonraki: ${nextProgram.getDecodedTitle()} (${nextProgram.start ?: ""})",
-                                                color = TiviTextSecondary,
+                                                text = when (aspectRatio) {
+                                                    AspectRatioMode.FIT -> "Fit"
+                                                    AspectRatioMode.FILL -> "Doldur"
+                                                    AspectRatioMode.ZOOM -> "Zoom"
+                                                    AspectRatioMode.RATIO_16_9 -> "16:9"
+                                                },
+                                                color = Color.White,
                                                 fontSize = 11.sp,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                                fontWeight = FontWeight.Medium
                                             )
                                         }
                                     }
 
-                                    Spacer(modifier = Modifier.height(if (isPortrait) 6.dp else 8.dp))
-
-                                    // 2. Alt Satır: Birbirine Eşit, Düzenli Aksiyon Butonları (Pill/Chip)
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .then(if (isPortrait) Modifier.horizontalScroll(rememberScrollState()) else Modifier),
-                                        horizontalArrangement = if (isPortrait) Arrangement.spacedBy(6.dp) else Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                    // 8. Ses ve Parlaklık (HUD)
+                                    Surface(
+                                        onClick = {
+                                            currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                                            currentBrightness = activity?.window?.attributes?.screenBrightness.let { if (it == null || it < 0f) 0.5f else it }
+                                            showAudioBrightnessHUD = !showAudioBrightnessHUD
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (showAudioBrightnessHUD) TiviPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
+                                        border = BorderStroke(1.dp, if (showAudioBrightnessHUD) TiviPrimary else Color.White.copy(alpha = 0.18f)),
+                                        modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
                                     ) {
-                                        // 1. Favori Butonu
-                                        Surface(
-                                            onClick = { viewModel.toggleFavoriteLive(streamId.toString()) },
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = if (isFavorite) TiviGold.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isFavorite) TiviGold else Color.White.copy(alpha = 0.18f)),
-                                            modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = if (isPortrait) 7.dp else 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                                    contentDescription = "Favori",
-                                                    tint = if (isFavorite) TiviGold else Color.White,
-                                                    modifier = Modifier.size(if (isPortrait) 14.dp else 16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = if (isFavorite) "Favori" else "Favoriye Ekle",
-                                                    color = if (isFavorite) TiviGold else Color.White,
-                                                    fontSize = if (isPortrait) 10.sp else 11.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
+                                            Icon(Icons.Default.Tune, contentDescription = "Ses ve Parlaklık", tint = if (showAudioBrightnessHUD) TiviPrimary else Color.White, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Ses/Işık", color = if (showAudioBrightnessHUD) TiviPrimary else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                                         }
+                                    }
 
-                                        // 2. Kanal Listesi Çekmecesi
-                                        Surface(
-                                            onClick = { showChannelDrawer = true },
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = Color.White.copy(alpha = 0.08f),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
-                                            modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
+                                    // 9. Ses ve Altyazı Dili
+                                    Surface(
+                                        onClick = { showTrackSheet = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color.White.copy(alpha = 0.08f),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                                        modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = if (isPortrait) 7.dp else 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.FormatListBulleted,
-                                                    contentDescription = "Kanal Listesi",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(if (isPortrait) 14.dp else 16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = "Kanallar",
-                                                    color = Color.White,
-                                                    fontSize = if (isPortrait) 10.sp else 11.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
-                                        }
-
-                                        // 3. Çift Ekran (Dual View)
-                                        Surface(
-                                            onClick = { showDualViewPicker = true },
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = if (isDualViewActive) TiviPrimary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDualViewActive) TiviPrimary else Color.White.copy(alpha = 0.18f)),
-                                            modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = if (isPortrait) 7.dp else 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.GridView,
-                                                    contentDescription = "Çift Ekran",
-                                                    tint = if (isDualViewActive) TiviPrimary else Color.White,
-                                                    modifier = Modifier.size(if (isPortrait) 14.dp else 16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = if (isDualViewActive) "Çift Ekran Açık" else "Çift Ekran",
-                                                    color = if (isDualViewActive) TiviPrimary else Color.White,
-                                                    fontSize = if (isPortrait) 10.sp else 11.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
-                                        }
-
-                                        // 4. Ekran Oranı (Fit, Fill, Zoom, 16:9)
-                                        Surface(
-                                            onClick = {
-                                                val newMode = playerManager.cycleAspectRatio()
-                                                seekRipple = when (newMode) {
-                                                    AspectRatioMode.FIT -> "Orijinal Oran"
-                                                    AspectRatioMode.FILL -> "Ekranı Doldur"
-                                                    AspectRatioMode.ZOOM -> "Yakınlaştır"
-                                                    AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
-                                                }
-                                            },
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = Color.White.copy(alpha = 0.08f),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
-                                            modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = if (isPortrait) 7.dp else 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.AspectRatio,
-                                                    contentDescription = "Oran",
-                                                    tint = TiviPrimary,
-                                                    modifier = Modifier.size(if (isPortrait) 14.dp else 16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = when (aspectRatio) {
-                                                        AspectRatioMode.FIT -> "Fit"
-                                                        AspectRatioMode.FILL -> "Doldur"
-                                                        AspectRatioMode.ZOOM -> "Zoom"
-                                                        AspectRatioMode.RATIO_16_9 -> "16:9"
-                                                    },
-                                                    color = Color.White,
-                                                    fontSize = if (isPortrait) 10.sp else 11.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
-                                        }
-
-                                        // 5. Ses ve Parlaklık (HUD)
-                                        Surface(
-                                            onClick = {
-                                                currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                                currentBrightness = activity?.window?.attributes?.screenBrightness.let { if (it == null || it < 0f) 0.5f else it }
-                                                showAudioBrightnessHUD = !showAudioBrightnessHUD
-                                            },
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = if (showAudioBrightnessHUD) TiviPrimary.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, if (showAudioBrightnessHUD) TiviPrimary else Color.White.copy(alpha = 0.18f)),
-                                            modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = if (isPortrait) 7.dp else 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Tune,
-                                                    contentDescription = "Ses ve Parlaklık",
-                                                    tint = if (showAudioBrightnessHUD) TiviPrimary else Color.White,
-                                                    modifier = Modifier.size(if (isPortrait) 14.dp else 16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = "Ses/Işık",
-                                                    color = if (showAudioBrightnessHUD) TiviPrimary else Color.White,
-                                                    fontSize = if (isPortrait) 10.sp else 11.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
-                                        }
-
-                                        // 6. Ses ve Altyazı Dili
-                                        Surface(
-                                            onClick = { showTrackSheet = true },
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = Color.White.copy(alpha = 0.08f),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
-                                            modifier = Modifier.height(if (isPortrait) 30.dp else 34.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = if (isPortrait) 7.dp else 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Subtitles,
-                                                    contentDescription = "Ses ve Altyazı",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(if (isPortrait) 14.dp else 16.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = "Altyazı/Ses",
-                                                    color = Color.White,
-                                                    fontSize = if (isPortrait) 10.sp else 11.sp,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
+                                            Icon(Icons.Default.Subtitles, contentDescription = "Ses ve Altyazı", tint = Color.White, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Altyazı/Ses", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                                         }
                                     }
                                 }
@@ -2615,6 +2547,71 @@ fun PlayerScreen(
                     showDualViewPicker = false
                 },
                 onDismiss = { showDualViewPicker = false }
+            )
+        }
+
+        // TIVIMATE 1: YARI SAYDAM REHBER KATMANI (OVERLAY GUIDE)
+        if (isLive) {
+            TiviOverlayGuide(
+                visible = showOverlayGuide,
+                currentStreamId = streamId,
+                viewModel = viewModel,
+                onChannelSelected = { channel ->
+                    if (channel.streamId == streamId) {
+                        showOverlayGuide = false
+                    } else {
+                        viewModel.playLiveChannel(channel)
+                    }
+                },
+                onClose = { showOverlayGuide = false }
+            )
+        }
+
+        // TIVIMATE 3: ALTTAN AÇILAN SON İZLENEN KANALLAR ŞERİDİ
+        if (isLive) {
+            TiviRecentChannelsBar(
+                visible = showRecentChannelsBar && !showOverlayGuide,
+                recentChannels = recentLiveChannels,
+                currentStreamId = streamId,
+                onChannelSelected = { channel ->
+                    showRecentChannelsBar = false
+                    viewModel.playLiveChannel(channel)
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = if (showControls || showBottomInfoCard) 130.dp else 16.dp)
+            )
+        }
+
+        // TIVIMATE 5: NUMARATÖRLE ANINDA KANAL DEĞİŞTİRME (NUMERIC ZAPPER KUTUSU)
+        if (isLive) {
+            TiviNumericZapperBox(
+                visible = isZapperActive,
+                zapperNumber = zapperNumber,
+                matchedChannel = zapperMatchedChannel,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 16.dp, end = 16.dp)
+            )
+        }
+
+        // TIVIMATE 5: DOKUNMATİK NUMARATÖR DİYALOĞU (123 KEYPAD)
+        if (showNumericKeypad && isLive) {
+            NumericKeypadDialog(
+                onDigitClicked = { d -> viewModel.onNumericKeyPressed(d) },
+                onEnterClicked = { viewModel.executeZapperSwitch() },
+                onDismiss = { showNumericKeypad = false }
+            )
+        }
+
+        // TIVIMATE 4: GELİŞMİŞ KATEGORİ YÖNETİMİ DİYALOĞU
+        if (showCategoryManagementDialog) {
+            CategoryManagementDialog(
+                viewModel = viewModel,
+                initialTab = if (isLive) 0 else 1,
+                onDismiss = { showCategoryManagementDialog = false }
             )
         }
     }

@@ -64,4 +64,58 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (!::viewModel.isInitialized) return super.dispatchKeyEvent(event)
+
+        val isPlayerScreen = viewModel.currentScreen.value is Screen.Player
+
+        if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+            when (event.keyCode) {
+                android.view.KeyEvent.KEYCODE_0 -> { viewModel.onNumericKeyPressed(0); return true }
+                android.view.KeyEvent.KEYCODE_1 -> { viewModel.onNumericKeyPressed(1); return true }
+                android.view.KeyEvent.KEYCODE_2 -> { viewModel.onNumericKeyPressed(2); return true }
+                android.view.KeyEvent.KEYCODE_3 -> { viewModel.onNumericKeyPressed(3); return true }
+                android.view.KeyEvent.KEYCODE_4 -> { viewModel.onNumericKeyPressed(4); return true }
+                android.view.KeyEvent.KEYCODE_5 -> { viewModel.onNumericKeyPressed(5); return true }
+                android.view.KeyEvent.KEYCODE_6 -> { viewModel.onNumericKeyPressed(6); return true }
+                android.view.KeyEvent.KEYCODE_7 -> { viewModel.onNumericKeyPressed(7); return true }
+                android.view.KeyEvent.KEYCODE_8 -> { viewModel.onNumericKeyPressed(8); return true }
+                android.view.KeyEvent.KEYCODE_9 -> { viewModel.onNumericKeyPressed(9); return true }
+                android.view.KeyEvent.KEYCODE_ENTER,
+                android.view.KeyEvent.KEYCODE_DPAD_CENTER -> {
+                    if (viewModel.isZapperActive.value) {
+                        viewModel.executeZapperSwitch()
+                        return true
+                    }
+                    if (event.isLongPress && isPlayerScreen) {
+                        viewModel.zapRecall()
+                        return true
+                    }
+                }
+                android.view.KeyEvent.KEYCODE_CHANNEL_UP -> {
+                    if (isPlayerScreen) {
+                        val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
+                        viewModel.zapNextChannel(currentStreamId)
+                        return true
+                    }
+                }
+                android.view.KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                    if (isPlayerScreen) {
+                        val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
+                        viewModel.zapPreviousChannel(currentStreamId)
+                        return true
+                    }
+                }
+                android.view.KeyEvent.KEYCODE_LAST_CHANNEL,
+                android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                    if (isPlayerScreen) {
+                        viewModel.zapRecall()
+                        return true
+                    }
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
 }
