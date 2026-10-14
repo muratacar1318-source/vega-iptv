@@ -11,19 +11,22 @@ import com.tivimax.player.data.model.*
 data class LiveCategoryEntity(
     @PrimaryKey val categoryId: String,
     val categoryName: String,
-    val parentId: Int = 0
+    val parentId: Int = 0,
+    val itemCount: Int = 0
 ) {
     fun toModel(): LiveCategory = LiveCategory(
         categoryId = categoryId,
         categoryName = categoryName,
-        parentId = parentId
+        parentId = parentId,
+        itemCount = itemCount
     )
 }
 
 fun LiveCategory.toEntity(): LiveCategoryEntity = LiveCategoryEntity(
     categoryId = categoryId,
     categoryName = categoryName,
-    parentId = parentId
+    parentId = parentId,
+    itemCount = itemCount
 )
 
 @Entity(
@@ -82,19 +85,22 @@ fun LiveStream.toEntity(): LiveStreamEntity = LiveStreamEntity(
 data class VodCategoryEntity(
     @PrimaryKey val categoryId: String,
     val categoryName: String,
-    val parentId: Int = 0
+    val parentId: Int = 0,
+    val itemCount: Int = 0
 ) {
     fun toModel(): VodCategory = VodCategory(
         categoryId = categoryId,
         categoryName = categoryName,
-        parentId = parentId
+        parentId = parentId,
+        itemCount = itemCount
     )
 }
 
 fun VodCategory.toEntity(): VodCategoryEntity = VodCategoryEntity(
     categoryId = categoryId,
     categoryName = categoryName,
-    parentId = parentId
+    parentId = parentId,
+    itemCount = itemCount
 )
 
 @Entity(
@@ -150,19 +156,22 @@ fun VodStream.toEntity(): VodStreamEntity = VodStreamEntity(
 data class SeriesCategoryEntity(
     @PrimaryKey val categoryId: String,
     val categoryName: String,
-    val parentId: Int = 0
+    val parentId: Int = 0,
+    val itemCount: Int = 0
 ) {
     fun toModel(): SeriesCategory = SeriesCategory(
         categoryId = categoryId,
         categoryName = categoryName,
-        parentId = parentId
+        parentId = parentId,
+        itemCount = itemCount
     )
 }
 
 fun SeriesCategory.toEntity(): SeriesCategoryEntity = SeriesCategoryEntity(
     categoryId = categoryId,
     categoryName = categoryName,
-    parentId = parentId
+    parentId = parentId,
+    itemCount = itemCount
 )
 
 @Entity(

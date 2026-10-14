@@ -67,6 +67,7 @@ import java.util.*
 @OptIn(UnstableApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
+    streamUrl: String = "",
     title: String,
     isLive: Boolean,
     streamId: Int,
@@ -147,11 +148,28 @@ fun PlayerScreen(
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPosition by remember { mutableFloatStateOf(0f) }
 
-    // Otomatik Kontrol Gizleme Sayacı (Sürükleme yaparken arayüz ASLA kaybolmaz)
-    LaunchedEffect(showControls, isPlaying, isScrubbing, isControlsLocked) {
-        if (showControls && isPlaying && !isScrubbing) {
-            delay(if (isControlsLocked) 3000L else 4500L)
-            showControls = false
+    var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val isUserInteracting = isScrubbing || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showDiagnosticsHUD || showAudioBrightnessHUD || (dragStartOffset != null)
+
+    val registerInteraction: () -> Unit = remember {
+        { lastInteractionTime = System.currentTimeMillis() }
+    }
+
+    // Akıllı HUD Zamanlayıcısı (5000ms - Kullanıcı işlem yaparken ASLA kapanmaz)
+    LaunchedEffect(showControls, isPlaying, lastInteractionTime, isUserInteracting, isControlsLocked) {
+        if (showControls && isPlaying && !isUserInteracting) {
+            val timeout = if (isControlsLocked) 3000L else 5000L
+            while (true) {
+                val elapsed = System.currentTimeMillis() - lastInteractionTime
+                val remaining = timeout - elapsed
+                if (remaining <= 0) {
+                    if (!isUserInteracting) {
+                        showControls = false
+                    }
+                    break
+                }
+                delay(remaining.coerceAtLeast(100L))
+            }
         }
     }
 
@@ -175,20 +193,28 @@ fun PlayerScreen(
 
     val currentEpisode by viewModel.currentPlayingEpisode.collectAsState()
     val lastPlayedLiveChannel by viewModel.lastPlayedLiveChannel.collectAsState()
-    val nextEpisode = remember(currentEpisode, currentPosition) { viewModel.getNextEpisode() }
+    val nextEpisode = remember(currentEpisode) { viewModel.getNextEpisode() }
     var autoNextDismissed by remember(currentEpisode) { mutableStateOf(false) }
 
-    // Bölüm bittiğinde otomatik sonraki bölüme geçiş
-    LaunchedEffect(currentPosition, duration, isLive, currentEpisode) {
-        if (!isLive && currentEpisode != null && duration > 30_000L && currentPosition >= duration - 1500L && duration > 0L) {
-            viewModel.playNextEpisode()
+    // Bölüm bittiğinde otomatik sonraki bölüme geçiş (Recomposition döngüsünü önleyen periyodik kontrol)
+    LaunchedEffect(streamId, currentEpisode) {
+        if (!isLive && currentEpisode != null) {
+            while (true) {
+                delay(1000L)
+                val pos = playerManager.currentPosition.value
+                val dur = playerManager.duration.value
+                if (dur > 30_000L && pos >= dur - 1500L && dur > 0L) {
+                    viewModel.playNextEpisode()
+                    break
+                }
+            }
         }
     }
 
     var resumeNotification by remember { mutableStateOf<String?>(null) }
 
     // Kaldığı yerden başlama bildirimi
-    LaunchedEffect(Unit) {
+    LaunchedEffect(streamId) {
         if (!isLive) {
             delay(1000)
             val pos = playerManager.currentPosition.value
@@ -202,14 +228,14 @@ fun PlayerScreen(
         }
     }
 
-    // Periyodik İlerleme Otomatik Kaydı (Her 5 saniyede bir kaydeder)
-    LaunchedEffect(isPlaying, streamId, isLive) {
+    // Periyodik İlerleme Otomatik Kaydı (15 saniyede bir arka planda kaydeder - UI State bozmaz)
+    LaunchedEffect(streamId, isLive) {
         if (!isLive) {
             while (true) {
-                delay(5000)
+                delay(15000L)
                 val pos = playerManager.currentPosition.value
                 val dur = playerManager.duration.value
-                if (playerManager.isPlaying.value && pos > 0) {
+                if (playerManager.isPlaying.value && pos > 0L) {
                     viewModel.saveWatchProgress(streamId, pos, dur)
                 }
             }
@@ -219,7 +245,7 @@ fun PlayerScreen(
     // Ekrandan çıkıldığında veya arkaya atıldığında son konumu kaydet
     DisposableEffect(streamId) {
         onDispose {
-            if (!isLive && playerManager.currentPosition.value > 0) {
+            if (!isLive && playerManager.currentPosition.value > 0L) {
                 viewModel.saveWatchProgress(streamId, playerManager.currentPosition.value, playerManager.duration.value)
             }
         }
@@ -282,6 +308,7 @@ fun PlayerScreen(
             .pointerInput(isControlsLocked) {
                 detectTapGestures(
                     onTap = {
+                        registerInteraction()
                         if (isControlsLocked) {
                             showControls = !showControls
                         } else {
@@ -290,6 +317,7 @@ fun PlayerScreen(
                         }
                     },
                     onDoubleTap = { offset ->
+                        registerInteraction()
                         if (!isControlsLocked) {
                             if (!isLive) {
                                 if (offset.x < size.width * 0.35f) {
@@ -328,17 +356,21 @@ fun PlayerScreen(
                 if (!isControlsLocked) {
                     detectDragGestures(
                         onDragStart = { offset ->
+                            registerInteraction()
                             dragStartOffset = offset
                             currentBrightness = activity?.window?.attributes?.screenBrightness.let { if (it == null || it < 0f) 0.5f else it }
                             currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                         },
                         onDragEnd = {
+                            registerInteraction()
                             dragStartOffset = null
                         },
                         onDragCancel = {
+                            registerInteraction()
                             dragStartOffset = null
                         },
                         onDrag = { change, dragAmount ->
+                            registerInteraction()
                             change.consume()
                             val start = dragStartOffset ?: return@detectDragGestures
                             val isLeft = start.x < size.width * 0.45f

@@ -183,6 +183,22 @@ fun HomeScreen(viewModel: MainViewModel) {
                             )
                         }
 
+                        // İçerikleri Güncelle / Senkronizasyon Butonu
+                        IconButton(
+                            onClick = { viewModel.openPlaylistSync() },
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(TiviCard)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "İçerikleri Güncelle",
+                                tint = TiviPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
                         // Bağlantı Sayısı Mini Rozet
                         Text(
                             text = "$activeCons/$maxCons",
@@ -207,7 +223,8 @@ fun HomeScreen(viewModel: MainViewModel) {
                     activeCons = activeCons,
                     maxCons = maxCons,
                     showSettings = false, // Zaten rail üzerinde var
-                    onSettingsClick = {}
+                    onSettingsClick = {},
+                    onSyncClick = { viewModel.openPlaylistSync() }
                 )
 
                 // Tab İçeriği
@@ -230,7 +247,8 @@ fun HomeScreen(viewModel: MainViewModel) {
                         } else {
                             viewModel.setSelectedHomeTab(HomeTab.SETTINGS)
                         }
-                    }
+                    },
+                    onSyncClick = { viewModel.openPlaylistSync() }
                 )
             },
             bottomBar = {
@@ -305,7 +323,8 @@ private fun HomeTopBar(
     activeCons: String,
     maxCons: String,
     showSettings: Boolean,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onSyncClick: () -> Unit = {}
 ) {
     Surface(
         color = TiviSurface,
@@ -397,6 +416,21 @@ private fun HomeTopBar(
                             )
                         }
                     }
+                }
+
+                IconButton(
+                    onClick = onSyncClick,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(TiviCard)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "İçerikleri Güncelle",
+                        tint = TiviPrimary,
+                        modifier = Modifier.size(17.dp)
+                    )
                 }
 
                 if (showSettings) {

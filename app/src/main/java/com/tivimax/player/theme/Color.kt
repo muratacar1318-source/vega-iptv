@@ -14,6 +14,8 @@ val TiviSecondary = Color(0xFF6366F1)       // Standart İndigo Vurgu
 val TiviAccentLive = Color(0xFFFF2A55)      // Canlı Yayın Kırmızısı
 val TiviGold = Color(0xFFFFB300)            // IMDb/Puan Yıldızı
 val TiviGreen = Color(0xFF10B981)           // Aktif durum/yeşil
+val OpusCyan = Color(0xFF00E5FF)            // Opus IPTV Neon Camgöbeği
+val TiviCardDark = Color(0xFF121824)        // Koyu Kart Yüzeyi
 
 val TiviTextPrimary = Color(0xFFF8FAFC)
 val TiviTextSecondary = Color(0xFF94A3B8)

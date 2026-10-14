@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.settings
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -45,6 +46,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val vodBufferSeconds by viewModel.vodBufferSeconds.collectAsState()
     val liveBufferSeconds by viewModel.liveBufferSeconds.collectAsState()
     val decoderMode by viewModel.decoderMode.collectAsState()
+    val lastSync by viewModel.preferences.lastSyncTimestampFlow.collectAsState(initial = "")
     val context = LocalContext.current
 
     var showPinDialog by remember { mutableStateOf(false) }
@@ -141,6 +143,49 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     Text(
                         text = "${userInfo?.activeCons ?: "1"} / ${userInfo?.maxConnections ?: "1"} Cihaz",
                         color = TiviTextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                if (lastSync.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "Son Güncelleme:", color = TiviTextSecondary, fontSize = 13.sp)
+                        Text(
+                            text = lastSync,
+                            color = TiviTextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                // Oynatma Listesini Güncelle Butonu
+                Button(
+                    onClick = { viewModel.openPlaylistSync() },
+                    colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary.copy(alpha = 0.16f)),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = TiviPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "İçerikleri ve Kanalları Güncelle",
+                        color = TiviPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )

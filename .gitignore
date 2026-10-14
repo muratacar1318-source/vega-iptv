@@ -13,4 +13,5 @@ app/build
 *.apk
 *.aab
 .gemini/
+phone_screenshot.jpg
 

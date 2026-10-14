@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit
 sealed class Screen {
     object Splash : Screen()
     object Login : Screen()
+    object PlaylistSync : Screen()
     object Home : Screen()
     data class Player(
         val streamUrl: String,
@@ -35,6 +36,37 @@ sealed class Screen {
     data class VodDetail(val vodStream: VodStream) : Screen()
     data class SeriesDetail(val seriesStream: SeriesStream) : Screen()
 }
+
+enum class SyncStepStatus {
+    PENDING,
+    IN_PROGRESS,
+    COMPLETED,
+    FAILED
+}
+
+data class SyncStepInfo(
+    val stepNumber: Int,
+    val title: String,
+    val status: SyncStepStatus = SyncStepStatus.PENDING,
+    val detailText: String = "",
+    val progress: Float = 0f,
+    val errorMessage: String? = null
+)
+
+data class PlaylistSyncState(
+    val isSyncing: Boolean = false,
+    val currentStepIndex: Int = 1,
+    val steps: List<SyncStepInfo> = listOf(
+        SyncStepInfo(1, "Kategoriler alınıyor (Canlı TV, Film ve Dizi)..."),
+        SyncStepInfo(2, "Canlı TV kanalları kaydediliyor..."),
+        SyncStepInfo(3, "VOD (Film) arşivi kaydediliyor..."),
+        SyncStepInfo(4, "Diziler ve bölümler kaydediliyor..."),
+        SyncStepInfo(5, "Veritabanı optimize ediliyor ve kategoriler hazırlanıyor...")
+    ),
+    val isCompleted: Boolean = false,
+    val failedStepIndex: Int? = null,
+    val errorMessage: String? = null
+)
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -341,7 +373,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             if (loggedIn && user.isNotBlank() && pass.isNotBlank()) {
-                // Önceden giriş yapılmış: Kullanıcıyı asla Login ekranına yönlendirme, anında Ana Ekrana al
+                // Önceden giriş yapılmış: Bilgileri ata
                 userInfo.value = XtreamUserInfo(
                     username = user,
                     status = "Active",
@@ -352,8 +384,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 repository.updateCredentials(effectiveServer, user, pass)
                 _isLoggedIn.value = true
-                _currentScreen.value = Screen.Home
-                loadInitialData()
+
+                val isSynced = preferences.isPlaylistSyncedFlow.first()
+                if (isSynced) {
+                    _currentScreen.value = Screen.Home
+                    loadInitialData()
+                } else {
+                    _currentScreen.value = Screen.PlaylistSync
+                    startPlaylistSync(fromStep = 1)
+                }
 
                 // Arka planda sunucudan üyelik bilgilerini tazele (sessiz senkronizasyon)
                 val result = repository.authenticate(effectiveServer, user, pass)
@@ -407,9 +446,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         activeCons = authResp.userInfo?.activeCons ?: "1"
                     )
 
-                    _currentScreen.value = Screen.Home
-                    // İlk verileri paralel yükle
-                    loadInitialData()
+                    val isSynced = preferences.isPlaylistSyncedFlow.first()
+                    if (isSynced) {
+                        _currentScreen.value = Screen.Home
+                        loadInitialData()
+                    } else {
+                        _currentScreen.value = Screen.PlaylistSync
+                        startPlaylistSync(fromStep = 1)
+                    }
                 },
                 onFailure = { err ->
                     _loginLoading.value = false
@@ -444,7 +488,160 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun loadInitialData() {
+    // ============================================================================
+    // OYNATMA LİSTESİ CANLI SENKRONİZASYON (5 ADIMLI ÇEKİRDEK İŞLEM)
+    // ============================================================================
+
+    val playlistSyncState = MutableStateFlow(PlaylistSyncState())
+
+    fun openPlaylistSync() {
+        startPlaylistSync(fromStep = 1)
+        navigateTo(Screen.PlaylistSync, addToBackStack = true)
+    }
+
+    fun retryFailedSyncStep() {
+        val failed = playlistSyncState.value.failedStepIndex ?: 1
+        startPlaylistSync(fromStep = failed)
+    }
+
+    fun startPlaylistSync(fromStep: Int = 1) {
+        viewModelScope.launch {
+            val baseSteps = playlistSyncState.value.steps
+            val initialSteps = baseSteps.mapIndexed { index, step ->
+                val num = index + 1
+                when {
+                    num < fromStep -> step.copy(status = SyncStepStatus.COMPLETED)
+                    num == fromStep -> step.copy(status = SyncStepStatus.IN_PROGRESS, progress = -1f, errorMessage = null)
+                    else -> step.copy(status = SyncStepStatus.PENDING, detailText = "", progress = 0f, errorMessage = null)
+                }
+            }
+
+            playlistSyncState.value = PlaylistSyncState(
+                isSyncing = true,
+                currentStepIndex = fromStep,
+                steps = initialSteps,
+                isCompleted = false,
+                failedStepIndex = null,
+                errorMessage = null
+            )
+
+            // 1. Adım: Kategoriler
+            if (fromStep <= 1) {
+                updateStep(1, SyncStepStatus.IN_PROGRESS, "Kategoriler taranıyor (Canlı TV, Film ve Dizi)...", -1f)
+                val catRes = repository.syncAllCategories()
+                if (catRes.isFailure) {
+                    val err = catRes.exceptionOrNull()?.localizedMessage ?: "Kategoriler alınamadı"
+                    failStep(1, err)
+                    return@launch
+                }
+                val catData = catRes.getOrNull()
+                val total = catData?.totalCount ?: 0
+                updateStep(1, SyncStepStatus.COMPLETED, "$total Kategori hazır", 1f)
+            }
+
+            // 2. Adım: Canlı TV Kanalları
+            if (fromStep <= 2) {
+                updateStep(2, SyncStepStatus.IN_PROGRESS, "Canlı TV kanalları kaydediliyor...", -1f)
+                val liveRes = repository.syncLiveStreams { count ->
+                    updateStep(2, SyncStepStatus.IN_PROGRESS, "$count kanal kaydedildi", -1f)
+                }
+                if (liveRes.isFailure) {
+                    val err = liveRes.exceptionOrNull()?.localizedMessage ?: "Canlı TV kanalları kaydedilemedi"
+                    failStep(2, err)
+                    return@launch
+                }
+                val liveCount = liveRes.getOrNull() ?: 0
+                updateStep(2, SyncStepStatus.COMPLETED, "$liveCount canlı kanal hazır", 1f)
+            }
+
+            // 3. Adım: VOD (Film)
+            if (fromStep <= 3) {
+                updateStep(3, SyncStepStatus.IN_PROGRESS, "VOD (Film) arşivi kaydediliyor...", -1f)
+                val vodRes = repository.syncVodStreams { count ->
+                    updateStep(3, SyncStepStatus.IN_PROGRESS, "$count film hazır", -1f)
+                }
+                if (vodRes.isFailure) {
+                    val err = vodRes.exceptionOrNull()?.localizedMessage ?: "Film arşivi kaydedilemedi"
+                    failStep(3, err)
+                    return@launch
+                }
+                val vodCount = vodRes.getOrNull() ?: 0
+                updateStep(3, SyncStepStatus.COMPLETED, "$vodCount film hazır", 1f)
+            }
+
+            // 4. Adım: Diziler
+            if (fromStep <= 4) {
+                updateStep(4, SyncStepStatus.IN_PROGRESS, "Diziler ve bölümler kaydediliyor...", -1f)
+                val seriesRes = repository.syncSeriesStreams { count ->
+                    updateStep(4, SyncStepStatus.IN_PROGRESS, "$count dizi hazır", -1f)
+                }
+                if (seriesRes.isFailure) {
+                    val err = seriesRes.exceptionOrNull()?.localizedMessage ?: "Diziler kaydedilemedi"
+                    failStep(4, err)
+                    return@launch
+                }
+                val seriesCount = seriesRes.getOrNull() ?: 0
+                updateStep(4, SyncStepStatus.COMPLETED, "$seriesCount dizi hazır", 1f)
+            }
+
+            // 5. Adım: Optimizasyon ve Önbellek
+            if (fromStep <= 5) {
+                updateStep(5, SyncStepStatus.IN_PROGRESS, "Veritabanı indeksleniyor ve hızlı önbellek hazırlanıyor...", -1f)
+                val optRes = repository.optimizeAndPreload()
+                if (optRes.isFailure) {
+                    val err = optRes.exceptionOrNull()?.localizedMessage ?: "Optimizasyon tamamlanamadı"
+                    failStep(5, err)
+                    return@launch
+                }
+                updateStep(5, SyncStepStatus.COMPLETED, "Tüm içerikler anında açılmaya hazır!", 1f)
+            }
+
+            // Başarıyla tamamlandı
+            val nowStr = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+            preferences.setPlaylistSynced(true, nowStr)
+            loadInitialData()
+
+            playlistSyncState.value = playlistSyncState.value.copy(
+                isSyncing = false,
+                isCompleted = true,
+                currentStepIndex = 5
+            )
+
+            // 1.5 saniye sonra kullanıcıyı otomatik olarak Ana Ekrana yönlendir
+            kotlinx.coroutines.delay(1500)
+            if (_currentScreen.value == Screen.PlaylistSync) {
+                _currentScreen.value = Screen.Home
+            }
+        }
+    }
+
+    private fun updateStep(stepNumber: Int, status: SyncStepStatus, detail: String, progress: Float) {
+        val updatedSteps = playlistSyncState.value.steps.map { s ->
+            if (s.stepNumber == stepNumber) {
+                s.copy(status = status, detailText = detail, progress = progress)
+            } else s
+        }
+        playlistSyncState.value = playlistSyncState.value.copy(
+            currentStepIndex = stepNumber,
+            steps = updatedSteps
+        )
+    }
+
+    private fun failStep(stepNumber: Int, error: String) {
+        val updatedSteps = playlistSyncState.value.steps.map { s ->
+            if (s.stepNumber == stepNumber) {
+                s.copy(status = SyncStepStatus.FAILED, errorMessage = error)
+            } else s
+        }
+        playlistSyncState.value = playlistSyncState.value.copy(
+            isSyncing = false,
+            failedStepIndex = stepNumber,
+            errorMessage = error,
+            steps = updatedSteps
+        )
+    }
+
+    fun loadInitialData() {
         loadLiveCategories()
         loadLiveStreams("all")
         loadVodCategories()
@@ -457,15 +654,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.getLiveCategoriesFlow().collect { cats ->
                 if (cats.isNotEmpty()) {
-                    val allCat = LiveCategory(categoryId = "all", categoryName = "Tüm Kanallar")
+                    val totalLive = cats.sumOf { it.itemCount }
+                    val allCat = LiveCategory(categoryId = "all", categoryName = "Tüm Kanallar", itemCount = totalLive)
                     liveCategories.value = listOf(allCat) + cats
                 }
-            }
-        }
-        viewModelScope.launch {
-            repository.fetchAndSaveLiveCategories().onSuccess { cats ->
-                val allCat = LiveCategory(categoryId = "all", categoryName = "Tüm Kanallar")
-                liveCategories.value = listOf(allCat) + cats
             }
         }
     }
@@ -484,6 +676,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadLiveStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedLiveCategory.value = categoryId
+        val cached = repository.getCachedLiveStreams(if (categoryId == "all" || categoryId == "favorites") null else categoryId)
+        if (!cached.isNullOrEmpty()) {
+            liveStreams.value = cached
+            liveLoading.value = false
+        }
 
         viewModelScope.launch {
             val countInDb = withContext(Dispatchers.IO) {
@@ -503,21 +700,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.getVodCategoriesFlow().collect { cats ->
                 if (cats.isNotEmpty()) {
-                    val allCat = VodCategory(categoryId = "all", categoryName = "Tüm Filmler")
+                    val totalVod = cats.sumOf { it.itemCount }
+                    val allCat = VodCategory(categoryId = "all", categoryName = "Tüm Filmler", itemCount = totalVod)
                     vodCategories.value = listOf(allCat) + cats
                 }
-            }
-        }
-        viewModelScope.launch {
-            repository.fetchAndSaveVodCategories().onSuccess { cats ->
-                val allCat = VodCategory(categoryId = "all", categoryName = "Tüm Filmler")
-                vodCategories.value = listOf(allCat) + cats
             }
         }
     }
 
     fun loadVodStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedVodCategory.value = categoryId
+        val cached = repository.getCachedVodStreams(if (categoryId == "all") null else categoryId)
+        if (!cached.isNullOrEmpty()) {
+            vodStreams.value = cached
+            vodLoading.value = false
+        }
 
         viewModelScope.launch {
             val countInDb = withContext(Dispatchers.IO) {
@@ -547,21 +744,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.getSeriesCategoriesFlow().collect { cats ->
                 if (cats.isNotEmpty()) {
-                    val allCat = SeriesCategory(categoryId = "all", categoryName = "Tüm Diziler")
+                    val totalSeries = cats.sumOf { it.itemCount }
+                    val allCat = SeriesCategory(categoryId = "all", categoryName = "Tüm Diziler", itemCount = totalSeries)
                     seriesCategories.value = listOf(allCat) + cats
                 }
-            }
-        }
-        viewModelScope.launch {
-            repository.fetchAndSaveSeriesCategories().onSuccess { cats ->
-                val allCat = SeriesCategory(categoryId = "all", categoryName = "Tüm Diziler")
-                seriesCategories.value = listOf(allCat) + cats
             }
         }
     }
 
     fun loadSeriesStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedSeriesCategory.value = categoryId
+        val cached = repository.getCachedSeriesStreams(if (categoryId == "all") null else categoryId)
+        if (!cached.isNullOrEmpty()) {
+            seriesStreams.value = cached
+            seriesLoading.value = false
+        }
 
         viewModelScope.launch {
             val countInDb = withContext(Dispatchers.IO) {
@@ -722,6 +919,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         current.add(0, channel)
         if (current.size > 10) current.removeAt(current.size - 1)
         recentChannels.value = current
+    }
+
+    fun clearRecentChannels() {
+        recentChannels.value = emptyList()
     }
 
     fun previewChannel(channel: LiveStream) {

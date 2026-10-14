@@ -79,6 +79,10 @@ class UserPreferences(private val context: Context) {
         // Altyazı Tercihleri
         val KEY_SUBTITLE_SIZE = stringPreferencesKey("subtitle_size") // "KUCUK", "ORTA", "BUYUK", "COK_BUYUK"
         val KEY_SUBTITLE_COLOR = stringPreferencesKey("subtitle_color") // "BEYAZ", "SARI", "YESIL", "MAVI"
+
+        // Oynatma Listesi Senkronizasyon Durumu
+        val KEY_IS_PLAYLIST_SYNCED = booleanPreferencesKey("is_playlist_synced")
+        val KEY_LAST_SYNC_TIMESTAMP = stringPreferencesKey("last_sync_timestamp")
     }
 
     val usernameFlow: Flow<String> = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
@@ -113,6 +117,18 @@ class UserPreferences(private val context: Context) {
     val vodBufferSecondsFlow: Flow<Int> = context.dataStore.data.map { it[KEY_VOD_BUFFER_SECONDS] ?: 60 }
     val liveBufferSecondsFlow: Flow<Int> = context.dataStore.data.map { it[KEY_LIVE_BUFFER_SECONDS] ?: 2 }
     val decoderModeFlow: Flow<String> = context.dataStore.data.map { it[KEY_DECODER_MODE] ?: "HARDWARE" }
+
+    val isPlaylistSyncedFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_IS_PLAYLIST_SYNCED] ?: false }
+    val lastSyncTimestampFlow: Flow<String> = context.dataStore.data.map { it[KEY_LAST_SYNC_TIMESTAMP] ?: "" }
+
+    suspend fun setPlaylistSynced(synced: Boolean, timestamp: String = "") {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_IS_PLAYLIST_SYNCED] = synced
+            if (timestamp.isNotEmpty()) {
+                prefs[KEY_LAST_SYNC_TIMESTAMP] = timestamp
+            }
+        }
+    }
 
     val watchProgressMapFlow: Flow<Map<String, WatchProgress>> = context.dataStore.data.map { prefs ->
         val json = prefs[KEY_WATCH_PROGRESS] ?: "{}"
@@ -191,6 +207,7 @@ class UserPreferences(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[KEY_IS_LOGGED_IN] = false
             prefs[KEY_PASSWORD] = ""
+            prefs[KEY_IS_PLAYLIST_SYNCED] = false
         }
     }
 

@@ -11,20 +11,48 @@ import com.tivimax.player.data.local.AppDatabase
 import com.tivimax.player.data.local.entity.*
 import com.tivimax.player.data.model.*
 import com.tivimax.player.data.network.FailoverInterceptor
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
+
+data class CategorySyncResult(
+    val liveCount: Int,
+    val vodCount: Int,
+    val seriesCount: Int,
+    val totalCount: Int
+)
 
 class XtreamRepository(private val context: Context? = null) {
 
     private val gson = Gson()
     val database: AppDatabase? = context?.let { AppDatabase.getInstance(it) }
+
+    // 0ms gecikme için Bellek İçi Önbellek (In-Memory Cache)
+    private val liveStreamsCache = ConcurrentHashMap<String, List<LiveStream>>()
+    private val vodStreamsCache = ConcurrentHashMap<String, List<VodStream>>()
+    private val seriesStreamsCache = ConcurrentHashMap<String, List<SeriesStream>>()
+
+    private val liveCategoriesCache = CopyOnWriteArrayList<LiveCategory>()
+    private val vodCategoriesCache = CopyOnWriteArrayList<VodCategory>()
+    private val seriesCategoriesCache = CopyOnWriteArrayList<SeriesCategory>()
+
+    fun getCachedLiveStreams(categoryId: String?): List<LiveStream>? = liveStreamsCache[categoryId ?: "all"]
+    fun getCachedVodStreams(categoryId: String?): List<VodStream>? = vodStreamsCache[categoryId ?: "all"]
+    fun getCachedSeriesStreams(categoryId: String?): List<SeriesStream>? = seriesStreamsCache[categoryId ?: "all"]
+
+    fun getCachedLiveCategories(): List<LiveCategory> = liveCategoriesCache.toList()
+    fun getCachedVodCategories(): List<VodCategory> = vodCategoriesCache.toList()
+    fun getCachedSeriesCategories(): List<SeriesCategory> = seriesCategoriesCache.toList()
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -86,6 +114,269 @@ class XtreamRepository(private val context: Context? = null) {
             }
         } catch (e: Exception) {
             Result.failure(Exception("Bağlantı hatası: ${e.localizedMessage ?: "Sunucuya ulaşılamadı"}"))
+        }
+    }
+
+    // ============================================================================
+    // OYNATMA LİSTESİ ADIM ADIM TAM SENKRONİZASYON (5 ADIMLI ÇEKİRDEK MOTOR)
+    // ============================================================================
+
+    suspend fun syncAllCategories(): Result<CategorySyncResult> = withContext(Dispatchers.IO) {
+        try {
+            val liveRes = fetchAndSaveLiveCategories()
+            val vodRes = fetchAndSaveVodCategories()
+            val seriesRes = fetchAndSaveSeriesCategories()
+
+            val liveCount = liveRes.getOrNull()?.size ?: 0
+            val vodCount = vodRes.getOrNull()?.size ?: 0
+            val seriesCount = seriesRes.getOrNull()?.size ?: 0
+            val total = liveCount + vodCount + seriesCount
+
+            Result.success(CategorySyncResult(liveCount, vodCount, seriesCount, total))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun syncLiveStreams(
+        onProgress: ((savedCount: Int) -> Unit)? = null
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        val db = database ?: return@withContext Result.failure(Exception("Veritabanı başlatılamadı"))
+        try {
+            val url = buildApiUrl("get_live_streams")
+            val request = Request.Builder().url(url).get().build()
+            val response = client.newCall(request).execute()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("HTTP Hatası: ${response.code}"))
+            }
+
+            val body = response.body ?: return@withContext Result.failure(Exception("Boş sunucu yanıtı"))
+            var totalSaved = 0
+
+            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
+                val jsonReader = JsonReader(reader)
+                jsonReader.isLenient = true
+
+                if (jsonReader.peek() == JsonToken.BEGIN_ARRAY) {
+                    jsonReader.beginArray()
+                    val chunk = ArrayList<LiveStreamEntity>(2000)
+
+                    while (jsonReader.hasNext()) {
+                        try {
+                            val stream: LiveStream = gson.fromJson(jsonReader, LiveStream::class.java)
+                            if (stream.streamId > 0 && !stream.name.isNullOrBlank()) {
+                                chunk.add(stream.toEntity())
+                            }
+
+                            if (chunk.size >= 2000) {
+                                val toInsert = ArrayList(chunk)
+                                db.withTransaction {
+                                    db.liveDao().insertStreams(toInsert)
+                                }
+                                totalSaved += toInsert.size
+                                onProgress?.invoke(totalSaved)
+                                chunk.clear()
+                            }
+                        } catch (e: Exception) {
+                            try { jsonReader.skipValue() } catch (_: Exception) {}
+                        }
+                    }
+
+                    if (chunk.isNotEmpty()) {
+                        val toInsert = ArrayList(chunk)
+                        db.withTransaction {
+                            db.liveDao().insertStreams(toInsert)
+                        }
+                        totalSaved += toInsert.size
+                        onProgress?.invoke(totalSaved)
+                        chunk.clear()
+                    }
+
+                    try { jsonReader.endArray() } catch (_: Exception) {}
+                } else {
+                    jsonReader.skipValue()
+                }
+            }
+
+            db.liveDao().updateAllCategoryItemCounts()
+            Result.success(totalSaved)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun syncVodStreams(
+        onProgress: ((savedCount: Int) -> Unit)? = null
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        val db = database ?: return@withContext Result.failure(Exception("Veritabanı başlatılamadı"))
+        try {
+            val url = buildApiUrl("get_vod_streams")
+            val request = Request.Builder().url(url).get().build()
+            val response = client.newCall(request).execute()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("HTTP Hatası: ${response.code}"))
+            }
+
+            val body = response.body ?: return@withContext Result.failure(Exception("Boş sunucu yanıtı"))
+            var totalSaved = 0
+
+            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
+                val jsonReader = JsonReader(reader)
+                jsonReader.isLenient = true
+
+                if (jsonReader.peek() == JsonToken.BEGIN_ARRAY) {
+                    jsonReader.beginArray()
+                    val chunk = ArrayList<VodStreamEntity>(2000)
+
+                    while (jsonReader.hasNext()) {
+                        try {
+                            val stream: VodStream = gson.fromJson(jsonReader, VodStream::class.java)
+                            if (stream.streamId > 0 && !stream.name.isNullOrBlank()) {
+                                chunk.add(stream.toEntity())
+                            }
+
+                            if (chunk.size >= 2000) {
+                                val toInsert = ArrayList(chunk)
+                                db.withTransaction {
+                                    db.vodDao().insertStreams(toInsert)
+                                }
+                                totalSaved += toInsert.size
+                                onProgress?.invoke(totalSaved)
+                                chunk.clear()
+                            }
+                        } catch (e: Exception) {
+                            try { jsonReader.skipValue() } catch (_: Exception) {}
+                        }
+                    }
+
+                    if (chunk.isNotEmpty()) {
+                        val toInsert = ArrayList(chunk)
+                        db.withTransaction {
+                            db.vodDao().insertStreams(toInsert)
+                        }
+                        totalSaved += toInsert.size
+                        onProgress?.invoke(totalSaved)
+                        chunk.clear()
+                    }
+
+                    try { jsonReader.endArray() } catch (_: Exception) {}
+                } else {
+                    jsonReader.skipValue()
+                }
+            }
+
+            db.vodDao().updateAllCategoryItemCounts()
+            Result.success(totalSaved)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun syncSeriesStreams(
+        onProgress: ((savedCount: Int) -> Unit)? = null
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        val db = database ?: return@withContext Result.failure(Exception("Veritabanı başlatılamadı"))
+        try {
+            val url = buildApiUrl("get_series")
+            val request = Request.Builder().url(url).get().build()
+            val response = client.newCall(request).execute()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("HTTP Hatası: ${response.code}"))
+            }
+
+            val body = response.body ?: return@withContext Result.failure(Exception("Boş sunucu yanıtı"))
+            var totalSaved = 0
+
+            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
+                val jsonReader = JsonReader(reader)
+                jsonReader.isLenient = true
+
+                if (jsonReader.peek() == JsonToken.BEGIN_ARRAY) {
+                    jsonReader.beginArray()
+                    val chunk = ArrayList<SeriesStreamEntity>(2000)
+
+                    while (jsonReader.hasNext()) {
+                        try {
+                            val stream: SeriesStream = gson.fromJson(jsonReader, SeriesStream::class.java)
+                            if (stream.seriesId > 0 && !stream.name.isNullOrBlank()) {
+                                chunk.add(stream.toEntity())
+                            }
+
+                            if (chunk.size >= 2000) {
+                                val toInsert = ArrayList(chunk)
+                                db.withTransaction {
+                                    db.seriesDao().insertStreams(toInsert)
+                                }
+                                totalSaved += toInsert.size
+                                onProgress?.invoke(totalSaved)
+                                chunk.clear()
+                            }
+                        } catch (e: Exception) {
+                            try { jsonReader.skipValue() } catch (_: Exception) {}
+                        }
+                    }
+
+                    if (chunk.isNotEmpty()) {
+                        val toInsert = ArrayList(chunk)
+                        db.withTransaction {
+                            db.seriesDao().insertStreams(toInsert)
+                        }
+                        totalSaved += toInsert.size
+                        onProgress?.invoke(totalSaved)
+                        chunk.clear()
+                    }
+
+                    try { jsonReader.endArray() } catch (_: Exception) {}
+                } else {
+                    jsonReader.skipValue()
+                }
+            }
+
+            db.seriesDao().updateAllCategoryItemCounts()
+            Result.success(totalSaved)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun optimizeAndPreload(): Result<Unit> = withContext(Dispatchers.IO) {
+        val db = database ?: return@withContext Result.failure(Exception("Veritabanı başlatılamadı"))
+        try {
+            // Öğe sayılarını güncelle
+            db.liveDao().updateAllCategoryItemCounts()
+            db.vodDao().updateAllCategoryItemCounts()
+            db.seriesDao().updateAllCategoryItemCounts()
+
+            // Kategorileri bellek içi önbelleğe (In-Memory Cache) al -> 0ms anında açılma
+            val liveCats = db.liveDao().getCategories().firstOrNull() ?: emptyList()
+            val vodCats = db.vodDao().getCategories().firstOrNull() ?: emptyList()
+            val seriesCats = db.seriesDao().getCategories().firstOrNull() ?: emptyList()
+
+            liveCategoriesCache.clear()
+            liveCategoriesCache.addAll(liveCats.map { it.toModel() })
+
+            vodCategoriesCache.clear()
+            vodCategoriesCache.addAll(vodCats.map { it.toModel() })
+
+            seriesCategoriesCache.clear()
+            seriesCategoriesCache.addAll(seriesCats.map { it.toModel() })
+
+            // Popüler/Varsayılan akışları önbelleğe al
+            val topLive = db.liveDao().getAllStreams().firstOrNull() ?: emptyList()
+            liveStreamsCache["all"] = topLive.map { it.toModel() }
+
+            val topVod = db.vodDao().getAllStreams().firstOrNull() ?: emptyList()
+            vodStreamsCache["all"] = topVod.map { it.toModel() }
+
+            val topSeries = db.seriesDao().getAllStreams().firstOrNull() ?: emptyList()
+            seriesStreamsCache["all"] = topSeries.map { it.toModel() }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

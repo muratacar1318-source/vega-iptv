@@ -37,7 +37,8 @@ data class XtreamServerInfo(
 data class LiveCategory(
     @SerializedName("category_id") val categoryId: String = "",
     @SerializedName("category_name") val categoryName: String = "",
-    @SerializedName("parent_id") val parentId: Int = 0
+    @SerializedName("parent_id") val parentId: Int = 0,
+    val itemCount: Int = 0
 )
 
 data class LiveStream(
@@ -63,7 +64,8 @@ data class LiveStream(
 data class VodCategory(
     @SerializedName("category_id") val categoryId: String = "",
     @SerializedName("category_name") val categoryName: String = "",
-    @SerializedName("parent_id") val parentId: Int = 0
+    @SerializedName("parent_id") val parentId: Int = 0,
+    val itemCount: Int = 0
 )
 
 data class VodStream(
@@ -110,7 +112,8 @@ data class VodDetailInfo(
 data class SeriesCategory(
     @SerializedName("category_id") val categoryId: String = "",
     @SerializedName("category_name") val categoryName: String = "",
-    @SerializedName("parent_id") val parentId: Int = 0
+    @SerializedName("parent_id") val parentId: Int = 0,
+    val itemCount: Int = 0
 )
 
 data class SeriesStream(

@@ -29,6 +29,7 @@ import com.tivimax.player.ui.login.LoginScreen
 import com.tivimax.player.ui.main.HomeScreen
 import com.tivimax.player.ui.player.PlayerScreen
 import com.tivimax.player.ui.series.SeriesDetailScreen
+import com.tivimax.player.ui.sync.PlaylistSyncScreen
 import com.tivimax.player.ui.vod.VodDetailScreen
 
 @Composable
@@ -43,11 +44,15 @@ fun AppNavigation(viewModel: MainViewModel = viewModel()) {
             is Screen.Login -> {
                 LoginScreen(viewModel = viewModel)
             }
+            is Screen.PlaylistSync -> {
+                PlaylistSyncScreen(viewModel = viewModel)
+            }
             is Screen.Home -> {
                 HomeScreen(viewModel = viewModel)
             }
             is Screen.Player -> {
                 PlayerScreen(
+                    streamUrl = screen.streamUrl,
                     title = screen.title,
                     isLive = screen.isLive,
                     streamId = screen.streamId,

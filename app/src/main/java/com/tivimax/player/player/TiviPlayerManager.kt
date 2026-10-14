@@ -169,20 +169,16 @@ class TiviPlayerManager(private val context: Context) {
                 .build()
         } else {
             // VOD (MP4/MKV Film ve Dizi):
-            // Takılmayı önlemek için yüksek kapasiteli (minBuffer 15000ms, maxBuffer 50000ms, bufferForPlayback 2500ms) ayrı profil
+            // Yüksek bit hızlı içeriklerde byte sınırından kaynaklı deadlock/buffering-flicker döngüsünü kaldır
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                    15000, // minBuffer 15000ms
-                    50000, // maxBuffer 50000ms
-                    2500,  // bufferForPlayback 2500ms
-                    5000   // bufferForPlaybackAfterRebuffer 5000ms
+                    10000, // minBufferMs = 10000
+                    30000, // maxBufferMs = 30000
+                    1500,  // bufferForPlaybackMs = 1500
+                    3000   // bufferForPlaybackAfterRebufferMs = 3000
                 )
-                .setBackBuffer(
-                    30000, // 30s geri tampon
-                    true
-                )
-                .setTargetBufferBytes(128 * 1024 * 1024) // 128 MB RAM tampon boyutu
-                .setPrioritizeTimeOverSizeThresholds(false)
+                .setTargetBufferBytes(C.LENGTH_UNSET)
+                .setPrioritizeTimeOverSizeThresholds(true)
                 .build()
         }
     }
@@ -281,10 +277,10 @@ class TiviPlayerManager(private val context: Context) {
             .build()
 
         val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
-            .setUserAgent("IPTVSmartersPro/3.1.5 (Linux; Android 14; Mobile; ExoPlayer)")
+            .setUserAgent("VegaIPTV/1.0 (Linux; Android)")
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15000)
-            .setReadTimeoutMs(20000)
+            .setReadTimeoutMs(30000)
             .setKeepPostFor302Redirects(true)
 
         val player = ExoPlayer.Builder(context, renderersFactory)

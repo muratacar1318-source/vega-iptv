@@ -32,11 +32,13 @@ import androidx.compose.ui.unit.sp
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import coil.compose.AsyncImage
+import androidx.compose.foundation.BorderStroke
 import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.data.model.VodStream
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.dpadFocusable
 
 @Composable
 fun VodScreen(viewModel: MainViewModel) {
@@ -85,6 +87,7 @@ fun VodScreen(viewModel: MainViewModel) {
         filteredMovies.take(visibleLimit)
     }
 
+    var selectedHeroMovie by remember { mutableStateOf<VodStream?>(null) }
     val featuredMovie = remember(movies) {
         movies.firstOrNull { it.streamIcon != null && it.streamIcon.isNotBlank() }
     }
@@ -182,8 +185,9 @@ fun VodScreen(viewModel: MainViewModel) {
 
                                     if (isSidebarExpanded) {
                                         Spacer(modifier = Modifier.width(8.dp))
+                                        val countSuffix = if (category.itemCount > 0) " (${category.itemCount})" else ""
                                         Text(
-                                            text = category.categoryName,
+                                            text = "${category.categoryName}$countSuffix",
                                             color = if (isSelected) TiviSecondary else TiviTextPrimary,
                                             fontSize = 11.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
@@ -374,58 +378,165 @@ fun VodScreen(viewModel: MainViewModel) {
                             }
                         }
                     } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(gridColumns),
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(
-                                items = pagedMovies,
-                                key = { "${it.streamId}_${it.num}" },
-                                contentType = { "vod_movie" }
-                            ) { movie ->
-                                val progress = watchProgressMap[movie.streamId.toString()]
-                                MoviePosterCard(
-                                    movie = movie,
-                                    watchProgress = progress,
-                                    onClick = { viewModel.loadVodDetail(movie) }
-                                )
-                            }
+                        val heroMovie = selectedHeroMovie ?: featuredMovie ?: pagedMovies.firstOrNull()
 
-                            // Sonsuz Kaydırma / Sayfalama Tetikleyici
-                            if (visibleLimit < filteredMovies.size) {
-                                item(span = { GridItemSpan(gridColumns) }) {
-                                    LaunchedEffect(Unit) {
-                                        visibleLimit += 30
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator(
-                                            color = TiviSecondary,
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.dp
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            // OPUS IPTV HERO BANNER (Yatay Modda Öne Çıkan / Odaklanılan Film)
+                            if (isWideScreen && heroMovie != null && searchQuery.isBlank()) {
+                                Card(
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = CardDefaults.cardColors(containerColor = TiviCardDark),
+                                    border = BorderStroke(1.dp, TiviCardBorder),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(180.dp)
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        AsyncShimmerImage(
+                                            model = heroMovie.streamIcon,
+                                            contentDescription = heroMovie.name,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(0.55f)
+                                                .align(Alignment.CenterEnd)
                                         )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    Brush.horizontalGradient(
+                                                        listOf(
+                                                            Color.Black,
+                                                            Color.Black.copy(alpha = 0.9f),
+                                                            Color.Black.copy(alpha = 0.5f),
+                                                            Color.Transparent
+                                                        )
+                                                    )
+                                                )
+                                        )
+
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(0.65f)
+                                                .padding(14.dp),
+                                            verticalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(4.dp))
+                                                            .background(OpusCyan)
+                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Text("ÖNE ÇIKAN", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                    }
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    val rating = heroMovie.rating ?: heroMovie.rating5Based?.let { String.format("%.1f", it * 2) } ?: "8.2"
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(13.dp))
+                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                        Text(rating, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                    }
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text(heroMovie.containerExtension?.uppercase() ?: "MP4", color = TiviTextSecondary, fontSize = 11.sp)
+                                                }
+
+                                                Spacer(modifier = Modifier.height(6.dp))
+
+                                                Text(
+                                                    text = heroMovie.name,
+                                                    color = Color.White,
+                                                    fontSize = 17.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Ultra HD yüksek kaliteli yayın ve kesintisiz sinema deneyimi.",
+                                                    color = TiviTextSecondary,
+                                                    fontSize = 11.sp,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+
+                                            Button(
+                                                onClick = { viewModel.loadVodDetail(heroMovie) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = OpusCyan),
+                                                shape = RoundedCornerShape(10.dp),
+                                                modifier = Modifier
+                                                    .height(38.dp)
+                                                    .dpadFocusable(focusedBorderColor = Color.White)
+                                            ) {
+                                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text("Hemen İzle", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            }
+                                        }
                                     }
                                 }
                             }
 
-                            // Arama yapıldığında ızgaranın en altında alternatif arama seçenekleri
-                            if (searchQuery.isNotBlank()) {
-                                item(span = { GridItemSpan(gridColumns) }) {
-                                    GlobalSearchOptionsCard(
-                                        query = searchQuery,
-                                        currentScope = "vod",
-                                        isAllCategory = selectedCategory == "all",
-                                        onSearchAllLive = { viewModel.searchAcrossAllLive(searchQuery) },
-                                        onSearchAllVod = { viewModel.searchAcrossAllVod(searchQuery) },
-                                        onSearchAllSeries = { viewModel.searchAcrossAllSeries(searchQuery) }
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(gridColumns),
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(
+                                    items = pagedMovies,
+                                    key = { "${it.streamId}_${it.num}" },
+                                    contentType = { "vod_movie" }
+                                ) { movie ->
+                                    val progress = watchProgressMap[movie.streamId.toString()]
+                                    MoviePosterCard(
+                                        movie = movie,
+                                        watchProgress = progress,
+                                        onFocused = { selectedHeroMovie = movie },
+                                        onClick = { viewModel.loadVodDetail(movie) }
                                     )
+                                }
+
+                                // Sonsuz Kaydırma / Sayfalama Tetikleyici
+                                if (visibleLimit < filteredMovies.size) {
+                                    item(span = { GridItemSpan(gridColumns) }) {
+                                        LaunchedEffect(Unit) {
+                                            visibleLimit += 30
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                color = OpusCyan,
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.dp
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Arama yapıldığında ızgaranın en altında alternatif arama seçenekleri
+                                if (searchQuery.isNotBlank()) {
+                                    item(span = { GridItemSpan(gridColumns) }) {
+                                        GlobalSearchOptionsCard(
+                                            query = searchQuery,
+                                            currentScope = "vod",
+                                            isAllCategory = selectedCategory == "all",
+                                            onSearchAllLive = { viewModel.searchAcrossAllLive(searchQuery) },
+                                            onSearchAllVod = { viewModel.searchAcrossAllVod(searchQuery) },
+                                            onSearchAllSeries = { viewModel.searchAcrossAllSeries(searchQuery) }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -439,11 +550,17 @@ fun VodScreen(viewModel: MainViewModel) {
 fun MoviePosterCard(
     movie: VodStream,
     watchProgress: com.tivimax.player.data.preferences.WatchProgress? = null,
+    onFocused: (() -> Unit)? = null,
     onClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .dpadFocusable(
+                focusedBorderColor = OpusCyan,
+                shape = RoundedCornerShape(12.dp),
+                onFocusStateChange = { if (it) onFocused?.invoke() }
+            )
             .clickable { onClick() }
     ) {
         Box(

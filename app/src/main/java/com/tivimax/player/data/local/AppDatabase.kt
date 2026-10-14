@@ -16,7 +16,7 @@ import com.tivimax.player.data.local.entity.*
         VodStreamEntity::class,
         SeriesStreamEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "vega_iptv.db"
                 )
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { instance = it }

@@ -19,6 +19,9 @@ interface LiveDao {
     @Query("DELETE FROM live_categories")
     suspend fun clearCategories()
 
+    @Query("UPDATE live_categories SET itemCount = (SELECT COUNT(*) FROM live_streams WHERE live_streams.categoryId = live_categories.categoryId)")
+    suspend fun updateAllCategoryItemCounts()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStreams(streams: List<LiveStreamEntity>)
 
@@ -86,6 +89,9 @@ interface VodDao {
 
     @Query("DELETE FROM vod_categories")
     suspend fun clearCategories()
+
+    @Query("UPDATE vod_categories SET itemCount = (SELECT COUNT(*) FROM vod_streams WHERE vod_streams.categoryId = vod_categories.categoryId)")
+    suspend fun updateAllCategoryItemCounts()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStreams(streams: List<VodStreamEntity>)
@@ -155,6 +161,9 @@ interface SeriesDao {
 
     @Query("DELETE FROM series_categories")
     suspend fun clearCategories()
+
+    @Query("UPDATE series_categories SET itemCount = (SELECT COUNT(*) FROM series_streams WHERE series_streams.categoryId = series_categories.categoryId)")
+    suspend fun updateAllCategoryItemCounts()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStreams(streams: List<SeriesStreamEntity>)
