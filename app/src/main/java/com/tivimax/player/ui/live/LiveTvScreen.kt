@@ -40,10 +40,14 @@ import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.GlobalSearchOptionsCard
 
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LiveTvScreen(viewModel: MainViewModel) {
-    val categories by viewModel.liveCategories.collectAsState()
+    val categories by viewModel.visibleLiveCategories.collectAsState()
+    val allCategories by viewModel.liveCategories.collectAsState()
+    val hiddenCategories by viewModel.hiddenCategories.collectAsState()
+    val isParentalUnlocked by viewModel.isParentalUnlocked.collectAsState()
+
     val channels by viewModel.liveStreams.collectAsState()
     val selectedCategory by viewModel.selectedLiveCategory.collectAsState()
     val isLoading by viewModel.liveLoading.collectAsState()
@@ -58,6 +62,13 @@ fun LiveTvScreen(viewModel: MainViewModel) {
     val globalQuery by viewModel.globalSearchQuery.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var isSortMenuOpen by remember { mutableStateOf(false) }
+
+    var isEpgTimelineMode by remember { mutableStateOf(false) }
+    var showCategoryManagerDialog by remember { mutableStateOf(false) }
+    var showParentalPinDialog by remember { mutableStateOf(false) }
+    var parentalPinInput by remember { mutableStateOf("") }
+    var parentalPinError by remember { mutableStateOf(false) }
+    var selectedProgramDetail by remember { mutableStateOf<Pair<LiveStream, EpgProgram>?>(null) }
 
     LaunchedEffect(globalQuery) {
         if (globalQuery.isNotBlank() && searchQuery != globalQuery) {
@@ -231,13 +242,27 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                         horizontalArrangement = if (isSidebarExpanded) Arrangement.SpaceBetween else Arrangement.Center
                     ) {
                         if (isSidebarExpanded) {
-                            Text(
-                                text = "KATEGORİLER",
-                                color = TiviTextMuted,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "KATEGORİLER",
+                                    color = TiviTextMuted,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { showCategoryManagerDialog = true },
+                                    modifier = Modifier.size(22.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Tune,
+                                        contentDescription = "Kategori Yönetimi",
+                                        tint = TiviPrimary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
                         }
                         Icon(
                             imageVector = if (isSidebarExpanded) Icons.AutoMirrored.Filled.MenuOpen else Icons.Default.Menu,
@@ -343,6 +368,49 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis,
                                             lineHeight = 14.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Ebeveyn Kilidi (+18 Koruması)
+                        item {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                onClick = {
+                                    if (isParentalUnlocked) {
+                                        viewModel.lockParental()
+                                    } else {
+                                        parentalPinInput = ""
+                                        parentalPinError = false
+                                        showParentalPinDialog = true
+                                    }
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isParentalUnlocked) Color(0xFFEF5350).copy(alpha = 0.2f) else TiviCard,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isParentalUnlocked) Color(0xFFEF5350) else TiviCardBorder),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = if (isParentalUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = if (isParentalUnlocked) Color(0xFFEF5350) else TiviTextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    if (isSidebarExpanded) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = if (isParentalUnlocked) "+18 Açık (Kilitle)" else "+18 Korumalı",
+                                            color = if (isParentalUnlocked) Color(0xFFEF5350) else TiviTextSecondary,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }
@@ -476,6 +544,36 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Görünüm Seçici Butonu: Liste / TV Rehberi (EPG)
+                    Surface(
+                        onClick = { isEpgTimelineMode = !isEpgTimelineMode },
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isEpgTimelineMode) TiviPrimary.copy(alpha = 0.2f) else TiviCard,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isEpgTimelineMode) TiviPrimary else TiviCardBorder),
+                        modifier = Modifier.height(44.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isEpgTimelineMode) Icons.Default.CalendarViewWeek else Icons.Default.ViewList,
+                                contentDescription = "Görünüm",
+                                tint = if (isEpgTimelineMode) TiviPrimary else Color.White,
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isEpgTimelineMode) "TV Rehberi" else "Liste",
+                                color = if (isEpgTimelineMode) TiviPrimary else TiviTextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
 
                 // Son İzlenenler (Recents Bar)
@@ -560,20 +658,61 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            if (isEpgTimelineMode) {
+                                item {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(TiviCard.copy(alpha = 0.6f))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "KANAL",
+                                            color = TiviTextSecondary,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.width(135.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = "ŞU AN YAYINDA (CANLI PROGRAM)",
+                                            color = TiviPrimary,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+
                             items(pagedChannels, key = { "${it.streamId}_${it.num}" }) { channel ->
                                 val isFavorite = favoriteIds.contains(channel.streamId.toString())
                                 val isCurrentPlaying = activePreviewChannel?.streamId == channel.streamId && isMiniPlayerActive
 
-                                EpgChannelCard(
-                                    channel = channel,
-                                    epg = epgSummaryMap[channel.streamId],
-                                    isFavorite = isFavorite,
-                                    isPlaying = isCurrentPlaying,
-                                    onLoadEpg = { viewModel.loadEpgSummary(channel.streamId) },
-                                    onChannelClick = { viewModel.previewChannel(channel) },
-                                    onPlayFullscreen = { viewModel.playLiveChannel(channel) },
-                                    onFavoriteToggle = { viewModel.toggleFavoriteLive(channel.streamId.toString()) }
-                                )
+                                if (isEpgTimelineMode) {
+                                    EpgTimelineRow(
+                                        channel = channel,
+                                        epg = epgSummaryMap[channel.streamId],
+                                        isFavorite = isFavorite,
+                                        isPlaying = isCurrentPlaying,
+                                        onLoadEpg = { viewModel.loadEpgSummary(channel.streamId) },
+                                        onChannelClick = { viewModel.previewChannel(channel) },
+                                        onProgramClick = { selectedProgramDetail = Pair(channel, it) },
+                                        onFavoriteToggle = { viewModel.toggleFavoriteLive(channel.streamId.toString()) }
+                                    )
+                                } else {
+                                    EpgChannelCard(
+                                        channel = channel,
+                                        epg = epgSummaryMap[channel.streamId],
+                                        isFavorite = isFavorite,
+                                        isPlaying = isCurrentPlaying,
+                                        onLoadEpg = { viewModel.loadEpgSummary(channel.streamId) },
+                                        onChannelClick = { viewModel.previewChannel(channel) },
+                                        onPlayFullscreen = { viewModel.playLiveChannel(channel) },
+                                        onFavoriteToggle = { viewModel.toggleFavoriteLive(channel.streamId.toString()) }
+                                    )
+                                }
                             }
 
                             // Sonsuz Kaydırma / Sayfalama Tetikleyici
@@ -611,6 +750,233 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        // --- 4. KATEGORİ YÖNETİMİ DİYALOGU ---
+        if (showCategoryManagerDialog) {
+            var catSearch by remember { mutableStateOf("") }
+            val filteredAllCats = remember(allCategories, catSearch) {
+                if (catSearch.isBlank()) allCategories.filter { it.categoryId != "all" }
+                else allCategories.filter { it.categoryId != "all" && it.categoryName.lowercase().contains(catSearch.lowercase()) }
+            }
+
+            AlertDialog(
+                onDismissRequest = { showCategoryManagerDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Tune, contentDescription = null, tint = TiviPrimary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Kategori Yönetimi", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+                },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                        Text(
+                            "İzlemediğiniz yabancı veya gereksiz kategorileri gizleyerek listenizi sadeleştirin.",
+                            color = TiviTextSecondary,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = catSearch,
+                            onValueChange = { catSearch = it },
+                            placeholder = { Text("Kategori ara...", fontSize = 12.sp) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = TiviPrimary,
+                                unfocusedBorderColor = TiviCardBorder
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LazyColumn(modifier = Modifier.weight(1f)) {
+                            items(filteredAllCats, key = { it.categoryId }) { cat ->
+                                val isHidden = hiddenCategories.contains(cat.categoryId)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { viewModel.toggleCategoryHidden(cat.categoryId) }
+                                        .padding(vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = cat.categoryName,
+                                        color = if (isHidden) TiviTextSecondary.copy(alpha = 0.5f) else Color.White,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Icon(
+                                        imageVector = if (isHidden) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (isHidden) "Gizli" else "Görünür",
+                                        tint = if (isHidden) Color(0xFFEF5350) else TiviPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.3f), thickness = 0.5.dp)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showCategoryManagerDialog = false }) {
+                        Text("Tamam", color = TiviPrimary, fontWeight = FontWeight.Bold)
+                    }
+                },
+                containerColor = TiviSurface
+            )
+        }
+
+        // --- 5. EBEVEYN KİLİDİ PIN DİYALOGU ---
+        if (showParentalPinDialog) {
+            AlertDialog(
+                onDismissRequest = { showParentalPinDialog = false },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFFEF5350))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Ebeveyn Kilidi", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+                },
+                text = {
+                    Column {
+                        Text(
+                            "Yetişkin (+18) içerikleri açmak için 4 haneli PIN kodunuzu girin (Varsayılan: 0000):",
+                            color = TiviTextSecondary,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        OutlinedTextField(
+                            value = parentalPinInput,
+                            onValueChange = {
+                                if (it.length <= 4 && it.all { ch -> ch.isDigit() }) {
+                                    parentalPinInput = it
+                                    parentalPinError = false
+                                }
+                            },
+                            isError = parentalPinError,
+                            singleLine = true,
+                            placeholder = { Text("****") },
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                            ),
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = TiviPrimary,
+                                errorBorderColor = Color.Red
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (parentalPinError) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Hatalı PIN kodu! Tekrar deneyin.", color = Color.Red, fontSize = 11.sp)
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (viewModel.unlockParental(parentalPinInput)) {
+                                showParentalPinDialog = false
+                            } else {
+                                parentalPinError = true
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary)
+                    ) {
+                        Text("Kilidi Aç", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showParentalPinDialog = false }) {
+                        Text("İptal", color = TiviTextSecondary)
+                    }
+                },
+                containerColor = TiviSurface
+            )
+        }
+
+        // --- 6. EPG PROGRAM DETAY BOTTOM SHEET ---
+        if (selectedProgramDetail != null) {
+            val (channel, program) = selectedProgramDetail!!
+            ModalBottomSheet(
+                onDismissRequest = { selectedProgramDetail = null },
+                containerColor = TiviSurface,
+                dragHandle = { BottomSheetDefaults.DragHandle(color = TiviCardBorder) }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = channel.streamIcon,
+                            contentDescription = channel.name,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(channel.name, color = TiviPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(program.getFormattedTime(), color = TiviTextSecondary, fontSize = 12.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = program.getDecodedTitle(),
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val progress = program.getProgressFraction()
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        color = TiviPrimary,
+                        trackColor = Color.White.copy(alpha = 0.15f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = if (!program.description.isNullOrBlank()) program.description else "Bu program için detaylı özet bilgisi sunucu tarafından iletilmedi.",
+                        color = TiviTextSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Button(
+                        onClick = {
+                            selectedProgramDetail = null
+                            viewModel.playLiveChannel(channel)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Bu Kanalı Tam Ekran İzle", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -743,6 +1109,191 @@ fun EpgChannelCard(
                 color = if (isPlaying) TiviPrimary else TiviSecondary,
                 trackColor = Color.White.copy(alpha = 0.1f)
             )
+        }
+    }
+}
+
+@Composable
+fun EpgTimelineRow(
+    channel: LiveStream,
+    epg: EpgProgram?,
+    isFavorite: Boolean,
+    isPlaying: Boolean,
+    onLoadEpg: () -> Unit,
+    onChannelClick: () -> Unit,
+    onProgramClick: (EpgProgram) -> Unit,
+    onFavoriteToggle: () -> Unit
+) {
+    LaunchedEffect(channel.streamId) {
+        if (epg == null) {
+            onLoadEpg()
+        }
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isPlaying) TiviPrimary.copy(alpha = 0.16f) else TiviCard
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isPlaying) TiviPrimary else TiviCardBorder.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(72.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Sol: Kanal Bilgi Hücresi (Tıklanınca kanalı oynatır)
+            Row(
+                modifier = Modifier
+                    .width(135.dp)
+                    .fillMaxHeight()
+                    .background(Color.Black.copy(alpha = 0.35f))
+                    .clickable { onChannelClick() }
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.Black),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!channel.streamIcon.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = channel.streamIcon,
+                            contentDescription = channel.name,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Tv,
+                            contentDescription = null,
+                            tint = TiviTextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = channel.name,
+                        color = if (isPlaying) TiviPrimary else Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 13.sp
+                    )
+                }
+
+                IconButton(
+                    onClick = onFavoriteToggle,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                        contentDescription = "Favori",
+                        tint = if (isFavorite) TiviGold else TiviTextSecondary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+
+            VerticalDivider(color = TiviCardBorder, thickness = 1.dp)
+
+            // Sağ: Canlı EPG Zaman Çizelgesi Kartı
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable {
+                        if (epg != null) onProgramClick(epg) else onChannelClick()
+                    }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                if (epg != null) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(3.dp))
+                                        .background(TiviAccentLive)
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text("CANLI", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = epg.getDecodedTitle(),
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = epg.getFormattedTime(),
+                                color = TiviTextSecondary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        val progress = epg.getProgressFraction()
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            color = TiviPrimary,
+                            trackColor = Color.White.copy(alpha = 0.12f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(1.5.dp))
+                        )
+
+                        Text(
+                            text = if (!epg.description.isNullOrBlank()) epg.description else "Detaylar için dokunun...",
+                            color = TiviTextSecondary,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Elektronik program rehberi (EPG) alınıyor...",
+                            color = TiviTextSecondary.copy(alpha = 0.6f),
+                            fontSize = 11.sp,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -37,7 +37,7 @@ import com.tivimax.player.ui.MainViewModel
 
 @Composable
 fun VodScreen(viewModel: MainViewModel) {
-    val categories by viewModel.vodCategories.collectAsState()
+    val categories by viewModel.visibleVodCategories.collectAsState()
     val movies by viewModel.vodStreams.collectAsState()
     val selectedCategory by viewModel.selectedVodCategory.collectAsState()
     val isLoading by viewModel.vodLoading.collectAsState()

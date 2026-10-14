@@ -130,9 +130,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val lastPlayedLiveChannel = MutableStateFlow<LiveStream?>(null)
 
     // Kategori Yönetimi & Ebeveyn Kilidi
-    val hiddenCategories = MutableStateFlow<Set<String>>(emptySet())
+    val hiddenCategories = preferences.lockedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val isParentalUnlocked = MutableStateFlow(false)
     val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "0000")
+
+    fun isAdultCategory(name: String): Boolean {
+        val clean = name.lowercase()
+        return clean.contains("+18") || clean.contains("18+") || clean.contains("xxx") ||
+                clean.contains("adult") || clean.contains("yetişkin") || clean.contains("erotik") ||
+                clean.contains("porn")
+    }
+
+    val visibleLiveCategories: StateFlow<List<LiveCategory>> = combine(liveCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
+        cats.filter { cat ->
+            if (cat.categoryId == "all") return@filter true
+            if (hidden.contains(cat.categoryId)) return@filter false
+            if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
+            true
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val visibleVodCategories: StateFlow<List<VodCategory>> = combine(vodCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
+        cats.filter { cat ->
+            if (cat.categoryId == "all") return@filter true
+            if (hidden.contains(cat.categoryId)) return@filter false
+            if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
+            true
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val visibleSeriesCategories: StateFlow<List<SeriesCategory>> = combine(seriesCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
+        cats.filter { cat ->
+            if (cat.categoryId == "all") return@filter true
+            if (hidden.contains(cat.categoryId)) return@filter false
+            if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
+            true
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Hız Testi Durumu
     val speedTestResult = MutableStateFlow<String?>(null)
@@ -649,6 +683,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return true
         }
         return false
+    }
+
+    fun lockParental() {
+        isParentalUnlocked.value = false
+    }
+
+    fun setParentalPin(newPin: String) {
+        viewModelScope.launch {
+            preferences.setParentalPin(newPin)
+        }
+    }
+
+    fun toggleCategoryHidden(categoryId: String) {
+        viewModelScope.launch {
+            preferences.toggleCategoryHidden(categoryId)
+        }
     }
 
     fun loadEpgForChannel(streamId: Int) {

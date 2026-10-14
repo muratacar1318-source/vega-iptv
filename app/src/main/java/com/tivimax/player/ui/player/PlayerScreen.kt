@@ -735,6 +735,30 @@ fun PlayerScreen(
                             )
                         }
 
+                        // Resim İçinde Resim (PiP)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+                            IconButton(
+                                onClick = {
+                                    try {
+                                        val params = PictureInPictureParams.Builder()
+                                            .setAspectRatio(Rational(16, 9))
+                                            .build()
+                                        activity.enterPictureInPictureMode(params)
+                                    } catch (e: Throwable) {
+                                        // Ignore
+                                    }
+                                },
+                                modifier = Modifier.size(if (isPortrait) 32.dp else 40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PictureInPictureAlt,
+                                    contentDescription = "Küçük Pencere (PiP)",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(if (isPortrait) 18.dp else 24.dp)
+                                )
+                            }
+                        }
+
                         // Ekran Kilidi
                         IconButton(
                             onClick = { isControlsLocked = !isControlsLocked },

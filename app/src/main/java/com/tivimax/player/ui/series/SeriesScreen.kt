@@ -37,7 +37,7 @@ import com.tivimax.player.ui.MainViewModel
 
 @Composable
 fun SeriesScreen(viewModel: MainViewModel) {
-    val categories by viewModel.seriesCategories.collectAsState()
+    val categories by viewModel.visibleSeriesCategories.collectAsState()
     val seriesList by viewModel.seriesStreams.collectAsState()
     val selectedCategory by viewModel.selectedSeriesCategory.collectAsState()
     val isLoading by viewModel.seriesLoading.collectAsState()
