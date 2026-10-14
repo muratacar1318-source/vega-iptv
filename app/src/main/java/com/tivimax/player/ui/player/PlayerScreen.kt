@@ -15,14 +15,17 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -139,6 +142,18 @@ fun PlayerScreen(
 
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPosition by remember { mutableFloatStateOf(0f) }
+
+    val currentEpisode by viewModel.currentPlayingEpisode.collectAsState()
+    val lastPlayedLiveChannel by viewModel.lastPlayedLiveChannel.collectAsState()
+    val nextEpisode = remember(currentEpisode, currentPosition) { viewModel.getNextEpisode() }
+    var autoNextDismissed by remember(currentEpisode) { mutableStateOf(false) }
+
+    // Bölüm bittiğinde otomatik sonraki bölüme geçiş
+    LaunchedEffect(currentPosition, duration, isLive, currentEpisode) {
+        if (!isLive && currentEpisode != null && duration > 30_000L && currentPosition >= duration - 1500L && duration > 0L) {
+            viewModel.playNextEpisode()
+        }
+    }
 
     var resumeNotification by remember { mutableStateOf<String?>(null) }
 
@@ -353,6 +368,24 @@ fun PlayerScreen(
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                     player = playerManager.initializePlayer()
+                    try {
+                        subtitleView?.let { subView ->
+                            subView.setStyle(
+                                androidx.media3.ui.CaptionStyleCompat(
+                                    android.graphics.Color.WHITE,
+                                    android.graphics.Color.argb(160, 0, 0, 0),
+                                    android.graphics.Color.TRANSPARENT,
+                                    androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                                    android.graphics.Color.BLACK,
+                                    null
+                                )
+                            )
+                            subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18f)
+                            subView.setBottomPaddingFraction(0.12f)
+                        }
+                    } catch (e: Throwable) {
+                        // Ignore styling errors on non-standard devices
+                    }
                     resizeMode = when (aspectRatio) {
                         AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                         AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -613,6 +646,37 @@ fun PlayerScreen(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+
+                                if (isLive && lastPlayedLiveChannel != null && lastPlayedLiveChannel?.streamId != streamId) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Surface(
+                                        onClick = { viewModel.zapRecall() },
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = Color.Black.copy(alpha = 0.65f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, TiviGold.copy(alpha = 0.6f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.History,
+                                                contentDescription = "Önceki Kanal",
+                                                tint = TiviGold,
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Son: ${lastPlayedLiveChannel?.name}",
+                                                color = TiviGold,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -834,6 +898,27 @@ fun PlayerScreen(
                                     tint = Color.White,
                                     modifier = Modifier.size(32.dp)
                                 )
+                            }
+
+                            // Dizi izleniyorsa ve sonraki bölüm varsa: Sonraki Bölüm Butonu
+                            if (nextEpisode != null) {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.playNextEpisode()
+                                        seekRipple = "Sonraki Bölüm ⏭"
+                                    },
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .clip(CircleShape)
+                                        .background(TiviAccentLive.copy(alpha = 0.25f))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.SkipNext,
+                                        contentDescription = "Sonraki Bölüm",
+                                        tint = TiviAccentLive,
+                                        modifier = Modifier.size(32.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -1295,6 +1380,20 @@ fun PlayerScreen(
                                     }
                                 }
 
+                                if (!isLive && nextEpisode != null) {
+                                    IconButton(
+                                        onClick = { viewModel.playNextEpisode() },
+                                        modifier = Modifier.size(if (isPortrait) 32.dp else 40.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.SkipNext,
+                                            contentDescription = "Sonraki Bölüm",
+                                            tint = TiviAccentLive,
+                                            modifier = Modifier.size(if (isPortrait) 20.dp else 24.dp)
+                                        )
+                                    }
+                                }
+
                                 IconButton(onClick = { showTrackSheet = true }) {
                                     Icon(imageVector = Icons.Default.Subtitles, contentDescription = "Ses ve Altyazı", tint = Color.White)
                                 }
@@ -1419,7 +1518,87 @@ fun PlayerScreen(
             }
         }
 
-        // SES VE ALTYAZI SEÇİM MODALI
+        // OTOMATİK SONRAKİ BÖLÜM GEÇİŞ KARTI (Binge-Watching Popup)
+        val timeRemainingMs = if (duration > 0) duration - currentPosition else Long.MAX_VALUE
+        val showNextEpisodePrompt = !isLive && currentEpisode != null && nextEpisode != null &&
+                !autoNextDismissed && duration > 60_000L && timeRemainingMs in 1000L..25_000L
+
+        AnimatedVisibility(
+            visible = showNextEpisodePrompt && !isInPipMode,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 20.dp, bottom = if (isPortrait) 120.dp else 80.dp)
+        ) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = TiviOverlayDark),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.7f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+                modifier = Modifier.widthIn(max = 300.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SkipNext,
+                            contentDescription = null,
+                            tint = TiviAccentLive,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Sonraki Bölüm (${(timeRemainingMs / 1000L)}s)",
+                            color = TiviAccentLive,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(
+                            onClick = { autoNextDismissed = true },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Kapat",
+                                tint = TiviTextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "S${nextEpisode?.season} B${nextEpisode?.episodeNum}: ${nextEpisode?.title}",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Button(
+                            onClick = { viewModel.playNextEpisode() },
+                            colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text("Hemen İzle", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+
+        // MEDYA VE OYNATMA SEÇENEKLERİ MODAL BOTTOM SHEET
         if (showTrackSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showTrackSheet = false },
@@ -1429,17 +1608,19 @@ fun PlayerScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                        .padding(horizontal = 20.dp, vertical = 6.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = "Ses ve Altyazı Seçimi",
+                        text = "Medya ve Oynatma Seçenekleri",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = TiviTextPrimary
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
+                    // 1. SES DİLİ (AUDIO TRACKS)
                     Text(text = "Ses Dili", color = TiviPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     if (audioTracks.isEmpty()) {
                         Text(text = "Ek ses parçası bulunamadı (Varsayılan Ses)", color = TiviTextSecondary, fontSize = 13.sp, modifier = Modifier.padding(vertical = 8.dp))
@@ -1448,34 +1629,46 @@ fun PlayerScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_AUDIO) }
+                                    .padding(vertical = 4.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
                                     selected = track.isSelected,
                                     onClick = { playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_AUDIO) }
                                 )
-                                Text(text = track.name, color = TiviTextPrimary, fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = track.name,
+                                    color = if (track.isSelected) TiviPrimary else TiviTextPrimary,
+                                    fontWeight = if (track.isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 14.sp
+                                )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
+                    // 2. ALTYAZI (SUBTITLES)
                     Text(text = "Altyazı", color = TiviSecondary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     val anySubSelected = subtitleTracks.any { it.isSelected }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { playerManager.disableSubtitles() }
+                            .padding(vertical = 4.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
                             selected = !anySubSelected,
                             onClick = { playerManager.disableSubtitles() }
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Altyazı Kapalı (Kapat)",
+                            text = "Altyazı Kapalı",
                             color = if (!anySubSelected) TiviSecondary else TiviTextPrimary,
                             fontSize = 14.sp,
                             fontWeight = if (!anySubSelected) FontWeight.Bold else FontWeight.Normal
@@ -1487,22 +1680,90 @@ fun PlayerScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_TEXT) }
+                                    .padding(vertical = 4.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
                                     selected = track.isSelected,
                                     onClick = { playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_TEXT) }
                                 )
-                                Text(text = track.name, color = TiviTextPrimary, fontSize = 14.sp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = track.name,
+                                    color = if (track.isSelected) TiviSecondary else TiviTextPrimary,
+                                    fontWeight = if (track.isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 14.sp
+                                )
                             }
+                        }
+                    }
+
+                    // 3. OYNATMA HIZI (VOD / DİZİ İÇİN)
+                    if (!isLive) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(text = "Oynatma Hızı", color = TiviGold, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val speeds = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+                            items(speeds) { spd ->
+                                val isSelected = (playbackSpeed == spd)
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { playerManager.setPlaybackSpeed(spd) },
+                                    label = {
+                                        Text(
+                                            text = if (spd == 1.0f) "1.0x (Normal)" else "${spd}x",
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = TiviGold,
+                                        selectedLabelColor = Color.Black
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    // 4. UYKU ZAMANLAYICISI
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "Uyku Zamanlayıcısı", color = Color(0xFF64B5F6), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val timerMinutes = listOf(0, 15, 30, 45, 60, 90)
+                        items(timerMinutes) { mins ->
+                            val isSelected = if (mins == 0) sleepTimerSeconds == null else (sleepTimerSeconds != null && sleepTimerSeconds!! / 60 in (mins - 1)..mins)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    if (mins == 0) playerManager.cancelSleepTimer() else playerManager.setSleepTimer(mins)
+                                },
+                                label = {
+                                    Text(
+                                        text = if (mins == 0) "Kapalı" else "$mins dk",
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Color(0xFF64B5F6),
+                                    selectedLabelColor = Color.Black
+                                )
+                            )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Ses Senkronizasyonu (Gecikme Ayarı)
-                    Text(text = "Ses Senkronizasyonu (Gecikme)", color = TiviGold, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    // 5. SES SENKRONİZASYONU (GECİKME AYARI)
+                    Text(text = "Ses Senkronizasyonu (Gecikme)", color = TiviPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1515,7 +1776,7 @@ fun PlayerScreen(
                             onValueChange = { playerManager.setAudioOffset(it.toLong()) },
                             valueRange = -2000f..2000f,
                             steps = 39,
-                            colors = SliderDefaults.colors(thumbColor = TiviGold, activeTrackColor = TiviGold),
+                            colors = SliderDefaults.colors(thumbColor = TiviPrimary, activeTrackColor = TiviPrimary),
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { playerManager.setAudioOffset(0L) }) {

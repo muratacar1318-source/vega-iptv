@@ -123,6 +123,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val activePreviewChannel = MutableStateFlow<LiveStream?>(null)
     val isMiniPlayerActive = MutableStateFlow(false)
 
+    // Aktif Dizi Bölümü (Binge-Watching & Otomatik Sonraki Bölüm Geçişi)
+    val currentPlayingEpisode = MutableStateFlow<Pair<SeriesEpisode, String>?>(null)
+
+    // Son İzlenen Önceki Canlı Kanal (Zapping Recall - Tek tuşla önceki kanala dönüş)
+    val lastPlayedLiveChannel = MutableStateFlow<LiveStream?>(null)
+
     // Kategori Yönetimi & Ebeveyn Kilidi
     val hiddenCategories = MutableStateFlow<Set<String>>(emptySet())
     val isParentalUnlocked = MutableStateFlow(false)
@@ -619,6 +625,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playLiveChannel(channel: LiveStream) {
+        val currentChannel = activePreviewChannel.value
+        if (currentChannel != null && currentChannel.streamId != channel.streamId) {
+            lastPlayedLiveChannel.value = currentChannel
+        }
+        currentPlayingEpisode.value = null
         recordRecentChannel(channel)
         activePreviewChannel.value = channel
         val preferHls = streamFormat.value == "HLS"
@@ -638,6 +649,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 categoryId = channel.categoryId
             )
         )
+    }
+
+    fun zapRecall(): LiveStream? {
+        val prev = lastPlayedLiveChannel.value ?: return null
+        playLiveChannel(prev)
+        return prev
     }
 
     fun zapNextChannel(currentStreamId: Int): LiveStream? {
@@ -661,6 +678,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playVod(vod: VodStream, resume: Boolean = false) {
+        currentPlayingEpisode.value = null
         viewModelScope.launch {
             var startPos = 0L
             if (resume) {
@@ -687,6 +705,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playSeriesEpisode(episode: SeriesEpisode, seriesTitle: String, resume: Boolean = true) {
+        currentPlayingEpisode.value = Pair(episode, seriesTitle)
         viewModelScope.launch {
             val epId = episode.id.toIntOrNull() ?: 0
             var startPos = 0L
@@ -707,6 +726,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             )
         }
+    }
+
+    fun getNextEpisode(): SeriesEpisode? {
+        val (currentEp, _) = currentPlayingEpisode.value ?: return null
+        val episodesMap = currentSeriesInfo.value?.episodes ?: return null
+        val seasonStr = currentEp.season.toString()
+        val currentSeasonEpisodes = episodesMap[seasonStr] ?: emptyList()
+        val currentIndex = currentSeasonEpisodes.indexOfFirst { it.id == currentEp.id }
+
+        if (currentIndex in 0 until currentSeasonEpisodes.size - 1) {
+            return currentSeasonEpisodes[currentIndex + 1]
+        }
+
+        // Mevcut sezon bittiyse sonraki sezonun 1. bölümüne geç
+        val nextSeasonStr = (currentEp.season + 1).toString()
+        val nextSeasonEpisodes = episodesMap[nextSeasonStr]
+        if (!nextSeasonEpisodes.isNullOrEmpty()) {
+            return nextSeasonEpisodes.firstOrNull()
+        }
+        return null
+    }
+
+    fun playNextEpisode(): Boolean {
+        val next = getNextEpisode() ?: return false
+        val seriesTitle = currentPlayingEpisode.value?.second ?: "Dizi"
+        playSeriesEpisode(next, seriesTitle, resume = false)
+        return true
     }
 
     fun toggleFavoriteLive(streamId: String) {

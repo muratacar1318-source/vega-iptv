@@ -495,6 +495,49 @@ class TiviPlayerManager(private val context: Context) {
         positionJob = null
     }
 
+    private fun getReadableLanguage(lang: String): String {
+        val clean = lang.trim().lowercase()
+        return when (clean) {
+            "tr", "tur", "turkish" -> "Türkçe"
+            "en", "eng", "english" -> "İngilizce"
+            "de", "deu", "ger", "german" -> "Almanca"
+            "fr", "fra", "fre", "french" -> "Fransızca"
+            "es", "spa", "spanish" -> "İspanyolca"
+            "it", "ita", "italian" -> "İtalyanca"
+            "ru", "rus", "russian" -> "Rusça"
+            "ar", "ara", "arabic" -> "Arapça"
+            "az", "aze", "azerbaijani" -> "Azerbaycanca"
+            "pt", "por", "portuguese" -> "Portekizce"
+            "nl", "nld", "dut", "dutch" -> "Felemenkçe"
+            "ja", "jpn", "japanese" -> "Japonca"
+            "ko", "kor", "korean" -> "Korece"
+            "zh", "zho", "chi", "chinese" -> "Çince"
+            "hi", "hin", "hindi" -> "Hintçe"
+            "und", "", "default" -> ""
+            else -> try {
+                val locale = java.util.Locale(clean)
+                val display = locale.getDisplayLanguage(java.util.Locale("tr"))
+                if (display.isNotBlank() && !display.equals(clean, ignoreCase = true)) {
+                    display.replaceFirstChar { it.uppercase() }
+                } else {
+                    clean.uppercase()
+                }
+            } catch (e: Throwable) {
+                clean.uppercase()
+            }
+        }
+    }
+
+    private fun getAudioChannelInfo(format: androidx.media3.common.Format): String {
+        return when (format.channelCount) {
+            1 -> "Mono"
+            2 -> "Stereo"
+            6 -> "5.1 Surround"
+            8 -> "7.1 Surround"
+            else -> if (format.channelCount > 0) "${format.channelCount} Kanal" else ""
+        }
+    }
+
     private fun extractTracks(tracks: Tracks) {
         val audios = mutableListOf<TrackInfo>()
         val subtitles = mutableListOf<TrackInfo>()
@@ -506,13 +549,28 @@ class TiviPlayerManager(private val context: Context) {
             for (formatIndex in 0 until group.length) {
                 val format = group.getTrackFormat(formatIndex)
                 val isSelected = group.isTrackSelected(formatIndex)
-                val lang = format.language ?: "und"
-                val label = format.label ?: if (lang != "und") lang.uppercase() else "Ses/Altyazı #${formatIndex + 1}"
+                val rawLang = format.language ?: "und"
+                val displayLang = getReadableLanguage(rawLang)
+
+                val name = if (trackType == C.TRACK_TYPE_AUDIO) {
+                    val channelDesc = getAudioChannelInfo(format)
+                    val base = format.label?.takeIf { it.isNotBlank() } ?: displayLang.takeIf { it.isNotBlank() } ?: "Ses #${formatIndex + 1}"
+                    if (channelDesc.isNotBlank() && !base.contains(channelDesc, ignoreCase = true)) {
+                        "$base ($channelDesc)"
+                    } else {
+                        base
+                    }
+                } else if (trackType == C.TRACK_TYPE_TEXT) {
+                    val base = format.label?.takeIf { it.isNotBlank() } ?: displayLang.takeIf { it.isNotBlank() } ?: "Altyazı #${formatIndex + 1}"
+                    base
+                } else {
+                    format.label ?: "Parça #${formatIndex + 1}"
+                }
 
                 val info = TrackInfo(
                     id = format.id ?: "$groupIndex-$formatIndex",
-                    name = label,
-                    language = lang,
+                    name = name,
+                    language = rawLang,
                     isSelected = isSelected,
                     formatIndex = formatIndex,
                     groupIndex = groupIndex
@@ -537,19 +595,31 @@ class TiviPlayerManager(private val context: Context) {
             val group = tracks.groups[trackInfo.groupIndex]
             trackSelector.setParameters(
                 trackSelector.buildUponParameters()
+                    .clearOverridesOfType(trackType)
                     .setTrackTypeDisabled(trackType, false)
                     .setOverrideForType(
                         TrackSelectionOverride(group.mediaTrackGroup, listOf(trackInfo.formatIndex))
                     )
             )
+            if (trackType == C.TRACK_TYPE_AUDIO) {
+                _audioTracks.value = _audioTracks.value.map {
+                    it.copy(isSelected = (it.groupIndex == trackInfo.groupIndex && it.formatIndex == trackInfo.formatIndex))
+                }
+            } else if (trackType == C.TRACK_TYPE_TEXT) {
+                _subtitleTracks.value = _subtitleTracks.value.map {
+                    it.copy(isSelected = (it.groupIndex == trackInfo.groupIndex && it.formatIndex == trackInfo.formatIndex))
+                }
+            }
         }
     }
 
     fun disableSubtitles() {
         trackSelector.setParameters(
             trackSelector.buildUponParameters()
+                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
         )
+        _subtitleTracks.value = _subtitleTracks.value.map { it.copy(isSelected = false) }
     }
 
     fun updateDiagnostics() {
