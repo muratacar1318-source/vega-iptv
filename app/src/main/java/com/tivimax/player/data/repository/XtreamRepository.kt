@@ -237,8 +237,18 @@ class XtreamRepository {
         return "$serverUrl/movie/$username/$password/$streamId.$ext"
     }
 
+    fun buildSeriesStreamUrls(streamId: String, extension: String = "mp4"): List<String> {
+        val cleanExt = extension.trim().removePrefix(".").ifEmpty { "mp4" }
+        val urls = mutableListOf<String>()
+        urls.add("$serverUrl/series/$username/$password/$streamId.$cleanExt")
+        if (cleanExt != "mkv") urls.add("$serverUrl/series/$username/$password/$streamId.mkv")
+        if (cleanExt != "mp4") urls.add("$serverUrl/series/$username/$password/$streamId.mp4")
+        if (cleanExt != "ts") urls.add("$serverUrl/series/$username/$password/$streamId.ts")
+        return urls
+    }
+
     fun buildSeriesStreamUrl(streamId: String, extension: String = "mp4"): String {
-        val ext = extension.ifEmpty { "mp4" }
-        return "$serverUrl/series/$username/$password/$streamId.$ext"
+        val cleanExt = extension.trim().removePrefix(".").ifEmpty { "mp4" }
+        return "$serverUrl/series/$username/$password/$streamId.$cleanExt"
     }
 }

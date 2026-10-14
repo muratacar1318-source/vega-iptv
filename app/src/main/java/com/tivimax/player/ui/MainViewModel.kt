@@ -750,12 +750,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val progress = preferences.getWatchProgress(epId)
                 startPos = progress?.positionMs ?: 0L
             }
-            val streamUrl = repository.buildSeriesStreamUrl(episode.id, episode.containerExtension)
-            val fallbackUrl = repository.buildSeriesStreamUrl(episode.id, if (episode.containerExtension == "mp4") "mkv" else "mp4")
-            playerManager.playWithFallbacks(listOf(streamUrl, fallbackUrl), isLive = false, startPositionMs = startPos)
+            val urls = repository.buildSeriesStreamUrls(episode.id, episode.containerExtension)
+            playerManager.playWithFallbacks(urls, isLive = false, startPositionMs = startPos)
             navigateTo(
                 Screen.Player(
-                    streamUrl = streamUrl,
+                    streamUrl = urls.firstOrNull() ?: "",
                     title = "$seriesTitle - S${episode.season} B${episode.episodeNum}: ${episode.title}",
                     isLive = false,
                     streamId = epId,

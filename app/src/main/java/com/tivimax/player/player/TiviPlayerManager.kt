@@ -58,7 +58,14 @@ data class StreamDiagnostics(
 class TiviPlayerManager(private val context: Context) {
 
     private var exoPlayer: ExoPlayer? = null
-    private val trackSelector = DefaultTrackSelector(context)
+    private val trackSelector = DefaultTrackSelector(context).apply {
+        parameters = buildUponParameters()
+            .setExceedRendererCapabilitiesIfNecessary(true)
+            .setExceedAudioConstraintsIfNecessary(true)
+            .setTunnelingEnabled(false)
+            .build()
+    }
+    private var bufferingRecoveryJob: Job? = null
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -136,21 +143,21 @@ class TiviPlayerManager(private val context: Context) {
                 .build()
         } else {
             // Film ve Diziler: Tamponu seçilen değerde (Örn: 60s, 120s) sürekli dolu tut!
-            val targetBufferMs = (_vodBufferSeconds * 1000).coerceIn(30000, 300000)
-            val maxBufferMs = (targetBufferMs * 2).coerceAtLeast(120000)
+            val targetBufferMs = (_vodBufferSeconds * 1000).coerceIn(15000, 300000)
+            val maxBufferMs = (targetBufferMs * 2).coerceAtLeast(60000)
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                    targetBufferMs, // minBufferMs: Seçilen tampon süresi kadar sürekli önceden indirir
+                    targetBufferMs, // minBufferMs: Arka planda hedef süre kadar önceden indirir
                     maxBufferMs,    // maxBufferMs: Üst sınır
-                    1500,           // ilk oynatma için gereken süre
-                    3000            // duraklama sonrası yeniden oynatma süresi
+                    1000,           // bufferForPlaybackMs: İlk kare için 1 saniye yeterli, anında oynatır!
+                    2000            // bufferForPlaybackAfterRebufferMs: Takılma durumunda 2 saniye sonra hemen devam eder
                 )
                 .setBackBuffer(
-                    60000, // 60s geri tampon: 10s-30s geri sarmalarda internete gitmeden anında oynatır
+                    30000, // 30s geri tampon
                     true
                 )
-                .setTargetBufferBytes(128 * 1024 * 1024) // 128 MB RAM tampon boyutu (1080p/4K için)
-                .setPrioritizeTimeOverSizeThresholds(true)
+                .setTargetBufferBytes(128 * 1024 * 1024) // 128 MB RAM tampon boyutu
+                .setPrioritizeTimeOverSizeThresholds(false) // Deadlock ve veri indirme kilidini engeller
                 .build()
         }
     }
@@ -219,9 +226,28 @@ class TiviPlayerManager(private val context: Context) {
                     }
                 }
             } else {
-                setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+                // Donanım hızlandırma modunda bile sistem yazılım kodeklerini yedek olarak açık tut
+                setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             }
         }
+
+        val extractorsFactory = androidx.media3.extractor.DefaultExtractorsFactory().apply {
+            setConstantBitrateSeekingEnabled(true)
+            // Matroska (.mkv) dosya sonundaki cues aramasını kapat: Xtream sunucuları HTTP Range
+            // desteklemediğinde tüm dosyayı baştan indirmeye çalışıp videoyu kilitler.
+            // FLAG_DISABLE_SEEK_FOR_CUES ile dosya başından akıcı olarak hemen oynatmaya başlar.
+            setMatroskaExtractorFlags(androidx.media3.extractor.mkv.MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES)
+            setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
+            setTsExtractorFlags(
+                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
+            )
+        }
+
+        val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
 
         val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
             .setUserAgent("IPTVSmartersPro/3.1.5 (Linux; Android 14; Mobile; ExoPlayer)")
@@ -232,8 +258,9 @@ class TiviPlayerManager(private val context: Context) {
 
         val player = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
+            .setAudioAttributes(audioAttributes, true)
             .setLoadControl(buildLoadControl(isLive))
-            .setMediaSourceFactory(DefaultMediaSourceFactory(httpDataSourceFactory))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(httpDataSourceFactory, extractorsFactory))
             .build()
 
         player.addListener(object : Player.Listener {
@@ -242,8 +269,20 @@ class TiviPlayerManager(private val context: Context) {
                     Player.STATE_BUFFERING -> {
                         _isBuffering.value = true
                         _errorMessage.value = null
+                        bufferingRecoveryJob?.cancel()
+                        bufferingRecoveryJob = scope.launch {
+                            delay(8000)
+                            if (_isBuffering.value && exoPlayer != null) {
+                                // Range veya Cue takılması durumunda oynatmayı 0 konumundan taze başlat
+                                android.util.Log.w("VegaIPTV", "Buffering timeout detected, attempting recovery")
+                                exoPlayer?.seekTo(0L)
+                                exoPlayer?.prepare()
+                                exoPlayer?.play()
+                            }
+                        }
                     }
                     Player.STATE_READY -> {
+                        bufferingRecoveryJob?.cancel()
                         _isBuffering.value = false
                         _duration.value = if (isLiveStream) 0L else player.duration.coerceAtLeast(0L)
                         _errorMessage.value = null
@@ -702,6 +741,7 @@ class TiviPlayerManager(private val context: Context) {
     }
 
     fun release() {
+        bufferingRecoveryJob?.cancel()
         cancelSleepTimer()
         stopPositionUpdates()
         exoPlayer?.release()

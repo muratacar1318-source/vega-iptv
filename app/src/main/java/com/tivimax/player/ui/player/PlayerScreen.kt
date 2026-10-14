@@ -334,6 +334,9 @@ fun PlayerScreen(
                 }
             },
             update = { playerView ->
+                if (playerView.player == null) {
+                    playerView.player = playerManager.initializePlayer()
+                }
                 playerView.resizeMode = when (aspectRatio) {
                     AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                     AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
