@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.player.components
 
+import android.content.res.Configuration
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +33,7 @@ import coil.compose.AsyncImage
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
+import com.tivimax.player.data.model.decodeBase64IfNeeded
 import com.tivimax.player.player.StreamDiagnostics
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
@@ -376,7 +379,7 @@ private fun GuideChannelItem(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                val programTitle = epg?.title ?: "Yayın Akışı Mevcut Değil"
+                val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram.decodeBase64IfNeeded().ifBlank { "Yayın Akışı Mevcut Değil" }
                 Text(
                     text = programTitle,
                     color = if (isPlaying) OpusCyan.copy(alpha = 0.9f) else Color(0xFF94A3B8),
@@ -429,6 +432,9 @@ fun TiviBottomInfoCard(
     onToggleFavorite: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val configuration = LocalConfiguration.current
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -438,60 +444,72 @@ fun TiviBottomInfoCard(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(
+                    horizontal = if (isPortrait) 10.dp else 16.dp,
+                    vertical = if (isPortrait) 6.dp else 12.dp
+                ),
             shape = RoundedCornerShape(16.dp),
             color = Color(0xEE0A0E14), // %93 Opak OLED Gece Paneli
             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2638).copy(alpha = 0.8f))
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                // Üst Kısım: Kanal No, Logo, İsim, EPG, Favori ve Teknik Rozetler
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Sol Kısım: Kanal Numarası
-                    if (channel.num > 0) {
-                        Text(
-                            text = "${channel.num}",
-                            color = OpusCyan,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            modifier = Modifier.padding(end = 12.dp)
-                        )
-                    }
+            Column(modifier = Modifier.padding(if (isPortrait) 10.dp else 14.dp)) {
+                val currentTitle = epg?.getDecodedTitle() ?: channel.currentProgram.decodeBase64IfNeeded().ifBlank { "Canlı Yayın" }
+                val timeString = if (epg?.start != null && epg.end != null) {
+                    "${epg.start} - ${epg.end}"
+                } else ""
 
-                    // Logo
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF161D28)),
-                        contentAlignment = Alignment.Center
+                if (isPortrait) {
+                    // DİKEY MOD (PORTRAIT): Katmanlı, Ferah ve Başlıkları Asla Ezmeyen Düzen
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (!channel.streamIcon.isNullOrBlank()) {
-                            AsyncImage(
-                                model = channel.streamIcon,
-                                contentDescription = null,
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier.fillMaxSize().padding(6.dp)
+                        if (channel.num > 0) {
+                            Text(
+                                text = "${channel.num}",
+                                color = OpusCyan,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                modifier = Modifier.padding(end = 10.dp)
                             )
-                        } else {
-                            Icon(Icons.Default.Tv, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(28.dp))
                         }
-                    }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                        // Logo
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF161D28)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!channel.streamIcon.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = channel.streamIcon,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize().padding(4.dp)
+                                )
+                            } else {
+                                Icon(Icons.Default.Tv, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(22.dp))
+                            }
+                        }
 
-                    // Orta Kısım: Kanal Adı & Canlı Program Bilgisi
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        // Kanal Adı ve Favori Butonu (Tüm satır genişliğini kullanır)
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Text(
                                 text = channel.name,
                                 color = Color.White,
-                                fontSize = 17.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             IconButton(onClick = onToggleFavorite, modifier = Modifier.size(24.dp)) {
                                 Icon(
@@ -502,36 +520,38 @@ fun TiviBottomInfoCard(
                                 )
                             }
                         }
+                    }
 
-                        val currentTitle = epg?.title ?: "Canlı Yayın"
-                        val timeString = if (epg?.start != null && epg.end != null) {
-                            "${epg.start} - ${epg.end}"
-                        } else ""
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                    // 2. Satır: Canlı Program Başlığı & Zaman
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = currentTitle,
+                            color = Color(0xFFE2E8F0),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (timeString.isNotBlank()) {
                             Text(
-                                text = currentTitle,
-                                color = Color(0xFFE2E8F0),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = "($timeString)",
+                                color = Color(0xFF94A3B8),
+                                fontSize = 11.sp
                             )
-                            if (timeString.isNotBlank()) {
-                                Text(
-                                    text = "($timeString)",
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 12.sp
-                                )
-                            }
                         }
                     }
 
-                    // Sağ Üst Köşe: Gerçek Teknik Rozetler (Resolution, FPS, Video/Audio Codec)
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // 3. Satır: Gerçek Teknik Rozetler (Tam Genişlikte, Asla Harf Kayması Olmaz)
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -539,6 +559,98 @@ fun TiviBottomInfoCard(
                         TechBadge(text = diagnostics.frameRateBadge)
                         TechBadge(text = diagnostics.videoCodecBadge)
                         TechBadge(text = diagnostics.audioCodecBadge)
+                    }
+                } else {
+                    // YATAY MOD (LANDSCAPE): Geniş Ekran TiviMate Yan Yana Düzen
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (channel.num > 0) {
+                            Text(
+                                text = "${channel.num}",
+                                color = OpusCyan,
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                modifier = Modifier.padding(end = 12.dp)
+                            )
+                        }
+
+                        // Logo
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFF161D28)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!channel.streamIcon.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = channel.streamIcon,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize().padding(6.dp)
+                                )
+                            } else {
+                                Icon(Icons.Default.Tv, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(28.dp))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // Orta Kısım: Kanal Adı & Canlı Program Bilgisi
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = channel.name,
+                                    color = Color.White,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                IconButton(onClick = onToggleFavorite, modifier = Modifier.size(24.dp)) {
+                                    Icon(
+                                        imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                        contentDescription = "Favori",
+                                        tint = if (isFavorite) Color(0xFFFFB300) else Color(0xFF64748B),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = currentTitle,
+                                    color = Color(0xFFE2E8F0),
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (timeString.isNotBlank()) {
+                                    Text(
+                                        text = "($timeString)",
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        }
+
+                        // Sağ Üst Köşe: Gerçek Teknik Rozetler (Resolution, FPS, Video/Audio Codec)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TechBadge(text = diagnostics.resolutionBadge, isHighlight = true)
+                            TechBadge(text = diagnostics.frameRateBadge)
+                            TechBadge(text = diagnostics.videoCodecBadge)
+                            TechBadge(text = diagnostics.audioCodecBadge)
+                        }
                     }
                 }
 
@@ -550,7 +662,7 @@ fun TiviBottomInfoCard(
                     ((nowSec - start).toFloat() / (stop - start)).coerceIn(0f, 1f)
                 } else 0.5f
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { progress },
                     modifier = Modifier
@@ -561,9 +673,10 @@ fun TiviBottomInfoCard(
                     trackColor = Color(0xFF1E2638)
                 )
 
-                // Sıradaki Program Satırı
-                val nextProg = channel.nextProgram ?: epg?.description
-                if (!nextProg.isNullOrBlank()) {
+                // Sıradaki Program Satırı (Base64 Çözülmüş)
+                val rawNext = channel.nextProgram ?: epg?.getDecodedDescription()
+                val nextProg = rawNext.decodeBase64IfNeeded()
+                if (nextProg.isNotBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "Sıradaki: $nextProg",
@@ -596,7 +709,9 @@ fun TechBadge(text: String, isHighlight: Boolean = false) {
             color = if (isHighlight) OpusCyan else Color(0xFFE2E8F0),
             fontSize = 10.5.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 0.5.sp
+            letterSpacing = 0.5.sp,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }

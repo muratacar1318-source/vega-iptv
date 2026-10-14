@@ -1059,10 +1059,15 @@ fun PlayerScreen(
 
                 // CENTER PLAY/PAUSE/SEEK/ZAP BUTTONS
                 if (!isControlsLocked) {
+                    val centerButtonsAlignment = if (!isPortrait && isLive) {
+                        androidx.compose.ui.BiasAlignment(horizontalBias = 0f, verticalBias = -0.38f)
+                    } else {
+                        Alignment.Center
+                    }
                     Row(
-                        modifier = Modifier.align(Alignment.Center),
+                        modifier = Modifier.align(centerButtonsAlignment),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(36.dp)
+                        horizontalArrangement = Arrangement.spacedBy(if (isPortrait) 28.dp else 36.dp)
                     ) {
                         if (isLive) {
                             // Önceki Kanal (Zapping)

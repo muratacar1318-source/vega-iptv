@@ -1022,8 +1022,9 @@ fun LiveTvWideScreenLayout(
                                         }
                                     }
                                 } else {
+                                    val desc = epg?.getDecodedDescription()
                                     Text(
-                                        text = if (!epg?.description.isNullOrBlank()) epg.description!! else "Günün sonraki yayın akışı için EPG yükleniyor...",
+                                        text = if (!desc.isNullOrBlank()) desc else "Günün sonraki yayın akışı için EPG yükleniyor...",
                                         color = TiviTextMuted,
                                         fontSize = 10.sp,
                                         maxLines = 2,
@@ -2174,8 +2175,9 @@ fun EpgTimelineRow(
                                 .clip(RoundedCornerShape(1.5.dp))
                         )
 
+                        val desc = epg.getDecodedDescription()
                         Text(
-                            text = if (!epg.description.isNullOrBlank()) epg.description!! else "Detaylar için dokunun...",
+                            text = if (desc.isNotBlank()) desc else "Detaylar için dokunun...",
                             color = TiviTextSecondary,
                             fontSize = 10.sp,
                             maxLines = 1,
