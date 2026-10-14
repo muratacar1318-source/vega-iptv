@@ -11,8 +11,8 @@ android {
         applicationId = "com.tivimax.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.0.9"
+        versionCode = 10
+        versionName = "1.0.10"
     }
 
     buildTypes {
@@ -95,6 +95,7 @@ dependencies {
   implementation(libs.androidx.media3.exoplayer.dash)
   implementation(libs.androidx.media3.ui)
   implementation(libs.androidx.media3.session)
+  implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1")
 
   // Coil for poster & logo caching
   implementation(libs.coil.compose)

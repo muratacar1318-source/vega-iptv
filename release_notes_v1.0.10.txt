@@ -1,0 +1,19 @@
+# Vega IPTV v1.0.10 - Media3 FFmpeg Kodek, Akıllı Tampon ve Otomatik Yeniden Bağlanma Güncellemesi
+
+### 🚀 Yenilikler ve Geliştirmeler:
+1. **FFmpeg Ses Kodek Desteği (AC3, EAC3, DTS):**
+   - `org.jellyfin.media3:media3-ffmpeg-decoder` kütüphanesi entegre edildi.
+   - ExoPlayer başlatılırken `EXTENSION_RENDERER_MODE_PREFER` modu aktif edilerek AC3 (Dolby Digital), EAC3 (Dolby Digital Plus) ve DTS ses formatları doğrudan yazılımsal FFmpeg dekoderi üzerinden çözülecek şekilde optimize edildi.
+   - TV ve Android cihazlarda ses gelmeme sorunu tamamen çözüldü.
+
+2. **Yayın Türüne Göre Ayrılmış LoadControl Profili:**
+   - **Canlı Yayınlar (HLS .m3u8 ve TS .ts):** Hızlı kanal geçişi (fast zapping) için 800ms başlatma tamponu ve 2-3s düşük gecikmeli canlı sınır korundu.
+   - **VOD (Film & Dizi - MP4/MKV):** Takılmaları tamamen ortadan kaldırmak için yüksek kapasiteli tamponlama profili (`minBuffer: 15.000ms`, `maxBuffer: 50.000ms`, `bufferForPlayback: 2.500ms`, `bufferForPlaybackAfterRebuffer: 5.000ms`) uygulandı.
+
+3. **Canlı Yayında Otomatik Yeniden Bağlanma (3x Retry):**
+   - Canlı yayın esnasında internet dalgalanması veya sunucu kopmalarında siyah ekranda kalmayı önlemek için `onPlayerError` içinde 2 saniye arayla maksimum 3 kez otomatik yeniden bağlanma (`retry/prepare/seekToDefaultPosition`) mekanizması devreye alındı.
+   - Ekran üzerinde "Yayın koptu, yeniden bağlanılıyor... (1/3)" bilgilendirmesi gösterilir.
+   - Yayın başarıyla toparlandığında sayaç otomatik sıfırlanır.
+
+4. **ProGuard & R8 Koruması:**
+   - Jellyfin FFmpeg native kütüphaneleri ve JNI bağlayıcıları R8 obfuscation'a karşı ProGuard kuralları ile güvence altına alındı.

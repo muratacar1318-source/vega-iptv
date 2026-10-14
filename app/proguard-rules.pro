@@ -43,6 +43,11 @@
 -keep class androidx.media3.ui.** { *; }
 -keep class androidx.media3.common.** { *; }
 
+# Jellyfin Media3 FFmpeg Decoder (AC3, EAC3, DTS)
+-keep class org.jellyfin.media3.** { *; }
+-keepclassmembers class org.jellyfin.media3.** { *; }
+-dontwarn org.jellyfin.media3.**
+
 # ----------------------------------------------------------------------------
 # 3. OKHTTP & OKIO & GÜVENLİK (Ağ ve Failover Koruması)
 # ----------------------------------------------------------------------------

@@ -132,6 +132,8 @@ class TiviPlayerManager(private val context: Context) {
     private var currentUrl: String = ""
     private var isLiveStream: Boolean = false
     private var positionJob: Job? = null
+    private var liveRetryJob: Job? = null
+    private var liveRetryCount = 0
     private val scope = CoroutineScope(Dispatchers.Main)
 
     private val _bufferedPosition = MutableStateFlow(0L)
@@ -150,7 +152,8 @@ class TiviPlayerManager(private val context: Context) {
 
     private fun buildLoadControl(isLive: Boolean): DefaultLoadControl {
         return if (isLive) {
-            // Canlı yayınlarda tamponu 2-3 saniyede tut (asla 16 saniyeye şişmez)
+            // Canlı Yayınlar (HLS .m3u8 ve TS .ts):
+            // Hızlı kanal geçişi (fast zapping) için 800ms başlatma tamponu ve 2-3s düşük gecikmeli canlı sınır
             val targetSecs = _liveBufferSeconds.coerceIn(2, 6)
             val minBufferMs = targetSecs * 1000
             val maxBufferMs = (targetSecs * 1000) + 1500 // Maksimum 3.5s (2s hedef için)
@@ -158,29 +161,28 @@ class TiviPlayerManager(private val context: Context) {
                 .setBufferDurationsMs(
                     minBufferMs,
                     maxBufferMs,
-                    800, // 0.8s ilk oynatma tamponu
+                    800, // Hızlı kanal açılışı için 800ms başlatma tamponu korundu
                     1200 // Yeniden tamponlama
                 )
-                .setBackBuffer(0, false) // Canlı yayında geri tampon gecikmeyi artırır, kapat
+                .setBackBuffer(0, false) // Canlıda geçmiş tampon gecikmeyi artırır, kapat
                 .setPrioritizeTimeOverSizeThresholds(true)
                 .build()
         } else {
-            // Film ve Diziler: Tamponu seçilen değerde (Örn: 60s, 120s) sürekli dolu tut!
-            val targetBufferMs = (_vodBufferSeconds * 1000).coerceIn(15000, 300000)
-            val maxBufferMs = (targetBufferMs * 2).coerceAtLeast(60000)
+            // VOD (MP4/MKV Film ve Dizi):
+            // Takılmayı önlemek için yüksek kapasiteli (minBuffer 15000ms, maxBuffer 50000ms, bufferForPlayback 2500ms) ayrı profil
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                    targetBufferMs, // minBufferMs: Arka planda hedef süre kadar önceden indirir
-                    maxBufferMs,    // maxBufferMs: Üst sınır
-                    1000,           // bufferForPlaybackMs: İlk kare için 1 saniye yeterli, anında oynatır!
-                    2000            // bufferForPlaybackAfterRebufferMs: Takılma durumunda 2 saniye sonra hemen devam eder
+                    15000, // minBuffer 15000ms
+                    50000, // maxBuffer 50000ms
+                    2500,  // bufferForPlayback 2500ms
+                    5000   // bufferForPlaybackAfterRebuffer 5000ms
                 )
                 .setBackBuffer(
                     30000, // 30s geri tampon
                     true
                 )
                 .setTargetBufferBytes(128 * 1024 * 1024) // 128 MB RAM tampon boyutu
-                .setPrioritizeTimeOverSizeThresholds(false) // Deadlock ve veri indirme kilidini engeller
+                .setPrioritizeTimeOverSizeThresholds(false)
                 .build()
         }
     }
@@ -240,8 +242,9 @@ class TiviPlayerManager(private val context: Context) {
 
         val renderersFactory = DefaultRenderersFactory(context).apply {
             setEnableDecoderFallback(true) // Donanım başarısız olursa otomatik yazılıma geç
+            // AC3, EAC3 ve DTS ses kodeklerini FFmpeg eklentisiyle öncelikli çözmek için PREFER modu
+            setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             if (_decoderMode == "SOFTWARE") {
-                setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
                 setMediaCodecSelector { mimeType, requiresSecure, requiresTunneling ->
                     try {
                         val decoders = androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT
@@ -256,9 +259,6 @@ class TiviPlayerManager(private val context: Context) {
                             .getDecoderInfos(mimeType, requiresSecure, requiresTunneling)
                     }
                 }
-            } else {
-                // Donanım hızlandırma modunda bile sistem yazılım kodeklerini yedek olarak açık tut
-                setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             }
         }
 
@@ -314,6 +314,8 @@ class TiviPlayerManager(private val context: Context) {
                     }
                     Player.STATE_READY -> {
                         bufferingRecoveryJob?.cancel()
+                        liveRetryJob?.cancel()
+                        liveRetryCount = 0
                         _isBuffering.value = false
                         _duration.value = if (isLiveStream) 0L else player.duration.coerceAtLeast(0L)
                         _errorMessage.value = null
@@ -354,23 +356,28 @@ class TiviPlayerManager(private val context: Context) {
             override fun onPlayerError(error: PlaybackException) {
                 _isBuffering.value = false
 
-                // Canlı yayında geride kalındığında veya ufak sunucu gecikmesinde anında 3s canlı sınıra zıpla
-                if (isLiveStream && (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW ||
-                    error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
-                    error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
-                    error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS)) {
+                // Canlı yayın izlerken yayın anlık koparsa siyah ekranda kalmaması için
+                // 2 saniye arayla maksimum 3 kez otomatik yeniden bağlanma (retry/prepare) mekanizması
+                if (isLiveStream && liveRetryCount < 3) {
+                    liveRetryCount++
                     _isBuffering.value = true
-                    scope.launch {
-                        delay(600)
-                        player.seekToDefaultPosition()
-                        player.prepare()
-                        player.play()
+                    _errorMessage.value = "Yayın koptu, yeniden bağlanılıyor... ($liveRetryCount/3)"
+                    liveRetryJob?.cancel()
+                    liveRetryJob = scope.launch {
+                        delay(2000)
+                        if (isLiveStream && exoPlayer != null) {
+                            android.util.Log.i("VegaIPTV", "Canlı yayın otomatik yeniden bağlanma denemesi: $liveRetryCount/3")
+                            player.seekToDefaultPosition()
+                            player.prepare()
+                            player.play()
+                        }
                     }
                     return
                 }
 
                 // Otomatik Alternatif Format Deneme (404 ERROR_CODE_IO_FILE_NOT_FOUND Çözümü)
                 if (fallbackAttempt + 1 < fallbackUrls.size) {
+                    liveRetryCount = 0
                     fallbackAttempt++
                     val nextUrl = fallbackUrls[fallbackAttempt]
                     playInternal(nextUrl, isLive = isLiveStream)
@@ -406,6 +413,8 @@ class TiviPlayerManager(private val context: Context) {
     fun playWithFallbacks(urls: List<String>, isLive: Boolean = false, startPositionMs: Long = 0L) {
         this.fallbackUrls = urls.toMutableList()
         this.fallbackAttempt = 0
+        this.liveRetryCount = 0
+        this.liveRetryJob?.cancel()
         this.isLiveStream = isLive
         _errorMessage.value = null
 
@@ -421,6 +430,8 @@ class TiviPlayerManager(private val context: Context) {
         if (url.isBlank()) return
         this.currentUrl = url
         this.isLiveStream = isLive
+        this.liveRetryCount = 0
+        this.liveRetryJob?.cancel()
         _errorMessage.value = null
 
         try {
@@ -809,7 +820,7 @@ class TiviPlayerManager(private val context: Context) {
         secondaryExoPlayer?.release()
 
         val renderersFactory = DefaultRenderersFactory(context)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
         val loadControl = buildLoadControl(isLive = true)
 
         val player = ExoPlayer.Builder(context)
@@ -866,6 +877,8 @@ class TiviPlayerManager(private val context: Context) {
     fun release() {
         closeDualView()
         bufferingRecoveryJob?.cancel()
+        liveRetryJob?.cancel()
+        liveRetryCount = 0
         cancelSleepTimer()
         stopPositionUpdates()
         exoPlayer?.release()
