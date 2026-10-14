@@ -13,17 +13,27 @@ import com.tivimax.player.data.model.*
 import com.tivimax.player.data.network.FailoverInterceptor
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.net.SocketTimeoutException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 data class CategorySyncResult(
     val liveCount: Int,
@@ -55,25 +65,30 @@ class XtreamRepository(private val context: Context? = null) {
     fun getCachedSeriesCategories(): List<SeriesCategory> = seriesCategoriesCache.toList()
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
         .addInterceptor(FailoverInterceptor())
         .addInterceptor { chain ->
             val original = chain.request()
             val request = original.newBuilder()
-                .header("User-Agent", "VegaIPTV/1.0 (Android; ExoPlayer; Mobile)")
+                .header("User-Agent", "IPTV Smarters Pro")
+                .header("Connection", "close")
                 .header("Accept", "*/*")
                 .build()
             chain.proceed(request)
         }
         .build()
 
+    private var customServerUrl: String = ""
+
     var serverUrl: String
-        get() = FailoverInterceptor.currentWorkingBaseUrl
+        get() = if (customServerUrl.isNotBlank()) customServerUrl else FailoverInterceptor.currentWorkingBaseUrl
         set(value) {
-            FailoverInterceptor.setWorkingBaseUrl(value)
+            val clean = value.trimEnd('/')
+            customServerUrl = clean
+            FailoverInterceptor.setWorkingBaseUrl(clean)
         }
 
     var username: String = ""
@@ -206,64 +221,239 @@ class XtreamRepository(private val context: Context? = null) {
         }
     }
 
+    private suspend fun parseAndInsertVodChunk(
+        reader: java.io.Reader,
+        db: AppDatabase,
+        chunkSize: Int = 1000,
+        dbMutex: Mutex? = null,
+        onChunkInserted: (count: Int) -> Unit
+    ): Int {
+        var count = 0
+        val jsonReader = JsonReader(reader)
+        jsonReader.isLenient = true
+        if (jsonReader.peek() == JsonToken.BEGIN_ARRAY) {
+            jsonReader.beginArray()
+            val chunk = ArrayList<VodStreamEntity>(chunkSize)
+            while (jsonReader.hasNext()) {
+                try {
+                    val stream: VodStream = gson.fromJson(jsonReader, VodStream::class.java)
+                    if (stream.streamId > 0 && !stream.name.isNullOrBlank()) {
+                        chunk.add(stream.toEntity())
+                    }
+                    if (chunk.size >= chunkSize) {
+                        val toInsert = ArrayList(chunk)
+                        if (dbMutex != null) {
+                            dbMutex.withLock {
+                                db.vodDao().insertStreams(toInsert)
+                            }
+                        } else {
+                            db.withTransaction {
+                                db.vodDao().insertStreams(toInsert)
+                            }
+                        }
+                        count += toInsert.size
+                        onChunkInserted(toInsert.size)
+                        chunk.clear()
+                    }
+                } catch (e: Exception) {
+                    try { jsonReader.skipValue() } catch (_: Exception) {}
+                }
+            }
+            if (chunk.isNotEmpty()) {
+                val toInsert = ArrayList(chunk)
+                if (dbMutex != null) {
+                    dbMutex.withLock {
+                        db.vodDao().insertStreams(toInsert)
+                    }
+                } else {
+                    db.withTransaction {
+                        db.vodDao().insertStreams(toInsert)
+                    }
+                }
+                count += toInsert.size
+                onChunkInserted(toInsert.size)
+                chunk.clear()
+            }
+            try { jsonReader.endArray() } catch (_: Exception) {}
+        } else {
+            throw IllegalStateException("Sunucu yanıtı geçerli bir JSON listesi değil")
+        }
+        return count
+    }
+
+    private suspend fun parseAndInsertSeriesChunk(
+        reader: java.io.Reader,
+        db: AppDatabase,
+        chunkSize: Int = 1000,
+        dbMutex: Mutex? = null,
+        onChunkInserted: (count: Int) -> Unit
+    ): Int {
+        var count = 0
+        val jsonReader = JsonReader(reader)
+        jsonReader.isLenient = true
+        if (jsonReader.peek() == JsonToken.BEGIN_ARRAY) {
+            jsonReader.beginArray()
+            val chunk = ArrayList<SeriesStreamEntity>(chunkSize)
+            while (jsonReader.hasNext()) {
+                try {
+                    val stream: SeriesStream = gson.fromJson(jsonReader, SeriesStream::class.java)
+                    if (stream.seriesId > 0 && !stream.name.isNullOrBlank()) {
+                        chunk.add(stream.toEntity())
+                    }
+                    if (chunk.size >= chunkSize) {
+                        val toInsert = ArrayList(chunk)
+                        if (dbMutex != null) {
+                            dbMutex.withLock {
+                                db.seriesDao().insertStreams(toInsert)
+                            }
+                        } else {
+                            db.withTransaction {
+                                db.seriesDao().insertStreams(toInsert)
+                            }
+                        }
+                        count += toInsert.size
+                        onChunkInserted(toInsert.size)
+                        chunk.clear()
+                    }
+                } catch (e: Exception) {
+                    try { jsonReader.skipValue() } catch (_: Exception) {}
+                }
+            }
+            if (chunk.isNotEmpty()) {
+                val toInsert = ArrayList(chunk)
+                if (dbMutex != null) {
+                    dbMutex.withLock {
+                        db.seriesDao().insertStreams(toInsert)
+                    }
+                } else {
+                    db.withTransaction {
+                        db.seriesDao().insertStreams(toInsert)
+                    }
+                }
+                count += toInsert.size
+                onChunkInserted(toInsert.size)
+                chunk.clear()
+            }
+            try { jsonReader.endArray() } catch (_: Exception) {}
+        } else {
+            throw IllegalStateException("Sunucu yanıtı geçerli bir JSON listesi değil")
+        }
+        return count
+    }
+
     suspend fun syncVodStreams(
-        onProgress: ((savedCount: Int) -> Unit)? = null
+        onProgress: ((savedCount: Int, statusText: String) -> Unit)? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         val db = database ?: return@withContext Result.failure(Exception("Veritabanı başlatılamadı"))
         try {
-            val url = buildApiUrl("get_vod_streams")
-            val request = Request.Builder().url(url).get().build()
-            val response = client.newCall(request).execute()
+            var totalSaved = 0
+            var bulkSucceeded = false
 
-            if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("HTTP Hatası: ${response.code}"))
+            // 1. Önce tek parça tüm VOD listesini çekmeyi dene (Hızlı yöntem)
+            val bulkUrl = buildApiUrl("get_vod_streams")
+            var bulkAttempt = 0
+            val maxBulkAttempts = 2
+
+            while (bulkAttempt < maxBulkAttempts && !bulkSucceeded) {
+                bulkAttempt++
+                var response: okhttp3.Response? = null
+                try {
+                    val request = Request.Builder().url(bulkUrl).get().build()
+                    response = client.newCall(request).execute()
+
+                    if (response.isSuccessful) {
+                        val body = response.body
+                        if (body != null) {
+                            var currentBulkSaved = 0
+                            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
+                                parseAndInsertVodChunk(reader, db, chunkSize = 2000) { added ->
+                                    currentBulkSaved += added
+                                    onProgress?.invoke(currentBulkSaved, "$currentBulkSaved film kaydedildi")
+                                }
+                            }
+                            totalSaved = currentBulkSaved
+                            bulkSucceeded = true
+                        }
+                    } else {
+                        android.util.Log.w("XtreamRepository", "Bulk get_vod_streams attempt $bulkAttempt returned HTTP ${response.code}")
+                        if (bulkAttempt < maxBulkAttempts && response.code in listOf(500, 502, 503, 504)) {
+                            delay(2000)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("XtreamRepository", "Bulk get_vod_streams attempt $bulkAttempt failed: ${e.message}")
+                    if (bulkAttempt < maxBulkAttempts && (e is SocketTimeoutException || e is java.io.IOException)) {
+                        delay(2000)
+                    }
+                } finally {
+                    try { response?.close() } catch (_: Exception) {}
+                }
             }
 
-            val body = response.body ?: return@withContext Result.failure(Exception("Boş sunucu yanıtı"))
-            var totalSaved = 0
+            // 2. Eğer toplu liste 502 Bad Gateway / 500 / 503 / 504 veya zaman aşımı nedeniyle başarısız olduysa:
+            // Sunucunun PHP-FPM belleğini zorlamadan Kategori Bazlı Parçalı İndirme (Category-by-Category Fallback) moduna geç
+            if (!bulkSucceeded) {
+                android.util.Log.i("XtreamRepository", "Switching to Category-by-Category fallback for VOD streams...")
+                val categories = db.vodDao().getCategoriesList().filter { 
+                    it.categoryId.isNotBlank() && it.categoryId != "all" 
+                }.ifEmpty {
+                    fetchAndSaveVodCategories().getOrNull()?.map { it.toEntity() }?.filter {
+                        it.categoryId.isNotBlank() && it.categoryId != "all"
+                    } ?: emptyList()
+                }
 
-            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
-                val jsonReader = JsonReader(reader)
-                jsonReader.isLenient = true
+                if (categories.isNotEmpty()) {
+                    val totalCategories = categories.size
+                    val processedCategories = AtomicInteger(0)
+                    val totalSavedAtomic = AtomicInteger(totalSaved)
+                    val semaphore = Semaphore(3)
+                    val dbWriteMutex = Mutex()
 
-                if (jsonReader.peek() == JsonToken.BEGIN_ARRAY) {
-                    jsonReader.beginArray()
-                    val chunk = ArrayList<VodStreamEntity>(2000)
+                    onProgress?.invoke(totalSavedAtomic.get(), "Kategori bazlı parçalı indirme başlatılıyor (0/$totalCategories)...")
 
-                    while (jsonReader.hasNext()) {
-                        try {
-                            val stream: VodStream = gson.fromJson(jsonReader, VodStream::class.java)
-                            if (stream.streamId > 0 && !stream.name.isNullOrBlank()) {
-                                chunk.add(stream.toEntity())
-                            }
+                    coroutineScope {
+                        categories.map { cat ->
+                            async(Dispatchers.IO) {
+                                semaphore.withPermit {
+                                    var catResponse: okhttp3.Response? = null
+                                    try {
+                                        val catUrl = buildApiUrl("get_vod_streams", mapOf("category_id" to cat.categoryId))
+                                        val catRequest = Request.Builder().url(catUrl).get().build()
+                                        catResponse = client.newCall(catRequest).execute()
 
-                            if (chunk.size >= 2000) {
-                                val toInsert = ArrayList(chunk)
-                                db.withTransaction {
-                                    db.vodDao().insertStreams(toInsert)
+                                        if (catResponse.isSuccessful) {
+                                            val catBody = catResponse.body
+                                            if (catBody != null) {
+                                                catBody.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
+                                                    parseAndInsertVodChunk(reader, db, chunkSize = 500, dbMutex = dbWriteMutex) { added ->
+                                                        val currentTotal = totalSavedAtomic.addAndGet(added)
+                                                        val curCatIdx = processedCategories.get()
+                                                        onProgress?.invoke(
+                                                            currentTotal,
+                                                            "$currentTotal film kaydedildi - Kategori $curCatIdx/$totalCategories (${cat.categoryName})"
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } catch (catEx: Exception) {
+                                        android.util.Log.w("XtreamRepository", "Category ${cat.categoryName} (${cat.categoryId}) VOD sync failed: ${catEx.message}")
+                                    } finally {
+                                        try { catResponse?.close() } catch (_: Exception) {}
+                                        val curCatIdx = processedCategories.incrementAndGet()
+                                        val currentTotal = totalSavedAtomic.get()
+                                        onProgress?.invoke(
+                                            currentTotal,
+                                            "$currentTotal film kaydedildi - Kategori $curCatIdx/$totalCategories (${cat.categoryName})"
+                                        )
+                                    }
                                 }
-                                totalSaved += toInsert.size
-                                onProgress?.invoke(totalSaved)
-                                chunk.clear()
                             }
-                        } catch (e: Exception) {
-                            try { jsonReader.skipValue() } catch (_: Exception) {}
-                        }
+                        }.awaitAll()
                     }
-
-                    if (chunk.isNotEmpty()) {
-                        val toInsert = ArrayList(chunk)
-                        db.withTransaction {
-                            db.vodDao().insertStreams(toInsert)
-                        }
-                        totalSaved += toInsert.size
-                        onProgress?.invoke(totalSaved)
-                        chunk.clear()
-                    }
-
-                    try { jsonReader.endArray() } catch (_: Exception) {}
+                    totalSaved = totalSavedAtomic.get()
                 } else {
-                    jsonReader.skipValue()
+                    return@withContext Result.failure(Exception("VOD kategorileri bulunamadı ve toplu indirme başarısız oldu"))
                 }
             }
 
@@ -275,63 +465,117 @@ class XtreamRepository(private val context: Context? = null) {
     }
 
     suspend fun syncSeriesStreams(
-        onProgress: ((savedCount: Int) -> Unit)? = null
+        onProgress: ((savedCount: Int, statusText: String) -> Unit)? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         val db = database ?: return@withContext Result.failure(Exception("Veritabanı başlatılamadı"))
         try {
-            val url = buildApiUrl("get_series")
-            val request = Request.Builder().url(url).get().build()
-            val response = client.newCall(request).execute()
+            var totalSaved = 0
+            var bulkSucceeded = false
 
-            if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("HTTP Hatası: ${response.code}"))
+            // 1. Önce tek parça toplu isteği dene (Hızlı yöntem)
+            val bulkUrl = buildApiUrl("get_series")
+            var bulkAttempt = 0
+            val maxBulkAttempts = 2
+
+            while (bulkAttempt < maxBulkAttempts && !bulkSucceeded) {
+                bulkAttempt++
+                var response: okhttp3.Response? = null
+                try {
+                    val request = Request.Builder().url(bulkUrl).get().build()
+                    response = client.newCall(request).execute()
+
+                    if (response.isSuccessful) {
+                        val body = response.body
+                        if (body != null) {
+                            var currentBulkSaved = 0
+                            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
+                                parseAndInsertSeriesChunk(reader, db, chunkSize = 2000) { added ->
+                                    currentBulkSaved += added
+                                    onProgress?.invoke(currentBulkSaved, "$currentBulkSaved dizi kaydedildi")
+                                }
+                            }
+                            totalSaved = currentBulkSaved
+                            bulkSucceeded = true
+                        }
+                    } else {
+                        android.util.Log.w("XtreamRepository", "Bulk get_series attempt $bulkAttempt returned HTTP ${response.code}")
+                        if (bulkAttempt < maxBulkAttempts && response.code in listOf(500, 502, 503, 504)) {
+                            delay(2000)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("XtreamRepository", "Bulk get_series attempt $bulkAttempt failed: ${e.message}")
+                    if (bulkAttempt < maxBulkAttempts && (e is SocketTimeoutException || e is java.io.IOException)) {
+                        delay(2000)
+                    }
+                } finally {
+                    try { response?.close() } catch (_: Exception) {}
+                }
             }
 
-            val body = response.body ?: return@withContext Result.failure(Exception("Boş sunucu yanıtı"))
-            var totalSaved = 0
+            // 2. Kategori bazlı parçalı indirmeye geç (Category-by-Category Fallback)
+            if (!bulkSucceeded) {
+                android.util.Log.i("XtreamRepository", "Switching to Category-by-Category fallback for Series streams...")
+                val categories = db.seriesDao().getCategoriesList().filter { 
+                    it.categoryId.isNotBlank() && it.categoryId != "all" 
+                }.ifEmpty {
+                    fetchAndSaveSeriesCategories().getOrNull()?.map { it.toEntity() }?.filter {
+                        it.categoryId.isNotBlank() && it.categoryId != "all"
+                    } ?: emptyList()
+                }
 
-            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
-                val jsonReader = JsonReader(reader)
-                jsonReader.isLenient = true
+                if (categories.isNotEmpty()) {
+                    val totalCategories = categories.size
+                    val processedCategories = AtomicInteger(0)
+                    val totalSavedAtomic = AtomicInteger(totalSaved)
+                    val semaphore = Semaphore(3)
+                    val dbWriteMutex = Mutex()
 
-                if (jsonReader.peek() == JsonToken.BEGIN_ARRAY) {
-                    jsonReader.beginArray()
-                    val chunk = ArrayList<SeriesStreamEntity>(2000)
+                    onProgress?.invoke(totalSavedAtomic.get(), "Kategori bazlı parçalı indirme başlatılıyor (0/$totalCategories)...")
 
-                    while (jsonReader.hasNext()) {
-                        try {
-                            val stream: SeriesStream = gson.fromJson(jsonReader, SeriesStream::class.java)
-                            if (stream.seriesId > 0 && !stream.name.isNullOrBlank()) {
-                                chunk.add(stream.toEntity())
-                            }
+                    coroutineScope {
+                        categories.map { cat ->
+                            async(Dispatchers.IO) {
+                                semaphore.withPermit {
+                                    var catResponse: okhttp3.Response? = null
+                                    try {
+                                        val catUrl = buildApiUrl("get_series", mapOf("category_id" to cat.categoryId))
+                                        val catRequest = Request.Builder().url(catUrl).get().build()
+                                        catResponse = client.newCall(catRequest).execute()
 
-                            if (chunk.size >= 2000) {
-                                val toInsert = ArrayList(chunk)
-                                db.withTransaction {
-                                    db.seriesDao().insertStreams(toInsert)
+                                        if (catResponse.isSuccessful) {
+                                            val catBody = catResponse.body
+                                            if (catBody != null) {
+                                                catBody.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
+                                                    parseAndInsertSeriesChunk(reader, db, chunkSize = 500, dbMutex = dbWriteMutex) { added ->
+                                                        val currentTotal = totalSavedAtomic.addAndGet(added)
+                                                        val curCatIdx = processedCategories.get()
+                                                        onProgress?.invoke(
+                                                            currentTotal,
+                                                            "$currentTotal dizi kaydedildi - Kategori $curCatIdx/$totalCategories (${cat.categoryName})"
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } catch (catEx: Exception) {
+                                        android.util.Log.w("XtreamRepository", "Category ${cat.categoryName} (${cat.categoryId}) Series sync failed: ${catEx.message}")
+                                    } finally {
+                                        try { catResponse?.close() } catch (_: Exception) {}
+                                        val curCatIdx = processedCategories.incrementAndGet()
+                                        val currentTotal = totalSavedAtomic.get()
+                                        onProgress?.invoke(
+                                            currentTotal,
+                                            "$currentTotal dizi kaydedildi - Kategori $curCatIdx/$totalCategories (${cat.categoryName})"
+                                        )
+                                    }
                                 }
-                                totalSaved += toInsert.size
-                                onProgress?.invoke(totalSaved)
-                                chunk.clear()
                             }
-                        } catch (e: Exception) {
-                            try { jsonReader.skipValue() } catch (_: Exception) {}
-                        }
+                        }.awaitAll()
                     }
-
-                    if (chunk.isNotEmpty()) {
-                        val toInsert = ArrayList(chunk)
-                        db.withTransaction {
-                            db.seriesDao().insertStreams(toInsert)
-                        }
-                        totalSaved += toInsert.size
-                        onProgress?.invoke(totalSaved)
-                        chunk.clear()
-                    }
-
-                    try { jsonReader.endArray() } catch (_: Exception) {}
+                    totalSaved = totalSavedAtomic.get()
                 } else {
-                    jsonReader.skipValue()
+                    return@withContext Result.failure(Exception("Dizi kategorileri bulunamadı ve toplu indirme başarısız oldu"))
                 }
             }
 

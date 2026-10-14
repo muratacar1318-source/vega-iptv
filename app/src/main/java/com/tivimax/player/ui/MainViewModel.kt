@@ -554,11 +554,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 updateStep(2, SyncStepStatus.COMPLETED, "$liveCount canlı kanal hazır", 1f)
             }
 
+            // PHP-FPM / Nginx worker'larının rahatlaması için dinlenme payı
+            kotlinx.coroutines.delay(1000)
+
             // 3. Adım: VOD (Film)
             if (fromStep <= 3) {
-                updateStep(3, SyncStepStatus.IN_PROGRESS, "VOD (Film) arşivi kaydediliyor...", -1f)
-                val vodRes = repository.syncVodStreams { count ->
-                    updateStep(3, SyncStepStatus.IN_PROGRESS, "$count film hazır", -1f)
+                updateStep(3, SyncStepStatus.IN_PROGRESS, "VOD (Film) arşivi taranıyor...", -1f)
+                val vodRes = repository.syncVodStreams { count, status ->
+                    updateStep(3, SyncStepStatus.IN_PROGRESS, status, -1f)
                 }
                 if (vodRes.isFailure) {
                     val err = vodRes.exceptionOrNull()?.localizedMessage ?: "Film arşivi kaydedilemedi"
@@ -569,11 +572,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 updateStep(3, SyncStepStatus.COMPLETED, "$vodCount film hazır", 1f)
             }
 
+            // PHP-FPM / Nginx worker'larının rahatlaması için dinlenme payı
+            kotlinx.coroutines.delay(1000)
+
             // 4. Adım: Diziler
             if (fromStep <= 4) {
-                updateStep(4, SyncStepStatus.IN_PROGRESS, "Diziler ve bölümler kaydediliyor...", -1f)
-                val seriesRes = repository.syncSeriesStreams { count ->
-                    updateStep(4, SyncStepStatus.IN_PROGRESS, "$count dizi hazır", -1f)
+                updateStep(4, SyncStepStatus.IN_PROGRESS, "Diziler ve bölümler taranıyor...", -1f)
+                val seriesRes = repository.syncSeriesStreams { count, status ->
+                    updateStep(4, SyncStepStatus.IN_PROGRESS, status, -1f)
                 }
                 if (seriesRes.isFailure) {
                     val err = seriesRes.exceptionOrNull()?.localizedMessage ?: "Diziler kaydedilemedi"

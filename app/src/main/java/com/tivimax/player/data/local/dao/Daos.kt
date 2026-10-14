@@ -16,6 +16,9 @@ interface LiveDao {
     @Query("SELECT * FROM live_categories ORDER BY categoryName ASC")
     fun getCategories(): Flow<List<LiveCategoryEntity>>
 
+    @Query("SELECT * FROM live_categories ORDER BY categoryName ASC")
+    suspend fun getCategoriesList(): List<LiveCategoryEntity>
+
     @Query("DELETE FROM live_categories")
     suspend fun clearCategories()
 
@@ -86,6 +89,9 @@ interface VodDao {
 
     @Query("SELECT * FROM vod_categories ORDER BY categoryName ASC")
     fun getCategories(): Flow<List<VodCategoryEntity>>
+
+    @Query("SELECT * FROM vod_categories ORDER BY categoryName ASC")
+    suspend fun getCategoriesList(): List<VodCategoryEntity>
 
     @Query("DELETE FROM vod_categories")
     suspend fun clearCategories()
@@ -158,6 +164,9 @@ interface SeriesDao {
 
     @Query("SELECT * FROM series_categories ORDER BY categoryName ASC")
     fun getCategories(): Flow<List<SeriesCategoryEntity>>
+
+    @Query("SELECT * FROM series_categories ORDER BY categoryName ASC")
+    suspend fun getCategoriesList(): List<SeriesCategoryEntity>
 
     @Query("DELETE FROM series_categories")
     suspend fun clearCategories()

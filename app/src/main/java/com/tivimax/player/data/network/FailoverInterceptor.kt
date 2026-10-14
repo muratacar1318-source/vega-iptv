@@ -136,14 +136,11 @@ class FailoverInterceptor : Interceptor {
 
     private fun isManagedHost(url: HttpUrl): Boolean {
         val currentHost = url.host.lowercase()
-        val managedHosts = LinkedHashSet<String>().apply {
-            AppConfig.DEFAULT_SERVER_URL.toHttpUrlOrNull()?.host?.lowercase()?.let { add(it) }
-            AppConfig.FALLBACK_DOMAINS.forEach { domain ->
-                domain.toHttpUrlOrNull()?.host?.lowercase()?.let { add(it) }
-            }
-            currentWorkingBaseUrl.toHttpUrlOrNull()?.host?.lowercase()?.let { add(it) }
-        }
-        return managedHosts.contains(currentHost)
+        val defaultHost = AppConfig.DEFAULT_SERVER_URL.toHttpUrlOrNull()?.host?.lowercase()
+        val fallbackHosts = AppConfig.FALLBACK_DOMAINS.mapNotNull { it.toHttpUrlOrNull()?.host?.lowercase() }.toSet()
+        // Failover yalnızca uygulamanın yerleşik varsayılan ve yedek sunucuları için devreye girmelidir.
+        // Kullanıcının kendi eklediği özel IPTV sunucusu bu mekanizmaya dahil edilmez.
+        return currentHost == defaultHost || fallbackHosts.contains(currentHost)
     }
 
 
