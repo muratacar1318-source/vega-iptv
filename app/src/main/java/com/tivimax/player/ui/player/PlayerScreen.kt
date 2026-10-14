@@ -56,6 +56,7 @@ import coil.compose.AsyncImage
 import androidx.compose.foundation.BorderStroke
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.player.AspectRatioMode
+import com.tivimax.player.player.TiviPlayerManager
 import com.tivimax.player.player.TrackInfo
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
@@ -475,94 +476,13 @@ fun PlayerScreen(
             }
     ) {
         if (!isDualViewActive) {
-            // Media3 ExoPlayer Video Render View
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        useController = false
-                        keepScreenOn = true
-                        layoutParams = FrameLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        player = playerManager.initializePlayer(isLive)
-                        playerManager.registerPlayerView(this)
-                        try {
-                            subtitleView?.let { subView ->
-                                subView.setStyle(
-                                    androidx.media3.ui.CaptionStyleCompat(
-                                        android.graphics.Color.WHITE,
-                                        android.graphics.Color.argb(160, 0, 0, 0),
-                                        android.graphics.Color.TRANSPARENT,
-                                        androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
-                                        android.graphics.Color.BLACK,
-                                        null
-                                    )
-                                )
-                                subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18f)
-                                subView.setBottomPaddingFraction(0.12f)
-                            }
-                        } catch (e: Throwable) {
-                            // Ignore styling errors on non-standard devices
-                        }
-                        resizeMode = when (aspectRatio) {
-                            AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                            AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                            AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                            AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-                        }
-                    }
-                },
-                update = { playerView ->
-                    val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive)
-                    if (playerView.player != currentPlayer) {
-                        playerView.player = currentPlayer
-                        playerManager.registerPlayerView(playerView)
-                    }
-                    val targetResizeMode = when (aspectRatio) {
-                        AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                        AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-                    }
-                    if (playerView.resizeMode != targetResizeMode) {
-                        playerView.resizeMode = targetResizeMode
-                    }
-                    try {
-                        playerView.subtitleView?.let { subView ->
-                            val subTextColor = when (subtitleColor) {
-                                "SARI" -> android.graphics.Color.rgb(255, 215, 0)
-                                "YESIL" -> android.graphics.Color.rgb(0, 230, 118)
-                                "MAVI" -> android.graphics.Color.rgb(64, 196, 255)
-                                else -> android.graphics.Color.WHITE
-                            }
-                            val subTextSp = when (subtitleSize) {
-                                "KUCUK" -> 14f
-                                "BUYUK" -> 22f
-                                "COK_BUYUK" -> 26f
-                                else -> 18f
-                            }
-                            subView.setStyle(
-                                androidx.media3.ui.CaptionStyleCompat(
-                                    subTextColor,
-                                    android.graphics.Color.argb(160, 0, 0, 0),
-                                    android.graphics.Color.TRANSPARENT,
-                                    androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
-                                    android.graphics.Color.BLACK,
-                                    null
-                                )
-                            )
-                            subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, subTextSp)
-                            subView.setBottomPaddingFraction(0.12f)
-                        }
-                    } catch (e: Throwable) {
-                        // Ignore
-                    }
-                },
-                onRelease = { playerView ->
-                    playerManager.unregisterPlayerView(playerView)
-                    playerView.player = null
-                },
+            // Media3 ExoPlayer Video Render View (İzole Edilmiş Yüzey - HUD/Zaman recomposition'larından asla etkilenmez)
+            VideoPlayerSurface(
+                playerManager = playerManager,
+                isLive = isLive,
+                aspectRatio = aspectRatio,
+                subtitleColor = subtitleColor,
+                subtitleSize = subtitleSize,
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -3136,3 +3056,88 @@ private fun formatDuration(millis: Long): String {
         String.format("%02d:%02d", minutes, seconds)
     }
 }
+
+@Composable
+private fun VideoPlayerSurface(
+    playerManager: TiviPlayerManager,
+    isLive: Boolean,
+    aspectRatio: AspectRatioMode,
+    subtitleColor: String,
+    subtitleSize: String,
+    modifier: Modifier = Modifier
+) {
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                useController = false
+                keepScreenOn = true
+                setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                player = playerManager.initializePlayer(isLive)
+                playerManager.registerPlayerView(this)
+                resizeMode = when (aspectRatio) {
+                    AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                }
+            }
+        },
+        update = { playerView ->
+            val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive)
+            if (playerView.player != currentPlayer) {
+                playerView.player = currentPlayer
+                playerManager.registerPlayerView(playerView)
+            }
+            val targetResizeMode = when (aspectRatio) {
+                AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+            }
+            if (playerView.resizeMode != targetResizeMode) {
+                playerView.resizeMode = targetResizeMode
+            }
+            try {
+                playerView.subtitleView?.let { subView ->
+                    val subTextColor = when (subtitleColor) {
+                        "SARI" -> android.graphics.Color.rgb(255, 215, 0)
+                        "YESIL" -> android.graphics.Color.rgb(0, 230, 118)
+                        "MAVI" -> android.graphics.Color.rgb(64, 196, 255)
+                        else -> android.graphics.Color.WHITE
+                    }
+                    val subTextSp = when (subtitleSize) {
+                        "KUCUK" -> 14f
+                        "BUYUK" -> 22f
+                        "COK_BUYUK" -> 26f
+                        else -> 18f
+                    }
+                    subView.setStyle(
+                        androidx.media3.ui.CaptionStyleCompat(
+                            subTextColor,
+                            android.graphics.Color.argb(160, 0, 0, 0),
+                            android.graphics.Color.TRANSPARENT,
+                            androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                            android.graphics.Color.BLACK,
+                            null
+                        )
+                    )
+                    subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, subTextSp)
+                    subView.setBottomPaddingFraction(0.12f)
+                }
+            } catch (e: Throwable) {
+                // Ignore
+            }
+        },
+        onRelease = { playerView ->
+            playerManager.unregisterPlayerView(playerView)
+            playerView.player = null
+        },
+        modifier = modifier
+    )
+}
+
