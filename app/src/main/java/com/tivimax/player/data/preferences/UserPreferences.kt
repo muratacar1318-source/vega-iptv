@@ -75,6 +75,10 @@ class UserPreferences(private val context: Context) {
 
         // Video Çözücü / Donanım Hızlandırma Modu ("HARDWARE", "SOFTWARE")
         val KEY_DECODER_MODE = stringPreferencesKey("decoder_mode")
+
+        // Altyazı Tercihleri
+        val KEY_SUBTITLE_SIZE = stringPreferencesKey("subtitle_size") // "KUCUK", "ORTA", "BUYUK", "COK_BUYUK"
+        val KEY_SUBTITLE_COLOR = stringPreferencesKey("subtitle_color") // "BEYAZ", "SARI", "YESIL", "MAVI"
     }
 
     val usernameFlow: Flow<String> = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
@@ -273,4 +277,15 @@ class UserPreferences(private val context: Context) {
     }
 
     val lockedCategoriesFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_LOCKED_CATEGORIES] ?: emptySet() }
+
+    val subtitleSizeFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_SIZE] ?: "ORTA" }
+    val subtitleColorFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_COLOR] ?: "BEYAZ" }
+
+    suspend fun setSubtitleSize(size: String) {
+        context.dataStore.edit { it[KEY_SUBTITLE_SIZE] = size }
+    }
+
+    suspend fun setSubtitleColor(color: String) {
+        context.dataStore.edit { it[KEY_SUBTITLE_COLOR] = color }
+    }
 }

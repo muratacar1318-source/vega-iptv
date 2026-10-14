@@ -118,16 +118,23 @@ fun PlayerScreen(
     val density = LocalDensity.current
     val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
 
-    // Otomatik Kontrol Gizleme Sayacı (4 saniye sonra)
-    LaunchedEffect(showControls, isPlaying) {
-        if (showControls && isPlaying && !isControlsLocked) {
-            delay(4000)
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubPosition by remember { mutableFloatStateOf(0f) }
+
+    // Otomatik Kontrol Gizleme Sayacı (Sürükleme yaparken arayüz ASLA kaybolmaz)
+    LaunchedEffect(showControls, isPlaying, isScrubbing) {
+        if (showControls && isPlaying && !isControlsLocked && !isScrubbing) {
+            delay(4500)
             showControls = false
         }
     }
 
     val isInPipMode by viewModel.isInPipMode.collectAsState()
     val autoPipEnabled by viewModel.autoPipEnabled.collectAsState()
+
+    // Altyazı Tercihleri (Boyut & Renk)
+    val subtitleSize by viewModel.subtitleSize.collectAsState()
+    val subtitleColor by viewModel.subtitleColor.collectAsState()
 
     val currentVodDetail by viewModel.currentVodDetail.collectAsState()
     val currentSeriesInfo by viewModel.currentSeriesInfo.collectAsState()
@@ -139,9 +146,6 @@ fun PlayerScreen(
             ?: currentSeriesInfo?.info?.cover
             ?: currentSeriesInfo?.info?.backdropPath?.firstOrNull()
     }
-
-    var isScrubbing by remember { mutableStateOf(false) }
-    var scrubPosition by remember { mutableFloatStateOf(0f) }
 
     val currentEpisode by viewModel.currentPlayingEpisode.collectAsState()
     val lastPlayedLiveChannel by viewModel.lastPlayedLiveChannel.collectAsState()
@@ -292,71 +296,6 @@ fun PlayerScreen(
                     }
                 )
             }
-            .pointerInput(isControlsLocked, isLive) {
-                detectDragGestures(
-                    onDragStart = { centerDragAccumulator = 0f },
-                    onDragEnd = {
-                        brightnessFeedback = null
-                        volumeFeedback = null
-                        if (isLive) {
-                            if (centerDragAccumulator < -90f) {
-                                val next = viewModel.zapNextChannel(streamId)
-                                seekRipple = "Sonraki: ${next?.name ?: "Kanal"}"
-                                showControls = true
-                            } else if (centerDragAccumulator > 90f) {
-                                val prev = viewModel.zapPreviousChannel(streamId)
-                                seekRipple = "Önceki: ${prev?.name ?: "Kanal"}"
-                                showControls = true
-                            }
-                        }
-                        centerDragAccumulator = 0f
-                    },
-                    onDragCancel = {
-                        brightnessFeedback = null
-                        volumeFeedback = null
-                        centerDragAccumulator = 0f
-                    },
-                    onDrag = { change, dragAmount ->
-                        if (!isControlsLocked) {
-                            val posX = change.position.x
-                            val delta = -dragAmount.y / 800f
-
-                            if (!isLive) {
-                                // Film ve Dizilerde Ekrandan Kaydırma ile Parlaklık ve Ses Kontrolü
-                                if (posX < screenWidth * 0.35f) {
-                                    // Sol Bölge: Ekran Parlaklığı
-                                    activity?.window?.let { window ->
-                                        val curB = if (window.attributes.screenBrightness < 0f) 0.5f else window.attributes.screenBrightness
-                                        val newBrightness = (curB + delta).coerceIn(0.01f, 1f)
-                                        val lp = window.attributes
-                                        lp.screenBrightness = newBrightness
-                                        window.attributes = lp
-                                        currentBrightness = newBrightness
-                                        brightnessFeedback = (newBrightness * 100).toInt()
-                                    }
-                                } else if (posX > screenWidth * 0.65f) {
-                                    // Sağ Bölge: Medya Sesi
-                                    val curV = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                    val volDelta = if (delta > 0) 1 else if (delta < 0) -1 else 0
-                                    val newVol = (curV + volDelta).coerceIn(0, maxVolume)
-                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                    currentVolume = newVol
-                                    volumeFeedback = ((newVol.toFloat() / maxVolume) * 100).toInt()
-                                }
-                            } else {
-                                // Canlı TV: Ekrandan kaydırarak parlaklık ve ses ayarı iptal edildi!
-                                // Sadece ortadan dikey kaydırma ile kanal zapping yapılır
-                                centerDragAccumulator += dragAmount.y
-                                if (centerDragAccumulator < -60f) {
-                                    seekRipple = "Sonraki Kanal ⏭"
-                                } else if (centerDragAccumulator > 60f) {
-                                    seekRipple = "⏮ Önceki Kanal"
-                                }
-                            }
-                        }
-                    }
-                )
-            }
     ) {
         // Media3 ExoPlayer Video Render View
         AndroidView(
@@ -400,6 +339,36 @@ fun PlayerScreen(
                     AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                     AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                }
+                try {
+                    playerView.subtitleView?.let { subView ->
+                        val subTextColor = when (subtitleColor) {
+                            "SARI" -> android.graphics.Color.rgb(255, 215, 0)
+                            "YESIL" -> android.graphics.Color.rgb(0, 230, 118)
+                            "MAVI" -> android.graphics.Color.rgb(64, 196, 255)
+                            else -> android.graphics.Color.WHITE
+                        }
+                        val subTextSp = when (subtitleSize) {
+                            "KUCUK" -> 14f
+                            "BUYUK" -> 22f
+                            "COK_BUYUK" -> 26f
+                            else -> 18f
+                        }
+                        subView.setStyle(
+                            androidx.media3.ui.CaptionStyleCompat(
+                                subTextColor,
+                                android.graphics.Color.argb(160, 0, 0, 0),
+                                android.graphics.Color.TRANSPARENT,
+                                androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                                android.graphics.Color.BLACK,
+                                null
+                            )
+                        )
+                        subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, subTextSp)
+                        subView.setBottomPaddingFraction(0.12f)
+                    }
+                } catch (e: Throwable) {
+                    // Ignore
                 }
             },
             modifier = Modifier.fillMaxSize()
@@ -1284,15 +1253,15 @@ fun PlayerScreen(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .padding(horizontal = 6.dp)
-                                                    .height(4.dp)
-                                                    .clip(RoundedCornerShape(2.dp))
+                                                    .height(6.dp)
+                                                    .clip(RoundedCornerShape(3.dp))
                                                     .background(Color.White.copy(alpha = 0.2f))
                                             ) {
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth(bufferFraction)
                                                         .fillMaxHeight()
-                                                        .background(TiviSecondary.copy(alpha = 0.6f))
+                                                        .background(TiviSecondary.copy(alpha = 0.85f))
                                                 )
                                             }
                                         }
@@ -1300,12 +1269,14 @@ fun PlayerScreen(
                                         Slider(
                                             value = if (isScrubbing) scrubPosition else currentPosition.toFloat(),
                                             onValueChange = {
+                                                showControls = true
                                                 isScrubbing = true
                                                 scrubPosition = it
                                             },
                                             onValueChangeFinished = {
                                                 playerManager.seekTo(scrubPosition.toLong())
                                                 isScrubbing = false
+                                                showControls = true
                                             },
                                             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                                             colors = SliderDefaults.colors(
@@ -1697,6 +1668,71 @@ fun PlayerScreen(
                                     fontSize = 14.sp
                                 )
                             }
+                        }
+                    }
+
+                    // ALTYAZI BOYUTU VE RENGİ ÖZELLEŞTİRME
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "Altyazı Boyutu",
+                        color = TiviTextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val sizes = listOf(
+                            "KUCUK" to "Küçük",
+                            "ORTA" to "Orta (Varsayılan)",
+                            "BUYUK" to "Büyük",
+                            "COK_BUYUK" to "Çok Büyük"
+                        )
+                        items(sizes) { (key, label) ->
+                            val isSelected = (subtitleSize == key)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { viewModel.setSubtitleSize(key) },
+                                label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = TiviSecondary,
+                                    selectedLabelColor = Color.Black
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Altyazı Rengi",
+                        color = TiviTextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val colors = listOf(
+                            "BEYAZ" to "⚪ Beyaz",
+                            "SARI" to "🟡 Sarı",
+                            "YESIL" to "🟢 Yeşil",
+                            "MAVI" to "🔵 Mavi"
+                        )
+                        items(colors) { (key, label) ->
+                            val isSelected = (subtitleColor == key)
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { viewModel.setSubtitleColor(key) },
+                                label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = TiviGold,
+                                    selectedLabelColor = Color.Black
+                                )
+                            )
                         }
                     }
 

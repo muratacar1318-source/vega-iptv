@@ -33,6 +33,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.theme.*
@@ -52,6 +53,7 @@ fun LiveTvScreen(viewModel: MainViewModel) {
 
     val isMiniPlayerActive by viewModel.isMiniPlayerActive.collectAsState()
     val activePreviewChannel by viewModel.activePreviewChannel.collectAsState()
+    val epgSummaryMap by viewModel.epgSummaryMap.collectAsState()
 
     val globalQuery by viewModel.globalSearchQuery.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
@@ -564,8 +566,10 @@ fun LiveTvScreen(viewModel: MainViewModel) {
 
                                 EpgChannelCard(
                                     channel = channel,
+                                    epg = epgSummaryMap[channel.streamId],
                                     isFavorite = isFavorite,
                                     isPlaying = isCurrentPlaying,
+                                    onLoadEpg = { viewModel.loadEpgSummary(channel.streamId) },
                                     onChannelClick = { viewModel.previewChannel(channel) },
                                     onPlayFullscreen = { viewModel.playLiveChannel(channel) },
                                     onFavoriteToggle = { viewModel.toggleFavoriteLive(channel.streamId.toString()) }
@@ -617,16 +621,22 @@ fun LiveTvScreen(viewModel: MainViewModel) {
 @Composable
 fun EpgChannelCard(
     channel: LiveStream,
+    epg: EpgProgram? = null,
     isFavorite: Boolean,
     isPlaying: Boolean,
+    onLoadEpg: () -> Unit = {},
     onChannelClick: () -> Unit,
     onPlayFullscreen: () -> Unit,
     onFavoriteToggle: () -> Unit
 ) {
-    // EPG Varsayılan Program Verisi (Xtream EPG olmadığında akıllı tahmin)
-    val programTitle = channel.currentProgram ?: "Canlı Yayın Akışı"
-    val programTime = if (channel.programStart != null) "${channel.programStart} - ${channel.programEnd}" else "13:00 - 15:30"
-    val progress = if (channel.programProgress > 0f) channel.programProgress else 0.45f
+    LaunchedEffect(channel.streamId) {
+        onLoadEpg()
+    }
+
+    // Gerçek Xtream EPG Verisi (Mevcut program, saat ve ilerleme çubuğu)
+    val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın"
+    val programTime = epg?.getFormattedTime() ?: (if (channel.programStart != null) "${channel.programStart} - ${channel.programEnd}" else "Canlı Yayın")
+    val progress = epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else 0.45f)
 
     Card(
         colors = CardDefaults.cardColors(

@@ -161,6 +161,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val watchProgressMap = preferences.watchProgressMapFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
     val isInPipMode = MutableStateFlow(false)
 
+    // Altyazı Özelleştirme ("ORTA", "BEYAZ")
+    val subtitleSize = preferences.subtitleSizeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "ORTA")
+    val subtitleColor = preferences.subtitleColorFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "BEYAZ")
+
+    // Canlı TV Kanal Listesi Kısa EPG Önbelleği (Kanal Kartlarında Anlık Program & İlerleme)
+    val epgSummaryMap = MutableStateFlow<Map<Int, EpgProgram>>(emptyMap())
+
     fun setVodBufferSeconds(seconds: Int) {
         viewModelScope.launch {
             preferences.setVodBufferSeconds(seconds)
@@ -179,6 +186,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             preferences.setDecoderMode(mode)
             playerManager.setDecoderMode(mode)
+        }
+    }
+
+    fun setSubtitleSize(size: String) {
+        viewModelScope.launch {
+            preferences.setSubtitleSize(size)
+        }
+    }
+
+    fun setSubtitleColor(color: String) {
+        viewModelScope.launch {
+            preferences.setSubtitleColor(color)
+        }
+    }
+
+    fun loadEpgSummary(streamId: Int) {
+        if (epgSummaryMap.value.containsKey(streamId)) return
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.getShortEpg(streamId).onSuccess { list ->
+                if (list.isNotEmpty()) {
+                    val nowSec = System.currentTimeMillis() / 1000L
+                    val currentProgram = list.firstOrNull {
+                        it.nowPlaying == 1 || (it.startTimestamp > 0 && it.stopTimestamp > 0 && nowSec in it.startTimestamp..it.stopTimestamp)
+                    } ?: list.first()
+
+                    withContext(Dispatchers.Main) {
+                        epgSummaryMap.value = epgSummaryMap.value + (streamId to currentProgram)
+                    }
+                }
+            }
         }
     }
 

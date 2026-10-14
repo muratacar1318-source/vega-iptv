@@ -202,4 +202,49 @@ data class EpgProgram(
     @SerializedName("start_timestamp") val startTimestamp: Long = 0,
     @SerializedName("stop_timestamp") val stopTimestamp: Long = 0,
     @SerializedName("now_playing") val nowPlaying: Int = 0
-)
+) {
+    fun getDecodedTitle(): String {
+        if (title.isBlank()) return "Canlı Yayın"
+        return try {
+            val decoded = android.util.Base64.decode(title, android.util.Base64.DEFAULT)
+            val str = String(decoded, Charsets.UTF_8).trim()
+            if (str.isNotBlank() && str.all { it.code >= 32 || it == '\n' || it == '\r' || it == '\t' }) str else title
+        } catch (e: Exception) {
+            title
+        }
+    }
+
+    fun getFormattedTime(): String {
+        return try {
+            val startTime = if (!start.isNullOrBlank() && start.length >= 16) start.substring(11, 16) else ""
+            val endTime = if (!end.isNullOrBlank() && end.length >= 16) end.substring(11, 16) else ""
+            if (startTime.isNotBlank() && endTime.isNotBlank()) {
+                "$startTime - $endTime"
+            } else if (startTimestamp > 0 && stopTimestamp > 0) {
+                val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                val s = sdf.format(java.util.Date(startTimestamp * 1000L))
+                val e = sdf.format(java.util.Date(stopTimestamp * 1000L))
+                "$s - $e"
+            } else {
+                "Canlı Yayın"
+            }
+        } catch (e: Exception) {
+            "Canlı Yayın"
+        }
+    }
+
+    fun getProgressFraction(): Float {
+        val nowSec = System.currentTimeMillis() / 1000L
+        return if (startTimestamp > 0 && stopTimestamp > startTimestamp) {
+            if (nowSec in startTimestamp..stopTimestamp) {
+                ((nowSec - startTimestamp).toFloat() / (stopTimestamp - startTimestamp).toFloat()).coerceIn(0.05f, 0.98f)
+            } else if (nowSec > stopTimestamp) {
+                1.0f
+            } else {
+                0.0f
+            }
+        } else {
+            0.4f
+        }
+    }
+}

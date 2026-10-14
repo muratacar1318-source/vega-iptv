@@ -118,22 +118,41 @@ class TiviPlayerManager(private val context: Context) {
     private var _decoderMode: String = "HARDWARE"
     val decoderModeState = MutableStateFlow("HARDWARE")
 
-    private fun buildLoadControl(): DefaultLoadControl {
-        val minBufferMs = (_liveBufferSeconds * 1000).coerceIn(2000, 30000)
-        val maxBufferMs = (_vodBufferSeconds * 1000).coerceAtLeast(minBufferMs * 2).coerceAtLeast(60000)
-        return DefaultLoadControl.Builder()
-            .setBufferDurationsMs(
-                minBufferMs,
-                maxBufferMs,
-                1000,
-                minBufferMs.coerceAtMost(2500)
-            )
-            .setBackBuffer(
-                (_vodBufferSeconds * 1000).coerceAtLeast(30000),
-                true
-            )
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
+    private var lastInitializedIsLive: Boolean? = null
+
+    private fun buildLoadControl(isLive: Boolean): DefaultLoadControl {
+        return if (isLive) {
+            val minBufferMs = (_liveBufferSeconds * 1000).coerceIn(2000, 15000)
+            val maxBufferMs = 30000
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    minBufferMs,
+                    maxBufferMs,
+                    1000,
+                    minBufferMs.coerceAtMost(2500)
+                )
+                .setBackBuffer(15000, true)
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build()
+        } else {
+            // Film ve Diziler: Tamponu seçilen değerde (Örn: 60s, 120s) sürekli dolu tut!
+            val targetBufferMs = (_vodBufferSeconds * 1000).coerceIn(30000, 300000)
+            val maxBufferMs = (targetBufferMs * 2).coerceAtLeast(120000)
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    targetBufferMs, // minBufferMs: Seçilen tampon süresi kadar sürekli önceden indirir
+                    maxBufferMs,    // maxBufferMs: Üst sınır
+                    1500,           // ilk oynatma için gereken süre
+                    3000            // duraklama sonrası yeniden oynatma süresi
+                )
+                .setBackBuffer(
+                    60000, // 60s geri tampon: 10s-30s geri sarmalarda internete gitmeden anında oynatır
+                    true
+                )
+                .setTargetBufferBytes(128 * 1024 * 1024) // 128 MB RAM tampon boyutu (1080p/4K için)
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build()
+        }
     }
 
     fun setLiveBufferSeconds(seconds: Int) {
@@ -163,10 +182,23 @@ class TiviPlayerManager(private val context: Context) {
         val validSecs = seconds.coerceIn(15, 300)
         _vodBufferSeconds = validSecs
         vodBufferSecondsState.value = validSecs
+        if (!isLiveStream && exoPlayer != null) {
+            val current = currentUrl
+            val pos = exoPlayer?.currentPosition ?: 0L
+            release()
+            if (current.isNotBlank()) {
+                playInternal(current, isLive = false, startPositionMs = pos)
+            }
+        }
     }
 
-    fun initializePlayer(): ExoPlayer {
-        if (exoPlayer != null) return exoPlayer!!
+    fun initializePlayer(isLive: Boolean = isLiveStream): ExoPlayer {
+        if (exoPlayer != null && lastInitializedIsLive == isLive) return exoPlayer!!
+
+        if (exoPlayer != null) {
+            release()
+        }
+        lastInitializedIsLive = isLive
 
         val renderersFactory = DefaultRenderersFactory(context).apply {
             setEnableDecoderFallback(true) // Donanım başarısız olursa otomatik yazılıma geç
@@ -200,7 +232,7 @@ class TiviPlayerManager(private val context: Context) {
 
         val player = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
-            .setLoadControl(buildLoadControl())
+            .setLoadControl(buildLoadControl(isLive))
             .setMediaSourceFactory(DefaultMediaSourceFactory(httpDataSourceFactory))
             .build()
 
@@ -322,7 +354,7 @@ class TiviPlayerManager(private val context: Context) {
         _errorMessage.value = null
 
         try {
-            val player = initializePlayer()
+            val player = initializePlayer(isLive)
             val mediaItemBuilder = MediaItem.Builder().setUri(url)
 
             if (isLive) {
@@ -674,5 +706,6 @@ class TiviPlayerManager(private val context: Context) {
         stopPositionUpdates()
         exoPlayer?.release()
         exoPlayer = null
+        lastInitializedIsLive = null
     }
 }
