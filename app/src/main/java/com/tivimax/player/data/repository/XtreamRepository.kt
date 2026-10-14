@@ -10,6 +10,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
+import com.tivimax.player.data.network.FailoverInterceptor
+
 class XtreamRepository {
 
     private val gson = Gson()
@@ -19,6 +21,7 @@ class XtreamRepository {
         .readTimeout(30, TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
+        .addInterceptor(FailoverInterceptor())
         .addInterceptor { chain ->
             val original = chain.request()
             val request = original.newBuilder()
@@ -29,7 +32,12 @@ class XtreamRepository {
         }
         .build()
 
-    var serverUrl: String = AppConfig.DEFAULT_SERVER_URL
+    var serverUrl: String
+        get() = FailoverInterceptor.currentWorkingBaseUrl
+        set(value) {
+            FailoverInterceptor.setWorkingBaseUrl(value)
+        }
+
     var username: String = ""
     var password: String = ""
 

@@ -1,0 +1,18 @@
+# Vega IPTV v1.0.9 - Ağ, Güvenlik & Failover Güncellemesi
+
+### 🛡️ Ağ & Failover İyileştirmeleri (OkHttp FailoverInterceptor)
+- **Akıllı Sunucu Yönlendirme (FailoverInterceptor):**
+  - `AppConfig.DEFAULT_SERVER_URL` ve `AppConfig.FALLBACK_DOMAINS` yapısını kullanan özel bir OkHttp Interceptor eklendi.
+  - Ana sunucuya erişilemediğinde (`SocketTimeoutException`, `UnknownHostException`, `ConnectException`, `SocketException`, `SSLException` veya HTTP 5xx yanıtlarında) istek derhal yedek domainlere yönlendirilir.
+  - Çalışan yeni domain oturum boyunca hafızada varsayılan yapılarak sonraki tüm API ve yayın isteklerinin kesintisiz çalışması sağlanır.
+- **HTTP / Cleartext Trafik İzni:**
+  - `AndroidManifest.xml` içinde `android:usesCleartextTraffic="true"` garanti altına alındı.
+  - Android 9+ (API 28+) ve en yeni Android 14/15 sürümlerinde HTTP IPTV yayınlarının engellenmesini önlemek için `res/xml/network_security_config.xml` eklendi.
+
+### 🔐 Güvenlik & Tersine Mühendislik Koruması
+- **XOR / Base64 Sunucu Gizleme (SecurityUtils):**
+  - `AppConfig.kt` içindeki sunucu adresleri ve hassas destek bilgileri APK açıldığında düz metin (plain text) olarak görünmeyecek şekilde XOR + Base64 gizleme mekanizmasıyla şifrelendi.
+- **R8 / ProGuard Koruması (proguard-rules.pro):**
+  - Gson veri modelleri (`com.tivimax.player.data.model.**` ve `@SerializedName` alanları) JSON serileştirmesinde bozulmaması için korumaya alındı.
+  - AndroidX Media3 / ExoPlayer sınıfları, kodek seçiciler ve extractors (TS, MKV, MP4) için kapsamlı ProGuard kuralları eklendi.
+  - OkHttp, Okio ve Coroutines sınıfları güvenceye alındı.

@@ -1,25 +1,34 @@
 package com.tivimax.player.data.config
 
+import com.tivimax.player.data.security.SecurityUtils
+
 object AppConfig {
     // Uygulama Marka İsmi
     const val APP_NAME = "Vega IPTV"
     const val APP_TAGLINE = "Hızlı, Akıcı ve Kesintisiz Yayın Deneyimi"
 
-    // Gömülü Sunucu Adresleri
-    const val SERVER_URL_HTTPS = "https://mntrdns.com"
-    const val SERVER_URL_HTTP = "http://mntrdns.com"
-    const val DEFAULT_SERVER_URL = SERVER_URL_HTTPS
+    // Gömülü Sunucu Adresleri (Tersine mühendisliğe karşı XOR/Base64 ile gizlenmiştir)
+    private const val OBF_SERVER_URL_HTTPS = "Mi4uKilgdXU3NC4oPjQpdDk1Nw==" // https://mntrdns.com
+    private const val OBF_SERVER_URL_HTTP = "Mi4uKmB1dTc0Lig+NCl0OTU3"     // http://mntrdns.com
+    private const val OBF_SUPPORT_WHATSAPP = "cWNqb29vampqampqag=="        // +905550000000
+    private const val OBF_SUPPORT_TELEGRAM = "LnQ3P3UsPz07MyouLA=="        // t.me/vegaiptv
+
+    val SERVER_URL_HTTPS: String by lazy { SecurityUtils.deobfuscate(OBF_SERVER_URL_HTTPS) }
+    val SERVER_URL_HTTP: String by lazy { SecurityUtils.deobfuscate(OBF_SERVER_URL_HTTP) }
+    val DEFAULT_SERVER_URL: String by lazy { SERVER_URL_HTTPS }
 
     // Yedek Sunucu Domainleri (ISP engeli veya sunucu yoğunluğunda otomatik denenir)
-    val FALLBACK_DOMAINS = listOf(
-        "http://mntrdns.com",
-        "https://mntrdns.com"
-    )
+    val FALLBACK_DOMAINS: List<String> by lazy {
+        listOf(
+            SERVER_URL_HTTP,
+            SERVER_URL_HTTPS
+        )
+    }
 
     // Destek Hattı / İletişim (Ayarlar ekranında görünür)
-    const val SUPPORT_WHATSAPP = "+905550000000"
-    const val SUPPORT_TELEGRAM = "t.me/vegaiptv"
-    const val SUPPORT_WEBSITE = "https://mntrdns.com"
+    val SUPPORT_WHATSAPP: String by lazy { SecurityUtils.deobfuscate(OBF_SUPPORT_WHATSAPP) }
+    val SUPPORT_TELEGRAM: String by lazy { SecurityUtils.deobfuscate(OBF_SUPPORT_TELEGRAM) }
+    val SUPPORT_WEBSITE: String by lazy { SERVER_URL_HTTPS }
 
     // Video Motoru İnce Ayarları (TiviMate Hızı İçin)
     const val MIN_BUFFER_MS = 2500            // Minimum tampon (hızlı kanal açılışı için)
