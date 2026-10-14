@@ -2,6 +2,12 @@ package com.tivimax.player.ui.player.components
 
 import android.content.res.Configuration
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -1551,16 +1557,43 @@ fun PlayerPillButton(
     activeColor: Color = OpusCyan,
     isPortrait: Boolean = false
 ) {
-    val baseBorderColor = if (isActive) activeColor else Color.White.copy(alpha = 0.25f)
-    val baseBgColor = if (isActive) activeColor.copy(alpha = 0.22f) else Color(0x66111827)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val haptic = LocalHapticFeedback.current
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.91f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "pillScale"
+    )
+
+    val animatedBorderColor by animateColorAsState(
+        targetValue = if (isActive) activeColor else if (isPressed) Color.White.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.22f),
+        label = "pillBorder"
+    )
+
+    val animatedBgColor by animateColorAsState(
+        targetValue = if (isActive) activeColor.copy(alpha = 0.25f) else if (isPressed) Color(0x99111827) else Color(0x66111827),
+        label = "pillBg"
+    )
+
     val contentColor = if (isActive) activeColor else Color.White
 
     Surface(
-        onClick = onClick,
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onClick()
+        },
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(20.dp),
-        color = baseBgColor,
-        border = androidx.compose.foundation.BorderStroke(1.dp, baseBorderColor),
-        modifier = modifier.height(if (isPortrait) 30.dp else 34.dp)
+        color = animatedBgColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, animatedBorderColor),
+        modifier = modifier
+            .scale(scale)
+            .height(if (isPortrait) 30.dp else 34.dp)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = if (isPortrait) 9.dp else 13.dp),
@@ -1586,3 +1619,55 @@ fun PlayerPillButton(
         }
     }
 }
+
+@Composable
+fun BouncyIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    shape: androidx.compose.ui.graphics.Shape = CircleShape,
+    backgroundColor: Color = Color.Transparent,
+    contentColor: Color = Color.White,
+    pressedScale: Float = 0.85f,
+    content: @Composable () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) pressedScale else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "BouncyIconScale"
+    )
+
+    val bgAnimated by animateColorAsState(
+        targetValue = if (isPressed) backgroundColor.copy(alpha = (backgroundColor.alpha + 0.25f).coerceAtMost(1f)) else backgroundColor,
+        label = "BouncyBg"
+    )
+
+    Box(
+        modifier = modifier
+            .scale(scale)
+            .clip(shape)
+            .background(bgAnimated)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true, color = contentColor.copy(alpha = 0.35f)),
+                enabled = enabled,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onClick()
+                }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        CompositionLocalProvider(LocalContentColor provides contentColor) {
+            content()
+        }
+    }
+}
+

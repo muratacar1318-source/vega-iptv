@@ -13,7 +13,13 @@ import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,6 +77,7 @@ import com.tivimax.player.ui.player.components.TiviOverlayGuide
 import com.tivimax.player.ui.player.components.TiviRecentChannelsBar
 import com.tivimax.player.ui.player.components.TiviPlayerHUD
 import com.tivimax.player.ui.player.components.PlayerPillButton
+import com.tivimax.player.ui.player.components.BouncyIconButton
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -170,9 +177,52 @@ fun PlayerScreen(
 
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPosition by remember { mutableFloatStateOf(0f) }
+    var optimisticSeekPosition by remember { mutableStateOf<Long?>(null) }
+
+    // YouTube-style dynamic double-tap ripple
+    var doubleTapSide by remember { mutableStateOf<String?>(null) } // "left" or "right"
+    var doubleTapSeconds by remember { mutableIntStateOf(0) }
+    var lastDoubleTapTime by remember { mutableLongStateOf(0L) }
+
+    // Fullscreen gesture scrub state
+    var gestureScrubActive by remember { mutableStateOf(false) }
+    var gestureScrubTargetMs by remember { mutableLongStateOf(0L) }
+    var gestureScrubDiffMs by remember { mutableLongStateOf(0L) }
+    var gestureDragInitialPos by remember { mutableLongStateOf(0L) }
+    var dragDirection by remember { mutableStateOf<String?>(null) } // "horizontal", "vertical_left", "vertical_right"
+
+    val effectivePosition = when {
+        isScrubbing -> scrubPosition.toLong()
+        gestureScrubActive -> gestureScrubTargetMs
+        optimisticSeekPosition != null -> optimisticSeekPosition!!
+        else -> currentPosition
+    }
+
+    LaunchedEffect(doubleTapSide, doubleTapSeconds) {
+        if (doubleTapSide != null) {
+            delay(900L)
+            doubleTapSide = null
+            doubleTapSeconds = 0
+        }
+    }
+
+    LaunchedEffect(currentPosition, optimisticSeekPosition) {
+        if (optimisticSeekPosition != null) {
+            if (kotlin.math.abs(currentPosition - optimisticSeekPosition!!) <= 1500L) {
+                optimisticSeekPosition = null
+            }
+        }
+    }
+
+    LaunchedEffect(optimisticSeekPosition) {
+        if (optimisticSeekPosition != null) {
+            delay(1200L)
+            optimisticSeekPosition = null
+        }
+    }
 
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val isUserInteracting = isScrubbing || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showPlayerHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || (dragStartOffset != null)
+    val isUserInteracting = isScrubbing || gestureScrubActive || (doubleTapSide != null) || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showPlayerHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || (dragStartOffset != null)
 
     val registerInteraction: () -> Unit = remember {
         { lastInteractionTime = System.currentTimeMillis() }
@@ -404,17 +454,26 @@ fun PlayerScreen(
                     onDoubleTap = { offset ->
                         registerInteraction()
                         if (!isControlsLocked) {
+                            val now = System.currentTimeMillis()
+                            val isQuickSuccession = (now - lastDoubleTapTime) < 850L
+                            lastDoubleTapTime = now
+
                             if (!isLive) {
-                                if (offset.x < size.width * 0.35f) {
-                                    // Sol tarafa çift tık: 10 saniye geri (Sadece Film/Dizi)
+                                if (offset.x < size.width * 0.38f) {
+                                    // Sol tarafa çift tık: Geri sar
+                                    doubleTapSide = "left"
+                                    doubleTapSeconds = if (isQuickSuccession && doubleTapSide == "left") doubleTapSeconds + 10 else 10
                                     playerManager.rewind10Seconds()
-                                    seekRipple = "-10 saniye"
-                                } else if (offset.x > size.width * 0.65f) {
-                                    // Sağ tarafa çift tık: 10 saniye ileri (Sadece Film/Dizi)
+                                    seekRipple = null
+                                } else if (offset.x > size.width * 0.62f) {
+                                    // Sağ tarafa çift tık: İleri sar
+                                    doubleTapSide = "right"
+                                    doubleTapSeconds = if (isQuickSuccession && doubleTapSide == "right") doubleTapSeconds + 10 else 10
                                     playerManager.forward10Seconds()
-                                    seekRipple = "+10 saniye"
+                                    seekRipple = null
                                 } else {
                                     // Ortaya çift tık: En-Boy Oranı değiştir
+                                    doubleTapSide = null
                                     val newMode = playerManager.cycleAspectRatio()
                                     seekRipple = when (newMode) {
                                         AspectRatioMode.FIT -> "En-Boy: Orijinal (FIT)"
@@ -443,41 +502,79 @@ fun PlayerScreen(
                         onDragStart = { offset ->
                             registerInteraction()
                             dragStartOffset = offset
+                            dragDirection = null
+                            gestureScrubActive = false
+                            gestureDragInitialPos = if (optimisticSeekPosition != null) optimisticSeekPosition!! else playerManager.currentPosition.value
                             currentBrightness = activity?.window?.attributes?.screenBrightness.let { if (it == null || it < 0f) 0.5f else it }
                             currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                         },
                         onDragEnd = {
                             registerInteraction()
+                            if (gestureScrubActive && !isLive && duration > 0) {
+                                val target = gestureScrubTargetMs
+                                optimisticSeekPosition = target
+                                playerManager.seekTo(target)
+                            }
+                            gestureScrubActive = false
                             dragStartOffset = null
+                            dragDirection = null
                         },
                         onDragCancel = {
                             registerInteraction()
+                            gestureScrubActive = false
                             dragStartOffset = null
+                            dragDirection = null
                         },
                         onDrag = { change, dragAmount ->
                             registerInteraction()
                             change.consume()
                             val start = dragStartOffset ?: return@detectDragGestures
-                            val isLeft = start.x < size.width * 0.45f
-                            val isRight = start.x > size.width * 0.55f
-                            val delta = -dragAmount.y / size.height
 
-                            if (isLeft) {
-                                val newBrightness = (currentBrightness + delta).coerceIn(0.01f, 1.0f)
-                                currentBrightness = newBrightness
-                                activity?.window?.attributes = activity?.window?.attributes?.apply {
-                                    screenBrightness = newBrightness
+                            if (dragDirection == null) {
+                                val dx = kotlin.math.abs(dragAmount.x)
+                                val dy = kotlin.math.abs(dragAmount.y)
+                                if (dx > 10f || dy > 10f) {
+                                    dragDirection = if (dx > dy && !isLive && duration > 0) {
+                                        "horizontal"
+                                    } else if (start.x < size.width * 0.45f) {
+                                        "vertical_left"
+                                    } else {
+                                        "vertical_right"
+                                    }
                                 }
-                                brightnessFeedback = (newBrightness * 100).toInt()
-                            } else if (isRight) {
-                                val volumeDelta = delta * maxVolume * 1.5f
-                                val newVolFloat = (currentVolume + volumeDelta).coerceIn(0f, maxVolume.toFloat())
-                                val newVol = newVolFloat.toInt()
-                                if (newVol != currentVolume) {
-                                    currentVolume = newVol
-                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                            }
+
+                            when (dragDirection) {
+                                "horizontal" -> {
+                                    if (!isLive && duration > 0) {
+                                        gestureScrubActive = true
+                                        val totalDragX = change.position.x - start.x
+                                        val timeDeltaMs = (totalDragX * 120L).toLong()
+                                        val target = (gestureDragInitialPos + timeDeltaMs).coerceIn(0L, duration)
+                                        gestureScrubTargetMs = target
+                                        gestureScrubDiffMs = target - gestureDragInitialPos
+                                    }
                                 }
-                                volumeFeedback = ((newVolFloat / maxVolume) * 100).toInt()
+                                "vertical_left" -> {
+                                    val delta = -dragAmount.y / size.height
+                                    val newBrightness = (currentBrightness + delta).coerceIn(0.01f, 1.0f)
+                                    currentBrightness = newBrightness
+                                    activity?.window?.attributes = activity?.window?.attributes?.apply {
+                                        screenBrightness = newBrightness
+                                    }
+                                    brightnessFeedback = (newBrightness * 100).toInt()
+                                }
+                                "vertical_right" -> {
+                                    val delta = -dragAmount.y / size.height
+                                    val volumeDelta = delta * maxVolume * 1.5f
+                                    val newVolFloat = (currentVolume + volumeDelta).coerceIn(0f, maxVolume.toFloat())
+                                    val newVol = newVolFloat.toInt()
+                                    if (newVol != currentVolume) {
+                                        currentVolume = newVol
+                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                    }
+                                    volumeFeedback = ((newVolFloat / maxVolume) * 100).toInt()
+                                }
                             }
                         }
                     )
@@ -739,6 +836,141 @@ fun PlayerScreen(
             }
         }
 
+        // YouTube Tarzı Sol Çift Tık (Geri Sarma Dalgası)
+        AnimatedVisibility(
+            visible = doubleTapSide == "left",
+            enter = fadeIn(tween(100)) + scaleIn(initialScale = 0.85f),
+            exit = fadeOut(tween(250)),
+            modifier = Modifier.align(Alignment.CenterStart)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight(if (isPortrait) 0.65f else 0.85f)
+                    .width(if (isPortrait) 130.dp else 220.dp)
+                    .clip(RoundedCornerShape(topEnd = 160.dp, bottomEnd = 160.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.White.copy(alpha = 0.22f),
+                                Color.Transparent
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Replay,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(if (isPortrait) 36.dp else 48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "-${doubleTapSeconds} sn",
+                        color = Color.White,
+                        fontSize = if (isPortrait) 14.sp else 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // YouTube Tarzı Sağ Çift Tık (İleri Sarma Dalgası)
+        AnimatedVisibility(
+            visible = doubleTapSide == "right",
+            enter = fadeIn(tween(100)) + scaleIn(initialScale = 0.85f),
+            exit = fadeOut(tween(250)),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight(if (isPortrait) 0.65f else 0.85f)
+                    .width(if (isPortrait) 130.dp else 220.dp)
+                    .clip(RoundedCornerShape(topStart = 160.dp, bottomStart = 160.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.22f)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.FastForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(if (isPortrait) 36.dp else 48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "+${doubleTapSeconds} sn",
+                        color = Color.White,
+                        fontSize = if (isPortrait) 14.sp else 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Tam Ekran Yatay Kaydırma (Scrub / Hızlı Arama HUD Kartı)
+        AnimatedVisibility(
+            visible = gestureScrubActive,
+            enter = fadeIn(tween(120)) + scaleIn(initialScale = 0.9f),
+            exit = fadeOut(tween(200)) + scaleOut(targetScale = 0.9f),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = TiviOverlayDark,
+                border = BorderStroke(1.5.dp, Color(0xFFFF2A6D).copy(alpha = 0.85f)),
+                tonalElevation = 10.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = formatDuration(gestureScrubTargetMs),
+                            color = Color(0xFFFF2A6D),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        val sign = if (gestureScrubDiffMs >= 0) "+" else "-"
+                        val diffAbs = kotlin.math.abs(gestureScrubDiffMs)
+                        Text(
+                            text = "[$sign${formatDuration(diffAbs)}]",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    if (duration > 0) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(160.dp)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(2.5.dp))
+                                .background(Color.White.copy(alpha = 0.2f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth((gestureScrubTargetMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f))
+                                    .fillMaxHeight()
+                                    .background(Color(0xFFFF2A6D))
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Kaldığın Yerden Devam Ediliyor Bildirimi
         AnimatedVisibility(
             visible = resumeNotification != null,
@@ -836,7 +1068,7 @@ fun PlayerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    IconButton(
+                    BouncyIconButton(
                         onClick = {
                             if (!isLive && currentPosition > 0) {
                                 viewModel.saveWatchProgress(streamId, currentPosition, duration)
@@ -844,7 +1076,8 @@ fun PlayerScreen(
                             playerManager.release()
                             onBack()
                         },
-                        modifier = Modifier.size(if (isPortrait) 36.dp else 42.dp)
+                        modifier = Modifier.size(if (isPortrait) 38.dp else 44.dp),
+                        backgroundColor = Color.Black.copy(alpha = 0.25f)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -982,7 +1215,7 @@ fun PlayerScreen(
                         }
 
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
-                            IconButton(
+                            BouncyIconButton(
                                 onClick = {
                                     try {
                                         val params = PictureInPictureParams.Builder()
@@ -993,7 +1226,8 @@ fun PlayerScreen(
                                         // Ignore
                                     }
                                 },
-                                modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp)
+                                modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp),
+                                backgroundColor = Color.Black.copy(alpha = 0.25f)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.PictureInPictureAlt,
@@ -1004,9 +1238,10 @@ fun PlayerScreen(
                             }
                         }
 
-                        IconButton(
+                        BouncyIconButton(
                             onClick = { isControlsLocked = !isControlsLocked },
-                            modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp)
+                            modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp),
+                            backgroundColor = Color.Black.copy(alpha = 0.25f)
                         ) {
                             Icon(
                                 imageVector = if (isControlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
@@ -1018,7 +1253,7 @@ fun PlayerScreen(
                     }
                 }
 
-                // CENTER CONTROLS (FLOATING MINIMALIST WHITE - NO CIRCULAR BACKGROUND)
+                // CENTER CONTROLS (TACTILE BOUNCY GLASS BUTTONS)
                 if (!isControlsLocked) {
                     val centerButtonsAlignment = if (!isPortrait && isLive) {
                         androidx.compose.ui.BiasAlignment(horizontalBias = 0f, verticalBias = -0.35f)
@@ -1031,77 +1266,88 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.spacedBy(if (isPortrait) 32.dp else 48.dp)
                     ) {
                         if (isLive) {
-                            IconButton(
+                            BouncyIconButton(
                                 onClick = {
                                     val ch = viewModel.zapPreviousChannel(streamId)
                                     seekRipple = "⏮ ${ch?.name ?: "Önceki Kanal"}"
                                 },
-                                modifier = Modifier.size(if (isPortrait) 44.dp else 54.dp)
+                                modifier = Modifier.size(if (isPortrait) 48.dp else 56.dp),
+                                backgroundColor = Color.Black.copy(alpha = 0.35f),
+                                shape = CircleShape
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.SkipPrevious,
                                     contentDescription = "Önceki Kanal",
                                     tint = Color.White,
-                                    modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp)
+                                    modifier = Modifier.size(if (isPortrait) 30.dp else 36.dp)
                                 )
                             }
                         } else {
-                            IconButton(
+                            BouncyIconButton(
                                 onClick = {
                                     playerManager.rewind10Seconds()
                                     seekRipple = "-10s"
                                 },
-                                modifier = Modifier.size(if (isPortrait) 44.dp else 54.dp)
+                                modifier = Modifier.size(if (isPortrait) 48.dp else 56.dp),
+                                backgroundColor = Color.Black.copy(alpha = 0.35f),
+                                shape = CircleShape
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Replay10,
                                     contentDescription = "10s Geri",
                                     tint = Color.White,
-                                    modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp)
+                                    modifier = Modifier.size(if (isPortrait) 30.dp else 36.dp)
                                 )
                             }
                         }
 
-                        IconButton(
+                        BouncyIconButton(
                             onClick = { playerManager.togglePlayPause() },
-                            modifier = Modifier.size(if (isPortrait) 58.dp else 70.dp)
+                            modifier = Modifier.size(if (isPortrait) 66.dp else 78.dp),
+                            backgroundColor = Color.Black.copy(alpha = 0.45f),
+                            shape = CircleShape,
+                            pressedScale = 0.88f
                         ) {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = "Oynat/Duraklat",
                                 tint = Color.White,
-                                modifier = Modifier.size(if (isPortrait) 48.dp else 58.dp)
+                                modifier = Modifier.size(if (isPortrait) 44.dp else 54.dp)
                             )
                         }
 
                         if (isLive) {
-                            IconButton(
+                            BouncyIconButton(
                                 onClick = {
                                     val ch = viewModel.zapNextChannel(streamId)
                                     seekRipple = "Sonraki: ${ch?.name ?: "Kanal"} ⏭"
                                 },
-                                modifier = Modifier.size(if (isPortrait) 44.dp else 54.dp)
+                                modifier = Modifier.size(if (isPortrait) 48.dp else 56.dp),
+                                backgroundColor = Color.Black.copy(alpha = 0.35f),
+                                shape = CircleShape
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.SkipNext,
                                     contentDescription = "Sonraki Kanal",
                                     tint = Color.White,
-                                    modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp)
+                                    modifier = Modifier.size(if (isPortrait) 30.dp else 36.dp)
                                 )
                             }
                         } else {
-                            IconButton(
+                            BouncyIconButton(
                                 onClick = {
                                     playerManager.forward10Seconds()
                                     seekRipple = "+10s"
                                 },
-                                modifier = Modifier.size(if (isPortrait) 44.dp else 54.dp)
+                                modifier = Modifier.size(if (isPortrait) 48.dp else 56.dp),
+                                backgroundColor = Color.Black.copy(alpha = 0.35f),
+                                shape = CircleShape
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Forward10,
                                     contentDescription = "10s İleri",
                                     tint = Color.White,
-                                    modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp)
+                                    modifier = Modifier.size(if (isPortrait) 30.dp else 36.dp)
                                 )
                             }
                         }
@@ -1261,7 +1507,8 @@ fun PlayerScreen(
                                     exit = fadeOut(tween(150)) + shrinkVertically()
                                 ) {
                                     val scrubMillis = scrubPosition.toLong()
-                                    val diffSeconds = (scrubMillis - currentPosition) / 1000L
+                                    val basePos = if (optimisticSeekPosition != null) optimisticSeekPosition!! else currentPosition
+                                    val diffSeconds = (scrubMillis - basePos) / 1000L
                                     val diffText = if (diffSeconds >= 0) "+${formatDuration(diffSeconds * 1000)}" else "-${formatDuration(-diffSeconds * 1000)}"
 
                                     Box(
@@ -1319,7 +1566,7 @@ fun PlayerScreen(
                                     }
                                 }
 
-                                val currentPosVal = if (isScrubbing) scrubPosition.toLong() else currentPosition
+                                val currentPosVal = effectivePosition
                                 val remainingMs = (duration - currentPosVal).coerceAtLeast(0L)
                                 val remainingText = "-${formatDuration(remainingMs)}"
 
@@ -1355,20 +1602,22 @@ fun PlayerScreen(
                                                     modifier = Modifier
                                                         .fillMaxWidth(bufferFraction)
                                                         .fillMaxHeight()
-                                                        .background(Color.White.copy(alpha = 0.35f))
+                                                    .background(Color.White.copy(alpha = 0.35f))
                                                 )
                                             }
                                         }
 
                                         Slider(
-                                            value = if (isScrubbing) scrubPosition else currentPosition.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
+                                            value = effectivePosition.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
                                             onValueChange = {
                                                 showControls = true
                                                 isScrubbing = true
                                                 scrubPosition = it
                                             },
                                             onValueChangeFinished = {
-                                                playerManager.seekTo(scrubPosition.toLong())
+                                                val target = scrubPosition.toLong()
+                                                optimisticSeekPosition = target
+                                                playerManager.seekTo(target)
                                                 isScrubbing = false
                                                 showControls = true
                                             },

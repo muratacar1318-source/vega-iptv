@@ -406,18 +406,21 @@ class TiviPlayerManager(private val context: Context) {
         }
     }
 
+    private var lastSeekTimestamp = 0L
+
     fun seekTo(positionMs: Long) {
         val target = positionMs.coerceAtLeast(0L)
+        lastSeekTimestamp = System.currentTimeMillis()
+        _currentPosition.value = target
         exoPlayer?.seekTo(target)
     }
 
     fun forward10Seconds() {
         exoPlayer?.let {
-            val target = if (it.duration > 0) {
-                (it.currentPosition + 10_000L).coerceAtMost(it.duration)
-            } else {
-                it.currentPosition + 10_000L
-            }
+            val dur = it.duration
+            val target = if (dur > 0) (it.currentPosition + 10_000L).coerceAtMost(dur) else it.currentPosition + 10_000L
+            lastSeekTimestamp = System.currentTimeMillis()
+            _currentPosition.value = target
             it.seekTo(target)
         }
     }
@@ -425,17 +428,18 @@ class TiviPlayerManager(private val context: Context) {
     fun rewind10Seconds() {
         exoPlayer?.let {
             val target = (it.currentPosition - 10_000L).coerceAtLeast(0L)
+            lastSeekTimestamp = System.currentTimeMillis()
+            _currentPosition.value = target
             it.seekTo(target)
         }
     }
 
     fun forward30Seconds() {
         exoPlayer?.let {
-            val target = if (it.duration > 0) {
-                (it.currentPosition + 30_000L).coerceAtMost(it.duration)
-            } else {
-                it.currentPosition + 30_000L
-            }
+            val dur = it.duration
+            val target = if (dur > 0) (it.currentPosition + 30_000L).coerceAtMost(dur) else it.currentPosition + 30_000L
+            lastSeekTimestamp = System.currentTimeMillis()
+            _currentPosition.value = target
             it.seekTo(target)
         }
     }
@@ -443,6 +447,8 @@ class TiviPlayerManager(private val context: Context) {
     fun rewind30Seconds() {
         exoPlayer?.let {
             val target = (it.currentPosition - 30_000L).coerceAtLeast(0L)
+            lastSeekTimestamp = System.currentTimeMillis()
+            _currentPosition.value = target
             it.seekTo(target)
         }
     }
@@ -506,7 +512,10 @@ class TiviPlayerManager(private val context: Context) {
                 exoPlayer?.let { player ->
                     if (!isLiveStream) {
                         val pos = player.currentPosition
-                        _currentPosition.value = pos
+                        val timeSinceSeek = System.currentTimeMillis() - lastSeekTimestamp
+                        if (timeSinceSeek > 800L || kotlin.math.abs(pos - _currentPosition.value) < 1500L) {
+                            _currentPosition.value = pos
+                        }
                         _duration.value = player.duration.coerceAtLeast(0L)
                         _bufferedPosition.value = player.bufferedPosition
                     } else {
@@ -516,7 +525,7 @@ class TiviPlayerManager(private val context: Context) {
                         }
                     }
                 }
-                delay(1000)
+                delay(250)
             }
         }
     }
