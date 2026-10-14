@@ -289,6 +289,15 @@ fun PlayerScreen(
         }
     }
 
+    // Oynatıcı başlatılmamışsa veya boşsa akışı başlat
+    LaunchedEffect(streamUrl, streamId) {
+        if (playerManager.player == null || playerManager.player?.currentMediaItem == null) {
+            if (streamUrl.isNotBlank()) {
+                playerManager.play(streamUrl, isLive = isLive)
+            }
+        }
+    }
+
     // Video izlerken ekranın kapanmasını önle (KEEP_SCREEN_ON)
     DisposableEffect(Unit) {
         val window = activity?.window
@@ -1574,7 +1583,7 @@ fun PlayerScreen(
                                         }
 
                                         Slider(
-                                            value = if (isScrubbing) scrubPosition else currentPosition.toFloat(),
+                                            value = if (isScrubbing) scrubPosition else currentPosition.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
                                             onValueChange = {
                                                 showControls = true
                                                 isScrubbing = true
