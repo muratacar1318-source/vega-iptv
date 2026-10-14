@@ -3081,7 +3081,6 @@ private fun VideoPlayerSurface(
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
                 player = playerManager.initializePlayer(isLive)
-                playerManager.registerPlayerView(this)
                 resizeMode = when (aspectRatio) {
                     AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                     AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -3094,7 +3093,6 @@ private fun VideoPlayerSurface(
             val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive)
             if (playerView.player != currentPlayer) {
                 playerView.player = currentPlayer
-                playerManager.registerPlayerView(playerView)
             }
             val targetResizeMode = when (aspectRatio) {
                 AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
@@ -3137,7 +3135,6 @@ private fun VideoPlayerSurface(
             }
         },
         onRelease = { playerView ->
-            playerManager.unregisterPlayerView(playerView)
             playerView.player = null
         },
         modifier = modifier

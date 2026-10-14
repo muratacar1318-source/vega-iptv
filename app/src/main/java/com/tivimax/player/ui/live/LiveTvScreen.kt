@@ -49,6 +49,7 @@ import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.CategoryManagementDialog
 import com.tivimax.player.ui.components.GlobalSearchOptionsCard
@@ -133,13 +134,17 @@ fun LiveTvScreen(viewModel: MainViewModel) {
     // Geniş ekranda ilk açılışta ilk kanalı otomatik önizlemeye al
     LaunchedEffect(isWideScreen, channels) {
         if (isWideScreen && activePreviewChannel == null && channels.isNotEmpty()) {
-            viewModel.previewChannel(channels.first())
+            if (viewModel.playerManager.player?.isPlaying != true) {
+                viewModel.previewChannel(channels.first())
+            }
         }
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            viewModel.detachMiniPlayer()
+            if (viewModel.currentScreen.value !is Screen.Player) {
+                viewModel.detachMiniPlayer()
+            }
         }
     }
 
