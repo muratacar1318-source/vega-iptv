@@ -8,10 +8,10 @@ object AppConfig {
     const val APP_TAGLINE = "Hızlı, Akıcı ve Kesintisiz Yayın Deneyimi"
 
     // Gömülü Sunucu Adresleri (Tersine mühendisliğe karşı XOR/Base64 ile gizlenmiştir)
-    private const val OBF_SERVER_URL_HTTPS = "Mi4uKilgdXU3NC4oPjQpdDk1Nw==" // https://mntrdns.com
-    private const val OBF_SERVER_URL_HTTP = "Mi4uKmB1dTc0Lig+NCl0OTU3"     // http://mntrdns.com
-    private const val OBF_SUPPORT_WHATSAPP = "cWNqb29vampqampqag=="        // +905550000000
-    private const val OBF_SUPPORT_TELEGRAM = "LnQ3P3UsPz07MyouLA=="        // t.me/vegaiptv
+    private const val OBF_SERVER_URL_HTTPS = "Mi4uKilgdXU3NC4oPjQpdDk1Nw=="
+    private const val OBF_SERVER_URL_HTTP = "Mi4uKmB1dTc0Lig+NCl0OTU3"
+    private const val OBF_SUPPORT_WHATSAPP = "cWNqb29vampqampqag=="
+    private const val OBF_SUPPORT_TELEGRAM = "LnQ3P3UsPz07MyouLA=="
 
     val SERVER_URL_HTTPS: String by lazy { SecurityUtils.deobfuscate(OBF_SERVER_URL_HTTPS) }
     val SERVER_URL_HTTP: String by lazy { SecurityUtils.deobfuscate(OBF_SERVER_URL_HTTP) }

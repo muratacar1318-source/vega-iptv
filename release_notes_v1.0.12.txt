@@ -1,0 +1,16 @@
+# Vega IPTV v1.0.12 - Ağ Güvenliği, Failover & URL Obfuscation Güncellemesi
+
+### 🔒 Ağ ve Güvenlik Geliştirmeleri:
+
+1. **Otomatik Sunucu Yedekleme ve Yönlendirme (FailoverInterceptor):**
+   - `AppConfig.kt` içindeki `DEFAULT_SERVER_URL` ve `FALLBACK_DOMAINS` listesiyle tam entegre çalışan `FailoverInterceptor` devrede.
+   - Ana sunucuya yapılan istek zaman aşımına (`SocketTimeoutException`, `UnknownHostException`, `ConnectException`, `SocketException`, `SSLException`) uğradığında veya 5xx sunucu hatası döndürdüğünde kullanıcıya hiçbir hata hissettirilmeden otomatik olarak sıradaki çalışan yedek domain adresine geçiş yapılır.
+   - Başarılı yanıt alınan domain oturum boyunca hafızada tutularak sonraki isteklerin gecikmesiz açılması sağlanır.
+
+2. **HTTP (Cleartext) Desteği:**
+   - Standart HTTP portlarını (:80, :8080 vb.) kullanan IPTV sunucuları için `AndroidManifest.xml` içinde `android:usesCleartextTraffic="true"` ve `res/xml/network_security_config.xml` içinde `<base-config cleartextTrafficPermitted="true">` kuralları eksiksiz doğrulandı.
+
+3. **Sunucu Adresi Gizleme (XOR + Base64 Obfuscation):**
+   - `SecurityUtils` sınıfı ile `AppConfig.kt` içindeki varsayılan ve yedek sunucu adresleri `XOR (0x5A)` ve `Base64` şifrelemesiyle kodlandı.
+   - APK'nın JADX veya APKTool ile tersine mühendislikle açılması durumunda sunucu adreslerinin düz metin (plain-text) olarak okunması engellendi.
+   - ProGuard / R8 kuralları ile güvenlik sınıfları koruma altına alındı.

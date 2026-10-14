@@ -83,18 +83,18 @@ class FailoverInterceptor : Interceptor {
             add(currentWorkingBaseUrl)
         }.map { it.trimEnd('/') }.filter { it.isNotBlank() }
 
-        val failedHostWithPort = getHostPort(initialRequest.url)
+        val failedOrigin = "${initialRequest.url.scheme}://${initialRequest.url.host}:${initialRequest.url.port}"
 
         for (candidate in candidateDomains) {
             val candidateHttpUrl = candidate.toHttpUrlOrNull() ?: continue
-            val candidateHostWithPort = "${candidateHttpUrl.host}:${candidateHttpUrl.port}"
+            val candidateOrigin = "${candidateHttpUrl.scheme}://${candidateHttpUrl.host}:${candidateHttpUrl.port}"
 
-            // Az önce başarısız olan sunucuyu atla
-            if (candidateHostWithPort.equals(failedHostWithPort, ignoreCase = true)) {
+            // Az önce başarısız olan sunucu ve protokolü atla
+            if (candidateOrigin.equals(failedOrigin, ignoreCase = true)) {
                 continue
             }
 
-            Log.i(TAG, "Failing over request from $failedHostWithPort to $candidate")
+            Log.i(TAG, "Failing over request from $failedOrigin to $candidate")
             response?.close() // Önceki 5xx cevabı kapat
 
             val failoverRequest = rewriteUrl(originalRequest, candidateHttpUrl)
@@ -146,9 +146,6 @@ class FailoverInterceptor : Interceptor {
         return managedHosts.contains(currentHost)
     }
 
-    private fun getHostPort(url: HttpUrl): String {
-        return "${url.host}:${url.port}"
-    }
 
     private fun isServerError(code: Int): Boolean {
         return code in 500..599
