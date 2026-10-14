@@ -305,6 +305,9 @@ fun PlayerScreen(
         window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
             window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (!isLive) {
+                playerManager.stopAndClear()
+            }
         }
     }
 

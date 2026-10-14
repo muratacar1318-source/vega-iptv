@@ -104,7 +104,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Aktif Ana Menü Sekmesi (Film veya Dizi detayından geri dönünce konumu ve kategoriyi korur)
     val selectedHomeTab = MutableStateFlow(HomeTab.LIVE_TV)
     fun setSelectedHomeTab(tab: HomeTab) {
-        selectedHomeTab.value = tab
+        if (selectedHomeTab.value != tab) {
+            if (tab != HomeTab.LIVE_TV) {
+                detachMiniPlayer()
+            }
+            selectedHomeTab.value = tab
+        }
     }
 
     // Oturum Durumu
@@ -1060,6 +1065,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun detachMiniPlayer() {
         activePreviewChannel.value = null
         isMiniPlayerActive.value = false
+        playerManager.stopAndClear()
     }
 
     fun expandMiniPlayerToFullscreen() {
@@ -1185,6 +1191,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playVod(vod: VodStream, resume: Boolean = false) {
         currentPlayingEpisode.value = null
+        activePreviewChannel.value = null
+        isMiniPlayerActive.value = false
+        playerManager.stopAndClear()
         viewModelScope.launch {
             var startPos = 0L
             if (resume) {
@@ -1212,6 +1221,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playSeriesEpisode(episode: SeriesEpisode, seriesTitle: String, resume: Boolean = true) {
         currentPlayingEpisode.value = Pair(episode, seriesTitle)
+        activePreviewChannel.value = null
+        isMiniPlayerActive.value = false
+        playerManager.stopAndClear()
         viewModelScope.launch {
             val epId = episode.id.toIntOrNull() ?: 0
             var startPos = 0L

@@ -137,6 +137,12 @@ fun LiveTvScreen(viewModel: MainViewModel) {
         }
     }
 
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.detachMiniPlayer()
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
