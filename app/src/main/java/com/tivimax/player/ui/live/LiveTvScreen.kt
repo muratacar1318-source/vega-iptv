@@ -32,12 +32,16 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.Brush
 import coil.compose.AsyncImage
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.GlobalSearchOptionsCard
 
 @OptIn(UnstableApi::class, ExperimentalMaterial3Api::class)
@@ -99,14 +103,23 @@ fun LiveTvScreen(viewModel: MainViewModel) {
         }
     }
 
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
+
+    LaunchedEffect(isWideScreen, channels) {
+        if (isWideScreen && activePreviewChannel == null && channels.isNotEmpty()) {
+            viewModel.previewChannel(channels.first())
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(TiviBackground)
     ) {
-        // --- 1. DİKEY CANLI MİNİ-PLAYER ÖNİZLEME (TiviMate Tarzı) ---
+        // --- 1. DİKEY CANLI MİNİ-PLAYER ÖNİZLEME (Yalnızca Dikey Telefonda) ---
         AnimatedVisibility(
-            visible = isMiniPlayerActive && activePreviewChannel != null,
+            visible = !isWideScreen && isMiniPlayerActive && activePreviewChannel != null,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
@@ -601,14 +614,15 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    AsyncImage(
+                                    AsyncShimmerImage(
                                         model = channel.streamIcon,
                                         contentDescription = null,
                                         contentScale = ContentScale.Fit,
                                         modifier = Modifier
                                             .size(20.dp)
                                             .clip(CircleShape)
-                                            .background(Color.Black)
+                                            .background(Color.Black),
+                                        placeholderIcon = Icons.Default.Tv
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
@@ -759,6 +773,231 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                                         onSearchAllSeries = { viewModel.searchAcrossAllSeries(searchQuery) }
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (isWideScreen) {
+                VerticalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 1.dp)
+
+                // SAĞ PANEL: CANLI ÖNİZLEME (SPLIT-VIEW PREVIEW)
+                Column(
+                    modifier = Modifier
+                        .weight(0.95f)
+                        .fillMaxHeight()
+                        .background(TiviSurface)
+                        .padding(12.dp)
+                ) {
+                    if (activePreviewChannel != null) {
+                        val channel = activePreviewChannel!!
+                        val epg = epgSummaryMap[channel.streamId]
+                        val isFavorite = favoriteIds.contains(channel.streamId.toString())
+
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.Black),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
+                                .clickable { viewModel.expandMiniPlayerToFullscreen() }
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AndroidView(
+                                    factory = { ctx ->
+                                        PlayerView(ctx).apply {
+                                            useController = false
+                                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                            layoutParams = FrameLayout.LayoutParams(
+                                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                                ViewGroup.LayoutParams.MATCH_PARENT
+                                            )
+                                            player = viewModel.playerManager.initializePlayer()
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+
+                                // Canlı Rozeti & Tam Ekran Butonu
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(Color.Black.copy(alpha = 0.7f), Color.Transparent)
+                                            )
+                                        )
+                                        .padding(8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(TiviAccentLive)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("CANLI", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+
+                                    IconButton(
+                                        onClick = { viewModel.expandMiniPlayerToFullscreen() },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(Icons.Default.Fullscreen, contentDescription = "Tam Ekran", tint = Color.White)
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Kanal Başlık Satırı
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncShimmerImage(
+                                model = channel.streamIcon,
+                                contentDescription = channel.name,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF0F141F))
+                                    .padding(3.dp),
+                                placeholderIcon = Icons.Default.Tv
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = channel.name,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                val catName = categories.firstOrNull { it.categoryId == channel.categoryId }?.categoryName ?: "Canlı TV"
+                                Text(
+                                    text = catName,
+                                    color = TiviTextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            IconButton(onClick = { viewModel.toggleFavoriteLive(channel.streamId.toString()) }) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                    contentDescription = "Favori",
+                                    tint = if (isFavorite) TiviGold else TiviTextMuted
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // EPG Bilgi Kartı
+                        val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın"
+                        val programTime = epg?.getFormattedTime() ?: (if (channel.programStart != null) "${channel.programStart} - ${channel.programEnd}" else "Canlı Yayın")
+                        val progress = epg?.getProgressFraction() ?: 0.5f
+
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = TiviCard),
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp)) {
+                                Text(
+                                    text = "ŞU AN YAYINDA",
+                                    color = TiviPrimary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    text = programTitle,
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = programTime,
+                                    color = TiviTextSecondary,
+                                    fontSize = 11.sp
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(3.dp)
+                                        .clip(RoundedCornerShape(1.5.dp)),
+                                    color = TiviPrimary,
+                                    trackColor = Color.White.copy(alpha = 0.1f)
+                                )
+                                if (!epg?.description.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = epg.description!!,
+                                        color = TiviTextMuted,
+                                        fontSize = 11.sp,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        Button(
+                            onClick = { viewModel.expandMiniPlayerToFullscreen() },
+                            colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                        ) {
+                            Icon(Icons.Default.Fullscreen, contentDescription = null, tint = Color.Black)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Tam Ekrana Geç", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+                    } else {
+                        // Seçili kanal yokken
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(TiviCard),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Tv,
+                                    contentDescription = null,
+                                    tint = TiviTextMuted,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "Canlı Yayın Önizleme",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "İzlemek veya önizlemek istediğiniz kanala listeden dokunun.",
+                                    color = TiviTextSecondary,
+                                    fontSize = 12.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
                             }
                         }
                     }
@@ -925,14 +1164,15 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                         .padding(bottom = 32.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage(
+                        AsyncShimmerImage(
                             model = channel.streamIcon,
                             contentDescription = channel.name,
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(Color.Black)
+                                .background(Color.Black),
+                            placeholderIcon = Icons.Default.Tv
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -1031,7 +1271,7 @@ fun EpgChannelCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Kanal Logosu
-                AsyncImage(
+                AsyncShimmerImage(
                     model = channel.streamIcon,
                     contentDescription = channel.name,
                     contentScale = ContentScale.Fit,
@@ -1039,7 +1279,8 @@ fun EpgChannelCard(
                         .size(50.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(Color(0xFF0F141F))
-                        .padding(4.dp)
+                        .padding(4.dp),
+                    placeholderIcon = Icons.Default.Tv
                 )
 
                 Spacer(modifier = Modifier.width(14.dp))
@@ -1176,11 +1417,12 @@ fun EpgTimelineRow(
                     contentAlignment = Alignment.Center
                 ) {
                     if (!channel.streamIcon.isNullOrEmpty()) {
-                        AsyncImage(
+                        AsyncShimmerImage(
                             model = channel.streamIcon,
                             contentDescription = channel.name,
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
+                            placeholderIcon = Icons.Default.Tv
                         )
                     } else {
                         Icon(

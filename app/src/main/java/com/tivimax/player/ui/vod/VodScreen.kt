@@ -29,11 +29,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import coil.compose.AsyncImage
 import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.data.model.VodStream
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.components.AsyncShimmerImage
 
 @Composable
 fun VodScreen(viewModel: MainViewModel) {
@@ -85,6 +88,10 @@ fun VodScreen(viewModel: MainViewModel) {
     val featuredMovie = remember(movies) {
         movies.firstOrNull { it.streamIcon != null && it.streamIcon.isNotBlank() }
     }
+
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
+    val gridColumns = if (isWideScreen) (configuration.screenWidthDp / 140).coerceIn(5, 7) else 3
 
     // --- TIVIMATE SOL DİKEY KATEGORİ SÜTUNU & SAĞ FİLM ALANI ---
     var isSidebarExpanded by remember { mutableStateOf(true) }
@@ -368,7 +375,7 @@ fun VodScreen(viewModel: MainViewModel) {
                         }
                     } else {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
+                            columns = GridCells.Fixed(gridColumns),
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -389,7 +396,7 @@ fun VodScreen(viewModel: MainViewModel) {
 
                             // Sonsuz Kaydırma / Sayfalama Tetikleyici
                             if (visibleLimit < filteredMovies.size) {
-                                item(span = { GridItemSpan(2) }) {
+                                item(span = { GridItemSpan(gridColumns) }) {
                                     LaunchedEffect(Unit) {
                                         visibleLimit += 30
                                     }
@@ -410,7 +417,7 @@ fun VodScreen(viewModel: MainViewModel) {
 
                             // Arama yapıldığında ızgaranın en altında alternatif arama seçenekleri
                             if (searchQuery.isNotBlank()) {
-                                item(span = { GridItemSpan(2) }) {
+                                item(span = { GridItemSpan(gridColumns) }) {
                                     GlobalSearchOptionsCard(
                                         query = searchQuery,
                                         currentScope = "vod",
@@ -446,11 +453,12 @@ fun MoviePosterCard(
                 .clip(RoundedCornerShape(12.dp))
                 .background(TiviCard)
         ) {
-            AsyncImage(
+            AsyncShimmerImage(
                 model = movie.streamIcon,
                 contentDescription = movie.name,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                placeholderIcon = Icons.Default.Movie
             )
 
             // Üst Karartma & IMDb Puan Rozeti

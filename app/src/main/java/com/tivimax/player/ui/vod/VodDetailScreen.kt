@@ -14,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -55,26 +56,35 @@ fun VodDetailScreen(
             .fillMaxSize()
             .background(TiviBackground)
     ) {
-        // Arka Plan Afiş Resmi (Backdrop)
-        AsyncImage(
+        // Arka Plan Afiş Resmi (Backdrop - Netflix Ambient Blur)
+        com.tivimax.player.ui.components.AsyncShimmerImage(
             model = info?.movieImage ?: movie.streamIcon,
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            placeholderIcon = Icons.Default.Movie,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(340.dp)
+                .height(380.dp)
+                .then(
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        Modifier.blur(20.dp)
+                    } else {
+                        Modifier
+                    }
+                )
         )
 
-        // Karartma Geçişi (Gradient)
+        // Karartma Geçişi (Gradient - Netflix Sinematik Fade to OLED Black)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(340.dp)
+                .height(380.dp)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.4f),
-                            TiviBackground.copy(alpha = 0.8f),
+                            Color.Transparent,
+                            TiviBackground.copy(alpha = 0.4f),
+                            TiviBackground.copy(alpha = 0.85f),
                             TiviBackground
                         )
                     )

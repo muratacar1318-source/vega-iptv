@@ -59,6 +59,7 @@ import com.tivimax.player.player.TrackInfo
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
+import com.tivimax.player.ui.components.AsyncShimmerImage
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -111,7 +112,21 @@ fun PlayerScreen(
     var brightnessFeedback by remember { mutableStateOf<Int?>(null) }
     var volumeFeedback by remember { mutableStateOf<Int?>(null) }
     var seekRipple by remember { mutableStateOf<String?>(null) }
-    var centerDragAccumulator by remember { mutableFloatStateOf(0f) }
+    var dragStartOffset by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+
+    LaunchedEffect(brightnessFeedback) {
+        if (brightnessFeedback != null) {
+            delay(1500)
+            brightnessFeedback = null
+        }
+    }
+
+    LaunchedEffect(volumeFeedback) {
+        if (volumeFeedback != null) {
+            delay(1500)
+            volumeFeedback = null
+        }
+    }
 
     val favoriteLiveIds by viewModel.favoriteLiveIds.collectAsState()
     val isFavorite = favoriteLiveIds.contains(streamId.toString())
@@ -133,9 +148,9 @@ fun PlayerScreen(
     var scrubPosition by remember { mutableFloatStateOf(0f) }
 
     // Otomatik Kontrol Gizleme Sayacı (Sürükleme yaparken arayüz ASLA kaybolmaz)
-    LaunchedEffect(showControls, isPlaying, isScrubbing) {
-        if (showControls && isPlaying && !isControlsLocked && !isScrubbing) {
-            delay(4500)
+    LaunchedEffect(showControls, isPlaying, isScrubbing, isControlsLocked) {
+        if (showControls && isPlaying && !isScrubbing) {
+            delay(if (isControlsLocked) 3000L else 4500L)
             showControls = false
         }
     }
@@ -277,39 +292,79 @@ fun PlayerScreen(
                     onDoubleTap = { offset ->
                         if (!isControlsLocked) {
                             if (!isLive) {
-                                if (offset.x < screenWidth * 0.35f) {
+                                if (offset.x < size.width * 0.35f) {
                                     // Sol tarafa çift tık: 10 saniye geri (Sadece Film/Dizi)
                                     playerManager.rewind10Seconds()
-                                    seekRipple = "-10s"
-                                } else if (offset.x > screenWidth * 0.65f) {
+                                    seekRipple = "-10 saniye"
+                                } else if (offset.x > size.width * 0.65f) {
                                     // Sağ tarafa çift tık: 10 saniye ileri (Sadece Film/Dizi)
                                     playerManager.forward10Seconds()
-                                    seekRipple = "+10s"
+                                    seekRipple = "+10 saniye"
                                 } else {
                                     // Ortaya çift tık: En-Boy Oranı değiştir
                                     val newMode = playerManager.cycleAspectRatio()
                                     seekRipple = when (newMode) {
-                                        AspectRatioMode.FIT -> "Orijinal Oran"
-                                        AspectRatioMode.FILL -> "Ekranı Doldur"
-                                        AspectRatioMode.ZOOM -> "Yakınlaştır"
-                                        AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
+                                        AspectRatioMode.FIT -> "En-Boy: Orijinal (FIT)"
+                                        AspectRatioMode.FILL -> "En-Boy: Doldur (FILL)"
+                                        AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır (ZOOM)"
+                                        AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
                                     }
                                 }
                             } else {
-                                // Canlı TV'de +10s / -10s sarmalar tamamen iptal edildi
-                                if (offset.x in (screenWidth * 0.35f)..(screenWidth * 0.65f)) {
-                                    val newMode = playerManager.cycleAspectRatio()
-                                    seekRipple = when (newMode) {
-                                        AspectRatioMode.FIT -> "Orijinal Oran"
-                                        AspectRatioMode.FILL -> "Ekranı Doldur"
-                                        AspectRatioMode.ZOOM -> "Yakınlaştır"
-                                        AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
-                                    }
+                                // Canlı TV'de en-boy oranı döngüsü
+                                val newMode = playerManager.cycleAspectRatio()
+                                seekRipple = when (newMode) {
+                                    AspectRatioMode.FIT -> "En-Boy: Orijinal (FIT)"
+                                    AspectRatioMode.FILL -> "En-Boy: Doldur (FILL)"
+                                    AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır (ZOOM)"
+                                    AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
                                 }
                             }
                         }
                     }
                 )
+            }
+            .pointerInput(isControlsLocked) {
+                if (!isControlsLocked) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            dragStartOffset = offset
+                            currentBrightness = activity?.window?.attributes?.screenBrightness.let { if (it == null || it < 0f) 0.5f else it }
+                            currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                        },
+                        onDragEnd = {
+                            dragStartOffset = null
+                        },
+                        onDragCancel = {
+                            dragStartOffset = null
+                        },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            val start = dragStartOffset ?: return@detectDragGestures
+                            val isLeft = start.x < size.width * 0.45f
+                            val isRight = start.x > size.width * 0.55f
+                            val delta = -dragAmount.y / size.height
+
+                            if (isLeft) {
+                                val newBrightness = (currentBrightness + delta).coerceIn(0.01f, 1.0f)
+                                currentBrightness = newBrightness
+                                activity?.window?.attributes = activity?.window?.attributes?.apply {
+                                    screenBrightness = newBrightness
+                                }
+                                brightnessFeedback = (newBrightness * 100).toInt()
+                            } else if (isRight) {
+                                val volumeDelta = delta * maxVolume * 1.5f
+                                val newVolFloat = (currentVolume + volumeDelta).coerceIn(0f, maxVolume.toFloat())
+                                val newVol = newVolFloat.toInt()
+                                if (newVol != currentVolume) {
+                                    currentVolume = newVol
+                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                }
+                                volumeFeedback = ((newVolFloat / maxVolume) * 100).toInt()
+                            }
+                        }
+                    )
+                }
             }
     ) {
         if (!isDualViewActive) {
@@ -477,55 +532,164 @@ fun PlayerScreen(
             }
         }
 
-        // Gesture HUD Pill: Parlaklık veya Ses
-        brightnessFeedback?.let { pct ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 36.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(TiviOverlayDark)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.BrightnessMedium, contentDescription = null, tint = TiviGold)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "%$pct", color = Color.White, fontWeight = FontWeight.Bold)
+        // İnce Yarı Saydam Dikey Parlaklık Çubuğu (Sol Kenar)
+        AnimatedVisibility(
+            visible = brightnessFeedback != null,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(300)),
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 24.dp)
+        ) {
+            brightnessFeedback?.let { pct ->
+                val fraction = (pct / 100f).coerceIn(0f, 1f)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = TiviOverlayDark,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .width(42.dp)
+                        .height(180.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(vertical = 10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BrightnessMedium,
+                            contentDescription = null,
+                            tint = TiviGold,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(5.dp)
+                                .height(105.dp)
+                                .clip(RoundedCornerShape(2.5.dp))
+                                .background(Color.White.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight(fraction)
+                                    .background(TiviGold)
+                            )
+                        }
+                        Text(
+                            text = "%$pct",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
 
-        volumeFeedback?.let { pct ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 36.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(TiviOverlayDark)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.VolumeUp, contentDescription = null, tint = TiviPrimary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "%$pct", color = Color.White, fontWeight = FontWeight.Bold)
+        // İnce Yarı Saydam Dikey Ses Seviye Çubuğu (Sağ Kenar)
+        AnimatedVisibility(
+            visible = volumeFeedback != null,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(300)),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 24.dp)
+        ) {
+            volumeFeedback?.let { pct ->
+                val fraction = (pct / 100f).coerceIn(0f, 1f)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = TiviOverlayDark,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .width(42.dp)
+                        .height(180.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(vertical = 10.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (pct == 0) Icons.Default.VolumeMute else Icons.Default.VolumeUp,
+                            contentDescription = null,
+                            tint = TiviPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(5.dp)
+                                .height(105.dp)
+                                .clip(RoundedCornerShape(2.5.dp))
+                                .background(Color.White.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight(fraction)
+                                    .background(TiviPrimary)
+                            )
+                        }
+                        Text(
+                            text = "%$pct",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
 
-        // Double-Tap Ripple Feedback
-        seekRipple?.let { text ->
-            LaunchedEffect(text) {
-                delay(1200)
-                seekRipple = null
-            }
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(TiviOverlayDark)
-                    .padding(horizontal = 24.dp, vertical = 14.dp)
-            ) {
-                Text(text = text, color = TiviPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        // Animasyonlu Bilgi Etiketi (1.5s Pill Badge: +10s, -10s, En-Boy Oranı)
+        AnimatedVisibility(
+            visible = seekRipple != null,
+            enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.85f),
+            exit = fadeOut(tween(250)) + scaleOut(targetScale = 0.85f),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            seekRipple?.let { text ->
+                LaunchedEffect(text) {
+                    delay(1500)
+                    seekRipple = null
+                }
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = TiviOverlayDark,
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, TiviPrimary.copy(alpha = 0.7f)),
+                    tonalElevation = 6.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val icon = when {
+                            text.contains("-10") -> Icons.Default.Replay10
+                            text.contains("+10") -> Icons.Default.Forward10
+                            else -> Icons.Default.AspectRatio
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = TiviPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = text,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
 
@@ -573,19 +737,47 @@ fun PlayerScreen(
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(200))
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color.Black.copy(alpha = if (isPortrait) 0.65f else 0.8f),
-                                Color.Transparent,
-                                Color.Black.copy(alpha = if (isPortrait) 0.75f else 0.9f)
+            if (isControlsLocked) {
+                // Dokunma kilidi aktifken ekrana dokunulduğunda yalnızca köşede kilidi aç butonu görünür
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .padding(16.dp)
+                ) {
+                    Surface(
+                        onClick = { isControlsLocked = false },
+                        shape = CircleShape,
+                        color = TiviOverlayDark,
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, TiviPrimary),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(48.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Dokunma Kilidini Aç",
+                                tint = TiviPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.Black.copy(alpha = if (isPortrait) 0.65f else 0.8f),
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = if (isPortrait) 0.75f else 0.9f)
+                                )
                             )
                         )
-                    )
-            ) {
+                ) {
                 // TOP BAR: Geri, Başlık, Saat, Kilit (Kompakt Yükseklik)
                 Row(
                     modifier = Modifier
@@ -1610,22 +1802,24 @@ fun PlayerScreen(
                 }
             }
         }
+    }
 
-        // HIZLI KANAL DEĞİŞTİRİCİ ÇEKMECESİ (Canlı TV İzlerken Sağdan/Soldan Açılır)
+        // HIZLI KANAL DEĞİŞTİRİCİ ÇEKMECESİ (Canlı TV İzlerken Soldan Açılır, %80 Opak Buzlu Cam)
         AnimatedVisibility(
             visible = showChannelDrawer && isLive,
             enter = slideInHorizontally(initialOffsetX = { -it }),
             exit = slideOutHorizontally(targetOffsetX = { -it }),
             modifier = Modifier
                 .fillMaxHeight()
-                .width(280.dp)
+                .width(290.dp)
                 .align(Alignment.CenterStart)
         ) {
             val liveList by viewModel.liveStreams.collectAsState()
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = TiviOverlayDark),
+                colors = CardDefaults.cardColors(containerColor = Color(0xCC0F141C)), // %80 opaklık, buzlu cam
                 shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder.copy(alpha = 0.5f)),
                 modifier = Modifier.fillMaxSize()
             ) {
                 Column(
@@ -1698,6 +1892,15 @@ fun PlayerScreen(
                         }
                     }
 
+                    LaunchedEffect(showChannelDrawer) {
+                        if (showChannelDrawer) {
+                            val currentIndex = pagedDrawerList.indexOfFirst { it.streamId == streamId }
+                            if (currentIndex >= 0) {
+                                drawerListState.scrollToItem((currentIndex - 2).coerceAtLeast(0))
+                            }
+                        }
+                    }
+
                     LazyColumn(
                         state = drawerListState,
                         modifier = Modifier.fillMaxSize(),
@@ -1715,21 +1918,33 @@ fun PlayerScreen(
                                     viewModel.playLiveChannel(channel)
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (isCurrent) TiviPrimary.copy(alpha = 0.2f) else Color.Transparent,
+                                color = if (isCurrent) TiviPrimary.copy(alpha = 0.22f) else Color.Transparent,
+                                border = if (isCurrent) androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary) else null,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
                                     modifier = Modifier.padding(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    AsyncImage(
+                                    if (isCurrent) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(3.dp)
+                                                .height(24.dp)
+                                                .clip(RoundedCornerShape(1.5.dp))
+                                                .background(TiviPrimary)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+                                    AsyncShimmerImage(
                                         model = channel.streamIcon,
                                         contentDescription = null,
                                         contentScale = ContentScale.Fit,
                                         modifier = Modifier
-                                            .size(36.dp)
+                                            .size(34.dp)
                                             .clip(RoundedCornerShape(6.dp))
-                                            .background(TiviCard)
+                                            .background(TiviCard),
+                                        placeholderIcon = Icons.Default.Tv
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
@@ -1738,8 +1953,24 @@ fun PlayerScreen(
                                         fontSize = 13.sp,
                                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
                                     )
+                                    if (isCurrent) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(TiviPrimary)
+                                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "CANLI",
+                                                color = Color.Black,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.ExtraBold
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

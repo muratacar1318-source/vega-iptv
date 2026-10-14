@@ -2,7 +2,6 @@ package com.tivimax.player.ui.login
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -34,18 +34,15 @@ import com.tivimax.player.ui.MainViewModel
 fun LoginScreen(viewModel: MainViewModel) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var useInsecureConnection by remember { mutableStateOf(false) }
     var customServerUrl by remember { mutableStateOf("") }
     var showCustomServerInput by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    val effectiveServerUrl = remember(useInsecureConnection, customServerUrl, showCustomServerInput) {
+    val effectiveServerUrl = remember(customServerUrl, showCustomServerInput) {
         if (showCustomServerInput && customServerUrl.isNotBlank()) {
             customServerUrl.trim()
-        } else if (useInsecureConnection) {
-            AppConfig.SERVER_URL_HTTP
         } else {
-            AppConfig.SERVER_URL_HTTPS
+            AppConfig.DEFAULT_SERVER_URL
         }
     }
 
@@ -59,29 +56,31 @@ fun LoginScreen(viewModel: MainViewModel) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF0F172A),
+                        Color(0xFF0F141C),
                         TiviBackground,
-                        Color(0xFF05070B)
+                        Color(0xFF000000)
                     )
                 )
-            )
+            ),
+        contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .widthIn(max = 440.dp)
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 28.dp, vertical = 40.dp),
+                .padding(horizontal = 28.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // App Brand Logo & Icon
+            // App Brand Logo & Icon (OLED Midnight Glow)
             Box(
                 modifier = Modifier
-                    .size(90.dp)
-                    .clip(RoundedCornerShape(26.dp))
+                    .size(86.dp)
+                    .clip(RoundedCornerShape(24.dp))
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(TiviPrimary, TiviSecondary)
+                            colors = listOf(TiviPrimary, TiviPrimaryDark)
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -89,16 +88,16 @@ fun LoginScreen(viewModel: MainViewModel) {
                 Icon(
                     imageVector = Icons.Default.Tv,
                     contentDescription = "Logo",
-                    tint = TiviBackground,
-                    modifier = Modifier.size(52.dp)
+                    tint = Color.White,
+                    modifier = Modifier.size(48.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Text(
                 text = AppConfig.APP_NAME,
-                fontSize = 32.sp,
+                fontSize = 28.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = TiviTextPrimary,
                 letterSpacing = 1.sp
@@ -106,12 +105,12 @@ fun LoginScreen(viewModel: MainViewModel) {
 
             Text(
                 text = AppConfig.APP_TAGLINE,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 color = TiviTextSecondary,
                 modifier = Modifier.padding(top = 4.dp)
             )
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
             // Error Banner
             AnimatedVisibility(visible = errorMessage != null) {
@@ -121,7 +120,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 20.dp)
+                            .padding(bottom = 16.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(14.dp),
@@ -143,7 +142,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                 }
             }
 
-            // Input: Kullanıcı Adı
+            // Input: Kullanıcı Adı (İleri tuşu şifreye odaklar)
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
@@ -158,16 +157,24 @@ fun LoginScreen(viewModel: MainViewModel) {
                     focusedLabelColor = TiviPrimary,
                     unfocusedLabelColor = TiviTextSecondary,
                     focusedContainerColor = TiviCard,
-                    unfocusedContainerColor = TiviCard
+                    unfocusedContainerColor = TiviCard,
+                    focusedTextColor = TiviTextPrimary,
+                    unfocusedTextColor = TiviTextPrimary
                 ),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Input: Şifre
+            // Input: Şifre (Tamam tuşu doğrudan girişi tetikler)
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -192,7 +199,9 @@ fun LoginScreen(viewModel: MainViewModel) {
                     focusedLabelColor = TiviPrimary,
                     unfocusedLabelColor = TiviTextSecondary,
                     focusedContainerColor = TiviCard,
-                    unfocusedContainerColor = TiviCard
+                    unfocusedContainerColor = TiviCard,
+                    focusedTextColor = TiviTextPrimary,
+                    unfocusedTextColor = TiviTextPrimary
                 ),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth(),
@@ -210,76 +219,83 @@ fun LoginScreen(viewModel: MainViewModel) {
                 )
             )
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
-            // GÜVENLİ BAĞLANTI (HTTPS / HTTP) SEÇENEĞİ
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (useInsecureConnection) TiviGold.copy(alpha = 0.12f) else TiviCard
+            // Giriş Yap Butonu
+            Button(
+                onClick = {
+                    focusManager.clearFocus()
+                    viewModel.login(username, password, effectiveServerUrl)
+                },
+                enabled = !isLoading && username.isNotBlank() && password.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = TiviPrimary,
+                    contentColor = Color.White,
+                    disabledContainerColor = TiviCardBorder,
+                    disabledContentColor = TiviTextMuted
                 ),
                 shape = RoundedCornerShape(14.dp),
-                border = if (useInsecureConnection) androidx.compose.foundation.BorderStroke(1.dp, TiviGold) else null,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { useInsecureConnection = !useInsecureConnection }
+                    .height(52.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (useInsecureConnection) Icons.Default.LockOpen else Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = if (useInsecureConnection) TiviGold else TiviPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Güvenli bağlantı kullanma",
-                                color = TiviTextPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            text = if (useInsecureConnection) {
-                                "http://mntrdns.com (HTTP - Hızlı / Eski Paneller)"
-                            } else {
-                                "https://mntrdns.com (HTTPS - Şifreli ve Güvenli)"
-                            },
-                            color = if (useInsecureConnection) TiviGold else TiviTextSecondary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    Switch(
-                        checked = useInsecureConnection,
-                        onCheckedChange = { useInsecureConnection = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = TiviGold,
-                            checkedTrackColor = TiviGold.copy(alpha = 0.35f),
-                            uncheckedThumbColor = TiviPrimary,
-                            uncheckedTrackColor = TiviPrimary.copy(alpha = 0.25f)
-                        )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(22.dp)
                     )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Bağlanıyor...",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "GİRİŞ YAP",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
 
-            // Opsiyonel Farklı Sunucu Girişi
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Demo Modu ile Test Et Butonu
+            OutlinedButton(
+                onClick = { viewModel.loginDemo() },
+                shape = RoundedCornerShape(14.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.5f)),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = TiviPrimary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp)
+            ) {
+                Icon(imageVector = Icons.Default.PlayCircleOutline, contentDescription = null, tint = TiviPrimary, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Hemen Dene (Canlı Demo)",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            // Gelişmiş / Özel Sunucu Seçeneği
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.Center
             ) {
                 TextButton(onClick = { showCustomServerInput = !showCustomServerInput }) {
                     Text(
-                        text = if (showCustomServerInput) "Gömülü Sunucuya Dön" else "Farklı Sunucu Gir",
+                        text = if (showCustomServerInput) "Varsayılan Sunucuya Dön" else "Farklı Sunucu Gir",
                         fontSize = 11.sp,
                         color = TiviTextMuted
                     )
@@ -291,97 +307,32 @@ fun LoginScreen(viewModel: MainViewModel) {
                     value = customServerUrl,
                     onValueChange = { customServerUrl = it },
                     label = { Text("Özel Sunucu Adresi") },
-                    placeholder = { Text("http://ornek-sunucu.com:8080") },
+                    placeholder = { Text("http://sunucu.com:8080") },
                     singleLine = true,
                     leadingIcon = {
-                        Icon(imageVector = Icons.Default.Dns, contentDescription = null, tint = TiviSecondary)
+                        Icon(imageVector = Icons.Default.Dns, contentDescription = null, tint = TiviPrimary)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = TiviSecondary,
+                        focusedBorderColor = TiviPrimary,
                         unfocusedBorderColor = TiviCardBorder,
                         focusedContainerColor = TiviCard,
-                        unfocusedContainerColor = TiviCard
+                        unfocusedContainerColor = TiviCard,
+                        focusedTextColor = TiviTextPrimary,
+                        unfocusedTextColor = TiviTextPrimary
                     ),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                        .padding(top = 4.dp, bottom = 8.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Giriş Yap Butonu
-            Button(
-                onClick = {
-                    focusManager.clearFocus()
-                    viewModel.login(username, password, effectiveServerUrl)
-                },
-                enabled = !isLoading && username.isNotBlank() && password.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = TiviPrimary,
-                    contentColor = TiviBackground,
-                    disabledContainerColor = TiviCardBorder,
-                    disabledContentColor = TiviTextMuted
-                ),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        color = TiviBackground,
-                        strokeWidth = 3.dp,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Bağlanıyor...",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "GİRİŞ YAP",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Demo Modu ile Test Et Butonu
-            OutlinedButton(
-                onClick = { viewModel.loginDemo() },
-                shape = RoundedCornerShape(14.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.5f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = TiviPrimary),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Icon(imageVector = Icons.Default.PlayCircleOutline, contentDescription = null, tint = TiviPrimary)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Hemen Dene (Canlı Demo Modu)",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(26.dp))
-
             // Destek Bilgisi
             Text(
-                text = "Aboneliğiniz yoksa veya şifrenizi unuttuysanız servis sağlayıcınız ile iletişime geçin.",
-                fontSize = 12.sp,
+                text = "Sunucu adresi otomatik yapılandırılmıştır. Yalnızca kullanıcı adı ve şifrenizi girmeniz yeterlidir.",
+                fontSize = 11.sp,
                 color = TiviTextMuted,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
