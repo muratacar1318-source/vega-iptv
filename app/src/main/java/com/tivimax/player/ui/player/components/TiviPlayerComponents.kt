@@ -13,7 +13,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +34,7 @@ import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.data.model.decodeBase64IfNeeded
+import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.StreamDiagnostics
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
@@ -1007,6 +1008,580 @@ private fun KeypadButton(
                 color = color,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+// ============================================================================
+// 5. MODERN, KOMPAKT VE DUYARLI PLAYER HUD (KONTROL MERKEZİ & YAYIN TEŞHİS)
+// ============================================================================
+
+@Composable
+fun TiviPlayerHUD(
+    visible: Boolean,
+    initialTab: Int = 0, // 0: Kontroller (Ses/Parlaklık/Oran), 1: Yayın Teşhisi (Diagnostics)
+    diagnostics: StreamDiagnostics,
+    currentBrightness: Float,
+    onBrightnessChange: (Float) -> Unit,
+    currentVolume: Int,
+    maxVolume: Int,
+    onVolumeChange: (Int) -> Unit,
+    aspectRatio: AspectRatioMode,
+    onAspectRatioChange: (AspectRatioMode) -> Unit,
+    onClose: () -> Unit,
+    isPortrait: Boolean,
+    modifier: Modifier = Modifier
+) {
+    var selectedTab by remember(visible, initialTab) { mutableIntStateOf(initialTab) }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(androidx.compose.animation.core.tween(180)) + scaleIn(initialScale = 0.94f, animationSpec = androidx.compose.animation.core.tween(180)),
+        exit = fadeOut(androidx.compose.animation.core.tween(140)) + scaleOut(targetScale = 0.94f, animationSpec = androidx.compose.animation.core.tween(140)),
+        modifier = modifier
+    ) {
+        Surface(
+            modifier = if (isPortrait) {
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp)
+            } else {
+                Modifier.width(360.dp)
+            },
+            shape = RoundedCornerShape(18.dp),
+            color = Color(0xF20B101B), // %95 Opak OLED Gece Paneli
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                Brush.linearGradient(
+                    listOf(
+                        OpusCyan.copy(alpha = 0.7f),
+                        Color(0xFF1E2638),
+                        TiviGold.copy(alpha = 0.4f)
+                    )
+                )
+            ),
+            shadowElevation = 16.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp)
+            ) {
+                // ÜST BAŞLIK & KAPATMA BUTONU
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(OpusCyan.copy(alpha = 0.18f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (selectedTab == 0) Icons.Default.Tune else Icons.Default.Info,
+                                contentDescription = null,
+                                tint = OpusCyan,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (selectedTab == 0) "KONTROL MERKEZİ" else "YAYIN TEŞHİSİ (HUD)",
+                            color = Color.White,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.8.sp
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onClose,
+                        modifier = Modifier.size(26.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // SEGMENTED TAB BUTONLARI (KONTROLLER & YAYIN BİLGİSİ)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF141A26))
+                        .padding(3.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Tab 1: Ses & Ekran
+                    Surface(
+                        onClick = { selectedTab = 0 },
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (selectedTab == 0) OpusCyan.copy(alpha = 0.22f) else Color.Transparent,
+                        border = if (selectedTab == 0) androidx.compose.foundation.BorderStroke(1.dp, OpusCyan.copy(alpha = 0.6f)) else null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = if (selectedTab == 0) OpusCyan else Color(0xFF94A3B8),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Ses & Ekran",
+                                    color = if (selectedTab == 0) OpusCyan else Color(0xFF94A3B8),
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    // Tab 2: Yayın Teşhis
+                    Surface(
+                        onClick = { selectedTab = 1 },
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (selectedTab == 1) OpusCyan.copy(alpha = 0.22f) else Color.Transparent,
+                        border = if (selectedTab == 1) androidx.compose.foundation.BorderStroke(1.dp, OpusCyan.copy(alpha = 0.6f)) else null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(30.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = if (selectedTab == 1) OpusCyan else Color(0xFF94A3B8),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Yayın Teşhis",
+                                    color = if (selectedTab == 1) OpusCyan else Color(0xFF94A3B8),
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // SEKME İÇERİKLERİ
+                if (selectedTab == 0) {
+                    // TAB 0: SES & PARLAKLIK & EN-BOY KONTROLLERİ
+                    val brightnessPct = (currentBrightness * 100).toInt().coerceIn(1, 100)
+                    val volumePct = if (maxVolume > 0) ((currentVolume.toFloat() / maxVolume) * 100).toInt() else 0
+
+                    // 1. EKRAN PARLAKLIĞI
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.BrightnessMedium,
+                                contentDescription = null,
+                                tint = TiviGold,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Parlaklık", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(TiviGold.copy(alpha = 0.2f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(text = "%$brightnessPct", color = TiviGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Slider(
+                        value = currentBrightness.coerceIn(0.01f, 1f),
+                        onValueChange = onBrightnessChange,
+                        valueRange = 0.05f..1f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = TiviGold,
+                            activeTrackColor = TiviGold,
+                            inactiveTrackColor = Color(0xFF1E2638)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(26.dp)
+                    )
+
+                    // Hızlı Parlaklık Önayarları
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(0.25f to "%25", 0.50f to "%50", 0.75f to "%75", 1.0f to "%100").forEach { (valF, lbl) ->
+                            val isSelected = kotlin.math.abs(currentBrightness - valF) < 0.08f
+                            Surface(
+                                onClick = { onBrightnessChange(valF) },
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (isSelected) TiviGold.copy(alpha = 0.25f) else Color(0xFF161D28),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, if (isSelected) TiviGold else Color(0xFF1E2638)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(24.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = lbl,
+                                        color = if (isSelected) TiviGold else Color(0xFF94A3B8),
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 2. MEDYA SESİ
+                    val volIcon = when {
+                        currentVolume == 0 -> Icons.AutoMirrored.Filled.VolumeMute
+                        volumePct < 50 -> Icons.AutoMirrored.Filled.VolumeDown
+                        else -> Icons.AutoMirrored.Filled.VolumeUp
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = volIcon,
+                                contentDescription = null,
+                                tint = OpusCyan,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Ses Seviyesi", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(OpusCyan.copy(alpha = 0.2f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(text = "%$volumePct", color = OpusCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Slider(
+                        value = currentVolume.toFloat(),
+                        onValueChange = { onVolumeChange(it.toInt().coerceIn(0, maxVolume)) },
+                        valueRange = 0f..maxVolume.toFloat(),
+                        colors = SliderDefaults.colors(
+                            thumbColor = OpusCyan,
+                            activeTrackColor = OpusCyan,
+                            inactiveTrackColor = Color(0xFF1E2638)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(26.dp)
+                    )
+
+                    // Hızlı Ses Önayarları & Mute Butonu
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        // Sessiz Toggle
+                        Surface(
+                            onClick = {
+                                if (currentVolume > 0) {
+                                    onVolumeChange(0)
+                                } else {
+                                    onVolumeChange((maxVolume / 2).coerceAtLeast(1))
+                                }
+                            },
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (currentVolume == 0) Color(0xFFEF4444).copy(alpha = 0.25f) else Color(0xFF161D28),
+                            border = androidx.compose.foundation.BorderStroke(0.8.dp, if (currentVolume == 0) Color(0xFFEF4444) else Color(0xFF1E2638)),
+                            modifier = Modifier
+                                .weight(1.3f)
+                                .height(24.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = if (currentVolume == 0) "Sesi Aç" else "Sessiz (Mute)",
+                                    color = if (currentVolume == 0) Color(0xFFEF4444) else Color(0xFFE2E8F0),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        listOf(0.30f to "%30", 0.60f to "%60", 1.0f to "%100").forEach { (f, lbl) ->
+                            val targetVol = (maxVolume * f).toInt()
+                            val isSelected = kotlin.math.abs(currentVolume - targetVol) <= 1 && currentVolume > 0
+                            Surface(
+                                onClick = { onVolumeChange(targetVol) },
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (isSelected) OpusCyan.copy(alpha = 0.25f) else Color(0xFF161D28),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, if (isSelected) OpusCyan else Color(0xFF1E2638)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(24.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = lbl,
+                                        color = if (isSelected) OpusCyan else Color(0xFF94A3B8),
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // 3. EN-BOY ORANI (ASPECT RATIO) HIZLI SEÇİCİ
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AspectRatio, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("En-Boy Oranı", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            AspectRatioMode.FIT to "FIT",
+                            AspectRatioMode.FILL to "Doldur",
+                            AspectRatioMode.ZOOM to "Zoom",
+                            AspectRatioMode.RATIO_16_9 to "16:9"
+                        ).forEach { (mode, label) ->
+                            val isCurrent = aspectRatio == mode
+                            Surface(
+                                onClick = { onAspectRatioChange(mode) },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isCurrent) OpusCyan.copy(alpha = 0.25f) else Color(0xFF161D28),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isCurrent) OpusCyan else Color(0xFF1E2638)),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(28.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = label,
+                                        color = if (isCurrent) OpusCyan else Color(0xFF94A3B8),
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // TAB 1: YAYIN TEŞHİS & AKIŞ DETAYLARI
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // 2x3 Grid Teknik Metrik Kartları
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DiagnosticMetricCard(
+                                title = "Çözünürlük",
+                                value = diagnostics.resolution,
+                                badge = diagnostics.resolutionBadge,
+                                badgeColor = OpusCyan,
+                                modifier = Modifier.weight(1f)
+                            )
+                            DiagnosticMetricCard(
+                                title = "Kare Hızı",
+                                value = diagnostics.frameRate,
+                                badge = diagnostics.frameRateBadge,
+                                badgeColor = Color(0xFF38BDF8),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DiagnosticMetricCard(
+                                title = "Video Kodek",
+                                value = diagnostics.videoCodec,
+                                badge = diagnostics.videoCodecBadge,
+                                badgeColor = Color(0xFFA78BFA),
+                                modifier = Modifier.weight(1f)
+                            )
+                            DiagnosticMetricCard(
+                                title = "Ses Formatı",
+                                value = diagnostics.audioCodec,
+                                badge = diagnostics.audioCodecBadge,
+                                badgeColor = Color(0xFFF472B6),
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DiagnosticMetricCard(
+                                title = "Anlık Bitrate",
+                                value = diagnostics.bitrate,
+                                badge = "AĞ",
+                                badgeColor = TiviGold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            DiagnosticMetricCard(
+                                title = "Tampon Sağlığı",
+                                value = diagnostics.bufferHealthSecs,
+                                badge = "CANLI",
+                                badgeColor = TiviGreen,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Canlı Tampon Doluluk Göstergesi
+                        val bufferSecs = diagnostics.bufferHealthSecs.replace("s", "").trim().toFloatOrNull() ?: 3f
+                        val bufferProgress = (bufferSecs / 10f).coerceIn(0.05f, 1f)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF141A26))
+                                .padding(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Tampon Doluluk Oranı", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                                Text("${diagnostics.bufferHealthSecs} / 10s", color = TiviGreen, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LinearProgressIndicator(
+                                progress = { bufferProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = if (bufferSecs >= 3f) TiviGreen else TiviGold,
+                                trackColor = Color(0xFF1E2638)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticMetricCard(
+    title: String,
+    value: String,
+    badge: String,
+    badgeColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF141A26),
+        border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0xFF1E2638)),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = title, color = Color(0xFF94A3B8), fontSize = 10.sp)
+                if (badge.isNotBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(badgeColor.copy(alpha = 0.2f))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text(text = badge, color = badgeColor, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value.ifBlank { "Bilinmiyor" },
+                color = Color.White,
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+// ============================================================================
+// 6. MODERN PLAYER PILL ACTION BUTTON (FROSTED GLASS ROUNDED PILL)
+// ============================================================================
+
+@Composable
+fun PlayerPillButton(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isActive: Boolean = false,
+    activeColor: Color = OpusCyan,
+    isPortrait: Boolean = false
+) {
+    val baseBorderColor = if (isActive) activeColor else Color.White.copy(alpha = 0.25f)
+    val baseBgColor = if (isActive) activeColor.copy(alpha = 0.22f) else Color(0x66111827)
+    val contentColor = if (isActive) activeColor else Color.White
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = baseBgColor,
+        border = androidx.compose.foundation.BorderStroke(1.dp, baseBorderColor),
+        modifier = modifier.height(if (isPortrait) 30.dp else 34.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = if (isPortrait) 9.dp else 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = text,
+                    tint = contentColor,
+                    modifier = Modifier.size(if (isPortrait) 13.dp else 15.dp)
+                )
+                Spacer(modifier = Modifier.width(5.dp))
+            }
+            Text(
+                text = text,
+                color = contentColor,
+                fontSize = if (isPortrait) 10.5.sp else 11.5.sp,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1
             )
         }
     }
