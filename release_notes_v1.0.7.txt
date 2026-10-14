@@ -1,0 +1,15 @@
+# Vega IPTV v1.0.7 - Mobil Arayüz & EPG Karakter İyileştirmesi 🌟
+
+Bu güncelleme, gerçek cihaz testinde (Xiaomi 15) tespit edilen arayüz ergonomisi ve EPG veri şifreleme hatalarını çözmektedir:
+
+### 🛠️ Düzeltmeler & İyileştirmeler:
+1. **EPG Türkçe Karakter & Base64 Şifre Çözümü:**
+   - Xtream sunucularından gelen program başlıklarındaki şifreli Base64 metinler (`w5zDpyBLxLF6I...`) otomatik olarak çözümlenerek gerçek Türkçe program adı (Örn: Dizi/Film/Haber adı) olarak gösterilmektedir.
+2. **Dikey Modda Kanal Adı Sıkışması Çözüldü:**
+   - Dikey modda üst barda çok fazla buton olması nedeniyle "Kanal D" gibi kanal adlarının "Ka..." şeklinde kesilmesi engellendi.
+   - Alt kontrol barında zaten mevcut olan butonlar dikey modda üst bardan kaldırılarak kanal adına tam genişlik sağlandı.
+3. **Genel Kararlılık & Çoklu Ekran Entegrasyonu:**
+   - Çift ekran (Dual-View) modu ve canlı oynatıcı tam senkronize hale getirildi.
+
+---
+**APK İndirme:** `Vega-IPTV-v1.0.7.apk`

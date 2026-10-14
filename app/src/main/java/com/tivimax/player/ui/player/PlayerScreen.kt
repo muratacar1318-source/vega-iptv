@@ -687,30 +687,30 @@ fun PlayerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(if (isPortrait) 2.dp else 4.dp)
                     ) {
-                        // Canlı yayında Hızlı Kanal Değiştirici & Çift Ekran Butonları
-                        if (isLive) {
+                        // Canlı yayında Hızlı Kanal Değiştirici & Çift Ekran Butonları (Yatayda gösterilir, dikeyde alt barda bulunur)
+                        if (isLive && !isPortrait) {
                             IconButton(
                                 onClick = { showChannelDrawer = !showChannelDrawer },
-                                modifier = Modifier.size(if (isPortrait) 32.dp else 40.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.FormatListBulleted,
                                     contentDescription = "Kanal Listesi",
                                     tint = if (showChannelDrawer) TiviPrimary else Color.White,
-                                    modifier = Modifier.size(if (isPortrait) 18.dp else 24.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
 
                             // Çift Ekran (Dual-View / Multi-Screen)
                             IconButton(
                                 onClick = { showDualViewPicker = true },
-                                modifier = Modifier.size(if (isPortrait) 32.dp else 40.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.GridView,
                                     contentDescription = "Çift Ekran (Dual-View)",
                                     tint = if (isDualViewActive) TiviPrimary else Color.White,
-                                    modifier = Modifier.size(if (isPortrait) 18.dp else 24.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
 
@@ -721,13 +721,13 @@ fun PlayerScreen(
                                     currentBrightness = activity?.window?.attributes?.screenBrightness.let { if (it == null || it < 0f) 0.5f else it }
                                     showAudioBrightnessHUD = !showAudioBrightnessHUD
                                 },
-                                modifier = Modifier.size(if (isPortrait) 32.dp else 40.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Tune,
                                     contentDescription = "Ses & Parlaklık (HUD)",
                                     tint = if (showAudioBrightnessHUD) TiviPrimary else Color.White,
-                                    modifier = Modifier.size(if (isPortrait) 18.dp else 24.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -1020,9 +1020,9 @@ fun PlayerScreen(
                                                     }
                                                 }
                                                 val currentProgram = epgList.firstOrNull()
-                                                if (currentProgram != null && currentProgram.title.isNotBlank()) {
+                                                if (currentProgram != null && currentProgram.getDecodedTitle().isNotBlank()) {
                                                     Text(
-                                                        text = "Şu An: ${currentProgram.title}",
+                                                        text = "Şu An: ${currentProgram.getDecodedTitle()}",
                                                         color = TiviGold,
                                                         fontSize = if (isPortrait) 10.sp else 12.sp,
                                                         fontWeight = FontWeight.Medium,
@@ -1118,10 +1118,10 @@ fun PlayerScreen(
                                     // EPG Sonraki Program (Dikeyde yer tasarrufu için sadece yatayda veya kompakt)
                                     if (!isPortrait) {
                                         val nextProgram = epgList.getOrNull(1)
-                                        if (nextProgram != null && nextProgram.title.isNotBlank()) {
+                                        if (nextProgram != null && nextProgram.getDecodedTitle().isNotBlank()) {
                                             Spacer(modifier = Modifier.height(4.dp))
                                             Text(
-                                                text = "Sonraki: ${nextProgram.title} (${nextProgram.start ?: ""})",
+                                                text = "Sonraki: ${nextProgram.getDecodedTitle()} (${nextProgram.start ?: ""})",
                                                 color = TiviTextSecondary,
                                                 fontSize = 11.sp,
                                                 maxLines = 1,
