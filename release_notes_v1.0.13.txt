@@ -1,0 +1,21 @@
+# Vega IPTV v1.0.13 - Media3 (ExoPlayer) FFmpeg Ses Kodekleri, Dual LoadControl & Auto-Reconnect
+
+### 🎬 Oynatıcı Katmanı İyileştirmeleri:
+
+1. **AC3 / EAC3 / DTS Ses Kodek Desteği (FFmpeg Decoder):**
+   - Filmlerde ve dizilerde "görüntü var ses yok" sorununu tamamen çözmek için `org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1` entegrasyonu uygulandı.
+   - ExoPlayer ve Çift Ekran (Dual-View) başlatılırken `DefaultRenderersFactory` içinde `EXTENSION_RENDERER_MODE_PREFER` modu aktif edildi.
+   - Donanımsal lisans bulunmayan Android/TV cihazlarında dahi AC3 (Dolby Digital), EAC3 (Dolby Digital Plus) ve DTS ses kanalları doğrudan FFmpeg yazılımsal çözücüsü üzerinden çözülür.
+
+2. **Yayın Türüne Göre Akıllı Tampon (Dual LoadControl):**
+   - **Canlı TV Yayınları (HLS .m3u8 ve TS .ts):** Hızlı kanal geçişi (*fast zapping*) ve düşük canlı gecikmesi için 800ms başlatma tamponu korundu.
+   - **VOD (Film & Dizi - MP4/MKV):** Yüksek bit hızına sahip FHD/4K içeriklerde takılmaları engellemek için optimize edilmiş ayrı profil tanımlandı:
+     - `minBufferMs = 15.000` (15 saniye)
+     - `maxBufferMs = 50.000` (50 saniye)
+     - `bufferForPlaybackMs = 2.500` (2.5 saniye)
+     - `bufferForPlaybackAfterRebufferMs = 5.000` (5 saniye)
+     - 30 saniye geri tampon ve 128 MB RAM bellek boyutu.
+
+3. **Canlı Yayında Otomatik Yeniden Bağlanma (Auto-Reconnect):**
+   - Canlı yayın esnasında ağ kopması veya sunucu gecikmesinde siyah ekranda kalmayı önlemek için `onPlayerError` dinleyicisine 2 saniye arayla maksimum 3 kez otomatik yeniden bağlanma (`seekToDefaultPosition -> prepare -> play`) eklendi.
+   - Ekranda *"Yayın yeniden bağlanıyor (1/3)..."* şeklinde zarif bilgilendirme gösterilir; yayın toparlandığında sayaç otomatik olarak sıfırlanır.

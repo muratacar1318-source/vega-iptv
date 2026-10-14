@@ -361,7 +361,7 @@ class TiviPlayerManager(private val context: Context) {
                 if (isLiveStream && liveRetryCount < 3) {
                     liveRetryCount++
                     _isBuffering.value = true
-                    _errorMessage.value = "Yayın koptu, yeniden bağlanılıyor... ($liveRetryCount/3)"
+                    _errorMessage.value = "Yayın yeniden bağlanıyor ($liveRetryCount/3)..."
                     liveRetryJob?.cancel()
                     liveRetryJob = scope.launch {
                         delay(2000)
