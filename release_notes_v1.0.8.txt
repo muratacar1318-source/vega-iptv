@@ -1,0 +1,25 @@
+# Vega IPTV v1.0.8 Güncelleme Notları
+
+### 🚀 Canlı Yayın Senkronizasyonu & Düşük Gecikme (Low Latency)
+- **🔴 Canlıya Geç (2-3s Tampon) Tamamen Düzeltildi:**
+  - Canlı yayınlarda Wi-Fi veya 5G üzerinde 16-20 saniyeye kadar şişen arabellek (buffer) sorunu çözüldü.
+  - Canlı yayın `LoadControl` ayarları optimize edildi; arabellek tavanı sıkılaştırılarak yayının canlı sınıra kilitlenmesi sağlandı.
+  - **"CANLIYA GEÇ"** butonuna basıldığında ExoPlayer birikmiş bayat tamponu derhal sıfırlar, canlı akış soketini yeniler ve sunucunun anlık canlı sınırına zıplayarak tamponu doğrudan **2-3 saniye** aralığına düşürür.
+  - Arabellek sağlığı (buffer health) artık arka planda her saniye dinamik olarak gerçek zamanlı güncellenir.
+
+### 🎨 Genel Oynatıcı Butonları Yenilendi (Ergonomik & Düzenli Tasarım)
+- **Kanal Bilgi & Canlı Rozeti Üst Sırası:**
+  - Sol tarafta Kanal Logosu, Kanal Adı, Çözünürlük etiketi (`1080p FHD`) ve Güncel EPG Programı ferah ve sıkışmadan yerleştirildi.
+  - Sağ tarafta dikkat çekici, ışıltılı ve canlı tampon süresini anlık gösteren **"CANLIYA GEÇ • Tampon: 2.1s"** butonu konumlandırıldı.
+- **Tek Tip & Düzenli Aksiyon Butonları (Pill / Chip):**
+  - Tüm butonlar eşit yükseklik (30-34dp), estetik yuvarlatılmış köşeler ve şık yarı saydam arkaplan ile modernize edildi.
+  - İkon ve metin etiketleri birleştirildi:
+    - **⭐ Favori / Favoriye Ekle:** Kanalı tek tıkla favorilere ekler veya çıkarır (aktifken altın sarısı).
+    - **📺 Kanallar:** Hızlı kanal listesi çekmecesini açar.
+    - **⊞ Çift Ekran:** Çift ekran (Dual-View / Multi-Screen) kanal seçiciyi açar (aktifken turkuaz).
+    - **📐 Oran:** Orijinal Fit, Ekranı Doldur, Zoom ve 16:9 oranları arasında geçiş yapar.
+    - **🎚️ Ses/Işık:** Ses ve ekran parlaklığı HUD panelini açar.
+    - **💬 Altyazı/Ses:** Ses dili ve altyazı seçim panelini açar.
+  - Dikey (Portrait) modda yatay kaydırılabilir (horizontal scroll), hiçbir buton ekran dışına taşmaz veya birbirini ezmez.
+- **Film ve Dizi (VOD) Butonları:**
+  - Canlı yayın butonlarıyla birebir aynı modern çip tasarımına dönüştürüldü.

@@ -111,7 +111,7 @@ class UserPreferences(private val context: Context) {
     val autoSyncLiveFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_AUTO_SYNC_LIVE] ?: true }
     val autoPipFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_AUTO_PIP] ?: true }
     val vodBufferSecondsFlow: Flow<Int> = context.dataStore.data.map { it[KEY_VOD_BUFFER_SECONDS] ?: 60 }
-    val liveBufferSecondsFlow: Flow<Int> = context.dataStore.data.map { it[KEY_LIVE_BUFFER_SECONDS] ?: 5 }
+    val liveBufferSecondsFlow: Flow<Int> = context.dataStore.data.map { it[KEY_LIVE_BUFFER_SECONDS] ?: 2 }
     val decoderModeFlow: Flow<String> = context.dataStore.data.map { it[KEY_DECODER_MODE] ?: "HARDWARE" }
 
     val watchProgressMapFlow: Flow<Map<String, WatchProgress>> = context.dataStore.data.map { prefs ->

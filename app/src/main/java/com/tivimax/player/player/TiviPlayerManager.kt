@@ -58,6 +58,7 @@ data class StreamDiagnostics(
 class TiviPlayerManager(private val context: Context) {
 
     private var exoPlayer: ExoPlayer? = null
+    val player: ExoPlayer? get() = exoPlayer
     private val trackSelector = DefaultTrackSelector(context).apply {
         parameters = buildUponParameters()
             .setExceedRendererCapabilitiesIfNecessary(true)
@@ -139,8 +140,8 @@ class TiviPlayerManager(private val context: Context) {
     private var _vodBufferSeconds: Int = 60
     val vodBufferSecondsState = MutableStateFlow(60)
 
-    private var _liveBufferSeconds: Int = 5
-    val liveBufferSecondsState = MutableStateFlow(5)
+    private var _liveBufferSeconds: Int = 2
+    val liveBufferSecondsState = MutableStateFlow(2)
 
     private var _decoderMode: String = "HARDWARE"
     val decoderModeState = MutableStateFlow("HARDWARE")
@@ -149,16 +150,18 @@ class TiviPlayerManager(private val context: Context) {
 
     private fun buildLoadControl(isLive: Boolean): DefaultLoadControl {
         return if (isLive) {
-            val minBufferMs = (_liveBufferSeconds * 1000).coerceIn(2000, 15000)
-            val maxBufferMs = 30000
+            // Canlı yayınlarda tamponu 2-3 saniyede tut (asla 16 saniyeye şişmez)
+            val targetSecs = _liveBufferSeconds.coerceIn(2, 6)
+            val minBufferMs = targetSecs * 1000
+            val maxBufferMs = (targetSecs * 1000) + 1500 // Maksimum 3.5s (2s hedef için)
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
                     minBufferMs,
                     maxBufferMs,
-                    1000,
-                    minBufferMs.coerceAtMost(2500)
+                    800, // 0.8s ilk oynatma tamponu
+                    1200 // Yeniden tamponlama
                 )
-                .setBackBuffer(15000, true)
+                .setBackBuffer(0, false) // Canlı yayında geri tampon gecikmeyi artırır, kapat
                 .setPrioritizeTimeOverSizeThresholds(true)
                 .build()
         } else {
@@ -183,9 +186,17 @@ class TiviPlayerManager(private val context: Context) {
     }
 
     fun setLiveBufferSeconds(seconds: Int) {
-        val validSecs = seconds.coerceIn(2, 30)
+        val validSecs = seconds.coerceIn(2, 10)
         _liveBufferSeconds = validSecs
         liveBufferSecondsState.value = validSecs
+        if (isLiveStream && exoPlayer != null) {
+            val current = currentUrl
+            lastInitializedIsLive = null
+            release()
+            if (current.isNotBlank()) {
+                playInternal(current, isLive = true)
+            }
+        }
     }
 
     fun setDecoderMode(mode: String) {
@@ -549,10 +560,35 @@ class TiviPlayerManager(private val context: Context) {
 
     fun syncToLive(): Boolean {
         val player = exoPlayer ?: return false
-        if (!isLiveStream) return false
+        if (!isLiveStream || currentUrl.isBlank()) return false
+
+        // Hedef tamponu 2 saniyeye sabitle
+        _liveBufferSeconds = 2
+        liveBufferSecondsState.value = 2
+
+        val url = currentUrl
+        val mediaItemBuilder = MediaItem.Builder().setUri(url)
+        val liveConfig = MediaItem.LiveConfiguration.Builder()
+            .setTargetOffsetMs(2000L)
+            .setMinOffsetMs(1000L)
+            .setMaxOffsetMs(3000L)
+            .setMinPlaybackSpeed(0.98f)
+            .setMaxPlaybackSpeed(1.10f)
+            .build()
+        mediaItemBuilder.setLiveConfiguration(liveConfig)
+
+        if (url.contains(".m3u8", ignoreCase = true)) {
+            mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
+        } else if (url.contains(".ts", ignoreCase = true)) {
+            mediaItemBuilder.setMimeType(MimeTypes.VIDEO_MP2T)
+        }
+
+        // resetPosition = true ile ExoPlayer HTTP soketini ve biriken 16s tamponu tamamen boşaltır
+        player.setMediaItem(mediaItemBuilder.build(), /* resetPosition = */ true)
         player.seekToDefaultPosition()
         player.prepare()
         player.play()
+        updateDiagnostics()
         return true
     }
 
@@ -575,8 +611,10 @@ class TiviPlayerManager(private val context: Context) {
                             }
                         }
                     }
+                    // Yayın ve tampon sağlığını her saniye gerçek zamanlı güncelle
+                    updateDiagnostics()
                 }
-                delay(500)
+                delay(1000)
             }
         }
     }
@@ -722,8 +760,8 @@ class TiviPlayerManager(private val context: Context) {
         val fps = if (vf != null && vf.frameRate > 0) "${vf.frameRate.toInt()} fps" else "50 fps"
         val vCodec = vf?.sampleMimeType?.substringAfterLast('/')?.uppercase() ?: "H.264 (AVC)"
         val aCodec = af?.sampleMimeType?.substringAfterLast('/')?.uppercase() ?: "AAC Stereo"
-        val bitrate = if (vf != null && vf.bitrate > 0) String.format("%.1f Mbps", vf.bitrate / 1_000_000f) else "4.8 Mbps"
-        val bufferSecs = String.format("%.1fs", (player.totalBufferedDuration / 1000f).coerceAtLeast(0f))
+        val bitrate = if (vf != null && vf.bitrate > 0) String.format(java.util.Locale.US, "%.1f Mbps", vf.bitrate / 1_000_000f) else "4.8 Mbps"
+        val bufferSecs = String.format(java.util.Locale.US, "%.1fs", (player.totalBufferedDuration / 1000f).coerceAtLeast(0f))
 
         _streamDiagnostics.value = StreamDiagnostics(
             resolution = res,

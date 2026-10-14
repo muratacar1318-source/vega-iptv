@@ -190,7 +190,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val autoSyncLive = preferences.autoSyncLiveFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     val autoPipEnabled = preferences.autoPipFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     val vodBufferSeconds = preferences.vodBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 60)
-    val liveBufferSeconds = preferences.liveBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 5)
+    val liveBufferSeconds = preferences.liveBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 2)
     val decoderMode = preferences.decoderModeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "HARDWARE")
     val watchProgressMap = preferences.watchProgressMapFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
     val isInPipMode = MutableStateFlow(false)
@@ -919,6 +919,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun syncToLive(): Boolean {
+        viewModelScope.launch {
+            preferences.setLiveBufferSeconds(2)
+        }
         return playerManager.syncToLive()
     }
 
