@@ -77,3 +77,12 @@
 
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
+
+# ----------------------------------------------------------------------------
+# 5. ROOM DATABASE & SQLITE & PAGING
+# ----------------------------------------------------------------------------
+-keep class * extends androidx.room.RoomDatabase
+-keep class com.tivimax.player.data.local.** { *; }
+-keepclassmembers class com.tivimax.player.data.local.** { *; }
+-dontwarn androidx.room.paging.**
+-dontwarn androidx.paging.**

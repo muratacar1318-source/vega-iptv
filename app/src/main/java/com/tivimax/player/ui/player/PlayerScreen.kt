@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -1679,11 +1680,34 @@ fun PlayerScreen(
                         }
                     }
 
+                    var drawerLimit by remember(liveList) { mutableIntStateOf(50) }
+                    val pagedDrawerList = remember(liveList, drawerLimit) {
+                        liveList.take(drawerLimit)
+                    }
+                    val drawerListState = rememberLazyListState()
+                    val shouldLoadMore by remember {
+                        derivedStateOf {
+                            val totalItems = drawerListState.layoutInfo.totalItemsCount
+                            val lastVisible = drawerListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                            totalItems > 0 && lastVisible >= totalItems - 5 && drawerLimit < liveList.size
+                        }
+                    }
+                    LaunchedEffect(shouldLoadMore) {
+                        if (shouldLoadMore) {
+                            drawerLimit += 50
+                        }
+                    }
+
                     LazyColumn(
+                        state = drawerListState,
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        items(liveList) { channel ->
+                        items(
+                            items = pagedDrawerList,
+                            key = { it.streamId },
+                            contentType = { "drawer_channel" }
+                        ) { channel ->
                             val isCurrent = channel.streamId == streamId
                             Surface(
                                 onClick = {

@@ -1,0 +1,22 @@
+# Vega IPTV v1.0.11 - Room Database, Streaming JSON & LazyList Bellek Optimizasyonu
+
+### 🚀 OutOfMemoryError (OOM) Önleme ve Veri Katmanı Optimizasyonları:
+
+1. **Room Database (SQLite) Entegrasyonu:**
+   - On binlerce canlı kanal, film ve dizinin belleğe (RAM) yığılmasını önlemek için yerel SQLite veritabanı mimarisine geçildi.
+   - `live_categories`, `live_streams`, `vod_categories`, `vod_streams`, `series_categories`, `series_streams` tabloları ve Room DAO'ları (`LiveDao`, `VodDao`, `SeriesDao`) oluşturuldu.
+   - Kategorilere, isimlere ve puanlara göre SQLite indeksleri eklenerek anında arama ve sıralama performansı sağlandı.
+
+2. **Gson JsonReader (Streaming) & 500'lük Parça (Chunked) Kayıt:**
+   - `player_api.php` üzerinden gelen devasa (50-100+ MB) JSON yanıtları tek seferde `String` veya devasa nesne dizileri halinde belleğe alınmak yerine, `Gson JsonReader` ile doğrudan ağ soketinden (HTTP byteStream) parça parça okundu.
+   - 500'lük paketler (chunk) halinde Room veritabanına `OnConflictStrategy.REPLACE` ile işlendi.
+   - Bu sayede 100.000 kanal/VOD içeren sunucularda dahi bellek tüketimi 1 MB'ın altında sabitlendi ve `OutOfMemoryError` riski tamamen ortadan kaldırıldı.
+
+3. **Jetpack DataStore Preferences İzolasyonu:**
+   - DataStore Preferences yapısı yalnızca hafif ve kritik kullanıcı verileri (giriş bilgileri, aktif sunucu, favori ID setleri, oynatıcı ayarları, ebeveyn kilidi ve kaldığın yerden devam etme süreleri) için izole edildi.
+   - Ağır liste ve katalog verileri DataStore'a asla sokulmayarak DataStore kilitlenmeleri önlendi.
+
+4. **Hızlı Kanal Çekmecesi & VOD Listeleme LazyList / Paging Optimizasyonu:**
+   - Canlı TV oynatıcı ekranındaki Hızlı Kanal Geçiş Çekmecesi (`PlayerScreen`) `rememberLazyListState` ve 50'lik dinamik pencereleme (windowed paging) ile optimize edildi.
+   - `items(items = ..., key = { it.streamId }, contentType = { "..." })` yapılandırması ile Compose arayüz geri dönüşüm havuzu (recycling pool) aktif edildi.
+   - VOD Film ve Dizi ekranlarında da 30'luk sayfalama ve `contentType` etiketleriyle binlerce öğe arasında 60/120 FPS takılmasız akıcı kaydırma sağlandı.

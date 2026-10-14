@@ -362,7 +362,11 @@ fun SeriesScreen(viewModel: MainViewModel) {
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(pagedSeries, key = { "${it.seriesId}_${it.num}" }) { series ->
+                            items(
+                                items = pagedSeries,
+                                key = { "${it.seriesId}_${it.num}" },
+                                contentType = { "series_stream" }
+                            ) { series ->
                                 SeriesPosterCard(
                                     series = series,
                                     onClick = { viewModel.loadSeriesDetail(series) }

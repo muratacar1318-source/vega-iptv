@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  id("com.google.devtools.ksp")
 }
 
 android {
@@ -11,8 +12,8 @@ android {
         applicationId = "com.tivimax.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "1.0.10"
+        versionCode = 11
+        versionName = "1.0.11"
     }
 
     buildTypes {
@@ -107,4 +108,16 @@ dependencies {
 
   // DataStore
   implementation(libs.androidx.datastore.preferences)
+
+  // Room Database
+  val roomVersion = "2.7.0"
+  implementation("androidx.room:room-runtime:$roomVersion")
+  implementation("androidx.room:room-ktx:$roomVersion")
+  implementation("androidx.room:room-paging:$roomVersion")
+  ksp("androidx.room:room-compiler:$roomVersion")
+
+  // Paging 3
+  val pagingVersion = "3.3.6"
+  implementation("androidx.paging:paging-runtime:$pagingVersion")
+  implementation("androidx.paging:paging-compose:$pagingVersion")
 }

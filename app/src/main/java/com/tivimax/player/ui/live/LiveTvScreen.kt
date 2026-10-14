@@ -686,7 +686,11 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                                 }
                             }
 
-                            items(pagedChannels, key = { "${it.streamId}_${it.num}" }) { channel ->
+                            items(
+                                items = pagedChannels,
+                                key = { "${it.streamId}_${it.num}" },
+                                contentType = { "live_channel" }
+                            ) { channel ->
                                 val isFavorite = favoriteIds.contains(channel.streamId.toString())
                                 val isCurrentPlaying = activePreviewChannel?.streamId == channel.streamId && isMiniPlayerActive
 

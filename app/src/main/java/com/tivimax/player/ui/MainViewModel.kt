@@ -11,6 +11,7 @@ import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.TiviPlayerManager
 import com.tivimax.player.ui.main.HomeTab
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -36,7 +37,7 @@ sealed class Screen {
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    val repository = XtreamRepository()
+    val repository = XtreamRepository(application)
     val preferences = UserPreferences(application)
     val playerManager = TiviPlayerManager(application)
 
@@ -111,10 +112,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val favoriteSeriesIds = preferences.favoriteSeriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val recentChannels = MutableStateFlow<List<LiveStream>>(emptyList())
 
-    // Kategori İçerik Önbelleği (Kategoriler arası gezinirken her seferinde baştan yüklemez, anında açar)
-    val liveStreamsCache = mutableMapOf<String, List<LiveStream>>()
-    val vodStreamsCache = mutableMapOf<String, List<VodStream>>()
-    val seriesStreamsCache = mutableMapOf<String, List<SeriesStream>>()
+    // Kategori İçerik İşleri (Room Database üzerinden Flow ile canlı gözlemlenir)
+    private var liveStreamJob: Job? = null
+    private var vodStreamJob: Job? = null
+    private var seriesStreamJob: Job? = null
 
     // Genel Arama Durumu (Tüm kategoriler/bölümler arası arama aktarımı)
     val globalSearchQuery = MutableStateFlow("")
@@ -382,9 +383,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             playerManager.release()
             userInfo.value = null
             backStack.clear()
-            liveStreamsCache.clear()
-            vodStreamsCache.clear()
-            seriesStreamsCache.clear()
+            liveStreamJob?.cancel()
+            vodStreamJob?.cancel()
+            seriesStreamJob?.cancel()
+            withContext(Dispatchers.IO) {
+                repository.database?.clearAllTables()
+            }
+            liveStreams.value = emptyList()
+            vodStreams.value = emptyList()
+            seriesStreams.value = emptyList()
             globalSearchQuery.value = ""
             selectedHomeTab.value = HomeTab.LIVE_TV
             _isLoggedIn.value = false
@@ -398,11 +405,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadVodCategories()
         loadVodStreams("all")
         loadSeriesCategories()
+        loadSeriesStreams("all")
     }
 
     fun loadLiveCategories() {
         viewModelScope.launch {
-            repository.getLiveCategories().onSuccess { cats ->
+            repository.getLiveCategoriesFlow().collect { cats ->
+                if (cats.isNotEmpty()) {
+                    val allCat = LiveCategory(categoryId = "all", categoryName = "Tüm Kanallar")
+                    liveCategories.value = listOf(allCat) + cats
+                }
+            }
+        }
+        viewModelScope.launch {
+            repository.fetchAndSaveLiveCategories().onSuccess { cats ->
                 val allCat = LiveCategory(categoryId = "all", categoryName = "Tüm Kanallar")
                 liveCategories.value = listOf(allCat) + cats
             }
@@ -411,20 +427,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadLiveStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedLiveCategory.value = categoryId
-        if (!forceRefresh && liveStreamsCache.containsKey(categoryId)) {
-            liveStreams.value = liveStreamsCache[categoryId] ?: emptyList()
-            liveLoading.value = false
-            return
+        liveStreamJob?.cancel()
+        liveStreamJob = viewModelScope.launch {
+            repository.getLiveStreamsFlow(if (categoryId == "all") null else categoryId).collect { streams ->
+                liveStreams.value = streams
+                if (streams.isNotEmpty()) {
+                    liveLoading.value = false
+                }
+            }
         }
-        liveLoading.value = true
+
         viewModelScope.launch {
-            val res = repository.getLiveStreams(if (categoryId == "all") null else categoryId)
-            res.onSuccess { streams ->
-                val safe = streams.filter { !it.name.isNullOrBlank() }.distinctBy { it.streamId }
-                liveStreamsCache[categoryId] = safe
-                liveStreams.value = safe
-                liveLoading.value = false
-            }.onFailure {
+            val countInDb = withContext(Dispatchers.IO) {
+                if (categoryId == "all") repository.database?.liveDao()?.getTotalStreamCount() ?: 0
+                else repository.database?.liveDao()?.getStreamCountByCategory(categoryId) ?: 0
+            }
+
+            if (countInDb == 0 || forceRefresh) {
+                liveLoading.value = true
+                repository.fetchAndSaveLiveStreams(if (categoryId == "all") null else categoryId)
                 liveLoading.value = false
             }
         }
@@ -432,7 +453,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadVodCategories() {
         viewModelScope.launch {
-            repository.getVodCategories().onSuccess { cats ->
+            repository.getVodCategoriesFlow().collect { cats ->
+                if (cats.isNotEmpty()) {
+                    val allCat = VodCategory(categoryId = "all", categoryName = "Tüm Filmler")
+                    vodCategories.value = listOf(allCat) + cats
+                }
+            }
+        }
+        viewModelScope.launch {
+            repository.fetchAndSaveVodCategories().onSuccess { cats ->
                 val allCat = VodCategory(categoryId = "all", categoryName = "Tüm Filmler")
                 vodCategories.value = listOf(allCat) + cats
             }
@@ -441,20 +470,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadVodStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedVodCategory.value = categoryId
-        if (!forceRefresh && vodStreamsCache.containsKey(categoryId)) {
-            vodStreams.value = vodStreamsCache[categoryId] ?: emptyList()
-            vodLoading.value = false
-            return
+        vodStreamJob?.cancel()
+        vodStreamJob = viewModelScope.launch {
+            repository.getVodStreamsFlow(if (categoryId == "all") null else categoryId).collect { streams ->
+                vodStreams.value = streams
+                if (streams.isNotEmpty()) {
+                    vodLoading.value = false
+                }
+            }
         }
-        vodLoading.value = true
+
         viewModelScope.launch {
-            val res = repository.getVodStreams(if (categoryId == "all") null else categoryId)
-            res.onSuccess { streams ->
-                val safe = streams.filter { !it.name.isNullOrBlank() }.distinctBy { it.streamId }
-                vodStreamsCache[categoryId] = safe
-                vodStreams.value = safe
-                vodLoading.value = false
-            }.onFailure {
+            val countInDb = withContext(Dispatchers.IO) {
+                if (categoryId == "all") repository.database?.vodDao()?.getTotalStreamCount() ?: 0
+                else repository.database?.vodDao()?.getStreamCountByCategory(categoryId) ?: 0
+            }
+
+            if (countInDb == 0 || forceRefresh) {
+                vodLoading.value = true
+                repository.fetchAndSaveVodStreams(if (categoryId == "all") null else categoryId)
                 vodLoading.value = false
             }
         }
@@ -472,7 +506,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadSeriesCategories() {
         viewModelScope.launch {
-            repository.getSeriesCategories().onSuccess { cats ->
+            repository.getSeriesCategoriesFlow().collect { cats ->
+                if (cats.isNotEmpty()) {
+                    val allCat = SeriesCategory(categoryId = "all", categoryName = "Tüm Diziler")
+                    seriesCategories.value = listOf(allCat) + cats
+                }
+            }
+        }
+        viewModelScope.launch {
+            repository.fetchAndSaveSeriesCategories().onSuccess { cats ->
                 val allCat = SeriesCategory(categoryId = "all", categoryName = "Tüm Diziler")
                 seriesCategories.value = listOf(allCat) + cats
             }
@@ -481,20 +523,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadSeriesStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedSeriesCategory.value = categoryId
-        if (!forceRefresh && seriesStreamsCache.containsKey(categoryId)) {
-            seriesStreams.value = seriesStreamsCache[categoryId] ?: emptyList()
-            seriesLoading.value = false
-            return
+        seriesStreamJob?.cancel()
+        seriesStreamJob = viewModelScope.launch {
+            repository.getSeriesStreamsFlow(if (categoryId == "all") null else categoryId).collect { streams ->
+                seriesStreams.value = streams
+                if (streams.isNotEmpty()) {
+                    seriesLoading.value = false
+                }
+            }
         }
-        seriesLoading.value = true
+
         viewModelScope.launch {
-            val res = repository.getSeriesStreams(if (categoryId == "all") null else categoryId)
-            res.onSuccess { streams ->
-                val safe = streams.filter { !it.name.isNullOrBlank() }.distinctBy { it.seriesId }
-                seriesStreamsCache[categoryId] = safe
-                seriesStreams.value = safe
-                seriesLoading.value = false
-            }.onFailure {
+            val countInDb = withContext(Dispatchers.IO) {
+                if (categoryId == "all") repository.database?.seriesDao()?.getTotalStreamCount() ?: 0
+                else repository.database?.seriesDao()?.getStreamCountByCategory(categoryId) ?: 0
+            }
+
+            if (countInDb == 0 || forceRefresh) {
+                seriesLoading.value = true
+                repository.fetchAndSaveSeriesStreams(if (categoryId == "all") null else categoryId)
                 seriesLoading.value = false
             }
         }

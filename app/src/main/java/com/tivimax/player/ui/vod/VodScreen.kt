@@ -367,7 +367,11 @@ fun VodScreen(viewModel: MainViewModel) {
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(pagedMovies, key = { "${it.streamId}_${it.num}" }) { movie ->
+                            items(
+                                items = pagedMovies,
+                                key = { "${it.streamId}_${it.num}" },
+                                contentType = { "vod_movie" }
+                            ) { movie ->
                                 val progress = watchProgressMap[movie.streamId.toString()]
                                 MoviePosterCard(
                                     movie = movie,
