@@ -108,6 +108,26 @@ class TiviPlayerManager(private val context: Context) {
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
+    // --- ÇOKLU EKRAN (DUAL-VIEW / MULTI-SCREEN) ---
+    var secondaryExoPlayer: ExoPlayer? = null
+        private set
+    private val _isDualViewActive = MutableStateFlow(false)
+    val isDualViewActive: StateFlow<Boolean> = _isDualViewActive.asStateFlow()
+
+    private val _isPrimaryAudioActive = MutableStateFlow(true)
+    val isPrimaryAudioActive: StateFlow<Boolean> = _isPrimaryAudioActive.asStateFlow()
+
+    private val _secondaryChannelTitle = MutableStateFlow("")
+    val secondaryChannelTitle: StateFlow<String> = _secondaryChannelTitle.asStateFlow()
+
+    private val _secondaryIsBuffering = MutableStateFlow(false)
+    val secondaryIsBuffering: StateFlow<Boolean> = _secondaryIsBuffering.asStateFlow()
+
+    private val _isScreensSwapped = MutableStateFlow(false)
+    val isScreensSwapped: StateFlow<Boolean> = _isScreensSwapped.asStateFlow()
+
+    private var secondaryUrl: String = ""
+
     private var currentUrl: String = ""
     private var isLiveStream: Boolean = false
     private var positionJob: Job? = null
@@ -740,7 +760,73 @@ class TiviPlayerManager(private val context: Context) {
         _audioOffsetMs.value = offsetMs
     }
 
+    fun startDualView(url: String, title: String) {
+        secondaryUrl = url
+        _secondaryChannelTitle.value = title
+        _isDualViewActive.value = true
+        _isPrimaryAudioActive.value = true
+        _isScreensSwapped.value = false
+
+        secondaryExoPlayer?.stop()
+        secondaryExoPlayer?.release()
+
+        val renderersFactory = DefaultRenderersFactory(context)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+        val loadControl = buildLoadControl(isLive = true)
+
+        val player = ExoPlayer.Builder(context)
+            .setRenderersFactory(renderersFactory)
+            .setLoadControl(loadControl)
+            .build()
+
+        player.volume = 0f
+        player.addListener(object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                _secondaryIsBuffering.value = (playbackState == Player.STATE_BUFFERING)
+            }
+        })
+
+        val mediaItem = MediaItem.Builder()
+            .setUri(url)
+            .setMimeType(if (url.contains(".m3u8", ignoreCase = true)) MimeTypes.APPLICATION_M3U8 else null)
+            .build()
+
+        player.setMediaItem(mediaItem)
+        player.prepare()
+        player.playWhenReady = true
+        secondaryExoPlayer = player
+    }
+
+    fun switchDualViewAudioFocus(primaryActive: Boolean) {
+        _isPrimaryAudioActive.value = primaryActive
+        if (primaryActive) {
+            exoPlayer?.volume = 1f
+            secondaryExoPlayer?.volume = 0f
+        } else {
+            exoPlayer?.volume = 0f
+            secondaryExoPlayer?.volume = 1f
+        }
+    }
+
+    fun swapDualViewScreens() {
+        _isScreensSwapped.value = !_isScreensSwapped.value
+    }
+
+    fun closeDualView() {
+        secondaryExoPlayer?.stop()
+        secondaryExoPlayer?.release()
+        secondaryExoPlayer = null
+        _isDualViewActive.value = false
+        _secondaryChannelTitle.value = ""
+        _secondaryIsBuffering.value = false
+        _isScreensSwapped.value = false
+        secondaryUrl = ""
+        exoPlayer?.volume = 1f
+        _isPrimaryAudioActive.value = true
+    }
+
     fun release() {
+        closeDualView()
         bufferingRecoveryJob?.cancel()
         cancelSleepTimer()
         stopPositionUpdates()
@@ -749,3 +835,4 @@ class TiviPlayerManager(private val context: Context) {
         lastInitializedIsLive = null
     }
 }
+

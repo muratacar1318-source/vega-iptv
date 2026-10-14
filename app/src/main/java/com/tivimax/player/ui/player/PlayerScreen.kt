@@ -15,6 +15,7 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -89,6 +90,13 @@ fun PlayerScreen(
     val audioOffsetMs by playerManager.audioOffsetMs.collectAsState()
     val playbackSpeed by playerManager.playbackSpeed.collectAsState()
 
+    val isDualViewActive by playerManager.isDualViewActive.collectAsState()
+    val isPrimaryAudioActive by playerManager.isPrimaryAudioActive.collectAsState()
+    val secondaryChannelTitle by playerManager.secondaryChannelTitle.collectAsState()
+    val secondaryIsBuffering by playerManager.secondaryIsBuffering.collectAsState()
+    val isScreensSwapped by playerManager.isScreensSwapped.collectAsState()
+    var showDualViewPicker by remember { mutableStateOf(false) }
+
     var showControls by remember { mutableStateOf(true) }
     var isControlsLocked by remember { mutableStateOf(false) }
     var showChannelDrawer by remember { mutableStateOf(false) }
@@ -106,6 +114,7 @@ fun PlayerScreen(
     val favoriteLiveIds by viewModel.favoriteLiveIds.collectAsState()
     val isFavorite = favoriteLiveIds.contains(streamId.toString())
     val epgList by viewModel.currentEpgList.collectAsState()
+    val allLiveStreams by viewModel.liveStreams.collectAsState()
 
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
@@ -234,8 +243,12 @@ fun PlayerScreen(
 
     // Geri Tuşu Davranışı
     BackHandler {
-        if (showChannelDrawer) {
+        if (showDualViewPicker) {
+            showDualViewPicker = false
+        } else if (showChannelDrawer) {
             showChannelDrawer = false
+        } else if (isDualViewActive) {
+            playerManager.closeDualView()
         } else {
             if (!isLive && currentPosition > 0) {
                 viewModel.saveWatchProgress(streamId, currentPosition, duration)
@@ -297,21 +310,70 @@ fun PlayerScreen(
                 )
             }
     ) {
-        // Media3 ExoPlayer Video Render View
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    layoutParams = FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    player = playerManager.initializePlayer()
+        if (!isDualViewActive) {
+            // Media3 ExoPlayer Video Render View
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        useController = false
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        player = playerManager.initializePlayer()
+                        try {
+                            subtitleView?.let { subView ->
+                                subView.setStyle(
+                                    androidx.media3.ui.CaptionStyleCompat(
+                                        android.graphics.Color.WHITE,
+                                        android.graphics.Color.argb(160, 0, 0, 0),
+                                        android.graphics.Color.TRANSPARENT,
+                                        androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                                        android.graphics.Color.BLACK,
+                                        null
+                                    )
+                                )
+                                subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18f)
+                                subView.setBottomPaddingFraction(0.12f)
+                            }
+                        } catch (e: Throwable) {
+                            // Ignore styling errors on non-standard devices
+                        }
+                        resizeMode = when (aspectRatio) {
+                            AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                            AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                        }
+                    }
+                },
+                update = { playerView ->
+                    if (playerView.player == null) {
+                        playerView.player = playerManager.initializePlayer()
+                    }
+                    playerView.resizeMode = when (aspectRatio) {
+                        AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                        AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                    }
                     try {
-                        subtitleView?.let { subView ->
+                        playerView.subtitleView?.let { subView ->
+                            val subTextColor = when (subtitleColor) {
+                                "SARI" -> android.graphics.Color.rgb(255, 215, 0)
+                                "YESIL" -> android.graphics.Color.rgb(0, 230, 118)
+                                "MAVI" -> android.graphics.Color.rgb(64, 196, 255)
+                                else -> android.graphics.Color.WHITE
+                            }
+                            val subTextSp = when (subtitleSize) {
+                                "KUCUK" -> 14f
+                                "BUYUK" -> 22f
+                                "COK_BUYUK" -> 26f
+                                else -> 18f
+                            }
                             subView.setStyle(
                                 androidx.media3.ui.CaptionStyleCompat(
-                                    android.graphics.Color.WHITE,
+                                    subTextColor,
                                     android.graphics.Color.argb(160, 0, 0, 0),
                                     android.graphics.Color.TRANSPARENT,
                                     androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
@@ -319,76 +381,44 @@ fun PlayerScreen(
                                     null
                                 )
                             )
-                            subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 18f)
+                            subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, subTextSp)
                             subView.setBottomPaddingFraction(0.12f)
                         }
                     } catch (e: Throwable) {
-                        // Ignore styling errors on non-standard devices
+                        // Ignore
                     }
-                    resizeMode = when (aspectRatio) {
-                        AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                        AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-                    }
-                }
-            },
-            update = { playerView ->
-                if (playerView.player == null) {
-                    playerView.player = playerManager.initializePlayer()
-                }
-                playerView.resizeMode = when (aspectRatio) {
-                    AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                    AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-                }
-                try {
-                    playerView.subtitleView?.let { subView ->
-                        val subTextColor = when (subtitleColor) {
-                            "SARI" -> android.graphics.Color.rgb(255, 215, 0)
-                            "YESIL" -> android.graphics.Color.rgb(0, 230, 118)
-                            "MAVI" -> android.graphics.Color.rgb(64, 196, 255)
-                            else -> android.graphics.Color.WHITE
-                        }
-                        val subTextSp = when (subtitleSize) {
-                            "KUCUK" -> 14f
-                            "BUYUK" -> 22f
-                            "COK_BUYUK" -> 26f
-                            else -> 18f
-                        }
-                        subView.setStyle(
-                            androidx.media3.ui.CaptionStyleCompat(
-                                subTextColor,
-                                android.graphics.Color.argb(160, 0, 0, 0),
-                                android.graphics.Color.TRANSPARENT,
-                                androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
-                                android.graphics.Color.BLACK,
-                                null
-                            )
-                        )
-                        subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, subTextSp)
-                        subView.setBottomPaddingFraction(0.12f)
-                    }
-                } catch (e: Throwable) {
-                    // Ignore
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+                },
+                modifier = Modifier.fillMaxSize()
+            )
 
-        // Buffering Indicator
-        if (isBuffering) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = TiviPrimary,
-                    strokeWidth = 3.dp,
-                    modifier = Modifier.size(56.dp)
-                )
+            // Buffering Indicator
+            if (isBuffering) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = TiviPrimary,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(56.dp)
+                    )
+                }
             }
+        } else {
+            DualViewSplitScreen(
+                playerManager = playerManager,
+                isPortrait = isPortrait,
+                primaryTitle = title,
+                secondaryTitle = secondaryChannelTitle,
+                isPrimaryAudioActive = isPrimaryAudioActive,
+                isScreensSwapped = isScreensSwapped,
+                isPrimaryBuffering = isBuffering,
+                isSecondaryBuffering = secondaryIsBuffering,
+                aspectRatio = aspectRatio,
+                onSwap = { playerManager.swapDualViewScreens() },
+                onClose = { playerManager.closeDualView() },
+                onChangeSecondary = { showDualViewPicker = true }
+            )
         }
 
         // Hata Bildirimi Overlay
@@ -657,7 +687,7 @@ fun PlayerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(if (isPortrait) 2.dp else 4.dp)
                     ) {
-                        // Canlı yayında Hızlı Kanal Değiştirici Butonu
+                        // Canlı yayında Hızlı Kanal Değiştirici & Çift Ekran Butonları
                         if (isLive) {
                             IconButton(
                                 onClick = { showChannelDrawer = !showChannelDrawer },
@@ -667,6 +697,19 @@ fun PlayerScreen(
                                     imageVector = Icons.Default.FormatListBulleted,
                                     contentDescription = "Kanal Listesi",
                                     tint = if (showChannelDrawer) TiviPrimary else Color.White,
+                                    modifier = Modifier.size(if (isPortrait) 18.dp else 24.dp)
+                                )
+                            }
+
+                            // Çift Ekran (Dual-View / Multi-Screen)
+                            IconButton(
+                                onClick = { showDualViewPicker = true },
+                                modifier = Modifier.size(if (isPortrait) 32.dp else 40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.GridView,
+                                    contentDescription = "Çift Ekran (Dual-View)",
+                                    tint = if (isDualViewActive) TiviPrimary else Color.White,
                                     modifier = Modifier.size(if (isPortrait) 18.dp else 24.dp)
                                 )
                             }
@@ -772,25 +815,7 @@ fun PlayerScreen(
                             )
                         }
 
-                        // PiP Butonu (Picture-in-Picture)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            IconButton(
-                                onClick = {
-                                    val params = PictureInPictureParams.Builder()
-                                        .setAspectRatio(Rational(16, 9))
-                                        .build()
-                                    activity?.enterPictureInPictureMode(params)
-                                },
-                                modifier = Modifier.size(if (isPortrait) 32.dp else 40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PictureInPictureAlt,
-                                    contentDescription = "PiP Modu",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(if (isPortrait) 18.dp else 24.dp)
-                                )
-                            }
-                        }
+
                     }
                 }
 
@@ -1073,6 +1098,17 @@ fun PlayerScreen(
                                                     imageVector = Icons.Default.FormatListBulleted,
                                                     contentDescription = "Kanal Listesi",
                                                     tint = Color.White,
+                                                    modifier = Modifier.size(if (isPortrait) 18.dp else 22.dp)
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { showDualViewPicker = true },
+                                                modifier = Modifier.size(if (isPortrait) 30.dp else 40.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.GridView,
+                                                    contentDescription = "Çift Ekran",
+                                                    tint = if (isDualViewActive) TiviPrimary else Color.White,
                                                     modifier = Modifier.size(if (isPortrait) 18.dp else 22.dp)
                                                 )
                                             }
@@ -2108,6 +2144,494 @@ fun PlayerScreen(
                     }
                 }
             )
+        }
+
+        // ÇİFT EKRAN KANAL SEÇİCİ DİYALOĞU
+        if (showDualViewPicker && isLive) {
+            DualViewChannelPicker(
+                liveStreams = allLiveStreams,
+                currentStreamId = streamId,
+                onChannelSelected = { channel ->
+                    viewModel.startDualView(channel)
+                    showDualViewPicker = false
+                },
+                onDismiss = { showDualViewPicker = false }
+            )
+        }
+    }
+}
+
+@OptIn(UnstableApi::class)
+@Composable
+fun DualViewSplitScreen(
+    playerManager: com.tivimax.player.player.TiviPlayerManager,
+    isPortrait: Boolean,
+    primaryTitle: String,
+    secondaryTitle: String,
+    isPrimaryAudioActive: Boolean,
+    isScreensSwapped: Boolean,
+    isPrimaryBuffering: Boolean,
+    isSecondaryBuffering: Boolean,
+    aspectRatio: AspectRatioMode,
+    onSwap: () -> Unit,
+    onClose: () -> Unit,
+    onChangeSecondary: () -> Unit
+) {
+    val firstIsPrimary = !isScreensSwapped
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (isPortrait) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // First Screen (Top)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    DualViewSingleWindow(
+                        playerManager = playerManager,
+                        isPrimary = firstIsPrimary,
+                        title = if (firstIsPrimary) primaryTitle else secondaryTitle,
+                        hasAudio = if (firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
+                        isBuffering = if (firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
+                        aspectRatio = aspectRatio,
+                        onFocusAudio = {
+                            playerManager.switchDualViewAudioFocus(primaryActive = firstIsPrimary)
+                        }
+                    )
+                }
+
+                // Split divider line
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(TiviPrimary.copy(alpha = 0.6f))
+                )
+
+                // Second Screen (Bottom)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    DualViewSingleWindow(
+                        playerManager = playerManager,
+                        isPrimary = !firstIsPrimary,
+                        title = if (!firstIsPrimary) primaryTitle else secondaryTitle,
+                        hasAudio = if (!firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
+                        isBuffering = if (!firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
+                        aspectRatio = aspectRatio,
+                        onFocusAudio = {
+                            playerManager.switchDualViewAudioFocus(primaryActive = !firstIsPrimary)
+                        }
+                    )
+                }
+            }
+        } else {
+            Row(modifier = Modifier.fillMaxSize()) {
+                // First Screen (Left)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    DualViewSingleWindow(
+                        playerManager = playerManager,
+                        isPrimary = firstIsPrimary,
+                        title = if (firstIsPrimary) primaryTitle else secondaryTitle,
+                        hasAudio = if (firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
+                        isBuffering = if (firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
+                        aspectRatio = aspectRatio,
+                        onFocusAudio = {
+                            playerManager.switchDualViewAudioFocus(primaryActive = firstIsPrimary)
+                        }
+                    )
+                }
+
+                // Split divider line
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(3.dp)
+                        .background(TiviPrimary.copy(alpha = 0.6f))
+                )
+
+                // Second Screen (Right)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    DualViewSingleWindow(
+                        playerManager = playerManager,
+                        isPrimary = !firstIsPrimary,
+                        title = if (!firstIsPrimary) primaryTitle else secondaryTitle,
+                        hasAudio = if (!firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
+                        isBuffering = if (!firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
+                        aspectRatio = aspectRatio,
+                        onFocusAudio = {
+                            playerManager.switchDualViewAudioFocus(primaryActive = !firstIsPrimary)
+                        }
+                    )
+                }
+            }
+        }
+
+        // Floating Dual-View Action Pill (Top Center)
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.Black.copy(alpha = 0.85f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.4f)),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Live Dot
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(TiviAccentLive)
+                )
+
+                Text(
+                    text = "ÇİFT EKRAN",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Swap Button
+                IconButton(
+                    onClick = onSwap,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SwapHoriz,
+                        contentDescription = "Ekranları Değiştir",
+                        tint = TiviPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Change 2nd channel Button
+                IconButton(
+                    onClick = onChangeSecondary,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "2. Kanalı Değiştir",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                // Close Button
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Tek Ekrana Dön",
+                        tint = Color(0xFFFF5252),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(UnstableApi::class)
+@Composable
+fun DualViewSingleWindow(
+    playerManager: com.tivimax.player.player.TiviPlayerManager,
+    isPrimary: Boolean,
+    title: String,
+    hasAudio: Boolean,
+    isBuffering: Boolean,
+    aspectRatio: AspectRatioMode,
+    onFocusAudio: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable { onFocusAudio() }
+            .border(
+                width = if (hasAudio) 2.dp else 1.dp,
+                color = if (hasAudio) TiviPrimary else Color.White.copy(alpha = 0.15f)
+            )
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                PlayerView(ctx).apply {
+                    useController = false
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                    player = if (isPrimary) playerManager.initializePlayer() else playerManager.secondaryExoPlayer
+                    resizeMode = when (aspectRatio) {
+                        AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                        AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                    }
+                }
+            },
+            update = { playerView ->
+                val targetPlayer = if (isPrimary) playerManager.initializePlayer() else playerManager.secondaryExoPlayer
+                if (playerView.player != targetPlayer) {
+                    playerView.player = targetPlayer
+                }
+                playerView.resizeMode = when (aspectRatio) {
+                    AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Buffering Indicator
+        if (isBuffering) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = TiviPrimary,
+                    strokeWidth = 2.5.dp,
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+        }
+
+        // Overlay Badge: Title & Audio Status
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (hasAudio) TiviPrimary else Color.Black.copy(alpha = 0.7f),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (hasAudio) TiviPrimary else Color.White.copy(alpha = 0.2f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (hasAudio) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                        contentDescription = null,
+                        tint = if (hasAudio) Color.Black else Color.White,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (hasAudio) "SES AÇIK" else "SESSİZ",
+                        color = if (hasAudio) Color.Black else Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color.Black.copy(alpha = 0.7f)
+            ) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DualViewChannelPicker(
+    liveStreams: List<LiveStream>,
+    currentStreamId: Int,
+    onChannelSelected: (LiveStream) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredChannels = remember(liveStreams, searchQuery) {
+        if (searchQuery.isBlank()) {
+            liveStreams.filter { it.streamId != currentStreamId }
+        } else {
+            liveStreams.filter {
+                it.streamId != currentStreamId && it.name.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF141923),
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.4f)) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.75f)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.GridView,
+                        contentDescription = null,
+                        tint = TiviPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Çift Ekran - İkinci Kanal",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Aynı anda canlı izlemek istediğiniz kanalı seçin",
+                            color = TiviTextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Kapat", tint = Color.White)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Arama Çubuğu
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Kanal ara...", color = Color.White.copy(alpha = 0.5f), fontSize = 14.sp) },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = TiviPrimary)
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(imageVector = Icons.Default.Clear, contentDescription = "Temizle", tint = Color.White)
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = TiviPrimary,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                    focusedContainerColor = Color(0xFF1A2232),
+                    unfocusedContainerColor = Color(0xFF1A2232),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Kanal Listesi
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(filteredChannels, key = { it.streamId }) { channel ->
+                    Surface(
+                        onClick = { onChannelSelected(channel) },
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF1E2638),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (!channel.streamIcon.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = channel.streamIcon,
+                                    contentDescription = channel.name,
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(6.dp)),
+                                    contentScale = ContentScale.Fit
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = channel.name,
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (!channel.currentProgram.isNullOrBlank()) {
+                                    Text(
+                                        text = "Canlı: ${channel.currentProgram}",
+                                        color = TiviTextSecondary,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = TiviPrimary.copy(alpha = 0.15f)
+                            ) {
+                                Text(
+                                    text = "Başlat",
+                                    color = TiviPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

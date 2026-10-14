@@ -1,0 +1,19 @@
+# Vega IPTV v1.0.6 - Çoklu Ekran (Dual-View / Çift Ekran) Güncellemesi 🚀
+
+Bu sürümle birlikte, özellikle spor karşılaşmalarını ve canlı yayınları aynı anda takip etmek isteyen kullanıcılar için beklenen **Çoklu Ekran (Dual-View / Multi-Screen)** özelliği eklendi!
+
+### 🌟 Yenilikler & Geliştirmeler:
+1. **Çift Ekran Canlı Yayın Desteği (Dual-View Mode):**
+   - Aynı anda iki canlı TV kanalını tek ekranda yan yana (yatay) veya alt alta (dikey) kesintisiz izleyebilirsiniz.
+   - İki donanım destekli ExoPlayer motoru senkronize çalışarak sıfır takılma sağlar.
+2. **Dokunarak Ses Odağı Değiştirme (Tap-to-Focus Audio):**
+   - Hangi ekrana dokunursanız o kanalın sesi anında açılır ve neon yeşil çerçeve ile "SES AÇIK" rozeti yanar. Diğer kanal sessiz izlenmeye devam eder.
+3. **Ekranları Anında Takas Etme (Swap Screens):**
+   - Ekranları Değiştir (Swap) butonuyla kanallar yeniden yüklenmeden veya ara belleğe düşmeden saniyenin altında yer değiştirir.
+4. **Hızlı 2. Kanal Seçici:**
+   - Oynatıcı kontrol barındaki "Çift Ekran" butonuna tıklayarak kanal arama menüsünden istediğiniz ikinci yayını anında başlatabilirsiniz.
+5. **Geri Tuşu & Bellek Optimizasyonu:**
+   - Çift ekran açıkken geri tuşuna basıldığında önce çift ekran güvenle kapatılır ve birincil yayın kesintisiz tam ekrana geçer; ikincil oynatıcı motoru RAM'den anında temizlenir.
+
+---
+**APK Dosyası:** `Vega-IPTV-v1.0.6.apk` (Doğrudan cihazınıza kurup kullanabilirsiniz)

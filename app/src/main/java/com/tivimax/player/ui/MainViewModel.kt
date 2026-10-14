@@ -738,6 +738,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    fun startDualView(channel: LiveStream) {
+        val preferHls = streamFormat.value == "HLS"
+        val urls = if (!channel.directSource.isNullOrBlank()) {
+            listOf(channel.directSource)
+        } else {
+            repository.buildLiveStreamUrls(channel.streamId, preferHls)
+        }
+        val url = urls.firstOrNull() ?: ""
+        if (url.isNotBlank()) {
+            playerManager.startDualView(url, channel.name)
+        }
+    }
+
     fun zapRecall(): LiveStream? {
         val prev = lastPlayedLiveChannel.value ?: return null
         playLiveChannel(prev)
