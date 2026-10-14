@@ -28,64 +28,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-private class TiviDynamicLoadControl(
-    private val getActiveControl: () -> DefaultLoadControl
-) : LoadControl {
-    override fun getAllocator(): androidx.media3.exoplayer.upstream.Allocator {
-        return getActiveControl().allocator
-    }
-
-    override fun onPrepared() {
-        getActiveControl().onPrepared()
-    }
-
-    override fun onTracksSelected(
-        timeline: androidx.media3.common.Timeline,
-        mediaPeriodId: androidx.media3.exoplayer.source.MediaSource.MediaPeriodId,
-        renderers: Array<androidx.media3.exoplayer.Renderer>,
-        trackGroups: androidx.media3.exoplayer.source.TrackGroupArray,
-        trackSelections: Array<androidx.media3.exoplayer.trackselection.ExoTrackSelection>
-    ) {
-        getActiveControl().onTracksSelected(timeline, mediaPeriodId, renderers, trackGroups, trackSelections)
-    }
-
-    override fun onStopped() {
-        getActiveControl().onStopped()
-    }
-
-    override fun onReleased() {
-        getActiveControl().onReleased()
-    }
-
-    override fun getBackBufferDurationUs(): Long {
-        return getActiveControl().backBufferDurationUs
-    }
-
-    override fun retainBackBufferFromKeyframe(): Boolean {
-        return getActiveControl().retainBackBufferFromKeyframe()
-    }
-
-    override fun shouldContinueLoading(
-        playbackPositionUs: Long,
-        bufferedDurationUs: Long,
-        playbackSpeed: Float
-    ): Boolean {
-        return getActiveControl().shouldContinueLoading(playbackPositionUs, bufferedDurationUs, playbackSpeed)
-    }
-
-    override fun shouldStartPlayback(
-        timeline: androidx.media3.common.Timeline,
-        mediaPeriodId: androidx.media3.exoplayer.source.MediaSource.MediaPeriodId,
-        bufferedDurationUs: Long,
-        playbackSpeed: Float,
-        rebuffering: Boolean,
-        targetLiveOffsetUs: Long
-    ): Boolean {
-        return getActiveControl().shouldStartPlayback(
-            timeline, mediaPeriodId, bufferedDurationUs, playbackSpeed, rebuffering, targetLiveOffsetUs
-        )
-    }
-}
 
 enum class AspectRatioMode {
     FIT,      // Orijinal en-boy oranını korur
@@ -167,11 +109,6 @@ class TiviPlayerManager(private val context: Context) {
     private val _bufferedPosition = MutableStateFlow(0L)
     val bufferedPosition: StateFlow<Long> = _bufferedPosition.asStateFlow()
 
-    private val sharedAllocator = androidx.media3.exoplayer.upstream.DefaultAllocator(
-        true,
-        androidx.media3.common.C.DEFAULT_BUFFER_SEGMENT_SIZE
-    )
-
     private var _vodBufferSeconds: Int = 60
     val vodBufferSecondsState = MutableStateFlow(60)
 
@@ -181,33 +118,28 @@ class TiviPlayerManager(private val context: Context) {
     private var _decoderMode: String = "HARDWARE"
     val decoderModeState = MutableStateFlow("HARDWARE")
 
-    private fun buildLiveLoadControl(seconds: Int): DefaultLoadControl {
-        val validSecs = seconds.coerceIn(2, 30)
-        val bufferMs = validSecs * 1000
-        val maxBufferMs = (validSecs * 3 * 1000).coerceAtLeast(15_000)
+    private fun buildLoadControl(): DefaultLoadControl {
+        val minBufferMs = (_liveBufferSeconds * 1000).coerceIn(2000, 30000)
+        val maxBufferMs = (_vodBufferSeconds * 1000).coerceAtLeast(minBufferMs * 2).coerceAtLeast(60000)
         return DefaultLoadControl.Builder()
-            .setAllocator(sharedAllocator)
             .setBufferDurationsMs(
-                bufferMs,          // Min buffer: e.g. 5000ms
-                maxBufferMs,       // Max buffer: e.g. 15000ms
-                1500,              // Playback start buffer: 1500ms
-                bufferMs           // Re-buffer: 5000ms
+                minBufferMs,
+                maxBufferMs,
+                1000,
+                minBufferMs.coerceAtMost(2500)
             )
             .setBackBuffer(
-                bufferMs,          // Canlı yayın geri tampon
+                (_vodBufferSeconds * 1000).coerceAtLeast(30000),
                 true
             )
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
     }
 
-    private var liveLoadControl: DefaultLoadControl = buildLiveLoadControl(5)
-
     fun setLiveBufferSeconds(seconds: Int) {
         val validSecs = seconds.coerceIn(2, 30)
         _liveBufferSeconds = validSecs
         liveBufferSecondsState.value = validSecs
-        liveLoadControl = buildLiveLoadControl(validSecs)
     }
 
     fun setDecoderMode(mode: String) {
@@ -219,8 +151,7 @@ class TiviPlayerManager(private val context: Context) {
                 val current = currentUrl
                 val isLive = isLiveStream
                 val pos = exoPlayer?.currentPosition ?: 0L
-                exoPlayer?.release()
-                exoPlayer = null
+                release()
                 if (current.isNotBlank()) {
                     playInternal(current, isLive = isLive, startPositionMs = pos)
                 }
@@ -228,37 +159,10 @@ class TiviPlayerManager(private val context: Context) {
         }
     }
 
-    private var vodLoadControl: DefaultLoadControl = buildVodLoadControl(60)
-
-    private fun buildVodLoadControl(seconds: Int): DefaultLoadControl {
-        val validSecs = seconds.coerceIn(15, 300)
-        val bufferMs = validSecs * 1000
-        val maxBufferMs = (validSecs * 2 * 1000).coerceAtLeast(120_000)
-        return DefaultLoadControl.Builder()
-            .setAllocator(sharedAllocator)
-            .setBufferDurationsMs(
-                bufferMs,          // minBufferMs: e.g. 60,000ms (Sürekli 60 saniye kesintisiz tampon!)
-                maxBufferMs,       // maxBufferMs: e.g. 120,000ms
-                2500,              // bufferForPlaybackMs: 2500ms (Hızlı oynatma başlangıcı)
-                5000               // bufferForPlaybackAfterRebufferMs: 5000ms
-            )
-            .setBackBuffer(
-                bufferMs,          // backBufferDurationMs: 60,000ms (60 saniye geri sarma RAM önbelleği!)
-                true               // retainBackBufferFromKeyframe: Geri sararken tekrar indirme yapmadan anında keyframe'den oynat
-            )
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
-    }
-
     fun setVodBufferSeconds(seconds: Int) {
         val validSecs = seconds.coerceIn(15, 300)
         _vodBufferSeconds = validSecs
         vodBufferSecondsState.value = validSecs
-        vodLoadControl = buildVodLoadControl(validSecs)
-    }
-
-    private val dynamicLoadControl = TiviDynamicLoadControl {
-        if (isLiveStream) liveLoadControl else vodLoadControl
     }
 
     fun initializePlayer(): ExoPlayer {
@@ -269,13 +173,21 @@ class TiviPlayerManager(private val context: Context) {
             if (_decoderMode == "SOFTWARE") {
                 setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
                 setMediaCodecSelector { mimeType, requiresSecure, requiresTunneling ->
-                    val decoders = androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT
-                        .getDecoderInfos(mimeType, requiresSecure, requiresTunneling)
-                    decoders.sortedByDescending { it.softwareOnly }
+                    try {
+                        val decoders = androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT
+                            .getDecoderInfos(mimeType, requiresSecure, requiresTunneling)
+                        if (decoders.any { it.softwareOnly }) {
+                            decoders.sortedByDescending { it.softwareOnly }
+                        } else {
+                            decoders
+                        }
+                    } catch (e: Throwable) {
+                        androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT
+                            .getDecoderInfos(mimeType, requiresSecure, requiresTunneling)
+                    }
                 }
             } else {
-                setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
-                setMediaCodecSelector(androidx.media3.exoplayer.mediacodec.MediaCodecSelector.DEFAULT)
+                setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
             }
         }
 
@@ -288,7 +200,7 @@ class TiviPlayerManager(private val context: Context) {
 
         val player = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
-            .setLoadControl(dynamicLoadControl)
+            .setLoadControl(buildLoadControl())
             .setMediaSourceFactory(DefaultMediaSourceFactory(httpDataSourceFactory))
             .build()
 
@@ -406,35 +318,42 @@ class TiviPlayerManager(private val context: Context) {
     private fun playInternal(url: String, isLive: Boolean = false, startPositionMs: Long = 0L) {
         if (url.isBlank()) return
         this.currentUrl = url
+        this.isLiveStream = isLive
         _errorMessage.value = null
 
-        val player = initializePlayer()
-        val mediaItemBuilder = MediaItem.Builder().setUri(url)
+        try {
+            val player = initializePlayer()
+            val mediaItemBuilder = MediaItem.Builder().setUri(url)
 
-        if (isLive) {
-            val targetOffset = (_liveBufferSeconds * 1000L).coerceAtLeast(2000L)
-            val liveConfig = MediaItem.LiveConfiguration.Builder()
-                .setTargetOffsetMs(targetOffset)
-                .setMinOffsetMs((targetOffset - 1000L).coerceAtLeast(1000L))
-                .setMaxOffsetMs(targetOffset + 3000L)
-                .setMinPlaybackSpeed(0.95f)
-                .setMaxPlaybackSpeed(1.05f)
-                .build()
-            mediaItemBuilder.setLiveConfiguration(liveConfig)
-        }
+            if (isLive) {
+                val targetOffset = (_liveBufferSeconds * 1000L).coerceIn(2000L, 30000L)
+                val liveConfig = MediaItem.LiveConfiguration.Builder()
+                    .setTargetOffsetMs(targetOffset)
+                    .setMinOffsetMs((targetOffset - 1000L).coerceAtLeast(1000L))
+                    .setMaxOffsetMs(targetOffset + 4000L)
+                    .setMinPlaybackSpeed(0.95f)
+                    .setMaxPlaybackSpeed(1.05f)
+                    .build()
+                mediaItemBuilder.setLiveConfiguration(liveConfig)
+            }
 
-        if (url.contains(".m3u8", ignoreCase = true)) {
-            mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
-        } else if (url.contains(".ts", ignoreCase = true)) {
-            mediaItemBuilder.setMimeType(MimeTypes.VIDEO_MP2T)
-        }
+            if (url.contains(".m3u8", ignoreCase = true)) {
+                mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)
+            } else if (url.contains(".ts", ignoreCase = true)) {
+                mediaItemBuilder.setMimeType(MimeTypes.VIDEO_MP2T)
+            }
 
-        player.setMediaItem(mediaItemBuilder.build())
-        if (startPositionMs > 0 && !isLive) {
-            player.seekTo(startPositionMs)
+            player.setMediaItem(mediaItemBuilder.build())
+            if (startPositionMs > 0 && !isLive) {
+                player.seekTo(startPositionMs)
+            }
+            player.prepare()
+            player.play()
+            startPositionUpdates()
+        } catch (e: Throwable) {
+            android.util.Log.e("VegaIPTV", "Player error during start", e)
+            _errorMessage.value = "Yayın başlatılamadı: ${e.localizedMessage ?: "Bilinmeyen hata"}"
         }
-        player.prepare()
-        player.play()
     }
 
     fun retryCurrent() {

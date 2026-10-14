@@ -60,7 +60,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- 1. ABONELİK BİLGİ KARTI ---
+        // ==========================================
+        // 1. ABONELİK BİLGİ KARTI
+        // ==========================================
         Card(
             colors = CardDefaults.cardColors(containerColor = TiviCard),
             shape = RoundedCornerShape(16.dp),
@@ -88,8 +90,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(RoundedCornerShape(3.dp))
+                                    .size(7.dp)
+                                    .clip(RoundedCornerShape(4.dp))
                                     .background(TiviGreen)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -129,13 +131,13 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     Text(text = expDateFormatted, color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Eşzamanlı Bağlantı Limiti:", color = TiviTextSecondary, fontSize = 13.sp)
+                    Text(text = "Eşzamanlı Bağlantı:", color = TiviTextSecondary, fontSize = 13.sp)
                     Text(
                         text = "${userInfo?.activeCons ?: "1"} / ${userInfo?.maxConnections ?: "1"} Cihaz",
                         color = TiviTextPrimary,
@@ -146,7 +148,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
         }
 
-        // --- 2. YAYIN VE OYNATICI ÖZELLEŞTİRMELERİ ---
+        // ==========================================
+        // 2. OYNATICI VE VİDEO ÇÖZÜCÜ KARTI
+        // ==========================================
         Card(
             colors = CardDefaults.cardColors(containerColor = TiviCard),
             shape = RoundedCornerShape(16.dp),
@@ -156,23 +160,23 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(38.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(TiviPrimary.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = TiviPrimary)
+                        Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = TiviPrimary, modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Yayın & Oynatıcı Tercihleri",
+                            text = "Oynatıcı & Donanım Tercihleri",
                             color = TiviTextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Format, tamponlama ve görüntü oranını özelleştirin",
+                            text = "Video çözücü, ekran oranı ve PiP ayarları",
                             color = TiviTextSecondary,
                             fontSize = 12.sp
                         )
@@ -181,60 +185,69 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                // 1. Canlı Yayın Formatı (MPEG-TS vs HLS)
-                Text(text = "Canlı Yayın Formatı", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf("TS" to "MPEG-TS (.ts - Önerilen)", "HLS" to "HLS (.m3u8)").forEach { (key, label) ->
-                        val isSelected = streamFormat == key
+                // Video Çözücü (Hardware vs Software)
+                Text(text = "Video Çözücü (Decoder)", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (decoderMode == "HARDWARE") "Donanım hızlandırma aktif (GPU gücü kullanılır, az pil harcar)"
+                    else "Yazılım çözücü aktif (Uyumsuz kodeklerde ve eski cihazlarda donmayı önler)",
+                    color = TiviTextSecondary,
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    listOf(
+                        "HARDWARE" to "Donanım (GPU) [Önerilen]",
+                        "SOFTWARE" to "Yazılım (CPU) [Uyumlu]"
+                    ).forEach { (mode, label) ->
+                        val isSelected = decoderMode == mode
                         FilterChip(
                             selected = isSelected,
-                            onClick = { scope.launch { viewModel.preferences.setStreamFormat(key) } },
-                            label = { Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                            onClick = {
+                                viewModel.setDecoderMode(mode)
+                                android.widget.Toast.makeText(
+                                    context,
+                                    if (mode == "HARDWARE") "Donanım hızlandırma (GPU) seçildi" else "Yazılım çözücü (CPU) seçildi",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            label = {
+                                Text(
+                                    text = label,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = TiviPrimary.copy(alpha = 0.2f),
-                                selectedLabelColor = TiviPrimary,
+                                selectedContainerColor = if (mode == "HARDWARE") TiviPrimary.copy(alpha = 0.25f) else TiviGold.copy(alpha = 0.25f),
+                                selectedLabelColor = if (mode == "HARDWARE") TiviPrimary else TiviGold,
                                 containerColor = TiviSurfaceVariant,
                                 labelColor = TiviTextSecondary
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = isSelected,
-                                borderColor = if (isSelected) TiviPrimary else TiviCardBorder
-                            )
+                                borderColor = if (isSelected) (if (mode == "HARDWARE") TiviPrimary else TiviGold) else TiviCardBorder
+                            ),
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // 2. Hızlı Kanal Açılışı (Ultra Hızlı Tamponlama)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Hızlı Kanal Açılışı", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                        Text(text = if (fastZapping) "0.8s ultra hızlı başlatma aktif" else "2.5s standart tamponlama aktif", color = TiviTextSecondary, fontSize = 11.sp)
-                    }
-                    Switch(
-                        checked = fastZapping,
-                        onCheckedChange = { checked -> scope.launch { viewModel.preferences.setFastZapping(checked) } },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = TiviPrimary,
-                            checkedTrackColor = TiviPrimary.copy(alpha = 0.35f)
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // 3. Varsayılan Görüntü Oranı
+                // Varsayılan Ekran Oranı
                 Text(text = "Varsayılan Ekran Oranı", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("FIT" to "Fit", "FILL" to "Doldur", "ZOOM" to "Zoom", "16:9" to "16:9").forEach { (mode, label) ->
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(listOf("FIT" to "Fit (Orijinal)", "FILL" to "Doldur (Fill)", "ZOOM" to "Yakınlaştır", "16:9" to "16:9 Oran")) { (mode, label) ->
                         val isSelected = defaultAspectRatio == mode
                         FilterChip(
                             selected = isSelected,
@@ -266,15 +279,321 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // 4. Güvenli Bağlantı (HTTPS / HTTP) Seçimi
+                // Otomatik Küçük Pencere (Picture-in-Picture)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    val isHttps = serverUrl.startsWith("https://", ignoreCase = true)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Arka Planda Küçük Pencere (PiP)",
+                            color = TiviTextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = if (autoPipEnabled) "Uygulama arka plana atıldığında otomatik kayan pencereye geçer" else "Kayan pencere özelliği kapalı",
+                            color = TiviTextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Switch(
+                        checked = autoPipEnabled,
+                        onCheckedChange = { checked -> viewModel.setAutoPip(checked) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = TiviPrimary,
+                            checkedTrackColor = TiviPrimary.copy(alpha = 0.35f)
+                        )
+                    )
+                }
+            }
+        }
+
+        // ==========================================
+        // 3. ARABELLEK (BUFFER) VE AKIŞ AYARLARI
+        // ==========================================
+        Card(
+            colors = CardDefaults.cardColors(containerColor = TiviCard),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(TiviSecondary.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(imageVector = Icons.Default.Speed, contentDescription = null, tint = TiviSecondary, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Arabellek (Buffer) & Akış Ayarları",
+                            color = TiviTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Donma ve takılmaları önlemek için arabellek boyutları",
+                            color = TiviTextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                // 1. Canlı Yayın Formatı
+                Text(text = "Canlı Yayın Formatı", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    listOf("TS" to "MPEG-TS (.ts - Önerilen)", "HLS" to "HLS (.m3u8)").forEach { (key, label) ->
+                        val isSelected = streamFormat == key
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { scope.launch { viewModel.preferences.setStreamFormat(key) } },
+                            label = { Text(label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = TiviPrimary.copy(alpha = 0.2f),
+                                selectedLabelColor = TiviPrimary,
+                                containerColor = TiviSurfaceVariant,
+                                labelColor = TiviTextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = if (isSelected) TiviPrimary else TiviCardBorder
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 2. Canlı Yayın Arabelleği (Buffer)
+                Text(text = "Canlı Yayın Arabelleği (Tampon)", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "Zayıf internette takılmayı önlemek için tampon süresini artırın.", color = TiviTextSecondary, fontSize = 11.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val liveBufferOptions = listOf(
+                        2 to "2 sn (Düşük Gecikme)",
+                        5 to "5 sn (Dengeli / Önerilen)",
+                        10 to "10 sn (Kararlı / Takılma Önleyici)"
+                    )
+                    items(liveBufferOptions) { (secs, label) ->
+                        val isSelected = liveBufferSeconds == secs
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                viewModel.setLiveBufferSeconds(secs)
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Canlı yayın tamponu $secs sn olarak ayarlandı",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            label = {
+                                Text(
+                                    text = label,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = TiviPrimary.copy(alpha = 0.25f),
+                                selectedLabelColor = TiviPrimary,
+                                containerColor = TiviSurfaceVariant,
+                                labelColor = TiviTextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = if (isSelected) TiviPrimary else TiviCardBorder
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 3. Film & Dizi Tamponu (Kesintisiz İleri/Geri Önbellek)
+                Text(text = "Film & Dizi Tamponu (İleri/Geri Sarma Önbelleği)", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Sürekli ${vodBufferSeconds}s tampon tutulur. İleri-geri sararken tekrar indirme yapmaz.",
+                    color = TiviSecondary,
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val bufferOptions = listOf(30, 60, 90, 120, 180)
+                    items(bufferOptions) { secs ->
+                        val isSelected = vodBufferSeconds == secs
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                viewModel.setVodBufferSeconds(secs)
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Film & Dizi tamponu $secs sn olarak ayarlandı",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            label = {
+                                Text(
+                                    text = if (secs == 60) "60s (Önerilen)" else "${secs} sn",
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = TiviSecondary.copy(alpha = 0.25f),
+                                selectedLabelColor = TiviSecondary,
+                                containerColor = TiviSurfaceVariant,
+                                labelColor = TiviTextSecondary
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSelected,
+                                borderColor = if (isSelected) TiviSecondary else TiviCardBorder
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 4. Hızlı Kanal Açılışı
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "Hızlı Kanal Açılışı", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = if (fastZapping) "0.8s ultra hızlı başlatma aktif" else "2.5s standart tamponlama aktif", color = TiviTextSecondary, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = fastZapping,
+                        onCheckedChange = { checked -> scope.launch { viewModel.preferences.setFastZapping(checked) } },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = TiviPrimary,
+                            checkedTrackColor = TiviPrimary.copy(alpha = 0.35f)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 5. Canlı Senkronizasyonu & "Canlıya Geç" Butonu
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Otomatik Canlı Senkronizasyonu",
+                            color = TiviTextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = "Gecikme 3s üzerinde olduğunda otomatik canlıya çeker",
+                            color = TiviTextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Switch(
+                        checked = autoSyncLive,
+                        onCheckedChange = { checked -> viewModel.setAutoSyncLive(checked) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = TiviPrimary,
+                            checkedTrackColor = TiviPrimary.copy(alpha = 0.35f)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = {
+                        val synced = viewModel.syncToLive()
+                        if (synced) {
+                            android.widget.Toast.makeText(context, "Yayın canlı sınıra çekildi (3s tampon)", android.widget.Toast.LENGTH_SHORT).show()
+                        } else {
+                            android.widget.Toast.makeText(context, "Canlı senkronizasyon hazır (Hedef tampon: 3 saniye)", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary, contentColor = Color.Black),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(imageVector = Icons.Default.FastForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Canlıya Geç (Senkronize Et)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+        }
+
+        // ==========================================
+        // 4. BAĞLANTI & GÜVENLİK KARTI
+        // ==========================================
+        Card(
+            colors = CardDefaults.cardColors(containerColor = TiviCard),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(TiviGreen.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(imageVector = Icons.Default.Security, contentDescription = null, tint = TiviGreen, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Bağlantı & Güvenlik",
+                            color = TiviTextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Protokol ve yetişkin içerik koruması",
+                            color = TiviTextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                // Güvenli Bağlantı (HTTPS / HTTP)
+                val isHttps = serverUrl.startsWith("https://", ignoreCase = true)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "Güvenli Bağlantı (HTTPS)", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         Text(
@@ -290,7 +609,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             scope.launch {
                                 viewModel.preferences.setServerUrl(newUrl)
                                 viewModel.repository.serverUrl = newUrl
-                                android.widget.Toast.makeText(context, "Bağlantı adresi güncellendi: $newUrl", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, "Bağlantı güncellendi: $newUrl", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         },
                         colors = SwitchDefaults.colors(
@@ -302,435 +621,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // 5. Canlı Yayın Senkronizasyonu & "Canlıya Geç" Butonu
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(TiviSurfaceVariant)
-                        .padding(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Otomatik Canlı Senkronizasyonu",
-                                color = TiviTextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Gecikme 3 saniye üzerindeyse otomatik 3 saniyeye çeker",
-                                color = TiviTextSecondary,
-                                fontSize = 11.sp
-                            )
-                        }
-                        Switch(
-                            checked = autoSyncLive,
-                            onCheckedChange = { checked -> viewModel.setAutoSyncLive(checked) },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = TiviPrimary,
-                                checkedTrackColor = TiviPrimary.copy(alpha = 0.35f)
-                            )
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Button(
-                        onClick = {
-                            val synced = viewModel.syncToLive()
-                            if (synced) {
-                                android.widget.Toast.makeText(context, "Yayın canlı sınıra çekildi (3s tampon)", android.widget.Toast.LENGTH_SHORT).show()
-                            } else {
-                                android.widget.Toast.makeText(context, "Canlı senkronizasyon hazır (Hedef tampon: 3 saniye)", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary, contentColor = Color.Black),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(imageVector = Icons.Default.FastForward, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Canlıya Geç (3s Senkronize Et)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // 6. Otomatik Küçük Pencere (Picture-in-Picture - PiP)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Arka Planda Küçük Pencere (PiP)",
-                            color = TiviTextPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = if (autoPipEnabled) "Uygulama arka plana atıldığında otomatik küçük pencereye geçer" else "Arka planda küçük pencere kapalı",
-                            color = TiviTextSecondary,
-                            fontSize = 11.sp
-                        )
-                    }
-                    Switch(
-                        checked = autoPipEnabled,
-                        onCheckedChange = { checked -> viewModel.setAutoPip(checked) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = TiviPrimary,
-                            checkedTrackColor = TiviPrimary.copy(alpha = 0.35f)
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // 7. Film ve Dizi Sürekli Tampon (Buffer) & Geri Sarma Önbelleği
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(TiviSurfaceVariant)
-                        .padding(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(TiviSecondary.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CloudDownload,
-                                contentDescription = null,
-                                tint = TiviSecondary,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Film & Dizi Kesintisiz Tampon (Buffer)",
-                                color = TiviTextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Sürekli ${vodBufferSeconds}s ileri/geri tampon tutulur. İleri-geri sararken tekrar indirmez.",
-                                color = TiviSecondary,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    val bufferOptions = listOf(30, 60, 90, 120, 180)
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        items(bufferOptions) { secs ->
-                            val isSelected = vodBufferSeconds == secs
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    viewModel.setVodBufferSeconds(secs)
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "Film & Dizi tamponu $secs saniye olarak ayarlandı",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                label = {
-                                    Text(
-                                        text = if (secs == 60) "60s (Önerilen)" else "${secs} sn",
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = TiviSecondary.copy(alpha = 0.25f),
-                                    selectedLabelColor = TiviSecondary,
-                                    containerColor = TiviCard,
-                                    labelColor = TiviTextSecondary
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = isSelected,
-                                    borderColor = if (isSelected) TiviSecondary else TiviCardBorder
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "İleriye Kesintisiz Tampon: +${vodBufferSeconds}s",
-                            fontSize = 10.sp,
-                            color = TiviTextMuted
-                        )
-                        Text(
-                            text = "Geriye Sarma Önbelleği: -${vodBufferSeconds}s (Anında)",
-                            fontSize = 10.sp,
-                            color = TiviGreen,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // 8. Canlı Yayın Arabelleği (Buffer)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(TiviSurfaceVariant)
-                        .padding(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(TiviPrimary.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Speed,
-                                contentDescription = null,
-                                tint = TiviPrimary,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Canlı Yayın Arabelleği (Buffer)",
-                                color = TiviTextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Zayıf internette takılmayı önlemek için arabellek boyutunu artırın.",
-                                color = TiviTextSecondary,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    val liveBufferOptions = listOf(
-                        2 to "2 sn (Düşük Gecikme)",
-                        5 to "5 sn (Dengeli / Önerilen)",
-                        10 to "10 sn (Kararlı / Takılma Önleyici)"
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        liveBufferOptions.forEach { (secs, label) ->
-                            val isSelected = liveBufferSeconds == secs
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    viewModel.setLiveBufferSeconds(secs)
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "Canlı yayın tamponu $secs sn olarak ayarlandı",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                label = {
-                                    Text(
-                                        text = label,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = TiviPrimary.copy(alpha = 0.25f),
-                                    selectedLabelColor = TiviPrimary,
-                                    containerColor = TiviCard,
-                                    labelColor = TiviTextSecondary
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = isSelected,
-                                    borderColor = if (isSelected) TiviPrimary else TiviCardBorder
-                                )
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // 9. Video Çözücü & Donanım Hızlandırma (Hardware / Software Decoder)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(TiviSurfaceVariant)
-                        .padding(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(TiviAccentLive.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Memory,
-                                contentDescription = null,
-                                tint = TiviAccentLive,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Video Çözücü (Decoder)",
-                                color = TiviTextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = if (decoderMode == "HARDWARE") "Donanım hızlandırma aktif (GPU gücü kullanılır, az pil harcar)"
-                                else "Yazılım çözücü aktif (Uyumsuz kodeklerde ve eski cihazlarda takılmayı çözer)",
-                                color = TiviTextSecondary,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        listOf(
-                            "HARDWARE" to "Donanım / GPU (Önerilen)",
-                            "SOFTWARE" to "Yazılım / CPU (Uyumlu)"
-                        ).forEach { (mode, label) ->
-                            val isSelected = decoderMode == mode
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    viewModel.setDecoderMode(mode)
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        if (mode == "HARDWARE") "Donanım hızlandırma (GPU) seçildi" else "Yazılım çözücü (CPU) seçildi",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                label = {
-                                    Text(
-                                        text = label,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = if (mode == "HARDWARE") TiviPrimary.copy(alpha = 0.25f) else TiviGold.copy(alpha = 0.25f),
-                                    selectedLabelColor = if (mode == "HARDWARE") TiviPrimary else TiviGold,
-                                    containerColor = TiviCard,
-                                    labelColor = TiviTextSecondary
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = isSelected,
-                                    borderColor = if (isSelected) (if (mode == "HARDWARE") TiviPrimary else TiviGold) else TiviCardBorder
-                                )
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // 10. Önbelleği Temizle
-                OutlinedButton(
-                    onClick = {
-                        android.widget.Toast.makeText(context, "Görsel ve kanal önbelleği temizlendi.", android.widget.Toast.LENGTH_SHORT).show()
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(imageVector = Icons.Default.CleaningServices, contentDescription = null, tint = TiviSecondary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Uygulama Önbelleğini Temizle", color = TiviTextPrimary, fontSize = 13.sp)
-                }
-            }
-        }
-
-        // --- 3. EBEVEYN KİLİDİ & GÜVENLİK ---
-        Card(
-            colors = CardDefaults.cardColors(containerColor = TiviCard),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(TiviAccentLive.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = TiviAccentLive)
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Ebeveyn Kilidi (+18 Koruma)",
-                            color = TiviTextPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Yetişkin kategorileri 4 haneli PIN ile koruyun",
-                            color = TiviTextSecondary,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
+                // Ebeveyn Kilidi
+                Text(text = "Ebeveyn Kilidi (+18 Koruma)", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "Yetişkin kategorileri 4 haneli PIN ile koruyun.", color = TiviTextSecondary, fontSize = 11.sp)
+                Spacer(modifier = Modifier.height(8.dp))
 
                 pinSuccessMessage?.let { msg ->
-                    Text(text = msg, color = TiviGreen, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
+                    Text(text = msg, color = TiviGreen, fontSize = 12.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 6.dp))
                 }
 
                 OutlinedButton(
@@ -739,14 +639,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(imageVector = Icons.Default.Password, contentDescription = null, tint = TiviPrimary)
+                    Icon(imageVector = Icons.Default.Password, contentDescription = null, tint = TiviPrimary, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(text = "Ebeveyn PIN Kodunu Değiştir", color = TiviTextPrimary, fontSize = 13.sp)
                 }
             }
         }
 
-        // --- 3. DAHİLİ HIZ VE BAĞLANTI TESTİ ---
+        // ==========================================
+        // 5. BAĞLANTI & PİNG TESTİ KARTI
+        // ==========================================
         Card(
             colors = CardDefaults.cardColors(containerColor = TiviCard),
             shape = RoundedCornerShape(16.dp),
@@ -756,30 +658,30 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(38.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(TiviSecondary.copy(alpha = 0.2f)),
+                            .background(TiviAccentLive.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.Default.Speed, contentDescription = null, tint = TiviSecondary)
+                        Icon(imageVector = Icons.Default.NetworkCheck, contentDescription = null, tint = TiviAccentLive, modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "IPTV Sunucu Bağlantı Testi",
+                            text = "Sunucu Hız ve Ping Testi",
                             color = TiviTextPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Yayın donması veya gecikme durumunda bağlantınızı test edin",
+                            text = "Yayın donması durumunda sunucu bağlantınızı test edin",
                             color = TiviTextSecondary,
                             fontSize = 12.sp
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
                 speedTestResult?.let { result ->
                     Card(
@@ -807,55 +709,21 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isTestingSpeed) {
-                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                        CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Ölçülüyor...")
+                        Text(text = "Ölçülüyor...", fontSize = 13.sp)
                     } else {
-                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null)
+                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Hız ve Ping Testini Başlat")
+                        Text(text = "Hız ve Ping Testini Başlat", fontSize = 13.sp)
                     }
                 }
             }
         }
 
-        // --- 4. DESTEK VE İLETİŞİM ---
-        Card(
-            colors = CardDefaults.cardColors(containerColor = TiviCard),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                Text(
-                    text = "Müşteri Desteği",
-                    color = TiviTextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Abonelik yenileme veya teknik destek için:",
-                    color = TiviTextSecondary,
-                    fontSize = 12.sp
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "Telegram: ${AppConfig.SUPPORT_TELEGRAM}",
-                    color = TiviPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "WhatsApp: ${AppConfig.SUPPORT_WHATSAPP}",
-                    color = TiviGreen,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-
-        // --- 5. UYGULAMA VE SUNUCU BİLGİSİ ---
+        // ==========================================
+        // 6. UYGULAMA BİLGİSİ & DESTEK KARTI
+        // ==========================================
         Card(
             colors = CardDefaults.cardColors(containerColor = TiviCard),
             shape = RoundedCornerShape(16.dp),
@@ -865,14 +733,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(TiviPrimary.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = TiviPrimary)
+                        Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = TiviPrimary, modifier = Modifier.size(20.dp))
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
                             text = AppConfig.APP_NAME,
@@ -881,62 +749,64 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = AppConfig.APP_TAGLINE,
+                            text = "v1.0.0 Pro Sürüm",
                             color = TiviTextSecondary,
-                            fontSize = 11.sp
+                            fontSize = 12.sp
                         )
                     }
                 }
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = TiviCardBorder)
+                HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(text = "Aktif Sunucu:", color = TiviTextSecondary, fontSize = 12.sp)
-                    Text(
-                        text = viewModel.repository.serverUrl,
-                        color = TiviTextPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Text(text = viewModel.repository.serverUrl, color = TiviTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Bağlantı Türü:", color = TiviTextSecondary, fontSize = 12.sp)
-                    val isHttps = viewModel.repository.serverUrl.startsWith("https://", ignoreCase = true)
-                    Text(
-                        text = if (isHttps) "HTTPS (Güvenli & Şifreli)" else "HTTP (Güvensiz / Hızlı)",
-                        color = if (isHttps) TiviGreen else TiviGold,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(text = "Telegram:", color = TiviTextSecondary, fontSize = 12.sp)
+                    Text(text = AppConfig.SUPPORT_TELEGRAM, color = TiviPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = "Sürüm:", color = TiviTextSecondary, fontSize = 12.sp)
-                    Text(
-                        text = "Vega IPTV v1.0.0 (Pro Build)",
-                        color = TiviTextPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text(text = "WhatsApp:", color = TiviTextSecondary, fontSize = 12.sp)
+                    Text(text = AppConfig.SUPPORT_WHATSAPP, color = TiviGreen, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Önbelleği Temizle
+                OutlinedButton(
+                    onClick = {
+                        android.widget.Toast.makeText(context, "Görsel ve kanal önbelleği temizlendi.", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(imageVector = Icons.Default.CleaningServices, contentDescription = null, tint = TiviSecondary, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Uygulama Önbelleğini Temizle", color = TiviTextPrimary, fontSize = 13.sp)
                 }
             }
         }
 
-        // --- 5. ÇIKIŞ YAP BUTONU ---
+        // ==========================================
+        // 7. ÇIKIŞ YAP BUTONU
+        // ==========================================
         OutlinedButton(
             onClick = { viewModel.logout() },
             shape = RoundedCornerShape(14.dp),
@@ -944,14 +814,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
             border = androidx.compose.foundation.BorderStroke(1.dp, TiviAccentLive.copy(alpha = 0.5f)),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(48.dp)
         ) {
             Icon(imageVector = Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, tint = TiviAccentLive)
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "Hesaptan Çıkış Yap", fontWeight = FontWeight.Bold)
+            Text(text = "Hesaptan Çıkış Yap", fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
     }
 
     // PIN DEĞİŞTİRME DİYALOĞU

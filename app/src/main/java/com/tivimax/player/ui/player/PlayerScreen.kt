@@ -183,58 +183,34 @@ fun PlayerScreen(
     // Android 12+ (API 31+) için Otomatik PiP Kaydı (Sistem Seviyesi Akıcı Animasyon)
     DisposableEffect(isPlaying, autoPipEnabled) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && activity != null) {
-            val params = PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(16, 9))
-                .setAutoEnterEnabled(autoPipEnabled && isPlaying)
-                .build()
-            activity.setPictureInPictureParams(params)
+            try {
+                val hasPip = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+                if (hasPip) {
+                    val params = PictureInPictureParams.Builder()
+                        .setAspectRatio(Rational(16, 9))
+                        .setAutoEnterEnabled(autoPipEnabled && isPlaying)
+                        .build()
+                    activity.setPictureInPictureParams(params)
+                }
+            } catch (e: Throwable) {
+                // Ignore unsupported devices / ROMs
+            }
         }
         onDispose {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && activity != null) {
-                val params = PictureInPictureParams.Builder()
-                    .setAutoEnterEnabled(false)
-                    .build()
-                activity.setPictureInPictureParams(params)
+                try {
+                    val hasPip = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+                    if (hasPip) {
+                        val params = PictureInPictureParams.Builder()
+                            .setAutoEnterEnabled(false)
+                            .build()
+                        activity.setPictureInPictureParams(params)
+                    }
+                } catch (e: Throwable) {
+                    // Ignore
+                }
             }
         }
-    }
-
-    // PiP Modu Aktifken: Tüm kontroller gizlenir, sadece saf video penceresi çizilir
-    if (isInPipMode) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        ) {
-            AndroidView(
-                factory = { ctx ->
-                    androidx.media3.ui.PlayerView(ctx).apply {
-                        player = playerManager.initializePlayer()
-                        useController = false
-                        resizeMode = when (aspectRatio) {
-                            AspectRatioMode.FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                            AspectRatioMode.FILL -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
-                            AspectRatioMode.ZOOM -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                            AspectRatioMode.RATIO_16_9 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-                        }
-                        layoutParams = FrameLayout.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                    }
-                },
-                update = { view ->
-                    view.resizeMode = when (aspectRatio) {
-                        AspectRatioMode.FIT -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        AspectRatioMode.FILL -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
-                        AspectRatioMode.ZOOM -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        AspectRatioMode.RATIO_16_9 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        return
     }
 
     // Geri Tuşu Davranışı
@@ -555,7 +531,7 @@ fun PlayerScreen(
 
         // CONTROLS OVERLAY (Üst Bar, Merkez Butonlar, Alt Bar)
         AnimatedVisibility(
-            visible = showControls,
+            visible = showControls && !isInPipMode,
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(200))
         ) {

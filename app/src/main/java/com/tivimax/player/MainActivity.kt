@@ -48,14 +48,19 @@ class MainActivity : ComponentActivity() {
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && ::viewModel.isInitialized) {
-            val isPlaying = viewModel.playerManager.isPlaying.value
-            val isPlayerScreen = viewModel.currentScreen.value is Screen.Player
-            val autoPip = viewModel.autoPipEnabled.value
-            if (autoPip && isPlayerScreen && isPlaying) {
-                val params = PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(16, 9))
-                    .build()
-                enterPictureInPictureMode(params)
+            try {
+                val hasPip = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+                val isPlaying = viewModel.playerManager.isPlaying.value
+                val isPlayerScreen = viewModel.currentScreen.value is Screen.Player
+                val autoPip = viewModel.autoPipEnabled.value
+                if (hasPip && autoPip && isPlayerScreen && isPlaying) {
+                    val params = PictureInPictureParams.Builder()
+                        .setAspectRatio(Rational(16, 9))
+                        .build()
+                    enterPictureInPictureMode(params)
+                }
+            } catch (e: Throwable) {
+                // Ignore unsupported devices / ROMs
             }
         }
     }
