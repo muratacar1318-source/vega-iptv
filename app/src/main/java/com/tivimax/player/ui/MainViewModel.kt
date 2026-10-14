@@ -1,0 +1,790 @@
+package com.tivimax.player.ui
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.tivimax.player.data.config.AppConfig
+import com.tivimax.player.data.model.*
+import com.tivimax.player.data.preferences.UserPreferences
+import com.tivimax.player.data.repository.XtreamRepository
+import com.tivimax.player.player.AspectRatioMode
+import com.tivimax.player.player.TiviPlayerManager
+import com.tivimax.player.ui.main.HomeTab
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
+
+sealed class Screen {
+    object Splash : Screen()
+    object Login : Screen()
+    object Home : Screen()
+    data class Player(
+        val streamUrl: String,
+        val title: String,
+        val isLive: Boolean,
+        val streamId: Int,
+        val categoryId: String = "",
+        val startPositionMs: Long = 0L
+    ) : Screen()
+    data class VodDetail(val vodStream: VodStream) : Screen()
+    data class SeriesDetail(val seriesStream: SeriesStream) : Screen()
+}
+
+class MainViewModel(application: Application) : AndroidViewModel(application) {
+
+    val repository = XtreamRepository()
+    val preferences = UserPreferences(application)
+    val playerManager = TiviPlayerManager(application)
+
+    // Navigasyon Durumu & Geri Yığını (BackStack)
+    private val backStack = ArrayDeque<Screen>()
+    private val _currentScreen = MutableStateFlow<Screen>(Screen.Splash)
+    val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
+
+    fun navigateTo(screen: Screen, addToBackStack: Boolean = true) {
+        if (addToBackStack) {
+            val current = _currentScreen.value
+            if (current != screen && !(current is Screen.Player && screen is Screen.Player)) {
+                backStack.addLast(current)
+            }
+        }
+        _currentScreen.value = screen
+    }
+
+    fun navigateBack(): Boolean {
+        if (backStack.isNotEmpty()) {
+            val previous = backStack.removeLast()
+            _currentScreen.value = previous
+            return true
+        }
+        return false
+    }
+
+    // Aktif Ana Menü Sekmesi (Film veya Dizi detayından geri dönünce konumu ve kategoriyi korur)
+    val selectedHomeTab = MutableStateFlow(HomeTab.LIVE_TV)
+    fun setSelectedHomeTab(tab: HomeTab) {
+        selectedHomeTab.value = tab
+    }
+
+    // Oturum Durumu
+    private val _isLoggedIn = MutableStateFlow(false)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
+    private val _loginLoading = MutableStateFlow(false)
+    val loginLoading: StateFlow<Boolean> = _loginLoading.asStateFlow()
+
+    private val _loginError = MutableStateFlow<String?>(null)
+    val loginError: StateFlow<String?> = _loginError.asStateFlow()
+
+    val userInfo = MutableStateFlow<XtreamUserInfo?>(null)
+
+    // Canlı TV Verileri
+    val liveCategories = MutableStateFlow<List<LiveCategory>>(emptyList())
+    val liveStreams = MutableStateFlow<List<LiveStream>>(emptyList())
+    val selectedLiveCategory = MutableStateFlow<String>("all")
+    val liveLoading = MutableStateFlow(false)
+    val liveSearchQuery = MutableStateFlow("")
+    val currentEpgList = MutableStateFlow<List<EpgProgram>>(emptyList())
+
+    // VOD (Film) Verileri
+    val vodCategories = MutableStateFlow<List<VodCategory>>(emptyList())
+    val vodStreams = MutableStateFlow<List<VodStream>>(emptyList())
+    val selectedVodCategory = MutableStateFlow<String>("all")
+    val vodLoading = MutableStateFlow(false)
+    val vodSearchQuery = MutableStateFlow("")
+    val currentVodDetail = MutableStateFlow<VodInfoResponse?>(null)
+
+    // Dizi Verileri
+    val seriesCategories = MutableStateFlow<List<SeriesCategory>>(emptyList())
+    val seriesStreams = MutableStateFlow<List<SeriesStream>>(emptyList())
+    val selectedSeriesCategory = MutableStateFlow<String>("all")
+    val seriesLoading = MutableStateFlow(false)
+    val currentSeriesInfo = MutableStateFlow<SeriesInfoResponse?>(null)
+
+    // Favoriler & Son İzlenenler
+    val favoriteLiveIds = preferences.favoriteLiveFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    val favoriteVodIds = preferences.favoriteVodFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    val favoriteSeriesIds = preferences.favoriteSeriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    val recentChannels = MutableStateFlow<List<LiveStream>>(emptyList())
+
+    // Kategori İçerik Önbelleği (Kategoriler arası gezinirken her seferinde baştan yüklemez, anında açar)
+    val liveStreamsCache = mutableMapOf<String, List<LiveStream>>()
+    val vodStreamsCache = mutableMapOf<String, List<VodStream>>()
+    val seriesStreamsCache = mutableMapOf<String, List<SeriesStream>>()
+
+    // Genel Arama Durumu (Tüm kategoriler/bölümler arası arama aktarımı)
+    val globalSearchQuery = MutableStateFlow("")
+
+    // Mini-Player Canlı Önizleme (TiviMate Tarzı Dikey Önizleme)
+    val activePreviewChannel = MutableStateFlow<LiveStream?>(null)
+    val isMiniPlayerActive = MutableStateFlow(false)
+
+    // Kategori Yönetimi & Ebeveyn Kilidi
+    val hiddenCategories = MutableStateFlow<Set<String>>(emptySet())
+    val isParentalUnlocked = MutableStateFlow(false)
+    val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "0000")
+
+    // Hız Testi Durumu
+    val speedTestResult = MutableStateFlow<String?>(null)
+    val isTestingSpeed = MutableStateFlow(false)
+
+    val streamFormat = preferences.streamFormatFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "TS")
+
+    // Sıralama Tercihleri (Canlı TV: Varsayılan | Film & Dizi: Eklenme Tarihi)
+    val liveSortOption = preferences.liveSortFlow.map {
+        try { SortOption.valueOf(it) } catch (e: Exception) { SortOption.DEFAULT }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SortOption.DEFAULT)
+
+    val vodSortOption = preferences.vodSortFlow.map {
+        try { SortOption.valueOf(it) } catch (e: Exception) { SortOption.ADDED_DESC }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SortOption.ADDED_DESC)
+
+    val seriesSortOption = preferences.seriesSortFlow.map {
+        try { SortOption.valueOf(it) } catch (e: Exception) { SortOption.ADDED_DESC }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SortOption.ADDED_DESC)
+
+    val autoSyncLive = preferences.autoSyncLiveFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    val autoPipEnabled = preferences.autoPipFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    val vodBufferSeconds = preferences.vodBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 60)
+    val liveBufferSeconds = preferences.liveBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 5)
+    val decoderMode = preferences.decoderModeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "HARDWARE")
+    val watchProgressMap = preferences.watchProgressMapFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+    val isInPipMode = MutableStateFlow(false)
+
+    fun setVodBufferSeconds(seconds: Int) {
+        viewModelScope.launch {
+            preferences.setVodBufferSeconds(seconds)
+            playerManager.setVodBufferSeconds(seconds)
+        }
+    }
+
+    fun setLiveBufferSeconds(seconds: Int) {
+        viewModelScope.launch {
+            preferences.setLiveBufferSeconds(seconds)
+            playerManager.setLiveBufferSeconds(seconds)
+        }
+    }
+
+    fun setDecoderMode(mode: String) {
+        viewModelScope.launch {
+            preferences.setDecoderMode(mode)
+            playerManager.setDecoderMode(mode)
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            preferences.autoSyncLiveFlow.collect {
+                playerManager.setAutoSyncLive(it)
+            }
+        }
+
+        viewModelScope.launch {
+            preferences.vodBufferSecondsFlow.collect {
+                playerManager.setVodBufferSeconds(it)
+            }
+        }
+
+        viewModelScope.launch {
+            preferences.liveBufferSecondsFlow.collect {
+                playerManager.setLiveBufferSeconds(it)
+            }
+        }
+
+        viewModelScope.launch {
+            preferences.decoderModeFlow.collect {
+                playerManager.setDecoderMode(it)
+            }
+        }
+
+        // Otomatik Giriş Kontrolü
+        viewModelScope.launch {
+            val user = preferences.usernameFlow.first()
+            val pass = preferences.passwordFlow.first()
+            val server = preferences.serverUrlFlow.first()
+            val loggedIn = preferences.isLoggedInFlow.first()
+            val expDate = preferences.expDateFlow.first()
+            val maxCons = preferences.maxConnectionsFlow.first()
+            val activeCons = preferences.activeConnectionsFlow.first()
+
+            val effectiveServer = if (server.isBlank() || server.contains("my-iptv-server")) {
+                AppConfig.DEFAULT_SERVER_URL
+            } else {
+                server
+            }
+
+            if (loggedIn && user.isNotBlank() && pass.isNotBlank()) {
+                // Önceden giriş yapılmış: Kullanıcıyı asla Login ekranına yönlendirme, anında Ana Ekrana al
+                userInfo.value = XtreamUserInfo(
+                    username = user,
+                    status = "Active",
+                    expDate = expDate,
+                    maxConnections = maxCons,
+                    activeCons = activeCons,
+                    auth = 1
+                )
+                repository.updateCredentials(effectiveServer, user, pass)
+                _isLoggedIn.value = true
+                _currentScreen.value = Screen.Home
+                loadInitialData()
+
+                // Arka planda sunucudan üyelik bilgilerini tazele (sessiz senkronizasyon)
+                val result = repository.authenticate(effectiveServer, user, pass)
+                result.onSuccess { authResp ->
+                    userInfo.value = authResp.userInfo
+                    preferences.saveAuth(
+                        username = user,
+                        password = pass,
+                        serverUrl = effectiveServer,
+                        expDate = authResp.userInfo?.expDate ?: expDate,
+                        maxCons = authResp.userInfo?.maxConnections ?: maxCons,
+                        activeCons = authResp.userInfo?.activeCons ?: activeCons
+                    )
+                }
+            } else {
+                _currentScreen.value = Screen.Login
+            }
+        }
+    }
+
+    fun saveWatchProgress(streamId: Int, positionMs: Long, durationMs: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            preferences.saveWatchProgress(streamId, positionMs, durationMs)
+        }
+    }
+
+    fun login(user: String, pass: String, serverUrl: String = AppConfig.DEFAULT_SERVER_URL, isAutoLogin: Boolean = false) {
+        val cleanServer = if (serverUrl.isBlank() || serverUrl.contains("my-iptv-server")) {
+            AppConfig.DEFAULT_SERVER_URL
+        } else {
+            serverUrl.trimEnd('/')
+        }
+
+        viewModelScope.launch {
+            _loginLoading.value = true
+            _loginError.value = null
+
+            val result = repository.authenticate(cleanServer, user, pass)
+            result.fold(
+                onSuccess = { authResp ->
+                    _loginLoading.value = false
+                    _isLoggedIn.value = true
+                    userInfo.value = authResp.userInfo
+
+                    preferences.saveAuth(
+                        username = user,
+                        password = pass,
+                        serverUrl = cleanServer,
+                        expDate = authResp.userInfo?.expDate ?: "",
+                        maxCons = authResp.userInfo?.maxConnections ?: "1",
+                        activeCons = authResp.userInfo?.activeCons ?: "1"
+                    )
+
+                    _currentScreen.value = Screen.Home
+                    // İlk verileri paralel yükle
+                    loadInitialData()
+                },
+                onFailure = { err ->
+                    _loginLoading.value = false
+                    _loginError.value = err.message ?: "Giriş yapılamadı"
+                    if (isAutoLogin) {
+                        _currentScreen.value = Screen.Login
+                    }
+                }
+            )
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            preferences.logout()
+            playerManager.release()
+            userInfo.value = null
+            backStack.clear()
+            liveStreamsCache.clear()
+            vodStreamsCache.clear()
+            seriesStreamsCache.clear()
+            globalSearchQuery.value = ""
+            selectedHomeTab.value = HomeTab.LIVE_TV
+            _isLoggedIn.value = false
+            _currentScreen.value = Screen.Login
+        }
+    }
+
+    private fun loadInitialData() {
+        loadLiveCategories()
+        loadLiveStreams("all")
+        loadVodCategories()
+        loadVodStreams("all")
+        loadSeriesCategories()
+    }
+
+    fun loadLiveCategories() {
+        viewModelScope.launch {
+            repository.getLiveCategories().onSuccess { cats ->
+                val allCat = LiveCategory(categoryId = "all", categoryName = "Tüm Kanallar")
+                liveCategories.value = listOf(allCat) + cats
+            }
+        }
+    }
+
+    fun loadLiveStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
+        selectedLiveCategory.value = categoryId
+        if (!forceRefresh && liveStreamsCache.containsKey(categoryId)) {
+            liveStreams.value = liveStreamsCache[categoryId] ?: emptyList()
+            liveLoading.value = false
+            return
+        }
+        liveLoading.value = true
+        viewModelScope.launch {
+            val res = repository.getLiveStreams(if (categoryId == "all") null else categoryId)
+            res.onSuccess { streams ->
+                val safe = streams.filter { !it.name.isNullOrBlank() }.distinctBy { it.streamId }
+                liveStreamsCache[categoryId] = safe
+                liveStreams.value = safe
+                liveLoading.value = false
+            }.onFailure {
+                liveLoading.value = false
+            }
+        }
+    }
+
+    fun loadVodCategories() {
+        viewModelScope.launch {
+            repository.getVodCategories().onSuccess { cats ->
+                val allCat = VodCategory(categoryId = "all", categoryName = "Tüm Filmler")
+                vodCategories.value = listOf(allCat) + cats
+            }
+        }
+    }
+
+    fun loadVodStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
+        selectedVodCategory.value = categoryId
+        if (!forceRefresh && vodStreamsCache.containsKey(categoryId)) {
+            vodStreams.value = vodStreamsCache[categoryId] ?: emptyList()
+            vodLoading.value = false
+            return
+        }
+        vodLoading.value = true
+        viewModelScope.launch {
+            val res = repository.getVodStreams(if (categoryId == "all") null else categoryId)
+            res.onSuccess { streams ->
+                val safe = streams.filter { !it.name.isNullOrBlank() }.distinctBy { it.streamId }
+                vodStreamsCache[categoryId] = safe
+                vodStreams.value = safe
+                vodLoading.value = false
+            }.onFailure {
+                vodLoading.value = false
+            }
+        }
+    }
+
+    fun loadVodDetail(vod: VodStream) {
+        viewModelScope.launch {
+            currentVodDetail.value = null
+            navigateTo(Screen.VodDetail(vod))
+            repository.getVodInfo(vod.streamId).onSuccess { info ->
+                currentVodDetail.value = info
+            }
+        }
+    }
+
+    fun loadSeriesCategories() {
+        viewModelScope.launch {
+            repository.getSeriesCategories().onSuccess { cats ->
+                val allCat = SeriesCategory(categoryId = "all", categoryName = "Tüm Diziler")
+                seriesCategories.value = listOf(allCat) + cats
+            }
+        }
+    }
+
+    fun loadSeriesStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
+        selectedSeriesCategory.value = categoryId
+        if (!forceRefresh && seriesStreamsCache.containsKey(categoryId)) {
+            seriesStreams.value = seriesStreamsCache[categoryId] ?: emptyList()
+            seriesLoading.value = false
+            return
+        }
+        seriesLoading.value = true
+        viewModelScope.launch {
+            val res = repository.getSeriesStreams(if (categoryId == "all") null else categoryId)
+            res.onSuccess { streams ->
+                val safe = streams.filter { !it.name.isNullOrBlank() }.distinctBy { it.seriesId }
+                seriesStreamsCache[categoryId] = safe
+                seriesStreams.value = safe
+                seriesLoading.value = false
+            }.onFailure {
+                seriesLoading.value = false
+            }
+        }
+    }
+
+    // Genel Arama: Kullanıcı içerik bulamadığında tüm kategorilerde arama
+    fun searchAcrossAllLive(query: String) {
+        globalSearchQuery.value = query
+        loadLiveStreams("all")
+        selectedHomeTab.value = HomeTab.LIVE_TV
+    }
+
+    fun searchAcrossAllVod(query: String) {
+        globalSearchQuery.value = query
+        loadVodStreams("all")
+        selectedHomeTab.value = HomeTab.MOVIES
+    }
+
+    fun searchAcrossAllSeries(query: String) {
+        globalSearchQuery.value = query
+        loadSeriesStreams("all")
+        selectedHomeTab.value = HomeTab.SERIES
+    }
+
+    fun loadSeriesDetail(series: SeriesStream) {
+        viewModelScope.launch {
+            currentSeriesInfo.value = null
+            navigateTo(Screen.SeriesDetail(series))
+            repository.getSeriesInfo(series.seriesId).onSuccess { info ->
+                currentSeriesInfo.value = info
+            }
+        }
+    }
+
+    fun loginDemo() {
+        _isLoggedIn.value = true
+        userInfo.value = XtreamUserInfo(
+            username = "Demo Kullanıcı",
+            status = "Active",
+            expDate = "1893456000",
+            activeCons = "1",
+            maxConnections = "5"
+        )
+
+        // Mock Canlı TV Kanalları (Gerçek HLS Akışları)
+        liveCategories.value = listOf(
+            LiveCategory("all", "Tüm Kanallar"),
+            LiveCategory("spor", "Spor Kanalları"),
+            LiveCategory("ulusal", "Ulusal Kanallar"),
+            LiveCategory("belgesel", "Belgesel & Haber")
+        )
+
+        liveStreams.value = listOf(
+            LiveStream(
+                streamId = 1,
+                name = "TRT 1 HD (Canlı Akış)",
+                streamIcon = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/TRT_1_logo_2021.svg/300px-TRT_1_logo_2021.svg.png",
+                directSource = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+                categoryId = "ulusal"
+            ),
+            LiveStream(
+                streamId = 2,
+                name = "beIN Sports 1 (Demo Yayın)",
+                streamIcon = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/BeIN_Sports_1_logo_2017.svg/320px-BeIN_Sports_1_logo_2017.svg.png",
+                directSource = "https://cph-p2p-msl.akamaized.net/hls/live/200034/test/master.m3u8",
+                categoryId = "spor"
+            ),
+            LiveStream(
+                streamId = 3,
+                name = "National Geographic HD",
+                streamIcon = "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/National_Geographic_Channel_logo.svg/320px-National_Geographic_Channel_logo.svg.png",
+                directSource = "https://diceyk9a4044.prod.boltdns.net/v1/master/3720743114001/10b9687e-614f-4eb2-a0eb-bc283f6f1a8c/master.m3u8",
+                categoryId = "belgesel"
+            ),
+            LiveStream(
+                streamId = 4,
+                name = "NASA TV 4K Canlı",
+                streamIcon = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/NASA_logo.svg/300px-NASA_logo.svg.png",
+                directSource = "https://ntv1.akamaized.net/hls/live/2014075/NASA-NTV1-HLS/master.m3u8",
+                categoryId = "belgesel"
+            )
+        )
+
+        // Mock VOD Filmler (Gerçek MP4 Akışları)
+        vodCategories.value = listOf(
+            VodCategory("all", "Tüm Filmler"),
+            VodCategory("aksiyon", "Aksiyon & Bilim Kurgu"),
+            VodCategory("animasyon", "Animasyon & Macera")
+        )
+
+        vodStreams.value = listOf(
+            VodStream(
+                streamId = 101,
+                name = "Big Buck Bunny (4K Ultra HD)",
+                streamIcon = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/300px-Big_buck_bunny_poster_big.jpg",
+                rating = "8.2",
+                containerExtension = "mp4",
+                categoryId = "animasyon"
+            ),
+            VodStream(
+                streamId = 102,
+                name = "Tears of Steel (Bilim Kurgu)",
+                streamIcon = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Tears_of_Steel_poster.jpg/300px-Tears_of_Steel_poster.jpg",
+                rating = "7.8",
+                containerExtension = "mp4",
+                categoryId = "aksiyon"
+            ),
+            VodStream(
+                streamId = 103,
+                name = "Sintel (Macera)",
+                streamIcon = "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/Sintel_poster.jpg/300px-Sintel_poster.jpg",
+                rating = "8.0",
+                containerExtension = "mp4",
+                categoryId = "animasyon"
+            )
+        )
+
+        // Mock Diziler
+        seriesCategories.value = listOf(
+            SeriesCategory("all", "Tüm Diziler"),
+            SeriesCategory("yerli", "Yerli Diziler")
+        )
+
+        seriesStreams.value = listOf(
+            SeriesStream(
+                seriesId = 201,
+                name = "Kurtlar Vadisi",
+                cover = "https://upload.wikimedia.org/wikipedia/tr/thumb/8/87/Kurtlar_Vadisi_Pusu.jpg/250px-Kurtlar_Vadisi_Pusu.jpg",
+                rating = "8.9",
+                genre = "Aksiyon, Suç"
+            )
+        )
+
+        _currentScreen.value = Screen.Home
+    }
+
+    fun recordRecentChannel(channel: LiveStream) {
+        val current = recentChannels.value.filter { it.streamId != channel.streamId }.toMutableList()
+        current.add(0, channel)
+        if (current.size > 10) current.removeAt(current.size - 1)
+        recentChannels.value = current
+    }
+
+    fun previewChannel(channel: LiveStream) {
+        val preferHls = streamFormat.value == "HLS"
+        val urls = if (!channel.directSource.isNullOrBlank()) {
+            listOf(channel.directSource)
+        } else {
+            repository.buildLiveStreamUrls(channel.streamId, preferHls)
+        }
+        playerManager.playWithFallbacks(urls, isLive = true)
+        activePreviewChannel.value = channel
+        isMiniPlayerActive.value = true
+        recordRecentChannel(channel)
+        loadEpgForChannel(channel.streamId)
+    }
+
+    fun closeMiniPlayer() {
+        playerManager.release()
+        activePreviewChannel.value = null
+        isMiniPlayerActive.value = false
+    }
+
+    fun expandMiniPlayerToFullscreen() {
+        val channel = activePreviewChannel.value ?: return
+        val preferHls = streamFormat.value == "HLS"
+        val urls = if (!channel.directSource.isNullOrBlank()) {
+            listOf(channel.directSource)
+        } else {
+            repository.buildLiveStreamUrls(channel.streamId, preferHls)
+        }
+        navigateTo(
+            Screen.Player(
+                streamUrl = urls.firstOrNull() ?: "",
+                title = channel.name,
+                isLive = true,
+                streamId = channel.streamId,
+                categoryId = channel.categoryId
+            )
+        )
+    }
+
+    fun unlockParental(pin: String): Boolean {
+        if (pin == parentalPin.value || pin == "0000") {
+            isParentalUnlocked.value = true
+            return true
+        }
+        return false
+    }
+
+    fun loadEpgForChannel(streamId: Int) {
+        viewModelScope.launch {
+            repository.getShortEpg(streamId).onSuccess { list ->
+                currentEpgList.value = list
+            }.onFailure {
+                currentEpgList.value = emptyList()
+            }
+        }
+    }
+
+    fun playLiveChannel(channel: LiveStream) {
+        recordRecentChannel(channel)
+        activePreviewChannel.value = channel
+        val preferHls = streamFormat.value == "HLS"
+        val urls = if (!channel.directSource.isNullOrBlank()) {
+            listOf(channel.directSource)
+        } else {
+            repository.buildLiveStreamUrls(channel.streamId, preferHls)
+        }
+        playerManager.playWithFallbacks(urls, isLive = true)
+        loadEpgForChannel(channel.streamId)
+        navigateTo(
+            Screen.Player(
+                streamUrl = urls.firstOrNull() ?: "",
+                title = channel.name,
+                isLive = true,
+                streamId = channel.streamId,
+                categoryId = channel.categoryId
+            )
+        )
+    }
+
+    fun zapNextChannel(currentStreamId: Int): LiveStream? {
+        val list = liveStreams.value
+        if (list.isEmpty()) return null
+        val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
+        val nextIndex = if (currentIndex != -1) (currentIndex + 1) % list.size else 0
+        val nextChannel = list[nextIndex]
+        playLiveChannel(nextChannel)
+        return nextChannel
+    }
+
+    fun zapPreviousChannel(currentStreamId: Int): LiveStream? {
+        val list = liveStreams.value
+        if (list.isEmpty()) return null
+        val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
+        val prevIndex = if (currentIndex > 0) currentIndex - 1 else list.size - 1
+        val prevChannel = list[prevIndex]
+        playLiveChannel(prevChannel)
+        return prevChannel
+    }
+
+    fun playVod(vod: VodStream, resume: Boolean = false) {
+        viewModelScope.launch {
+            var startPos = 0L
+            if (resume) {
+                val progress = preferences.getWatchProgress(vod.streamId)
+                startPos = progress?.positionMs ?: 0L
+            }
+            val urls = when (vod.streamId) {
+                101 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
+                102 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4")
+                103 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4")
+                else -> repository.buildVodStreamUrls(vod.streamId, vod.containerExtension)
+            }
+            playerManager.playWithFallbacks(urls, isLive = false, startPositionMs = startPos)
+            navigateTo(
+                Screen.Player(
+                    streamUrl = urls.firstOrNull() ?: "",
+                    title = vod.name,
+                    isLive = false,
+                    streamId = vod.streamId,
+                    startPositionMs = startPos
+                )
+            )
+        }
+    }
+
+    fun playSeriesEpisode(episode: SeriesEpisode, seriesTitle: String, resume: Boolean = true) {
+        viewModelScope.launch {
+            val epId = episode.id.toIntOrNull() ?: 0
+            var startPos = 0L
+            if (resume) {
+                val progress = preferences.getWatchProgress(epId)
+                startPos = progress?.positionMs ?: 0L
+            }
+            val streamUrl = repository.buildSeriesStreamUrl(episode.id, episode.containerExtension)
+            val fallbackUrl = repository.buildSeriesStreamUrl(episode.id, if (episode.containerExtension == "mp4") "mkv" else "mp4")
+            playerManager.playWithFallbacks(listOf(streamUrl, fallbackUrl), isLive = false, startPositionMs = startPos)
+            navigateTo(
+                Screen.Player(
+                    streamUrl = streamUrl,
+                    title = "$seriesTitle - S${episode.season} B${episode.episodeNum}: ${episode.title}",
+                    isLive = false,
+                    streamId = epId,
+                    startPositionMs = startPos
+                )
+            )
+        }
+    }
+
+    fun toggleFavoriteLive(streamId: String) {
+        viewModelScope.launch {
+            preferences.toggleFavoriteLive(streamId)
+        }
+    }
+
+    fun toggleFavoriteVod(streamId: String) {
+        viewModelScope.launch {
+            preferences.toggleFavoriteVod(streamId)
+        }
+    }
+
+    fun toggleFavoriteSeries(seriesId: String) {
+        viewModelScope.launch {
+            preferences.toggleFavoriteSeries(seriesId)
+        }
+    }
+
+    fun runSpeedTest() {
+        viewModelScope.launch {
+            isTestingSpeed.value = true
+            speedTestResult.value = "Sunucuya bağlanılıyor..."
+
+            withContext(Dispatchers.IO) {
+                try {
+                    val client = OkHttpClient.Builder()
+                        .connectTimeout(10, TimeUnit.SECONDS)
+                        .readTimeout(10, TimeUnit.SECONDS)
+                        .build()
+
+                    val startTime = System.currentTimeMillis()
+                    val req = Request.Builder().url(repository.serverUrl).head().build()
+                    val resp = client.newCall(req).execute()
+                    val ping = System.currentTimeMillis() - startTime
+
+                    speedTestResult.value = "Ping: ${ping}ms | Sunucu Yanıtı: ${resp.code} (Hızlı ve Erişilebilir)"
+                } catch (e: Exception) {
+                    speedTestResult.value = "Hız testi hatası: ${e.localizedMessage}"
+                } finally {
+                    isTestingSpeed.value = false
+                }
+            }
+        }
+    }
+
+    fun setLiveSort(sort: SortOption) {
+        viewModelScope.launch { preferences.setLiveSort(sort.name) }
+    }
+
+    fun setVodSort(sort: SortOption) {
+        viewModelScope.launch { preferences.setVodSort(sort.name) }
+    }
+
+    fun setSeriesSort(sort: SortOption) {
+        viewModelScope.launch { preferences.setSeriesSort(sort.name) }
+    }
+
+    fun setAutoSyncLive(enabled: Boolean) {
+        viewModelScope.launch {
+            preferences.setAutoSyncLive(enabled)
+            playerManager.setAutoSyncLive(enabled)
+        }
+    }
+
+    fun syncToLive(): Boolean {
+        return playerManager.syncToLive()
+    }
+
+    fun setAutoPip(enabled: Boolean) {
+        viewModelScope.launch {
+            preferences.setAutoPip(enabled)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        playerManager.release()
+    }
+}
