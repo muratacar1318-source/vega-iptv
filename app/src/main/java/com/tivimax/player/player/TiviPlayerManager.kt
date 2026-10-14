@@ -173,16 +173,22 @@ class TiviPlayerManager(private val context: Context) {
                 .build()
         } else {
             // VOD (MP4/MKV Film ve Dizi):
-            // Yüksek bit hızlı içeriklerde byte sınırından kaynaklı deadlock/buffering-flicker döngüsünü kaldır
+            // Yüksek bit hızlı ve uzun filmlerde kesintisiz akış için geniş ve sürekli dolan tampon.
+            // prioritizeTimeOverSizeThresholds = false sayesinde ExoPlayer 10. saniyede indirmeyi aniden kesmez,
+            // TCP soketinin sunucu tarafından zaman aşımına uğramasını ve 5-6. saniyede videonun donmasını önler.
+            val targetSecs = _vodBufferSeconds.coerceIn(30, 120)
+            val minBufferMs = 20_000
+            val maxBufferMs = (targetSecs * 1000).coerceAtLeast(minBufferMs + 10_000)
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                    10000, // minBufferMs = 10000
-                    30000, // maxBufferMs = 30000
-                    1500,  // bufferForPlaybackMs = 1500
-                    3000   // bufferForPlaybackAfterRebufferMs = 3000
+                    minBufferMs, // minBufferMs = 20000 (20 saniye)
+                    maxBufferMs, // maxBufferMs = 60000+ (60-120 saniye kesintisiz akış)
+                    2500,        // bufferForPlaybackMs = 2500 (Akıcı ilk açılış)
+                    5000         // bufferForPlaybackAfterRebufferMs = 5000
                 )
-                .setTargetBufferBytes(C.LENGTH_UNSET)
-                .setPrioritizeTimeOverSizeThresholds(true)
+                .setTargetBufferBytes(64 * 1024 * 1024) // 64 MB bellek sınırı
+                .setPrioritizeTimeOverSizeThresholds(false) // Kesintisiz indirme (Kritik: donmayı çözer)
+                .setBackBuffer(20_000, true) // 20 saniye geri sarma tamponu
                 .build()
         }
     }
@@ -242,6 +248,7 @@ class TiviPlayerManager(private val context: Context) {
 
         val renderersFactory = DefaultRenderersFactory(context).apply {
             setEnableDecoderFallback(true) // Donanım başarısız olursa otomatik yazılıma geç
+            setAllowedVideoJoiningTimeMs(10000) // Yavaş dekoder başlangıçlarında video senkron hatasını önle
             // AC3, EAC3 ve DTS ses kodeklerini FFmpeg eklentisiyle öncelikli çözmek için PREFER modu
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             if (_decoderMode == "SOFTWARE") {
@@ -269,6 +276,7 @@ class TiviPlayerManager(private val context: Context) {
             // FLAG_DISABLE_SEEK_FOR_CUES ile dosya başından akıcı olarak hemen oynatmaya başlar.
             setMatroskaExtractorFlags(androidx.media3.extractor.mkv.MatroskaExtractor.FLAG_DISABLE_SEEK_FOR_CUES)
             setMp4ExtractorFlags(androidx.media3.extractor.mp4.Mp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
+            setFragmentedMp4ExtractorFlags(androidx.media3.extractor.mp4.FragmentedMp4Extractor.FLAG_WORKAROUND_IGNORE_EDIT_LISTS)
             setTsExtractorFlags(
                 androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
                 androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
@@ -281,17 +289,29 @@ class TiviPlayerManager(private val context: Context) {
             .build()
 
         val httpDataSourceFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
-            .setUserAgent("VegaIPTV/1.0 (Linux; Android)")
+            .setUserAgent("IPTV Smarters Pro")
+            .setDefaultRequestProperties(
+                mapOf(
+                    "User-Agent" to "IPTV Smarters Pro",
+                    "Accept" to "*/*",
+                    "Connection" to "keep-alive"
+                )
+            )
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15000)
             .setReadTimeoutMs(30000)
             .setKeepPostFor302Redirects(true)
 
+        val mediaSourceFactory = DefaultMediaSourceFactory(httpDataSourceFactory, extractorsFactory)
+            .setLoadErrorHandlingPolicy(
+                androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy(5)
+            )
+
         val player = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
             .setAudioAttributes(audioAttributes, true)
             .setLoadControl(buildLoadControl(isLive))
-            .setMediaSourceFactory(DefaultMediaSourceFactory(httpDataSourceFactory, extractorsFactory))
+            .setMediaSourceFactory(mediaSourceFactory)
             .build()
 
         player.addListener(object : Player.Listener {
@@ -302,13 +322,27 @@ class TiviPlayerManager(private val context: Context) {
                         _errorMessage.value = null
                         bufferingRecoveryJob?.cancel()
                         bufferingRecoveryJob = scope.launch {
-                            delay(8000)
+                            delay(12000)
                             if (_isBuffering.value && exoPlayer != null) {
-                                // Range veya Cue takılması durumunda oynatmayı 0 konumundan taze başlat
-                                android.util.Log.w("VegaIPTV", "Buffering timeout detected, attempting recovery")
-                                exoPlayer?.seekTo(0L)
-                                exoPlayer?.prepare()
-                                exoPlayer?.play()
+                                if (isLiveStream) {
+                                    android.util.Log.w("VegaIPTV", "Buffering timeout detected, attempting live recovery")
+                                    exoPlayer?.seekToDefaultPosition()
+                                    exoPlayer?.prepare()
+                                    exoPlayer?.play()
+                                } else {
+                                    // VOD / Dizi: Kesinlikle 0L'ye sarma! Mevcut izleme konumundan taze bağlantı kur
+                                    android.util.Log.w("VegaIPTV", "Buffering timeout detected, attempting VOD recovery at current position")
+                                    val currentPos = exoPlayer?.currentPosition ?: 0L
+                                    if (fallbackUrls.size > 1 && fallbackAttempt + 1 < fallbackUrls.size) {
+                                        fallbackAttempt++
+                                        val nextUrl = fallbackUrls[fallbackAttempt]
+                                        playInternal(nextUrl, isLive = false, startPositionMs = currentPos)
+                                    } else {
+                                        exoPlayer?.seekTo(currentPos)
+                                        exoPlayer?.prepare()
+                                        exoPlayer?.play()
+                                    }
+                                }
                             }
                         }
                     }
@@ -384,12 +418,14 @@ class TiviPlayerManager(private val context: Context) {
                     return
                 }
 
-                // Otomatik Alternatif Format Deneme (404 ERROR_CODE_IO_FILE_NOT_FOUND Çözümü)
+                // Otomatik Alternatif Format Deneme (Örn: .mp4 -> .mkv veya sunucu hatası)
                 if (fallbackAttempt + 1 < fallbackUrls.size) {
+                    val currentPos = exoPlayer?.currentPosition ?: 0L
                     liveRetryCount = 0
                     fallbackAttempt++
                     val nextUrl = fallbackUrls[fallbackAttempt]
-                    playInternal(nextUrl, isLive = isLiveStream)
+                    android.util.Log.i("VegaIPTV", "Otomatik alternatif formata geçiliyor: $nextUrl (konum: $currentPos ms)")
+                    playInternal(nextUrl, isLive = isLiveStream, startPositionMs = currentPos)
                     return
                 }
 
@@ -665,8 +701,8 @@ class TiviPlayerManager(private val context: Context) {
             "hi", "hin", "hindi" -> "Hintçe"
             "und", "", "default" -> ""
             else -> try {
-                val locale = java.util.Locale(clean)
-                val display = locale.getDisplayLanguage(java.util.Locale("tr"))
+                val locale = java.util.Locale.forLanguageTag(clean)
+                val display = locale.getDisplayLanguage(java.util.Locale.forLanguageTag("tr"))
                 if (display.isNotBlank() && !display.equals(clean, ignoreCase = true)) {
                     display.replaceFirstChar { it.uppercase() }
                 } else {

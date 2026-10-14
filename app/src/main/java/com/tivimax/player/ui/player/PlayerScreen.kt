@@ -30,7 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -71,7 +71,8 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(UnstableApi::class, ExperimentalMaterial3Api::class)
+@androidx.annotation.OptIn(UnstableApi::class)
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     streamUrl: String = "",
@@ -465,7 +466,7 @@ fun PlayerScreen(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
-                        player = playerManager.initializePlayer()
+                        player = playerManager.initializePlayer(isLive)
                         try {
                             subtitleView?.let { subView ->
                                 subView.setStyle(
@@ -493,7 +494,7 @@ fun PlayerScreen(
                     }
                 },
                 update = { playerView ->
-                    val currentPlayer = playerManager.player ?: playerManager.initializePlayer()
+                    val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive)
                     if (playerView.player != currentPlayer) {
                         playerView.player = currentPlayer
                     }
@@ -705,7 +706,7 @@ fun PlayerScreen(
                             .padding(vertical = 10.dp)
                     ) {
                         Icon(
-                            imageVector = if (pct == 0) Icons.Default.VolumeMute else Icons.Default.VolumeUp,
+                            imageVector = if (pct == 0) Icons.AutoMirrored.Filled.VolumeMute else Icons.AutoMirrored.Filled.VolumeUp,
                             contentDescription = null,
                             tint = TiviPrimary,
                             modifier = Modifier.size(18.dp)
@@ -980,7 +981,7 @@ fun PlayerScreen(
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.FormatListBulleted,
+                                    imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
                                     contentDescription = "Rehber / Kanal Listesi",
                                     tint = if (showOverlayGuide) OpusCyan else Color.White,
                                     modifier = Modifier.size(24.dp)
@@ -1281,7 +1282,7 @@ fun PlayerScreen(
                                             modifier = Modifier.padding(horizontal = 10.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(Icons.Default.FormatListBulleted, contentDescription = "Rehber", tint = OpusCyan, modifier = Modifier.size(16.dp))
+                                            Icon(Icons.AutoMirrored.Filled.FormatListBulleted, contentDescription = "Rehber", tint = OpusCyan, modifier = Modifier.size(16.dp))
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("Rehber", color = OpusCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                         }
@@ -2414,7 +2415,7 @@ fun PlayerScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = if (currentVolume == 0) Icons.Default.VolumeMute else Icons.Default.VolumeUp,
+                                imageVector = if (currentVolume == 0) Icons.AutoMirrored.Filled.VolumeMute else Icons.AutoMirrored.Filled.VolumeUp,
                                 contentDescription = null,
                                 tint = TiviPrimary,
                                 modifier = Modifier.size(15.dp)
@@ -2895,7 +2896,7 @@ fun DualViewSingleWindow(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = if (hasAudio) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                        imageVector = if (hasAudio) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                         contentDescription = null,
                         tint = if (hasAudio) Color.Black else Color.White,
                         modifier = Modifier.size(13.dp)

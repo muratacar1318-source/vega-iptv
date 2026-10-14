@@ -113,13 +113,13 @@ class XtreamRepository(private val context: Context? = null) {
             val apiUrl = buildApiUrl()
             val request = Request.Builder().url(apiUrl).get().build()
             val response = client.newCall(request).execute()
-
-            if (!response.isSuccessful) {
-                return@withContext Result.failure(Exception("Sunucu hatası: Kod ${response.code}"))
+            val authResponse = response.use { resp ->
+                if (!resp.isSuccessful) {
+                    return@withContext Result.failure(Exception("Sunucu hatası: Kod ${resp.code}"))
+                }
+                val body = resp.body?.string() ?: ""
+                gson.fromJson(body, XtreamAuthResponse::class.java)
             }
-
-            val body = response.body?.string() ?: ""
-            val authResponse = gson.fromJson(body, XtreamAuthResponse::class.java)
 
             if (authResponse?.userInfo?.auth == 1) {
                 Result.success(authResponse)
@@ -1120,9 +1120,10 @@ class XtreamRepository(private val context: Context? = null) {
         try {
             val url = buildApiUrl("get_vod_info", mapOf("vod_id" to vodId.toString()))
             val request = Request.Builder().url(url).get().build()
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: "{}"
-            val vodInfo = gson.fromJson(body, VodInfoResponse::class.java)
+            val vodInfo = client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: "{}"
+                gson.fromJson(body, VodInfoResponse::class.java)
+            }
             Result.success(vodInfo)
         } catch (e: Exception) {
             Result.failure(e)
@@ -1133,9 +1134,10 @@ class XtreamRepository(private val context: Context? = null) {
         try {
             val url = buildApiUrl("get_series_info", mapOf("series_id" to seriesId.toString()))
             val request = Request.Builder().url(url).get().build()
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: "{}"
-            val seriesInfo = gson.fromJson(body, SeriesInfoResponse::class.java)
+            val seriesInfo = client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: "{}"
+                gson.fromJson(body, SeriesInfoResponse::class.java)
+            }
             Result.success(seriesInfo)
         } catch (e: Exception) {
             Result.failure(e)
@@ -1146,10 +1148,12 @@ class XtreamRepository(private val context: Context? = null) {
         try {
             val url = buildApiUrl("get_short_epg", mapOf("stream_id" to streamId.toString(), "limit" to "5"))
             val request = Request.Builder().url(url).get().build()
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: "{}"
-            val epgResponse = gson.fromJson(body, ShortEpgResponse::class.java)
-            Result.success(epgResponse.epgListings ?: emptyList())
+            val listings = client.newCall(request).execute().use { response ->
+                val body = response.body?.string() ?: "{}"
+                val epgResponse = gson.fromJson(body, ShortEpgResponse::class.java)
+                epgResponse.epgListings ?: emptyList()
+            }
+            Result.success(listings)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -1183,16 +1187,17 @@ class XtreamRepository(private val context: Context? = null) {
     }
 
     fun buildVodStreamUrls(streamId: Int, extension: String = "mp4"): List<String> {
-        val ext = extension.ifEmpty { "mp4" }
+        val ext = extension.trim().removePrefix(".").ifEmpty { "mp4" }
         val urls = mutableListOf<String>()
         urls.add("$serverUrl/movie/$username/$password/$streamId.$ext")
         if (ext != "mkv") urls.add("$serverUrl/movie/$username/$password/$streamId.mkv")
         if (ext != "mp4") urls.add("$serverUrl/movie/$username/$password/$streamId.mp4")
+        if (ext != "ts") urls.add("$serverUrl/movie/$username/$password/$streamId.ts")
         return urls
     }
 
     fun buildVodStreamUrl(streamId: Int, extension: String = "mp4"): String {
-        val ext = extension.ifEmpty { "mp4" }
+        val ext = extension.trim().removePrefix(".").ifEmpty { "mp4" }
         return "$serverUrl/movie/$username/$password/$streamId.$ext"
     }
 
