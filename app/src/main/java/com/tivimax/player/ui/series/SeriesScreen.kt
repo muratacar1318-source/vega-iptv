@@ -50,6 +50,7 @@ fun SeriesScreen(viewModel: MainViewModel) {
     LaunchedEffect(globalQuery) {
         if (globalQuery.isNotBlank() && searchQuery != globalQuery) {
             searchQuery = globalQuery
+            viewModel.setSeriesSearchQuery(globalQuery)
         }
     }
 
@@ -206,7 +207,10 @@ fun SeriesScreen(viewModel: MainViewModel) {
                 ) {
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        onValueChange = {
+                            searchQuery = it
+                            viewModel.setSeriesSearchQuery(it)
+                        },
                         placeholder = { Text("Dizi ara...", fontSize = 12.sp) },
                         singleLine = true,
                         leadingIcon = {
@@ -214,7 +218,10 @@ fun SeriesScreen(viewModel: MainViewModel) {
                         },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
+                                IconButton(onClick = {
+                                    searchQuery = ""
+                                    viewModel.setSeriesSearchQuery("")
+                                }) {
                                     Icon(imageVector = Icons.Default.Clear, contentDescription = "Temizle", tint = TiviTextSecondary, modifier = Modifier.size(16.dp))
                                 }
                             }

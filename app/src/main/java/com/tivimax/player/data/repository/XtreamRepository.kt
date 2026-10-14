@@ -221,6 +221,12 @@ class XtreamRepository(private val context: Context? = null) {
         return sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
+    fun getLiveStreamsFilteredFlow(categoryId: String? = null, query: String = "", sort: String = "DEFAULT"): Flow<List<LiveStream>> {
+        val dao = database?.liveDao() ?: return flowOf(emptyList())
+        val cleanCat = if (categoryId.isNullOrEmpty() || categoryId == "all") null else categoryId
+        return dao.getStreamsFiltered(cleanCat, query, sort).map { list -> list.map { it.toModel() } }
+    }
+
     fun getPagedLiveStreams(categoryId: String? = null): PagingSource<Int, LiveStreamEntity>? {
         val dao = database?.liveDao() ?: return null
         return if (categoryId.isNullOrEmpty() || categoryId == "all") {
@@ -362,6 +368,12 @@ class XtreamRepository(private val context: Context? = null) {
         return sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
+    fun getVodStreamsFilteredFlow(categoryId: String? = null, query: String = "", sort: String = "DEFAULT"): Flow<List<VodStream>> {
+        val dao = database?.vodDao() ?: return flowOf(emptyList())
+        val cleanCat = if (categoryId.isNullOrEmpty() || categoryId == "all") null else categoryId
+        return dao.getStreamsFiltered(cleanCat, query, sort).map { list -> list.map { it.toModel() } }
+    }
+
     fun getPagedVodStreams(categoryId: String? = null): PagingSource<Int, VodStreamEntity>? {
         val dao = database?.vodDao() ?: return null
         return if (categoryId.isNullOrEmpty() || categoryId == "all") {
@@ -501,6 +513,12 @@ class XtreamRepository(private val context: Context? = null) {
             dao.searchStreamsInCategory(categoryId, query)
         }
         return sourceFlow.map { list -> list.map { it.toModel() } }
+    }
+
+    fun getSeriesStreamsFilteredFlow(categoryId: String? = null, query: String = "", sort: String = "DEFAULT"): Flow<List<SeriesStream>> {
+        val dao = database?.seriesDao() ?: return flowOf(emptyList())
+        val cleanCat = if (categoryId.isNullOrEmpty() || categoryId == "all") null else categoryId
+        return dao.getStreamsFiltered(cleanCat, query, sort).map { list -> list.map { it.toModel() } }
     }
 
     fun getPagedSeriesStreams(categoryId: String? = null): PagingSource<Int, SeriesStreamEntity>? {

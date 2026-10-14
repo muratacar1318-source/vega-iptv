@@ -51,6 +51,7 @@ fun VodScreen(viewModel: MainViewModel) {
     LaunchedEffect(globalQuery) {
         if (globalQuery.isNotBlank() && searchQuery != globalQuery) {
             searchQuery = globalQuery
+            viewModel.setVodSearchQuery(globalQuery)
         }
     }
 
@@ -211,7 +212,10 @@ fun VodScreen(viewModel: MainViewModel) {
                 ) {
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        onValueChange = {
+                            searchQuery = it
+                            viewModel.setVodSearchQuery(it)
+                        },
                         placeholder = { Text("Film ara...", fontSize = 12.sp) },
                         singleLine = true,
                         leadingIcon = {
@@ -219,7 +223,10 @@ fun VodScreen(viewModel: MainViewModel) {
                         },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
+                                IconButton(onClick = {
+                                    searchQuery = ""
+                                    viewModel.setVodSearchQuery("")
+                                }) {
                                     Icon(imageVector = Icons.Default.Clear, contentDescription = "Temizle", tint = TiviTextSecondary, modifier = Modifier.size(16.dp))
                                 }
                             }

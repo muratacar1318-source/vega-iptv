@@ -37,6 +37,22 @@ interface LiveDao {
     @Query("SELECT * FROM live_streams WHERE streamId = :streamId LIMIT 1")
     suspend fun getStreamById(streamId: Int): LiveStreamEntity?
 
+    @Query("""
+        SELECT * FROM live_streams 
+        WHERE (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:query = '' OR name LIKE '%' || :query || '%')
+        ORDER BY 
+            CASE WHEN :sort = 'NAME_ASC' THEN name END COLLATE NOCASE ASC,
+            CASE WHEN :sort = 'NAME_DESC' THEN name END COLLATE NOCASE DESC,
+            CASE WHEN :sort = 'ADDED_DESC' THEN added END DESC,
+            num ASC, name ASC
+    """)
+    fun getStreamsFiltered(
+        categoryId: String?,
+        query: String = "",
+        sort: String = "DEFAULT"
+    ): Flow<List<LiveStreamEntity>>
+
     @Query("SELECT COUNT(*) FROM live_streams WHERE categoryId = :categoryId")
     suspend fun getStreamCountByCategory(categoryId: String): Int
 
@@ -89,6 +105,23 @@ interface VodDao {
     @Query("SELECT * FROM vod_streams WHERE streamId = :streamId LIMIT 1")
     suspend fun getStreamById(streamId: Int): VodStreamEntity?
 
+    @Query("""
+        SELECT * FROM vod_streams 
+        WHERE (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:query = '' OR name LIKE '%' || :query || '%')
+        ORDER BY 
+            CASE WHEN :sort = 'NAME_ASC' THEN name END COLLATE NOCASE ASC,
+            CASE WHEN :sort = 'NAME_DESC' THEN name END COLLATE NOCASE DESC,
+            CASE WHEN :sort = 'RATING_DESC' THEN rating5Based END DESC,
+            CASE WHEN :sort = 'ADDED_DESC' THEN added END DESC,
+            added DESC, name ASC
+    """)
+    fun getStreamsFiltered(
+        categoryId: String?,
+        query: String = "",
+        sort: String = "DEFAULT"
+    ): Flow<List<VodStreamEntity>>
+
     @Query("SELECT COUNT(*) FROM vod_streams WHERE categoryId = :categoryId")
     suspend fun getStreamCountByCategory(categoryId: String): Int
 
@@ -140,6 +173,23 @@ interface SeriesDao {
 
     @Query("SELECT * FROM series_streams WHERE seriesId = :seriesId LIMIT 1")
     suspend fun getStreamById(seriesId: Int): SeriesStreamEntity?
+
+    @Query("""
+        SELECT * FROM series_streams 
+        WHERE (:categoryId IS NULL OR categoryId = :categoryId)
+        AND (:query = '' OR name LIKE '%' || :query || '%')
+        ORDER BY 
+            CASE WHEN :sort = 'NAME_ASC' THEN name END COLLATE NOCASE ASC,
+            CASE WHEN :sort = 'NAME_DESC' THEN name END COLLATE NOCASE DESC,
+            CASE WHEN :sort = 'RATING_DESC' THEN rating5Based END DESC,
+            CASE WHEN :sort = 'ADDED_DESC' THEN lastModified END DESC,
+            lastModified DESC, name ASC
+    """)
+    fun getStreamsFiltered(
+        categoryId: String?,
+        query: String = "",
+        sort: String = "DEFAULT"
+    ): Flow<List<SeriesStreamEntity>>
 
     @Query("SELECT COUNT(*) FROM series_streams WHERE categoryId = :categoryId")
     suspend fun getStreamCountByCategory(categoryId: String): Int

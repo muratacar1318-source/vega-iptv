@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivimax.player.data.config.AppConfig
+import com.tivimax.player.data.local.entity.*
 import com.tivimax.player.data.model.*
 import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.data.repository.XtreamRepository
@@ -104,6 +105,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val seriesStreams = MutableStateFlow<List<SeriesStream>>(emptyList())
     val selectedSeriesCategory = MutableStateFlow<String>("all")
     val seriesLoading = MutableStateFlow(false)
+    val seriesSearchQuery = MutableStateFlow("")
     val currentSeriesInfo = MutableStateFlow<SeriesInfoResponse?>(null)
 
     // Favoriler & Son İzlenenler
@@ -279,6 +281,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        // Reaktif Room DB Akışları (Arama & Kategori & Sıralama Değişimlerinde SQL Index Tabanlı Anlık Filtreleme)
+        viewModelScope.launch {
+            combine(selectedLiveCategory, liveSearchQuery, liveSortOption) { cat, q, sort ->
+                Triple(cat, q, sort)
+            }.collectLatest { (cat, q, sort) ->
+                val filterCat = if (cat == "all" || cat == "favorites") null else cat
+                repository.getLiveStreamsFilteredFlow(filterCat, q, sort.name).collect { streams ->
+                    liveStreams.value = streams
+                    if (streams.isNotEmpty()) {
+                        liveLoading.value = false
+                    }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            combine(selectedVodCategory, vodSearchQuery, vodSortOption) { cat, q, sort ->
+                Triple(cat, q, sort)
+            }.collectLatest { (cat, q, sort) ->
+                val filterCat = if (cat == "all") null else cat
+                repository.getVodStreamsFilteredFlow(filterCat, q, sort.name).collect { streams ->
+                    vodStreams.value = streams
+                    if (streams.isNotEmpty()) {
+                        vodLoading.value = false
+                    }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            combine(selectedSeriesCategory, seriesSearchQuery, seriesSortOption) { cat, q, sort ->
+                Triple(cat, q, sort)
+            }.collectLatest { (cat, q, sort) ->
+                val filterCat = if (cat == "all") null else cat
+                repository.getSeriesStreamsFilteredFlow(filterCat, q, sort.name).collect { streams ->
+                    seriesStreams.value = streams
+                    if (streams.isNotEmpty()) {
+                        seriesLoading.value = false
+                    }
+                }
+            }
+        }
+
         // Otomatik Giriş Kontrolü
         viewModelScope.launch {
             val user = preferences.usernameFlow.first()
@@ -425,27 +470,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setLiveSearchQuery(query: String) {
+        liveSearchQuery.value = query
+    }
+
+    fun setVodSearchQuery(query: String) {
+        vodSearchQuery.value = query
+    }
+
+    fun setSeriesSearchQuery(query: String) {
+        seriesSearchQuery.value = query
+    }
+
     fun loadLiveStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedLiveCategory.value = categoryId
-        liveStreamJob?.cancel()
-        liveStreamJob = viewModelScope.launch {
-            repository.getLiveStreamsFlow(if (categoryId == "all") null else categoryId).collect { streams ->
-                liveStreams.value = streams
-                if (streams.isNotEmpty()) {
-                    liveLoading.value = false
-                }
-            }
-        }
 
         viewModelScope.launch {
             val countInDb = withContext(Dispatchers.IO) {
-                if (categoryId == "all") repository.database?.liveDao()?.getTotalStreamCount() ?: 0
+                if (categoryId == "all" || categoryId == "favorites") repository.database?.liveDao()?.getTotalStreamCount() ?: 0
                 else repository.database?.liveDao()?.getStreamCountByCategory(categoryId) ?: 0
             }
 
             if (countInDb == 0 || forceRefresh) {
                 liveLoading.value = true
-                repository.fetchAndSaveLiveStreams(if (categoryId == "all") null else categoryId)
+                repository.fetchAndSaveLiveStreams(if (categoryId == "all" || categoryId == "favorites") null else categoryId)
                 liveLoading.value = false
             }
         }
@@ -470,15 +518,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadVodStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedVodCategory.value = categoryId
-        vodStreamJob?.cancel()
-        vodStreamJob = viewModelScope.launch {
-            repository.getVodStreamsFlow(if (categoryId == "all") null else categoryId).collect { streams ->
-                vodStreams.value = streams
-                if (streams.isNotEmpty()) {
-                    vodLoading.value = false
-                }
-            }
-        }
 
         viewModelScope.launch {
             val countInDb = withContext(Dispatchers.IO) {
@@ -523,15 +562,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadSeriesStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedSeriesCategory.value = categoryId
-        seriesStreamJob?.cancel()
-        seriesStreamJob = viewModelScope.launch {
-            repository.getSeriesStreamsFlow(if (categoryId == "all") null else categoryId).collect { streams ->
-                seriesStreams.value = streams
-                if (streams.isNotEmpty()) {
-                    seriesLoading.value = false
-                }
-            }
-        }
 
         viewModelScope.launch {
             val countInDb = withContext(Dispatchers.IO) {
@@ -550,18 +580,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Genel Arama: Kullanıcı içerik bulamadığında tüm kategorilerde arama
     fun searchAcrossAllLive(query: String) {
         globalSearchQuery.value = query
+        setLiveSearchQuery(query)
         loadLiveStreams("all")
         selectedHomeTab.value = HomeTab.LIVE_TV
     }
 
     fun searchAcrossAllVod(query: String) {
         globalSearchQuery.value = query
+        setVodSearchQuery(query)
         loadVodStreams("all")
         selectedHomeTab.value = HomeTab.MOVIES
     }
 
     fun searchAcrossAllSeries(query: String) {
         globalSearchQuery.value = query
+        setSeriesSearchQuery(query)
         loadSeriesStreams("all")
         selectedHomeTab.value = HomeTab.SERIES
     }
@@ -674,6 +707,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 genre = "Aksiyon, Suç"
             )
         )
+
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.database?.liveDao()?.insertStreams(liveStreams.value.map { it.toEntity() })
+            repository.database?.vodDao()?.insertStreams(vodStreams.value.map { it.toEntity() })
+            repository.database?.seriesDao()?.insertStreams(seriesStreams.value.map { it.toEntity() })
+        }
 
         _currentScreen.value = Screen.Home
     }
