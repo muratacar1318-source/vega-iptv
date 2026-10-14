@@ -780,8 +780,17 @@ fun LiveTvWideScreenLayout(
                                                 ViewGroup.LayoutParams.MATCH_PARENT,
                                                 ViewGroup.LayoutParams.MATCH_PARENT
                                             )
-                                            player = viewModel.playerManager.initializePlayer()
+                                            player = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
                                         }
+                                    },
+                                    update = { playerView ->
+                                        val p = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
+                                        if (playerView.player != p) {
+                                            playerView.player = p
+                                        }
+                                    },
+                                    onRelease = { playerView ->
+                                        playerView.player = null
                                     },
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -1498,8 +1507,17 @@ fun LiveTvPortraitLayout(
                                     ViewGroup.LayoutParams.MATCH_PARENT,
                                     ViewGroup.LayoutParams.MATCH_PARENT
                                 )
-                                player = viewModel.playerManager.initializePlayer()
+                                player = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
                             }
+                        },
+                        update = { playerView ->
+                            val p = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
+                            if (playerView.player != p) {
+                                playerView.player = p
+                            }
+                        },
+                        onRelease = { playerView ->
+                            playerView.player = null
                         },
                         modifier = Modifier.fillMaxSize()
                     )

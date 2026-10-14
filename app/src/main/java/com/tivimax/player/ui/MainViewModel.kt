@@ -1057,8 +1057,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         isMiniPlayerActive.value = false
     }
 
+    fun detachMiniPlayer() {
+        activePreviewChannel.value = null
+        isMiniPlayerActive.value = false
+    }
+
     fun expandMiniPlayerToFullscreen() {
         val channel = activePreviewChannel.value ?: return
+        activePreviewChannel.value = null
+        isMiniPlayerActive.value = false
         val preferHls = streamFormat.value == "HLS"
         val urls = if (!channel.directSource.isNullOrBlank()) {
             listOf(channel.directSource)

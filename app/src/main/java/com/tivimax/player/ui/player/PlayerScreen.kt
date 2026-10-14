@@ -486,6 +486,7 @@ fun PlayerScreen(
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
                         player = playerManager.initializePlayer(isLive)
+                        playerManager.registerPlayerView(this)
                         try {
                             subtitleView?.let { subView ->
                                 subView.setStyle(
@@ -516,12 +517,16 @@ fun PlayerScreen(
                     val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive)
                     if (playerView.player != currentPlayer) {
                         playerView.player = currentPlayer
+                        playerManager.registerPlayerView(playerView)
                     }
-                    playerView.resizeMode = when (aspectRatio) {
+                    val targetResizeMode = when (aspectRatio) {
                         AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                         AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                         AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                    }
+                    if (playerView.resizeMode != targetResizeMode) {
+                        playerView.resizeMode = targetResizeMode
                     }
                     try {
                         playerView.subtitleView?.let { subView ->
@@ -553,6 +558,10 @@ fun PlayerScreen(
                     } catch (e: Throwable) {
                         // Ignore
                     }
+                },
+                onRelease = { playerView ->
+                    playerManager.unregisterPlayerView(playerView)
+                    playerView.player = null
                 },
                 modifier = Modifier.fillMaxSize()
             )
@@ -2877,6 +2886,9 @@ fun DualViewSingleWindow(
                     AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                     AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
                 }
+            },
+            onRelease = { playerView ->
+                playerView.player = null
             },
             modifier = Modifier.fillMaxSize()
         )
