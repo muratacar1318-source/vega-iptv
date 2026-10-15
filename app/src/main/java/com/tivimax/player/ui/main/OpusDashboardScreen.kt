@@ -50,6 +50,15 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
             .take(10)
     }
 
+    // En Son Eklenen İçerikler (En yeni tarihe göre sıralama)
+    val newlyAddedVodList = remember(vodStreams) {
+        vodStreams
+            .filter { !it.added.isNullOrBlank() }
+            .sortedByDescending { it.added?.toLongOrNull() ?: 0L }
+            .take(12)
+            .ifEmpty { vodStreams.take(10) }
+    }
+
     val totalLiveCount = remember(liveCategories) { liveCategories.sumOf { it.itemCount } }
     val totalVodCount = remember(vodStreams) { vodStreams.size }
     val totalSeriesCount = remember(seriesCategories) { seriesCategories.sumOf { it.itemCount } }
@@ -256,7 +265,39 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
         }
 
         // ==========================================
-        // 4. SON İZLENEN CANLI KANALLAR
+        // 4. SON EKLENEN FİLMLER & İÇERİKLER (YENİ)
+        // ==========================================
+        if (newlyAddedVodList.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Whatshot, contentDescription = null, tint = TiviAccentLive, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Son Eklenen İçerikler",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 4.dp)
+            ) {
+                items(newlyAddedVodList, key = { "new_vod_${it.streamId}" }) { movie ->
+                    NewlyAddedVodCard(
+                        movie = movie,
+                        onClick = { viewModel.loadVodDetail(movie) }
+                    )
+                }
+            }
+        }
+
+        // ==========================================
+        // 5. SON İZLENEN CANLI KANALLAR
         // ==========================================
         if (recentChannels.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
@@ -439,6 +480,85 @@ private fun DashboardProgressCard(
                             .clip(RoundedCornerShape(1.5.dp))
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewlyAddedVodCard(
+    movie: VodStream,
+    onClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = TiviCardDark),
+        border = BorderStroke(1.dp, TiviCardBorder),
+        modifier = Modifier
+            .width(120.dp)
+            .height(165.dp)
+            .dpadFocusable(
+                focusedBorderColor = OpusCyan,
+                shape = RoundedCornerShape(12.dp),
+                onClick = onClick
+            )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AsyncShimmerImage(
+                model = movie.streamIcon,
+                contentDescription = movie.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(TiviAccentLive)
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text("YENİ", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+
+                    val rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+                    if (!rating.isNullOrBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(10.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(rating, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Text(
+                    text = movie.name,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }

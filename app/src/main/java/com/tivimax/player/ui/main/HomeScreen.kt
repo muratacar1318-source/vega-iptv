@@ -62,6 +62,7 @@ fun HomeScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
     var showSearchDialog by remember { mutableStateOf(false) }
+    var showSyncConfirmationDialog by remember { mutableStateOf(false) }
 
     val playlistSyncState by viewModel.playlistSyncState.collectAsState()
     val updateInfo by viewModel.autoUpdateManager.updateInfo.collectAsState()
@@ -263,8 +264,9 @@ fun HomeScreen(viewModel: MainViewModel) {
                     showSettings = false, // Zaten rail üzerinde var
                     isSyncing = playlistSyncState.isSyncing,
                     syncPercentage = playlistSyncState.overallPercentage,
+                    onLogoClick = { viewModel.setSelectedHomeTab(HomeTab.DASHBOARD) },
                     onSettingsClick = {},
-                    onSyncClick = { viewModel.openPlaylistSync() },
+                    onSyncClick = { showSyncConfirmationDialog = true },
                     onSearchClick = { showSearchDialog = true }
                 )
 
@@ -284,14 +286,15 @@ fun HomeScreen(viewModel: MainViewModel) {
                     showSettings = true,
                     isSyncing = playlistSyncState.isSyncing,
                     syncPercentage = playlistSyncState.overallPercentage,
+                    onLogoClick = { viewModel.setSelectedHomeTab(HomeTab.DASHBOARD) },
                     onSettingsClick = {
                         if (selectedTab == HomeTab.SETTINGS) {
-                            viewModel.setSelectedHomeTab(HomeTab.LIVE_TV)
+                            viewModel.setSelectedHomeTab(HomeTab.DASHBOARD)
                         } else {
                             viewModel.setSelectedHomeTab(HomeTab.SETTINGS)
                         }
                     },
-                    onSyncClick = { viewModel.openPlaylistSync() },
+                    onSyncClick = { showSyncConfirmationDialog = true },
                     onSearchClick = { showSearchDialog = true }
                 )
             },
@@ -310,7 +313,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                         horizontalArrangement = Arrangement.SpaceAround,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val bottomTabs = listOf(HomeTab.LIVE_TV, HomeTab.MOVIES, HomeTab.SERIES, HomeTab.FAVORITES, HomeTab.SETTINGS)
+                        val bottomTabs = listOf(HomeTab.DASHBOARD, HomeTab.LIVE_TV, HomeTab.MOVIES, HomeTab.SERIES, HomeTab.FAVORITES)
                         bottomTabs.forEach { tab ->
                             val isSelected = selectedTab == tab
                             Surface(
@@ -694,6 +697,44 @@ fun HomeScreen(viewModel: MainViewModel) {
             }
         )
     }
+
+    // İÇERİK SENKRONİZASYON ONAY DİYALOĞU
+    if (showSyncConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { showSyncConfirmationDialog = false },
+            containerColor = TiviSurface,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = OpusCyan)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "İçerik Senkronizasyonu", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Text(
+                    text = "Tüm canlı kanallar, filmler, diziler ve EPG rehberi sunucudan güncellenecektir. Devam etmek istiyor musunuz?",
+                    color = TiviTextSecondary,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSyncConfirmationDialog = false
+                        viewModel.openPlaylistSync()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black)
+                ) {
+                    Text(text = "Güncelle", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSyncConfirmationDialog = false }) {
+                    Text(text = "İptal", color = TiviTextSecondary)
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -705,6 +746,7 @@ private fun HomeTopBar(
     showSettings: Boolean,
     isSyncing: Boolean = false,
     syncPercentage: Int = 0,
+    onLogoClick: () -> Unit = {},
     onSettingsClick: () -> Unit,
     onSyncClick: () -> Unit = {},
     onSearchClick: () -> Unit = {}
@@ -723,11 +765,17 @@ private fun HomeTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Logo ve Başlık
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Logo ve Başlık (Tıklanınca Ana Sayfaya Gider)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onLogoClick() }
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(26.dp)
+                        .size(28.dp)
                         .clip(RoundedCornerShape(6.dp))
                         .background(TiviPrimary),
                     contentAlignment = Alignment.Center
@@ -736,14 +784,14 @@ private fun HomeTopBar(
                         imageVector = Icons.Default.Tv,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = appName,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = TiviTextPrimary
                 )
             }
