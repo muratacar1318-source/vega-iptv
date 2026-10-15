@@ -12,8 +12,8 @@ android {
         applicationId = "com.tivimax.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 41
-        versionName = "1.1.9"
+        versionCode = 42
+        versionName = "1.2.0"
 
         ndk {
             abiFilters.addAll(setOf("arm64-v8a", "armeabi-v7a"))
