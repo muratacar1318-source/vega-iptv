@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -196,79 +197,168 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
         } else {
             // ==========================================
-            // DİKEY MOD (TELEFON / TABLET DİKEY)
+            // DİKEY MOD (TELEFON / TABLET DİKEY) - DİKEY MENÜ & HER SEKMEYE ÖZEL SAYFA
             // ==========================================
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                // Kategori Çipler Barı
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 14.dp)
-                ) {
-                    items(SettingsSection.values()) { section ->
-                        val isSelected = selectedSection == section
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedSection = section },
-                            leadingIcon = { Icon(imageVector = section.icon, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                            label = { Text(text = section.title, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = OpusCyan.copy(alpha = 0.2f),
-                                selectedLabelColor = OpusCyan,
-                                selectedLeadingIconColor = OpusCyan,
-                                containerColor = TiviCard,
-                                labelColor = TiviTextSecondary
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = isSelected,
-                                borderColor = if (isSelected) OpusCyan else TiviCardBorder
-                            ),
-                            modifier = Modifier.dpadFocusable(
-                                focusedBorderColor = OpusCyan,
-                                shape = RoundedCornerShape(8.dp),
-                                onClick = { selectedSection = section }
-                            )
-                        )
-                    }
-                }
+            var activeSubPage by remember { mutableStateOf<SettingsSection?>(null) }
 
-                // Seçili Kategori İçeriği
+            if (activeSubPage == null) {
+                // DİKEY AYARLAR KATEGORİ LİSTESİ
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
+                        .fillMaxSize()
+                        .padding(16.dp)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    RenderSelectedSection(
-                        section = selectedSection,
-                        viewModel = viewModel,
-                        userInfo = userInfo,
-                        lastSync = lastSync,
-                        decoderMode = decoderMode,
-                        defaultAspectRatio = defaultAspectRatio,
-                        autoPipEnabled = autoPipEnabled,
-                        streamFormat = streamFormat,
-                        liveBufferSeconds = liveBufferSeconds,
-                        vodBufferSeconds = vodBufferSeconds,
-                        fastZapping = fastZapping,
-                        autoSyncLive = autoSyncLive,
-                        serverUrl = serverUrl,
-                        subtitleSize = subtitleSize,
-                        subtitleColor = subtitleColor,
-                        speedTestResult = speedTestResult,
-                        isTestingSpeed = isTestingSpeed,
-                        pinSuccessMessage = pinSuccessMessage,
-                        context = context,
-                        onOpenCategoryDialog = { showCategoryDialog = true },
-                        onOpenPinDialog = { showPinDialog = true }
-                    )
+                    Row(
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(imageVector = Icons.Default.Settings, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(text = "AYARLAR", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                    }
+
+                    SettingsSection.values().forEach { section ->
+                        Card(
+                            onClick = { activeSubPage = section },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = TiviCard),
+                            border = BorderStroke(1.dp, TiviCardBorder),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .dpadFocusable(
+                                    shape = RoundedCornerShape(14.dp),
+                                    focusedBorderColor = OpusCyan,
+                                    onClick = { activeSubPage = section }
+                                )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(OpusCyan.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = section.icon,
+                                            contentDescription = null,
+                                            tint = OpusCyan,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = section.title,
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = section.subtitle,
+                                            color = TiviTextSecondary,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = TiviTextMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                // ÖZEL DİKEY ALT SAYFA (SUB-PAGE)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    // GERİ DÖNÜŞ BAŞLIĞI
+                    Surface(
+                        onClick = { activeSubPage = null },
+                        shape = RoundedCornerShape(10.dp),
+                        color = TiviCard,
+                        border = BorderStroke(1.dp, TiviCardBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp)
+                            .dpadFocusable(
+                                shape = RoundedCornerShape(10.dp),
+                                focusedBorderColor = OpusCyan,
+                                onClick = { activeSubPage = null }
+                            )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Geri",
+                                tint = OpusCyan,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = activeSubPage!!.title,
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // ALT SAYFA İÇERİĞİ
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        RenderSelectedSection(
+                            section = activeSubPage!!,
+                            viewModel = viewModel,
+                            userInfo = userInfo,
+                            lastSync = lastSync,
+                            decoderMode = decoderMode,
+                            defaultAspectRatio = defaultAspectRatio,
+                            autoPipEnabled = autoPipEnabled,
+                            streamFormat = streamFormat,
+                            liveBufferSeconds = liveBufferSeconds,
+                            vodBufferSeconds = vodBufferSeconds,
+                            fastZapping = fastZapping,
+                            autoSyncLive = autoSyncLive,
+                            serverUrl = serverUrl,
+                            subtitleSize = subtitleSize,
+                            subtitleColor = subtitleColor,
+                            speedTestResult = speedTestResult,
+                            isTestingSpeed = isTestingSpeed,
+                            pinSuccessMessage = pinSuccessMessage,
+                            context = context,
+                            onOpenCategoryDialog = { showCategoryDialog = true },
+                            onOpenPinDialog = { showPinDialog = true }
+                        )
+                    }
                 }
             }
         }

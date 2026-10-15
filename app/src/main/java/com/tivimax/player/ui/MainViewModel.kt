@@ -116,7 +116,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Aktif Ana Menü Sekmesi (Film veya Dizi detayından geri dönünce konumu ve kategoriyi korur)
-    val selectedHomeTab = MutableStateFlow(HomeTab.LIVE_TV)
+    val selectedHomeTab = MutableStateFlow(HomeTab.DASHBOARD)
     fun setSelectedHomeTab(tab: HomeTab) {
         if (selectedHomeTab.value != tab) {
             if (tab != HomeTab.LIVE_TV) {

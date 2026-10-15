@@ -47,6 +47,7 @@ import androidx.compose.ui.text.TextStyle
 import kotlinx.coroutines.delay
 
 enum class HomeTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    DASHBOARD("Ana Sayfa", Icons.Default.Home),
     LIVE_TV("Canlı TV", Icons.Default.LiveTv),
     MOVIES("Filmler", Icons.Default.Movie),
     SERIES("Diziler", Icons.Default.VideoLibrary),
@@ -145,7 +146,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                         Spacer(modifier = Modifier.height(18.dp))
 
                         // Dikey Menü Sekmeleri
-                        val tabs = listOf(HomeTab.LIVE_TV, HomeTab.MOVIES, HomeTab.SERIES, HomeTab.FAVORITES)
+                        val tabs = listOf(HomeTab.DASHBOARD, HomeTab.LIVE_TV, HomeTab.MOVIES, HomeTab.SERIES, HomeTab.FAVORITES)
                         tabs.forEach { tab ->
                             val isSelected = selectedTab == tab
                             Surface(
@@ -268,7 +269,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                 )
 
                 // Tab İçeriği
-                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel, isWideScreen = true)
+                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
             }
         }
     } else {
@@ -353,7 +354,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel, isWideScreen = false)
+                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
             }
         }
     }
@@ -788,33 +789,34 @@ private fun HomeTopBar(
                     }
                 }
 
-                // Kumandayla Odaklanılabilir "🔍 Arama" Butonu
+                // Kumandayla Odaklanılabilir "🔍 Arama" Butonu (%20 Büyütüldü)
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = TiviCard,
                     border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
                     modifier = Modifier
+                        .height(44.dp)
                         .dpadFocusable(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             focusedBorderColor = OpusCyan,
                             onClick = onSearchClick
                         )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Arama",
                             tint = OpusCyan,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                         Text(
                             text = "Arama",
                             color = TiviTextPrimary,
-                            fontSize = 12.sp,
+                            fontSize = 13.5.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -823,12 +825,12 @@ private fun HomeTopBar(
                 // Geniş ekranda (TV / Yanal Mod) Bitiş Tarihi ve Cihaz Limiti gösterilir (Dar mobil ekranda taşmayı önler)
                 if (isWideScreen) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(10.dp),
                         color = TiviCard,
                         border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
@@ -838,18 +840,18 @@ private fun HomeTopBar(
                                     imageVector = Icons.Default.Event,
                                     contentDescription = "Bitiş Tarihi",
                                     tint = TiviPrimary,
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(13.dp)
                                 )
-                                Spacer(modifier = Modifier.width(3.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = expDateFormatted,
                                     color = TiviTextPrimary,
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
 
-                            Text(text = "•", color = TiviTextMuted, fontSize = 10.sp)
+                            Text(text = "•", color = TiviTextMuted, fontSize = 11.sp)
 
                             // Anlık Bağlantı Limiti
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -857,13 +859,13 @@ private fun HomeTopBar(
                                     imageVector = Icons.Default.Devices,
                                     contentDescription = "Bağlantı Limiti",
                                     tint = TiviGreen,
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(13.dp)
                                 )
-                                Spacer(modifier = Modifier.width(3.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "$activeCons/$maxCons",
                                     color = TiviGreen,
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -871,15 +873,16 @@ private fun HomeTopBar(
                     }
                 }
 
+                // Senkronizasyon Butonu (%20 Büyütüldü)
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = TiviCard,
                     border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
                     onClick = onSyncClick,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(44.dp)
                         .dpadFocusable(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(10.dp),
                             focusedBorderColor = OpusCyan,
                             onClick = onSyncClick
                         )
@@ -889,21 +892,22 @@ private fun HomeTopBar(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "İçerikleri Güncelle",
                             tint = TiviPrimary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
 
+                // Ayarlar Butonu (%20 Büyütüldü)
                 if (showSettings) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(10.dp),
                         color = TiviCard,
                         border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
                         onClick = onSettingsClick,
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(44.dp)
                             .dpadFocusable(
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(10.dp),
                                 focusedBorderColor = OpusCyan,
                                 onClick = onSettingsClick
                             )
@@ -913,7 +917,7 @@ private fun HomeTopBar(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "Ayarlar",
                                 tint = TiviTextSecondary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
@@ -926,24 +930,16 @@ private fun HomeTopBar(
 @Composable
 private fun HomeContentBody(
     selectedTab: HomeTab,
-    viewModel: MainViewModel,
-    isWideScreen: Boolean
+    viewModel: MainViewModel
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Eğer Canlı TV sekmesindeyse, dikey modda en üstte yatay kaydırılabilir "Kaldığın Yerden Devam Et" ve "Son İzlenen Canlı Kanallar" şeritleri gösterilir.
-        // Yatay / TV modunda Canlı TV açıkken ekranın tam yüksekliğini kullanabilmesi için gizlenir.
-        if (selectedTab == HomeTab.LIVE_TV && !isWideScreen) {
-            ResumeAndRecentDashboard(viewModel = viewModel)
-        }
-
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (selectedTab) {
-                HomeTab.LIVE_TV -> LiveTvScreen(viewModel = viewModel)
-                HomeTab.MOVIES -> VodScreen(viewModel = viewModel)
-                HomeTab.SERIES -> SeriesScreen(viewModel = viewModel)
-                HomeTab.FAVORITES -> FavoritesScreen(viewModel = viewModel)
-                HomeTab.SETTINGS -> SettingsScreen(viewModel = viewModel)
-            }
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (selectedTab) {
+            HomeTab.DASHBOARD -> OpusDashboardScreen(viewModel = viewModel)
+            HomeTab.LIVE_TV -> LiveTvScreen(viewModel = viewModel)
+            HomeTab.MOVIES -> VodScreen(viewModel = viewModel)
+            HomeTab.SERIES -> SeriesScreen(viewModel = viewModel)
+            HomeTab.FAVORITES -> FavoritesScreen(viewModel = viewModel)
+            HomeTab.SETTINGS -> SettingsScreen(viewModel = viewModel)
         }
     }
 }
