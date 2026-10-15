@@ -12,8 +12,8 @@ android {
         applicationId = "com.tivimax.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 40
-        versionName = "1.1.8"
+        versionCode = 41
+        versionName = "1.1.9"
     }
 
     buildTypes {

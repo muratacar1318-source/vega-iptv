@@ -94,6 +94,13 @@ class UserPreferences(private val context: Context) {
         // Uygulama Teması (Görünüm)
         val KEY_APP_THEME = stringPreferencesKey("app_theme") // "MIDNIGHT", "OCEAN", "FOREST", "VIOLET"
 
+        // Otomatik Kare Hızı Eşleme (Auto Frame Rate - AFR)
+        val KEY_AUTO_FRAME_RATE = booleanPreferencesKey("auto_frame_rate") // true/false
+
+        // Açılışta Son İzlenen Kanalı Otomatik Başlatma
+        val KEY_AUTO_START_LAST_CHANNEL = booleanPreferencesKey("auto_start_last_channel") // true/false
+        val KEY_LAST_PLAYED_STREAM_ID = intPreferencesKey("last_played_stream_id")
+
         // Oynatma Listesi Senkronizasyon Durumu
         val KEY_IS_PLAYLIST_SYNCED = booleanPreferencesKey("is_playlist_synced")
         val KEY_LAST_SYNC_TIMESTAMP = stringPreferencesKey("last_sync_timestamp")
@@ -362,6 +369,10 @@ class UserPreferences(private val context: Context) {
 
     val appThemeFlow: Flow<String> = context.dataStore.data.map { it[KEY_APP_THEME] ?: "MIDNIGHT" }
 
+    val autoFrameRateFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_AUTO_FRAME_RATE] ?: true }
+    val autoStartLastChannelFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_AUTO_START_LAST_CHANNEL] ?: false }
+    val lastPlayedStreamIdFlow: Flow<Int> = context.dataStore.data.map { it[KEY_LAST_PLAYED_STREAM_ID] ?: 0 }
+
     suspend fun setAppTheme(themeName: String) {
         context.dataStore.edit { it[KEY_APP_THEME] = themeName }
     }
@@ -384,5 +395,17 @@ class UserPreferences(private val context: Context) {
 
     suspend fun setPlayerEngine(engine: String) {
         context.dataStore.edit { it[KEY_PLAYER_ENGINE] = engine }
+    }
+
+    suspend fun setAutoFrameRate(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_AUTO_FRAME_RATE] = enabled }
+    }
+
+    suspend fun setAutoStartLastChannel(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_AUTO_START_LAST_CHANNEL] = enabled }
+    }
+
+    suspend fun setLastPlayedStreamId(streamId: Int) {
+        context.dataStore.edit { it[KEY_LAST_PLAYED_STREAM_ID] = streamId }
     }
 }

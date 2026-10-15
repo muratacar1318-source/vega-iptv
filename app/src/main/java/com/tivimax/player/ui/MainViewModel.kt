@@ -280,6 +280,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val defaultSubtitleLang = preferences.defaultSubtitleLangFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "tr")
     val playerEngine = preferences.playerEngineFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "EXOPLAYER")
 
+    // Otomatik Kare Hızı ve Açılışta Son Kanal
+    val autoFrameRate = preferences.autoFrameRateFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    val autoStartLastChannel = preferences.autoStartLastChannelFlow.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     // Uygulama Tema Ayarı
     val appTheme = preferences.appThemeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "MIDNIGHT")
 
@@ -367,6 +371,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 Pair(audio, sub)
             }.collect { (audio, sub) ->
                 playerManager.setDefaultTrackLanguages(audio, sub)
+            }
+        }
+
+        viewModelScope.launch {
+            preferences.autoFrameRateFlow.collect {
+                playerManager.setAutoFrameRateEnabled(it)
             }
         }
 
@@ -758,6 +768,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    fun checkAndAutoStartLastChannel() {
+        viewModelScope.launch {
+            val autoStart = preferences.autoStartLastChannelFlow.first()
+            if (autoStart) {
+                val lastStreamId = preferences.lastPlayedStreamIdFlow.first()
+                if (lastStreamId > 0) {
+                    val streams = repository.getLiveStreamsFilteredFlow(null, "", "").first()
+                    val targetChannel = streams.firstOrNull { it.streamId == lastStreamId }
+                    if (targetChannel != null) {
+                        playLiveChannel(targetChannel)
+                    }
+                }
+            }
+        }
+    }
+
     fun loadInitialData() {
         loadLiveCategories()
         loadLiveStreams("all")
@@ -765,6 +791,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadVodStreams("all")
         loadSeriesCategories()
         loadSeriesStreams("all")
+        checkAndAutoStartLastChannel()
     }
 
     fun loadLiveCategories() {
@@ -851,8 +878,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             currentVodDetail.value = null
             navigateTo(Screen.VodDetail(vod))
-            repository.getVodInfo(vod.streamId).onSuccess { info ->
-                currentVodDetail.value = info
+            repository.getVodInfo(vod.streamId).onSuccess { res ->
+                currentVodDetail.value = res
+                // TMDb Smart Scraper Entegrasyonu (Afiş, Fragman, Oyuncu Kadrosu ve IMDb Puanı)
+                val enrichedInfo = com.tivimax.player.data.network.TmdbScraper.fetchEnrichedVodInfo(vod.name, res.info)
+                if (enrichedInfo != null) {
+                    currentVodDetail.value = res.copy(info = enrichedInfo)
+                }
             }
         }
     }
@@ -1190,6 +1222,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         currentPlayingEpisode.value = null
         recordRecentChannel(channel)
+        viewModelScope.launch {
+            preferences.setLastPlayedStreamId(channel.streamId)
+        }
         activePreviewChannel.value = channel
         val preferHls = streamFormat.value == "HLS"
         val urls = if (!channel.directSource.isNullOrBlank()) {

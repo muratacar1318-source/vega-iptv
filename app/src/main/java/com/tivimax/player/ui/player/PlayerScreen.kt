@@ -95,6 +95,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import android.view.KeyEvent
 
+import com.tivimax.player.util.LocalIsTvDevice
+
 @androidx.annotation.OptIn(UnstableApi::class)
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,6 +109,18 @@ fun PlayerScreen(
     viewModel: MainViewModel,
     onBack: () -> Unit
 ) {
+    val isTvDevice = LocalIsTvDevice.current
+
+    if (isTvDevice && isLive) {
+        val activeChan = viewModel.liveStreams.collectAsState().value.firstOrNull { it.streamId == streamId }
+        val fallbackChan = LiveStream(streamId = streamId, name = title, categoryId = categoryId)
+        com.tivimax.player.ui.tv.TvPlayerOverlay(
+            viewModel = viewModel,
+            channel = activeChan ?: fallbackChan,
+            onCloseFullScreen = onBack
+        )
+        return
+    }
     val context = LocalContext.current
     val activity = context as? Activity
     val playerManager = viewModel.playerManager
@@ -3534,6 +3548,7 @@ private fun formatDuration(millis: Long): String {
     }
 }
 
+@OptIn(UnstableApi::class)
 @Composable
 private fun VideoPlayerSurface(
     playerManager: TiviPlayerManager,

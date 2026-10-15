@@ -1,6 +1,8 @@
 package com.tivimax.player.player
 
+import android.app.Activity
 import android.content.Context
+import android.os.Build
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -158,6 +160,43 @@ class TiviPlayerManager(private val context: Context) {
 
     private var _decoderMode: String = "HARDWARE"
     val decoderModeState = MutableStateFlow("HARDWARE")
+
+    private var isAfrEnabled: Boolean = true
+
+    fun setAutoFrameRateEnabled(enabled: Boolean) {
+        this.isAfrEnabled = enabled
+    }
+
+    fun applyAutoFrameRate(activity: Activity?) {
+        if (!isAfrEnabled || activity == null) return
+        val window = activity.window ?: return
+        val player = exoPlayer ?: return
+        val vf = player.videoFormat ?: return
+        val fps = vf.frameRate
+
+        if (fps <= 0f) return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val display = window.decorView.display ?: return
+                val modes = display.supportedModes ?: return
+                val targetFps = if (fps in 23f..24.5f) 24f else if (fps in 29f..30.5f) 60f else fps
+                
+                val bestMode = modes.minByOrNull { mode ->
+                    kotlin.math.abs(mode.refreshRate - targetFps)
+                }
+                
+                if (bestMode != null && kotlin.math.abs(bestMode.refreshRate - display.mode.refreshRate) > 0.5f) {
+                    val params = window.attributes
+                    params.preferredDisplayModeId = bestMode.modeId
+                    window.attributes = params
+                    android.util.Log.i("VegaIPTV", "AFR: Ekran yenileme hızı $fps FPS yayına göre ${bestMode.refreshRate}Hz olarak eşlendi.")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("VegaIPTV", "AFR Modu değiştirme hatası: ${e.message}")
+            }
+        }
+    }
 
     fun setLiveBufferSeconds(seconds: Int) {
         val validSecs = seconds.coerceIn(2, 10)

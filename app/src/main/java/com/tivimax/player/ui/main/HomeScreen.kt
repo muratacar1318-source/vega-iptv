@@ -46,6 +46,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.TextStyle
 import kotlinx.coroutines.delay
 
+import com.tivimax.player.ui.tv.TvTiviMateScreen
+import com.tivimax.player.util.LocalIsTvDevice
+
 enum class HomeTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     DASHBOARD("Ana Sayfa", Icons.Default.Home),
     LIVE_TV("Canlı TV", Icons.Default.LiveTv),
@@ -58,6 +61,12 @@ enum class HomeTab(val title: String, val icon: androidx.compose.ui.graphics.vec
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(viewModel: MainViewModel) {
+    val isTvDevice = LocalIsTvDevice.current
+    if (isTvDevice) {
+        TvTiviMateScreen(viewModel = viewModel)
+        return
+    }
+
     val selectedTab by viewModel.selectedHomeTab.collectAsState()
     val context = LocalContext.current
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
