@@ -542,6 +542,11 @@ fun PlayerScreen(
                         registerInteraction()
 
                         if (keyCode == KeyEvent.KEYCODE_BACK) {
+                            if (!isLive && isBuffering) {
+                                playerManager.release()
+                                onBack()
+                                return@onPreviewKeyEvent true
+                            }
                             showControls = false
                             showBottomInfoCard = false
                             try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
@@ -631,6 +636,11 @@ fun PlayerScreen(
                             return@onPreviewKeyEvent true
                         }
                         KeyEvent.KEYCODE_BACK -> {
+                            if (!isLive && isBuffering) {
+                                playerManager.release()
+                                onBack()
+                                return@onPreviewKeyEvent true
+                            }
                             if (showBottomInfoCard) {
                                 showBottomInfoCard = false
                                 return@onPreviewKeyEvent true

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,7 +19,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.remember
 import coil.compose.SubcomposeAsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.tivimax.player.theme.TiviSurface
 import com.tivimax.player.theme.TiviTextMuted
 
@@ -57,9 +62,30 @@ fun AsyncShimmerImage(
     placeholderIcon: ImageVector = Icons.Default.Image
 ) {
     val shimmer = rememberShimmerBrush()
+    val context = LocalContext.current
+
+    val imageRequest = remember(model, contentScale, placeholderIcon) {
+        if (model == null || (model is String && model.isBlank())) {
+            null
+        } else if (model is ImageRequest) {
+            model
+        } else {
+            val isLogo = placeholderIcon == Icons.Default.Tv || contentScale == ContentScale.Fit
+            val (targetWidth, targetHeight) = if (isLogo) Pair(120, 120) else Pair(240, 360)
+
+            ImageRequest.Builder(context)
+                .data(model)
+                .size(targetWidth, targetHeight)
+                .allowHardware(true)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .crossfade(150)
+                .build()
+        }
+    }
 
     SubcomposeAsyncImage(
-        model = model,
+        model = imageRequest,
         contentDescription = contentDescription,
         modifier = modifier,
         contentScale = contentScale,

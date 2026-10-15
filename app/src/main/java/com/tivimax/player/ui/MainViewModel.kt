@@ -69,13 +69,27 @@ data class PlaylistSyncState(
     val isCompleted: Boolean = false,
     val failedStepIndex: Int? = null,
     val errorMessage: String? = null
-)
+) {
+    val isLiveReady: Boolean
+        get() = steps.getOrNull(0)?.status == SyncStepStatus.COMPLETED &&
+                steps.getOrNull(1)?.status == SyncStepStatus.COMPLETED
+
+    val overallPercentage: Int
+        get() {
+            if (isCompleted) return 100
+            val completed = steps.count { it.status == SyncStepStatus.COMPLETED }
+            val active = steps.firstOrNull { it.status == SyncStepStatus.IN_PROGRESS }
+            val p = active?.progress?.coerceIn(0f, 1f) ?: 0f
+            return (((completed + p) / 5f) * 100).toInt().coerceIn(0, 99)
+        }
+}
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val repository = XtreamRepository(application)
     val preferences = UserPreferences(application)
     val playerManager = TiviPlayerManager(application)
+    val autoUpdateManager = com.tivimax.player.data.update.AutoUpdateManager(application)
 
     // Navigasyon Durumu & Geri Yığını (BackStack)
     private val backStack = ArrayDeque<Screen>()
@@ -462,6 +476,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Ignore parsing errors
             }
         }
+
+        // Arka planda sessizce yeni sürüm kontrolü yap
+        viewModelScope.launch(Dispatchers.IO) {
+            delay(3500L)
+            autoUpdateManager.checkForUpdate(isManual = false, scope = viewModelScope)
+        }
+    }
+
+    fun checkForUpdates(isManual: Boolean = true) {
+        autoUpdateManager.checkForUpdate(isManual = isManual, scope = viewModelScope)
+    }
+
+    fun downloadAndInstallUpdate(info: com.tivimax.player.data.update.UpdateInfo) {
+        autoUpdateManager.downloadAndInstall(info, scope = viewModelScope)
+    }
+
+    fun dismissUpdate() {
+        autoUpdateManager.dismissUpdate()
     }
 
     fun saveWatchProgress(streamId: Int, positionMs: Long, durationMs: Long) {
@@ -556,7 +588,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startPlaylistSync(fromStep: Int = 1) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val baseSteps = playlistSyncState.value.steps
             val initialSteps = baseSteps.mapIndexed { index, step ->
                 val num = index + 1
@@ -603,6 +635,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val liveCount = liveRes.getOrNull() ?: 0
                 updateStep(2, SyncStepStatus.COMPLETED, "$liveCount canlı kanal hazır", 1f)
+
+                // Canlı TV kanalları hazır olduğunda ilk kurulumu geçerli say ve Canlı TV'yi yükle
+                val nowStr = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                preferences.setPlaylistSynced(true, nowStr)
+                loadLiveCategories()
+                loadLiveStreams("all")
             }
 
             // PHP-FPM / Nginx worker'larının rahatlaması için dinlenme payı

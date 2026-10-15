@@ -233,6 +233,32 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(text = "Hemen İzlemeye Başla (0ms)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
+                    } else if (syncState.isLiveReady) {
+                        Button(
+                            onClick = { viewModel.navigateTo(Screen.Home) },
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .focusRequester(retryFocusRequester)
+                                .dpadFocusable(
+                                    focusedBorderColor = Color.White,
+                                    shape = RoundedCornerShape(12.dp),
+                                    onClick = { viewModel.navigateTo(Screen.Home) }
+                                )
+                        ) {
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Arayüze Geç (Arka Planda Yükle)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Canlı TV hazır. Arşiv arka planda kaydediliyor...",
+                            color = Color(0xFF64748B),
+                            fontSize = 10.sp,
+                            textAlign = TextAlign.Center
+                        )
                     } else {
                         Text(
                             text = "Ekran açık tutulmaktadır...",
@@ -373,14 +399,41 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "Hemen İzlemeye Başla (0ms)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
-                } else {
-                    Text(
-                        text = "Lütfen işlem bitene kadar bekleyiniz, ekran açık tutulacaktır...",
-                        color = Color(0xFF64748B),
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                    } else if (syncState.isLiveReady) {
+                        Button(
+                            onClick = { viewModel.navigateTo(Screen.Home) },
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .widthIn(max = 400.dp)
+                                .height(52.dp)
+                                .focusRequester(retryFocusRequester)
+                                .dpadFocusable(
+                                    focusedBorderColor = Color.White,
+                                    shape = RoundedCornerShape(14.dp),
+                                    onClick = { viewModel.navigateTo(Screen.Home) }
+                                )
+                        ) {
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = "Arayüze Geç (Arka Planda Yükle)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Canlı TV kanalları hazır. Film ve dizi arşivi arka planda kaydedilmeye devam edecektir.",
+                            color = Color(0xFF64748B),
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    } else {
+                        Text(
+                            text = "Lütfen işlem bitene kadar bekleyiniz, ekran açık tutulacaktır...",
+                            color = Color(0xFF64748B),
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
 
                 Spacer(modifier = Modifier.height(36.dp))
             }

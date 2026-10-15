@@ -61,27 +61,11 @@ fun SeriesScreen(viewModel: MainViewModel) {
         }
     }
 
-    val filteredSeries = remember(seriesList, searchQuery, currentSort) {
-        try {
-            val list = if (searchQuery.isBlank()) {
-                seriesList
-            } else {
-                val q = searchQuery.trim().lowercase()
-                seriesList.filter { (it.name ?: "").lowercase().contains(q) }
-            }
-
-            val sorted = when (currentSort) {
-                SortOption.DEFAULT -> list
-                SortOption.ADDED_DESC -> list.sortedByDescending { it.lastModified?.toLongOrNull() ?: it.added?.toLongOrNull() ?: it.seriesId.toLong() }
-                SortOption.RATING_DESC -> list.sortedByDescending { it.rating5Based ?: it.rating?.toDoubleOrNull() ?: 0.0 }
-                SortOption.NAME_ASC -> list.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name ?: "" })
-                SortOption.NAME_DESC -> list.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.name ?: "" })
-            }
-            sorted.distinctBy { it.seriesId }
-        } catch (e: Exception) {
-            seriesList
-        }
+    LaunchedEffect(searchQuery) {
+        viewModel.setSeriesSearchQuery(searchQuery)
     }
+
+    val filteredSeries = seriesList
 
     var visibleLimit by remember(filteredSeries) { mutableStateOf(40) }
     val pagedSeries = remember(filteredSeries, visibleLimit) {

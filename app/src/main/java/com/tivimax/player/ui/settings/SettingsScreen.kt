@@ -1059,12 +1059,42 @@ private fun RenderSelectedSection(
                         Text(text = "Uygulama Önbelleğini Temizle", color = TiviTextPrimary, fontSize = 12.sp)
                     }
 
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                    // Otomatik Güncelleme Kontrolü (Madde 9)
+                    val isCheckingUpdate by viewModel.autoUpdateManager.isChecking.collectAsState()
+
+                    Button(
+                        onClick = { viewModel.checkForUpdates(isManual = true) },
+                        enabled = !isCheckingUpdate,
+                        colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp)
+                            .dpadFocusable(
+                                focusedBorderColor = Color.White,
+                                shape = RoundedCornerShape(10.dp),
+                                onClick = { viewModel.checkForUpdates(isManual = true) }
+                            )
+                    ) {
+                        if (isCheckingUpdate) {
+                            CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Kontrol Ediliyor...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        } else {
+                            Icon(imageVector = Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Güncellemeleri Kontrol Et (GitHub)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Sürüm ve Destek
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(text = "Sürüm:", color = TiviTextSecondary, fontSize = 12.sp)
-                        Text(text = "${AppConfig.APP_NAME} v1.0.0 Pro", color = TiviTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = "${AppConfig.APP_NAME} v${com.tivimax.player.BuildConfig.VERSION_NAME} Pro", color = TiviTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

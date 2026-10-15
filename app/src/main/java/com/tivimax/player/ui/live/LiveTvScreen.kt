@@ -43,6 +43,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.delay
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
@@ -98,33 +99,15 @@ fun LiveTvScreen(viewModel: MainViewModel) {
         }
     }
 
-    val filteredChannels = remember(channels, searchQuery, currentSort) {
-        try {
-            val list = if (searchQuery.isBlank()) {
-                channels
-            } else {
-                val q = searchQuery.trim().lowercase()
-                channels.filter { (it.name ?: "").lowercase().contains(q) }
-            }
-
-            val sorted = when (currentSort) {
-                SortOption.DEFAULT -> list
-                SortOption.NAME_ASC -> list.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name ?: "" })
-                SortOption.NAME_DESC -> list.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.name ?: "" })
-                SortOption.ADDED_DESC -> list.sortedByDescending { it.added?.toLongOrNull() ?: it.streamId.toLong() }
-                SortOption.RATING_DESC -> list.sortedBy { it.num }
-            }
-            sorted.distinctBy { it.streamId }
-        } catch (e: Exception) {
-            channels
-        }
+    LaunchedEffect(searchQuery) {
+        viewModel.setLiveSearchQuery(searchQuery)
     }
 
-    val displayedChannels = remember(filteredChannels, selectedCategory, favoriteIds) {
+    val displayedChannels = remember(channels, selectedCategory, favoriteIds) {
         if (selectedCategory == "favorites") {
-            filteredChannels.filter { favoriteIds.contains(it.streamId.toString()) }
+            channels.filter { favoriteIds.contains(it.streamId.toString()) }
         } else {
-            filteredChannels
+            channels
         }
     }
 
@@ -879,6 +862,7 @@ fun EpgChannelCard(
     onFavoriteToggle: () -> Unit
 ) {
     LaunchedEffect(channel.streamId) {
+        delay(250L)
         onLoadEpg()
     }
 
@@ -990,6 +974,7 @@ fun EpgTimelineRow(
     onFavoriteToggle: () -> Unit
 ) {
     LaunchedEffect(channel.streamId) {
+        delay(250L)
         if (epg == null) onLoadEpg()
     }
 

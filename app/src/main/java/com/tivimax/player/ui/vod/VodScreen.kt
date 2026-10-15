@@ -62,27 +62,11 @@ fun VodScreen(viewModel: MainViewModel) {
         }
     }
 
-    val filteredMovies = remember(movies, searchQuery, currentSort) {
-        try {
-            val list = if (searchQuery.isBlank()) {
-                movies
-            } else {
-                val q = searchQuery.trim().lowercase()
-                movies.filter { (it.name ?: "").lowercase().contains(q) }
-            }
-
-            val sorted = when (currentSort) {
-                SortOption.DEFAULT -> list
-                SortOption.ADDED_DESC -> list.sortedByDescending { it.added?.toLongOrNull() ?: it.streamId.toLong() }
-                SortOption.RATING_DESC -> list.sortedByDescending { it.rating5Based ?: it.rating?.toDoubleOrNull() ?: 0.0 }
-                SortOption.NAME_ASC -> list.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name ?: "" })
-                SortOption.NAME_DESC -> list.sortedWith(compareByDescending(String.CASE_INSENSITIVE_ORDER) { it.name ?: "" })
-            }
-            sorted.distinctBy { it.streamId }
-        } catch (e: Exception) {
-            movies
-        }
+    LaunchedEffect(searchQuery) {
+        viewModel.setVodSearchQuery(searchQuery)
     }
+
+    val filteredMovies = movies
 
     var visibleLimit by remember(filteredMovies) { mutableStateOf(40) }
     val pagedMovies = remember(filteredMovies, visibleLimit) {

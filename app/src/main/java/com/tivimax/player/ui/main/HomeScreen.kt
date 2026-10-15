@@ -9,8 +9,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -59,6 +61,10 @@ fun HomeScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
     var showSearchDialog by remember { mutableStateOf(false) }
+
+    val playlistSyncState by viewModel.playlistSyncState.collectAsState()
+    val updateInfo by viewModel.autoUpdateManager.updateInfo.collectAsState()
+    val downloadProgress by viewModel.autoUpdateManager.downloadProgress.collectAsState()
 
     // Çıkış Önleme: Kullanıcı hangi sekmede olursa olsun yanlışlıkla çıkmayı önlemek için çift tıklama istenir
     BackHandler(enabled = true) {
@@ -229,6 +235,8 @@ fun HomeScreen(viewModel: MainViewModel) {
                     activeCons = activeCons,
                     maxCons = maxCons,
                     showSettings = false, // Zaten rail üzerinde var
+                    isSyncing = playlistSyncState.isSyncing,
+                    syncPercentage = playlistSyncState.overallPercentage,
                     onSettingsClick = {},
                     onSyncClick = { viewModel.openPlaylistSync() },
                     onSearchClick = { showSearchDialog = true }
@@ -248,6 +256,8 @@ fun HomeScreen(viewModel: MainViewModel) {
                     activeCons = activeCons,
                     maxCons = maxCons,
                     showSettings = true,
+                    isSyncing = playlistSyncState.isSyncing,
+                    syncPercentage = playlistSyncState.overallPercentage,
                     onSettingsClick = {
                         if (selectedTab == HomeTab.SETTINGS) {
                             viewModel.setSelectedHomeTab(HomeTab.LIVE_TV)
@@ -523,6 +533,141 @@ fun HomeScreen(viewModel: MainViewModel) {
             }
         )
     }
+
+    // ==========================================
+    // GITHUB OTOMATİK GÜNCELLEME DİYALOĞU (MADDE 9)
+    // ==========================================
+    updateInfo?.let { info ->
+        val updateFocusRequester = remember { FocusRequester() }
+
+        LaunchedEffect(Unit) {
+            delay(150)
+            try {
+                updateFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissUpdate() },
+            containerColor = TiviSurface,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.RocketLaunch,
+                        contentDescription = null,
+                        tint = OpusCyan,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "🚀 Yeni Güncelleme Mevcut (${info.tagName})",
+                        color = Color.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Vega IPTV'nin en son sürümü yayınlandı:",
+                        color = TiviTextSecondary,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = TiviCard,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 160.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = info.releaseNotes.ifBlank { "Performans iyileştirmeleri ve hata düzeltmeleri." },
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+
+                    if (downloadProgress != null) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (downloadProgress == 100) "İndirme Tamamlandı, Kuruluyor..." else "APK İndiriliyor...",
+                                    color = OpusCyan,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "%$downloadProgress",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LinearProgressIndicator(
+                                progress = { (downloadProgress!! / 100f).coerceIn(0f, 1f) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = OpusCyan,
+                                trackColor = Color(0xFF1E2638)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                if (downloadProgress == null) {
+                    Button(
+                        onClick = { viewModel.downloadAndInstallUpdate(info) },
+                        colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .focusRequester(updateFocusRequester)
+                            .dpadFocusable(
+                                shape = RoundedCornerShape(10.dp),
+                                focusedBorderColor = Color.White,
+                                onClick = { viewModel.downloadAndInstallUpdate(info) }
+                            )
+                    ) {
+                        Text(text = "Şimdi İndir ve Kur", fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                if (downloadProgress == null) {
+                    TextButton(
+                        onClick = { viewModel.dismissUpdate() },
+                        modifier = Modifier.dpadFocusable(
+                            shape = RoundedCornerShape(10.dp),
+                            focusedBorderColor = OpusCyan,
+                            onClick = { viewModel.dismissUpdate() }
+                        )
+                    ) {
+                        Text(text = "Daha Sonra", color = TiviTextSecondary)
+                    }
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -532,6 +677,8 @@ private fun HomeTopBar(
     activeCons: String,
     maxCons: String,
     showSettings: Boolean,
+    isSyncing: Boolean = false,
+    syncPercentage: Int = 0,
     onSettingsClick: () -> Unit,
     onSyncClick: () -> Unit = {},
     onSearchClick: () -> Unit = {}
@@ -575,11 +722,44 @@ private fun HomeTopBar(
                 )
             }
 
-            // Sağ Üst Alan: Arama, Bitiş Tarihi, Bağlantı Rozeti, Senkronizasyon, Ayarlar
+            // Sağ Üst Alan: Arşiv Yükleme Rozeti, Arama, Bitiş Tarihi, Bağlantı Rozeti, Senkronizasyon, Ayarlar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Arka Planda Arşiv Güncelleniyor Rozeti (Madde 6)
+                if (isSyncing) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = TiviPrimary.copy(alpha = 0.18f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary),
+                        modifier = Modifier
+                            .dpadFocusable(
+                                shape = RoundedCornerShape(8.dp),
+                                focusedBorderColor = OpusCyan,
+                                onClick = onSyncClick
+                            )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                strokeWidth = 2.dp,
+                                color = TiviPrimary,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = "Arşiv güncelleniyor: %$syncPercentage",
+                                color = TiviPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
                 // Kumandayla Odaklanılabilir "🔍 Arama" Butonu
                 Surface(
                     shape = RoundedCornerShape(8.dp),
