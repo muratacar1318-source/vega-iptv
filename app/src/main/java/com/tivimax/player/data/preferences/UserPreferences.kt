@@ -84,6 +84,9 @@ class UserPreferences(private val context: Context) {
         val KEY_SUBTITLE_SIZE = stringPreferencesKey("subtitle_size") // "KUCUK", "ORTA", "BUYUK", "COK_BUYUK"
         val KEY_SUBTITLE_COLOR = stringPreferencesKey("subtitle_color") // "BEYAZ", "SARI", "YESIL", "MAVI"
 
+        // Uygulama Teması (Görünüm)
+        val KEY_APP_THEME = stringPreferencesKey("app_theme") // "MIDNIGHT", "OCEAN", "FOREST", "VIOLET"
+
         // Oynatma Listesi Senkronizasyon Durumu
         val KEY_IS_PLAYLIST_SYNCED = booleanPreferencesKey("is_playlist_synced")
         val KEY_LAST_SYNC_TIMESTAMP = stringPreferencesKey("last_sync_timestamp")
@@ -345,6 +348,12 @@ class UserPreferences(private val context: Context) {
 
     val subtitleSizeFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_SIZE] ?: "ORTA" }
     val subtitleColorFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_COLOR] ?: "BEYAZ" }
+
+    val appThemeFlow: Flow<String> = context.dataStore.data.map { it[KEY_APP_THEME] ?: "MIDNIGHT" }
+
+    suspend fun setAppTheme(themeName: String) {
+        context.dataStore.edit { it[KEY_APP_THEME] = themeName }
+    }
 
     suspend fun setSubtitleSize(size: String) {
         context.dataStore.edit { it[KEY_SUBTITLE_SIZE] = size }

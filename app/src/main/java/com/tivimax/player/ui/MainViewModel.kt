@@ -275,6 +275,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val subtitleSize = preferences.subtitleSizeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "ORTA")
     val subtitleColor = preferences.subtitleColorFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "BEYAZ")
 
+    // Uygulama Tema Ayarı
+    val appTheme = preferences.appThemeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "MIDNIGHT")
+
     // Canlı TV Kanal Listesi Kısa EPG Önbelleği (Kanal Kartlarında Anlık Program & İlerleme)
     val epgSummaryMap = MutableStateFlow<Map<Int, EpgProgram>>(emptyMap())
 

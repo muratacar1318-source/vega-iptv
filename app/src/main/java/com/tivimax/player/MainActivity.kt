@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModelProvider
 import com.tivimax.player.theme.TiviMaxTheme
 import com.tivimax.player.ui.MainViewModel
@@ -36,7 +38,9 @@ class MainActivity : ComponentActivity() {
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
         setContent {
-            TiviMaxTheme {
+            val appTheme by viewModel.appTheme.collectAsState()
+
+            TiviMaxTheme(themeName = appTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

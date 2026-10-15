@@ -724,6 +724,46 @@ private fun RenderSelectedSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
+                    // Tema Seçimi
+                    val appTheme by viewModel.appTheme.collectAsState()
+                    Text(text = "Uygulama Teması", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Arayüz renk paletini kişiselleştirin", color = TiviTextSecondary, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        listOf(
+                            "MIDNIGHT" to "Gece Mavisi",
+                            "OCEAN" to "Okyanus",
+                            "FOREST" to "Zümrüt",
+                            "VIOLET" to "Ametist"
+                        ).forEach { (key, label) ->
+                            val isSelected = appTheme == key
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
+                                border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .dpadFocusable(
+                                        focusedBorderColor = OpusCyan,
+                                        shape = RoundedCornerShape(10.dp),
+                                        onClick = { scope.launch { viewModel.preferences.setAppTheme(key) } }
+                                    )
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) OpusCyan else TiviTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
                     Text(text = "Altyazı Boyutu", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(text = "Desteklenen filmlerde altyazıların görünüm boyutu", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
