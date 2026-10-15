@@ -1,6 +1,7 @@
 package com.tivimax.player.ui.components
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,7 @@ fun Modifier.dpadFocusable(
     focusedBorderColor: Color = OpusCyan,
     shape: Shape = RoundedCornerShape(10.dp),
     scale: Float = 1.03f,
+    onClick: (() -> Unit)? = null,
     onFocusStateChange: ((Boolean) -> Unit)? = null
 ): Modifier = composed {
     var isFocused by remember { mutableStateOf(false) }
@@ -33,7 +35,17 @@ fun Modifier.dpadFocusable(
             isFocused = state.isFocused
             onFocusStateChange?.invoke(state.isFocused)
         }
-        .focusable()
+        .then(
+            if (onClick != null) {
+                Modifier.clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick
+                )
+            } else {
+                Modifier.focusable()
+            }
+        )
         .graphicsLayer {
             scaleX = if (isFocused) scale else 1.0f
             scaleY = if (isFocused) scale else 1.0f

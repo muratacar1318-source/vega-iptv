@@ -45,6 +45,11 @@ import com.tivimax.player.player.StreamDiagnostics
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.dpadFocusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.delay
 
 // ============================================================================
 // 1. TIVIMATE OVERLAY GUIDE (CANLI YAYIN KESİLMEDEN YARI SAYDAM REHBER KATMANI)
@@ -229,14 +234,19 @@ fun TiviOverlayGuide(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         val listState = rememberLazyListState()
+                        val activeChannelFocusRequester = remember { FocusRequester() }
 
-                        // Aktif kanala otomatik kaydır
+                        // Aktif kanala otomatik kaydır ve TV kumandası için odaklan
                         LaunchedEffect(selectedCategoryKey, visible) {
                             if (visible) {
                                 val idx = displayedChannels.indexOfFirst { it.streamId == currentStreamId }
                                 if (idx >= 0) {
                                     listState.scrollToItem((idx - 2).coerceAtLeast(0))
                                 }
+                                delay(150)
+                                try {
+                                    activeChannelFocusRequester.requestFocus()
+                                } catch (e: Exception) { }
                             }
                         }
 
@@ -259,6 +269,7 @@ fun TiviOverlayGuide(
                                     channel = channel,
                                     epg = epg,
                                     isPlaying = isPlayingThis,
+                                    modifier = if (isPlayingThis) Modifier.focusRequester(activeChannelFocusRequester) else Modifier,
                                     onClick = {
                                         if (isPlayingThis) {
                                             onClose()
@@ -283,14 +294,32 @@ private fun GuideCategoryItem(
     count: Int,
     isSelected: Boolean,
     iconTint: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
-        color = if (isSelected) TiviPrimary.copy(alpha = 0.25f) else Color.Transparent,
-        border = if (isSelected) androidx.compose.foundation.BorderStroke(1.dp, OpusCyan.copy(alpha = 0.6f)) else null,
-        modifier = Modifier.fillMaxWidth()
+    var isFocused by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .dpadFocusable(
+                focusedBorderColor = OpusCyan,
+                shape = RoundedCornerShape(8.dp),
+                scale = 1.02f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
+            )
+            .clip(RoundedCornerShape(8.dp))
+            .background(
+                if (isFocused) OpusCyan.copy(alpha = 0.25f)
+                else if (isSelected) TiviPrimary.copy(alpha = 0.25f)
+                else Color.Transparent
+            )
+            .border(
+                width = if (isFocused) 2.dp else if (isSelected) 1.dp else 0.dp,
+                color = if (isFocused) OpusCyan else if (isSelected) OpusCyan.copy(alpha = 0.6f) else Color.Transparent,
+                shape = RoundedCornerShape(8.dp)
+            )
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
@@ -303,13 +332,13 @@ private fun GuideCategoryItem(
                 modifier = Modifier.weight(1f)
             ) {
                 if (icon != null) {
-                    Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(16.dp))
+                    Icon(imageVector = icon, contentDescription = null, tint = if (isFocused) OpusCyan else iconTint, modifier = Modifier.size(16.dp))
                 }
                 Text(
                     text = title,
-                    color = if (isSelected) Color.White else Color(0xFFCBD5E1),
+                    color = if (isFocused || isSelected) Color.White else Color(0xFFCBD5E1),
                     fontSize = 12.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontWeight = if (isFocused || isSelected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -317,7 +346,7 @@ private fun GuideCategoryItem(
             if (count > 0) {
                 Text(
                     text = "$count",
-                    color = if (isSelected) OpusCyan else Color(0xFF64748B),
+                    color = if (isFocused || isSelected) OpusCyan else Color(0xFF64748B),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -331,14 +360,32 @@ private fun GuideChannelItem(
     channel: LiveStream,
     epg: EpgProgram?,
     isPlaying: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = if (isPlaying) Color(0x3300E5FF) else Color(0x331E2638),
-        border = if (isPlaying) androidx.compose.foundation.BorderStroke(1.dp, OpusCyan) else null,
-        modifier = Modifier.fillMaxWidth()
+    var isFocused by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .dpadFocusable(
+                focusedBorderColor = OpusCyan,
+                shape = RoundedCornerShape(10.dp),
+                scale = 1.02f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
+            )
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                if (isFocused) OpusCyan.copy(alpha = 0.25f)
+                else if (isPlaying) Color(0x3300E5FF)
+                else Color(0x331E2638)
+            )
+            .border(
+                width = if (isFocused) 2.dp else if (isPlaying) 1.dp else 0.5.dp,
+                color = if (isFocused) OpusCyan else if (isPlaying) OpusCyan.copy(alpha = 0.8f) else Color(0x22FFFFFF),
+                shape = RoundedCornerShape(10.dp)
+            )
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -347,7 +394,7 @@ private fun GuideChannelItem(
             // Kanal Numarası
             Text(
                 text = if (channel.num > 0) "${channel.num}" else "•",
-                color = if (isPlaying) OpusCyan else Color(0xFF94A3B8),
+                color = if (isFocused || isPlaying) OpusCyan else Color(0xFF94A3B8),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.width(28.dp)
@@ -381,7 +428,7 @@ private fun GuideChannelItem(
                     text = channel.name,
                     color = Color.White,
                     fontSize = 13.sp,
-                    fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold,
+                    fontWeight = if (isFocused || isPlaying) FontWeight.Bold else FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -389,7 +436,7 @@ private fun GuideChannelItem(
                 val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram.decodeBase64IfNeeded().ifBlank { "Yayın Akışı Mevcut Değil" }
                 Text(
                     text = programTitle,
-                    color = if (isPlaying) OpusCyan.copy(alpha = 0.9f) else Color(0xFF94A3B8),
+                    color = if (isFocused || isPlaying) OpusCyan.copy(alpha = 0.9f) else Color(0xFF94A3B8),
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -406,7 +453,7 @@ private fun GuideChannelItem(
                             .fillMaxWidth()
                             .height(2.5.dp)
                             .clip(RoundedCornerShape(2.dp)),
-                        color = if (isPlaying) OpusCyan else TiviPrimary,
+                        color = if (isFocused || isPlaying) OpusCyan else TiviPrimary,
                         trackColor = Color(0xFF1E2638)
                     )
                 }
@@ -437,7 +484,8 @@ fun TiviBottomInfoCard(
     isFavorite: Boolean,
     diagnostics: StreamDiagnostics,
     onToggleFavorite: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    actions: (@Composable () -> Unit)? = null
 ) {
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
@@ -453,7 +501,7 @@ fun TiviBottomInfoCard(
                 .fillMaxWidth()
                 .padding(
                     horizontal = if (isPortrait) 10.dp else 16.dp,
-                    vertical = if (isPortrait) 6.dp else 12.dp
+                    vertical = if (isPortrait) 6.dp else 10.dp
                 ),
             shape = RoundedCornerShape(16.dp),
             color = Color(0xEE0A0E14), // %93 Opak OLED Gece Paneli
@@ -464,6 +512,26 @@ fun TiviBottomInfoCard(
                 val timeString = if (epg?.start != null && epg.end != null) {
                     "${epg.start} - ${epg.end}"
                 } else ""
+
+                val start = epg?.startTimestamp ?: 0L
+                val stop = epg?.stopTimestamp ?: 0L
+                val nowSec = System.currentTimeMillis() / 1000L
+                val progress = if (stop > start && nowSec in start..stop) {
+                    ((nowSec - start).toFloat() / (stop - start)).coerceIn(0f, 1f)
+                } else 0.5f
+
+                val rawNext = channel.nextProgram ?: epg?.getDecodedDescription()
+                val nextProg = rawNext.decodeBase64IfNeeded()
+
+                val resBadge = diagnostics.resolutionBadge.ifBlank {
+                    if (diagnostics.resolution.contains("1080")) "FHD 1080p"
+                    else if (diagnostics.resolution.contains("2160") || diagnostics.resolution.contains("4K")) "4K 2160p"
+                    else if (diagnostics.resolution.contains("720")) "HD 720p"
+                    else "FHD 1080p"
+                }
+                val fpsBadge = diagnostics.frameRateBadge.ifBlank { "50 FPS" }
+                val vCodecBadge = diagnostics.videoCodecBadge.ifBlank { "H.264" }
+                val aCodecBadge = diagnostics.audioCodecBadge.ifBlank { "AAC" }
 
                 if (isPortrait) {
                     // DİKEY MOD (PORTRAIT): Katmanlı, Ferah ve Başlıkları Asla Ezmeyen Düzen
@@ -503,7 +571,7 @@ fun TiviBottomInfoCard(
 
                         Spacer(modifier = Modifier.width(10.dp))
 
-                        // Kanal Adı ve Favori Butonu (Tüm satır genişliğini kullanır)
+                        // Kanal Adı ve Favori Butonu
                         Row(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically,
@@ -529,9 +597,9 @@ fun TiviBottomInfoCard(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                    // 2. Satır: Canlı Program Başlığı & Zaman
+                    // Canlı Program Başlığı & Zaman
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -554,144 +622,180 @@ fun TiviBottomInfoCard(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    // 3. Satır: Gerçek Teknik Rozetler (Tam Genişlikte, Asla Harf Kayması Olmaz)
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = OpusCyan,
+                        trackColor = Color(0xFF1E2638)
+                    )
+
+                    if (nextProg.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Sıradaki: $nextProg",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Gerçek Teknik Rozetler
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TechBadge(text = diagnostics.resolutionBadge, isHighlight = true)
-                        TechBadge(text = diagnostics.frameRateBadge)
-                        TechBadge(text = diagnostics.videoCodecBadge)
-                        TechBadge(text = diagnostics.audioCodecBadge)
+                        TechBadge(text = resBadge, isHighlight = true)
+                        TechBadge(text = fpsBadge)
+                        TechBadge(text = vCodecBadge)
+                        TechBadge(text = aCodecBadge)
                     }
                 } else {
-                    // YATAY MOD (LANDSCAPE): Geniş Ekran TiviMate Yan Yana Düzen
+                    // YATAY MOD (LANDSCAPE / ANDROID TV): 3 Sütunlu TiviMate & Opus OSD
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (channel.num > 0) {
-                            Text(
-                                text = "${channel.num}",
-                                color = OpusCyan,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                modifier = Modifier.padding(end = 12.dp)
-                            )
-                        }
-
-                        // Logo
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Color(0xFF161D28)),
-                            contentAlignment = Alignment.Center
+                        // 1. Sol Kısım: Kanal Numarası, Logo, Kanal Adı, Favori Yıldızı
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(0.34f)
                         ) {
-                            if (!channel.streamIcon.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = channel.streamIcon,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.fillMaxSize().padding(6.dp)
-                                )
-                            } else {
-                                Icon(Icons.Default.Tv, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(28.dp))
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        // Orta Kısım: Kanal Adı & Canlı Program Bilgisi
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (channel.num > 0) {
                                 Text(
-                                    text = channel.name,
-                                    color = Color.White,
-                                    fontSize = 17.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    text = "${channel.num}",
+                                    color = OpusCyan,
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    modifier = Modifier.padding(end = 12.dp)
                                 )
-                                IconButton(onClick = onToggleFavorite, modifier = Modifier.size(24.dp)) {
-                                    Icon(
-                                        imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                        contentDescription = "Favori",
-                                        tint = if (isFavorite) Color(0xFFFFB300) else Color(0xFF64748B),
-                                        modifier = Modifier.size(18.dp)
+                            }
+
+                            // Logo
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF161D28)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (!channel.streamIcon.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = channel.streamIcon,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize().padding(5.dp)
                                     )
+                                } else {
+                                    Icon(Icons.Default.Tv, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(26.dp))
                                 }
                             }
 
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = channel.name,
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false)
+                                    )
+                                    IconButton(onClick = onToggleFavorite, modifier = Modifier.size(24.dp)) {
+                                        Icon(
+                                            imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                            contentDescription = "Favori",
+                                            tint = if (isFavorite) Color(0xFFFFB300) else Color(0xFF64748B),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        // 2. Orta Kısım: O anki programın başlığı, saat aralığı, OpusCyan ilerleme çubuğu ve altında "Sıradaki: ..."
+                        Column(modifier = Modifier.weight(0.44f)) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
                                     text = currentTitle,
                                     color = Color(0xFFE2E8F0),
-                                    fontSize = 14.sp,
+                                    fontSize = 13.5.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
                                 )
                                 if (timeString.isNotBlank()) {
                                     Text(
                                         text = "($timeString)",
                                         color = Color(0xFF94A3B8),
-                                        fontSize = 12.sp
+                                        fontSize = 11.sp
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = OpusCyan,
+                                trackColor = Color(0xFF1E2638)
+                            )
+
+                            if (nextProg.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Sıradaki: $nextProg",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
 
-                        // Sağ Üst Köşe: Gerçek Teknik Rozetler (Resolution, FPS, Video/Audio Codec)
+                        Spacer(modifier = Modifier.width(14.dp))
+
+                        // 3. Sağ Köşe: FHD 1080p, 50 FPS, H.264, AAC net rozetler
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            TechBadge(text = diagnostics.resolutionBadge, isHighlight = true)
-                            TechBadge(text = diagnostics.frameRateBadge)
-                            TechBadge(text = diagnostics.videoCodecBadge)
-                            TechBadge(text = diagnostics.audioCodecBadge)
+                            TechBadge(text = resBadge, isHighlight = true)
+                            TechBadge(text = fpsBadge)
+                            TechBadge(text = vCodecBadge)
+                            TechBadge(text = aCodecBadge)
                         }
                     }
                 }
 
-                // EPG İlerleme Çubuğu (Parlak #00E5FF)
-                val start = epg?.startTimestamp ?: 0L
-                val stop = epg?.stopTimestamp ?: 0L
-                val nowSec = System.currentTimeMillis() / 1000L
-                val progress = if (stop > start && nowSec in start..stop) {
-                    ((nowSec - start).toFloat() / (stop - start)).coerceIn(0f, 1f)
-                } else 0.5f
-
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.5.dp)
-                        .clip(RoundedCornerShape(3.dp)),
-                    color = OpusCyan,
-                    trackColor = Color(0xFF1E2638)
-                )
-
-                // Sıradaki Program Satırı (Base64 Çözülmüş)
-                val rawNext = channel.nextProgram ?: epg?.getDecodedDescription()
-                val nextProg = rawNext.decodeBase64IfNeeded()
-                if (nextProg.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Sıradaki: $nextProg",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 11.5.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                // 4. Alt Kısım: Birleşik Aksiyon Butonları Dock'u
+                if (actions != null) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(top = 10.dp, bottom = 6.dp),
+                        color = Color(0xFF1E2638).copy(alpha = 0.8f)
                     )
+                    actions()
                 }
             }
         }
@@ -1563,9 +1667,14 @@ fun PlayerPillButton(
     val isPressed by interactionSource.collectIsPressedAsState()
     val haptic = LocalHapticFeedback.current
     val registerInteraction = LocalPlayerInteraction.current
+    var isFocused by remember { mutableStateOf(false) }
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.91f else 1.0f,
+        targetValue = when {
+            isPressed -> 0.91f
+            isFocused -> 1.08f
+            else -> 1.0f
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -1574,16 +1683,26 @@ fun PlayerPillButton(
     )
 
     val animatedBorderColor by animateColorAsState(
-        targetValue = if (isActive) activeColor else if (isPressed) Color.White.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.22f),
+        targetValue = when {
+            isFocused -> OpusCyan
+            isActive -> activeColor
+            isPressed -> Color.White.copy(alpha = 0.5f)
+            else -> Color.White.copy(alpha = 0.22f)
+        },
         label = "pillBorder"
     )
 
     val animatedBgColor by animateColorAsState(
-        targetValue = if (isActive) activeColor.copy(alpha = 0.25f) else if (isPressed) Color(0x99111827) else Color(0x66111827),
+        targetValue = when {
+            isFocused -> OpusCyan.copy(alpha = 0.35f)
+            isActive -> activeColor.copy(alpha = 0.25f)
+            isPressed -> Color(0x99111827)
+            else -> Color(0x66111827)
+        },
         label = "pillBg"
     )
 
-    val contentColor = if (isActive) activeColor else Color.White
+    val contentColor = if (isFocused || isActive) activeColor else Color.White
 
     Surface(
         onClick = {
@@ -1594,8 +1713,14 @@ fun PlayerPillButton(
         interactionSource = interactionSource,
         shape = RoundedCornerShape(20.dp),
         color = animatedBgColor,
-        border = androidx.compose.foundation.BorderStroke(1.dp, animatedBorderColor),
+        border = androidx.compose.foundation.BorderStroke(if (isFocused) 2.dp else 1.dp, animatedBorderColor),
         modifier = modifier
+            .onFocusChanged { state ->
+                isFocused = state.isFocused
+                if (state.isFocused) {
+                    registerInteraction()
+                }
+            }
             .scale(scale)
             .height(if (isPortrait) 30.dp else 34.dp)
     ) {
@@ -1617,7 +1742,7 @@ fun PlayerPillButton(
                 text = text,
                 color = contentColor,
                 fontSize = if (isPortrait) 10.5.sp else 11.5.sp,
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = if (isFocused || isActive) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1
             )
         }
@@ -1639,9 +1764,14 @@ fun BouncyIconButton(
     val registerInteraction = LocalPlayerInteraction.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    var isFocused by remember { mutableStateOf(false) }
 
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) pressedScale else 1f,
+        targetValue = when {
+            isPressed -> pressedScale
+            isFocused -> 1.12f
+            else -> 1f
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -1650,15 +1780,28 @@ fun BouncyIconButton(
     )
 
     val bgAnimated by animateColorAsState(
-        targetValue = if (isPressed) backgroundColor.copy(alpha = (backgroundColor.alpha + 0.25f).coerceAtMost(1f)) else backgroundColor,
+        targetValue = when {
+            isFocused -> OpusCyan.copy(alpha = 0.45f)
+            isPressed -> backgroundColor.copy(alpha = (backgroundColor.alpha + 0.25f).coerceAtMost(1f))
+            else -> backgroundColor
+        },
         label = "BouncyBg"
     )
 
     Box(
         modifier = modifier
+            .onFocusChanged { state ->
+                isFocused = state.isFocused
+                if (state.isFocused) {
+                    registerInteraction()
+                }
+            }
             .scale(scale)
             .clip(shape)
             .background(bgAnimated)
+            .then(
+                if (isFocused) Modifier.border(2.dp, OpusCyan, shape) else Modifier
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true, color = contentColor.copy(alpha = 0.35f)),
@@ -1671,7 +1814,7 @@ fun BouncyIconButton(
             ),
         contentAlignment = Alignment.Center
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
+        CompositionLocalProvider(LocalContentColor provides if (isFocused) OpusCyan else contentColor) {
             content()
         }
     }

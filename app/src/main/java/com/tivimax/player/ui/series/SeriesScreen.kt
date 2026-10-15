@@ -596,9 +596,9 @@ fun SeriesPosterCard(
             .dpadFocusable(
                 focusedBorderColor = OpusCyan,
                 shape = RoundedCornerShape(12.dp),
+                onClick = onClick,
                 onFocusStateChange = { if (it) onFocused?.invoke() }
             )
-            .clickable { onClick() }
     ) {
         Box(
             modifier = Modifier

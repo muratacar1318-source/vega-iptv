@@ -228,7 +228,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                 )
 
                 // Tab İçeriği
-                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
+                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel, isWideScreen = true)
             }
         }
     } else {
@@ -310,7 +310,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
+                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel, isWideScreen = false)
             }
         }
     }
@@ -457,11 +457,13 @@ private fun HomeTopBar(
 @Composable
 private fun HomeContentBody(
     selectedTab: HomeTab,
-    viewModel: MainViewModel
+    viewModel: MainViewModel,
+    isWideScreen: Boolean
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        // Eğer Canlı TV sekmesindeyse, en üstte yatay kaydırılabilir "Kaldığın Yerden Devam Et" ve "Son İzlenen Canlı Kanallar" şeritleri
-        if (selectedTab == HomeTab.LIVE_TV) {
+        // Eğer Canlı TV sekmesindeyse, dikey modda en üstte yatay kaydırılabilir "Kaldığın Yerden Devam Et" ve "Son İzlenen Canlı Kanallar" şeritleri gösterilir.
+        // Yatay / TV modunda Canlı TV açıkken ekranın tam yüksekliğini kullanabilmesi için gizlenir.
+        if (selectedTab == HomeTab.LIVE_TV && !isWideScreen) {
             ResumeAndRecentDashboard(viewModel = viewModel)
         }
 
