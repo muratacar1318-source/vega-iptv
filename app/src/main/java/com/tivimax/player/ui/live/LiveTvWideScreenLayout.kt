@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -145,13 +146,13 @@ fun LiveTvWideScreenLayout(
 
                     IconButton(
                         onClick = onOpenCategoryManager,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = "Kategorileri Düzenle",
                             tint = OpusCyan,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -463,11 +464,13 @@ fun LiveTvWideScreenLayout(
                                         fontWeight = FontWeight.Medium
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    IconButton(
-                                        onClick = { viewModel.setLiveSearchQuery("") },
-                                        modifier = Modifier.size(20.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .clickable { viewModel.setLiveSearchQuery("") }
+                                            .padding(6.dp)
                                     ) {
-                                        Icon(Icons.Default.Close, contentDescription = "Filtreyi Temizle", tint = TiviTextSecondary, modifier = Modifier.size(13.dp))
+                                        Icon(Icons.Default.Close, contentDescription = "Filtreyi Temizle", tint = TiviTextSecondary, modifier = Modifier.size(14.dp))
                                     }
                                 }
                             }
@@ -633,13 +636,13 @@ fun LiveTvWideScreenLayout(
                                     // Favori Yıldızı
                                     IconButton(
                                         onClick = { viewModel.toggleFavoriteLive(channel.streamId.toString()) },
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(32.dp)
                                     ) {
                                         Icon(
                                             imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                                             contentDescription = "Favori",
                                             tint = if (isFavorite) TiviGold else TiviTextMuted.copy(alpha = 0.5f),
-                                            modifier = Modifier.size(15.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }

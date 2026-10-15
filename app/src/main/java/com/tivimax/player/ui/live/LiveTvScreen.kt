@@ -498,7 +498,6 @@ fun LiveTvPortraitLayout(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { isSidebarExpanded = !isSidebarExpanded }
                             .padding(horizontal = 8.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = if (isSidebarExpanded) Arrangement.SpaceBetween else Arrangement.Center
@@ -507,17 +506,19 @@ fun LiveTvPortraitLayout(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("KATEGORİLER", color = TiviTextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(onClick = onOpenCategoryManager, modifier = Modifier.size(22.dp)) {
-                                    Icon(Icons.Default.Tune, contentDescription = "Yönetim", tint = OpusCyan, modifier = Modifier.size(14.dp))
+                                IconButton(onClick = onOpenCategoryManager, modifier = Modifier.size(36.dp)) {
+                                    Icon(Icons.Default.Tune, contentDescription = "Yönetim", tint = OpusCyan, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }
-                        Icon(
-                            imageVector = if (isSidebarExpanded) Icons.AutoMirrored.Filled.MenuOpen else Icons.Default.Menu,
-                            contentDescription = "Aç/Kapa",
-                            tint = OpusCyan,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        IconButton(onClick = { isSidebarExpanded = !isSidebarExpanded }, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                imageVector = if (isSidebarExpanded) Icons.AutoMirrored.Filled.MenuOpen else Icons.Default.Menu,
+                                contentDescription = "Aç/Kapa",
+                                tint = OpusCyan,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
 
                     HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
@@ -644,9 +645,11 @@ fun LiveTvPortraitLayout(
                                     fontWeight = FontWeight.Medium
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                IconButton(
-                                    onClick = { onSearchQueryChange("") },
-                                    modifier = Modifier.size(20.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { onSearchQueryChange("") }
+                                        .padding(6.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
@@ -1039,12 +1042,12 @@ fun EpgTimelineRow(
                     )
                 }
 
-                IconButton(onClick = onFavoriteToggle, modifier = Modifier.size(22.dp)) {
+                IconButton(onClick = onFavoriteToggle, modifier = Modifier.size(32.dp)) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                         contentDescription = "Favori",
                         tint = if (isFavorite) TiviGold else TiviTextSecondary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

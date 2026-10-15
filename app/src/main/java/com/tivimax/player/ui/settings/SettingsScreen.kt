@@ -44,10 +44,10 @@ import java.util.*
 
 enum class SettingsSection(val title: String, val icon: ImageVector, val subtitle: String) {
     ACCOUNT("Hesap ve Liste", Icons.Default.AccountCircle, "Sunucu, hesap ve liste güncelleme"),
-    PLAYER("Oynatıcı ve Kodek", Icons.Default.Tune, "Video çözücü, tampon & PiP"),
+    PLAYER("Oynatıcı ve Kodek", Icons.Default.Tune, "Video çözücü, tampon (buffer) & PiP"),
     APPEARANCE("Görünüm ve Altyazı", Icons.Default.Subtitles, "Altyazı boyutu, rengi & kategoriler"),
-    PARENTAL("Ebeveyn Kontrolü", Icons.Default.Security, "+18 içerik kilidi & PIN kodu"),
-    BACKUP_APP("Yedekleme ve Uygulama", Icons.Default.Backup, "Yedekle, önbellek & sürüm")
+    PARENTAL("Ebeveyn Kontrolü", Icons.Default.Security, "+18 içerik kilidi & PIN kodu & HTTPS"),
+    BACKUP_APP("Yedekleme ve Uygulama", Icons.Default.Backup, "Yedekle, önbellek, hız testi & sürüm")
 }
 
 @Composable
@@ -420,28 +420,40 @@ private fun RenderSelectedSection(
                     }
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Bitiş Tarihi:", color = TiviTextSecondary, fontSize = 13.sp)
+                        Column {
+                            Text(text = "Bitiş Tarihi:", color = TiviTextSecondary, fontSize = 13.sp)
+                            Text(text = "Aboneliğinizin sona ereceği tarih", color = TiviTextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
+                        }
                         Text(text = expDateFormatted, color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Eşzamanlı Bağlantı:", color = TiviTextSecondary, fontSize = 13.sp)
+                        Column {
+                            Text(text = "Eşzamanlı Bağlantı:", color = TiviTextSecondary, fontSize = 13.sp)
+                            Text(text = "Aynı anda kullanabileceğiniz cihaz limiti", color = TiviTextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
+                        }
                         Text(text = "${userInfo?.activeCons ?: "1"} / ${userInfo?.maxConnections ?: "1"} Cihaz", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Aktif Sunucu:", color = TiviTextSecondary, fontSize = 13.sp)
+                        Column {
+                            Text(text = "Aktif Sunucu:", color = TiviTextSecondary, fontSize = 13.sp)
+                            Text(text = "Bağlı olduğunuz IPTV paneli", color = TiviTextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
+                        }
                         Text(text = viewModel.repository.serverUrl, color = TiviTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
 
                     if (lastSync.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(text = "Son Güncelleme:", color = TiviTextSecondary, fontSize = 13.sp)
+                            Column {
+                                Text(text = "Son Güncelleme:", color = TiviTextSecondary, fontSize = 13.sp)
+                                Text(text = "Kanalların en son senkronize edildiği an", color = TiviTextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
+                            }
                             Text(text = lastSync, color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
@@ -449,6 +461,10 @@ private fun RenderSelectedSection(
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
                     // Oynatma Listesini Şimdi Güncelle Butonu
+                    Text(text = "Oynatma Listesi", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Yeni eklenen kanalları, VOD (Film/Dizi) içeriklerini ve kanal rehberini (EPG) hemen almak için listeyi tazeleyin.", color = TiviTextSecondary, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = { viewModel.openPlaylistSync() },
                         colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
@@ -467,8 +483,12 @@ private fun RenderSelectedSection(
                         Text(text = "İçerikleri ve Kanalları Şimdi Güncelle", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
+                    Text(text = "Hesap Çıkışı", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Geçerli abonelik oturumunuzu sonlandırır ve sizi giriş ekranına döndürür.", color = TiviTextSecondary, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
                     // Çıkış Yap Butonu
                     OutlinedButton(
                         onClick = { viewModel.logout() },
@@ -652,6 +672,7 @@ private fun RenderSelectedSection(
 
                     // Ekran Oranı
                     Text(text = "Varsayılan Ekran Oranı", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(text = "Oynatıcı açıldığında videonun ekrana nasıl sığdırılacağını belirler", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         listOf("FIT" to "Fit (Orijinal)", "FILL" to "Doldur", "ZOOM" to "Yakınlaştır", "16:9" to "16:9").forEach { (mode, label) ->
@@ -704,6 +725,7 @@ private fun RenderSelectedSection(
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
                     Text(text = "Altyazı Boyutu", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Desteklenen filmlerde altyazıların görünüm boyutu", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -741,6 +763,7 @@ private fun RenderSelectedSection(
 
                     // Altyazı Rengi
                     Text(text = "Altyazı Metin Rengi", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Desteklenen filmlerde altyazıların görünüm rengi", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1092,18 +1115,20 @@ private fun RenderSelectedSection(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Sürüm ve Destek
+                    Text(text = "Destek ve İletişim", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Sürüm:", color = TiviTextSecondary, fontSize = 12.sp)
+                        Text(text = "Uygulama Sürümü:", color = TiviTextSecondary, fontSize = 12.sp)
                         Text(text = "${AppConfig.APP_NAME} v${com.tivimax.player.BuildConfig.VERSION_NAME} Pro", color = TiviTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Telegram:", color = TiviTextSecondary, fontSize = 12.sp)
+                        Text(text = "Telegram Desteği:", color = TiviTextSecondary, fontSize = 12.sp)
                         Text(text = AppConfig.SUPPORT_TELEGRAM, color = OpusCyan, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "WhatsApp:", color = TiviTextSecondary, fontSize = 12.sp)
+                        Text(text = "WhatsApp Desteği:", color = TiviTextSecondary, fontSize = 12.sp)
                         Text(text = AppConfig.SUPPORT_WHATSAPP, color = TiviGreen, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     }
                 }

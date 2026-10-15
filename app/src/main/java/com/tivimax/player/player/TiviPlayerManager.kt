@@ -13,10 +13,13 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -173,14 +176,48 @@ class TiviPlayerManager(private val context: Context) {
         vodBufferSecondsState.value = validSecs
     }
 
+    private val okHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .retryOnConnectionFailure(true)
+            .build()
+    }
+
     fun createDataSourceFactory(): DataSource.Factory {
-        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+        val okHttpDataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(okHttpClient)
             .setUserAgent("VLC/3.0.20 LibVLC/3.0.20")
-            .setAllowCrossProtocolRedirects(true)
-            .setKeepPostFor302Redirects(true)
-            .setConnectTimeoutMs(20000)
-            .setReadTimeoutMs(60000)
-        return DefaultDataSource.Factory(context, httpDataSourceFactory)
+        return DefaultDataSource.Factory(context, okHttpDataSourceFactory)
+    }
+
+    private fun createLoadControl(isLive: Boolean): DefaultLoadControl {
+        return if (isLive) {
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    /* minBufferMs = */ 15_000,
+                    /* maxBufferMs = */ 50_000,
+                    /* bufferForPlaybackMs = */ 800,
+                    /* bufferForPlaybackAfterRebufferMs = */ 1_500
+                )
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .setBackBuffer(10_000, true)
+                .build()
+        } else {
+            val vodMinBufferMs = (_vodBufferSeconds * 1000).coerceAtLeast(30_000)
+            val vodMaxBufferMs = (vodMinBufferMs * 2).coerceAtLeast(60_000).coerceAtMost(180_000)
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    /* minBufferMs = */ vodMinBufferMs,
+                    /* maxBufferMs = */ vodMaxBufferMs,
+                    /* bufferForPlaybackMs = */ 1_000,
+                    /* bufferForPlaybackAfterRebufferMs = */ 2_500
+                )
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .setBackBuffer(20_000, true)
+                .build()
+        }
     }
 
     fun initializePlayer(isLive: Boolean = isLiveStream): ExoPlayer {
@@ -201,6 +238,7 @@ class TiviPlayerManager(private val context: Context) {
         val player = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
             .setMediaSourceFactory(mediaSourceFactory)
+            .setLoadControl(createLoadControl(isLive))
             .setAudioAttributes(audioAttributes, true)
             .build()
 
@@ -769,6 +807,7 @@ class TiviPlayerManager(private val context: Context) {
 
         val player = ExoPlayer.Builder(context, renderersFactory)
             .setMediaSourceFactory(DefaultMediaSourceFactory(createDataSourceFactory()))
+            .setLoadControl(createLoadControl(true))
             .build()
 
         player.volume = 0f

@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuOpen
@@ -110,31 +111,31 @@ fun VodScreen(viewModel: MainViewModel) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(
                                     onClick = { showCategoryDialog = true },
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(36.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Tune,
                                         contentDescription = "Kategorileri Düzenle",
                                         tint = TiviSecondary,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                                 IconButton(
                                     onClick = { isSidebarExpanded = false },
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(36.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.MenuOpen,
                                         contentDescription = "Türleri Kapat",
                                         tint = TiviTextSecondary,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }
                         } else {
                             IconButton(
                                 onClick = { isSidebarExpanded = true },
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
@@ -249,11 +250,11 @@ fun VodScreen(viewModel: MainViewModel) {
                                     fontWeight = FontWeight.Medium
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                IconButton(
-                                    onClick = {
-                                        viewModel.setVodSearchQuery("")
-                                    },
-                                    modifier = Modifier.size(20.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { viewModel.setVodSearchQuery("") }
+                                        .padding(6.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,

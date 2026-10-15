@@ -504,7 +504,7 @@ fun TiviBottomInfoCard(
                     vertical = if (isPortrait) 6.dp else 10.dp
                 ),
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xEE0A0E14), // %93 Opak OLED Gece Paneli
+            color = Color(0xA60A0E14), // %65 Yarı Saydam Buzlu Cam Paneli
             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2638).copy(alpha = 0.8f))
         ) {
             Column(modifier = Modifier.padding(if (isPortrait) 10.dp else 14.dp)) {
@@ -960,7 +960,7 @@ fun TiviNumericZapperBox(
     ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = Color(0xF20A0E14),
+            color = Color(0xB30A0E14),
             border = androidx.compose.foundation.BorderStroke(1.5.dp, OpusCyan),
             modifier = Modifier.padding(16.dp)
         ) {
@@ -1160,7 +1160,7 @@ fun TiviPlayerHUD(
                 Modifier.width(360.dp)
             },
             shape = RoundedCornerShape(18.dp),
-            color = Color(0xF20B101B), // %95 Opak OLED Gece Paneli
+            color = Color(0xB30B101B), // %70 Yarı Saydam Buzlu Cam Paneli
             border = androidx.compose.foundation.BorderStroke(
                 1.dp,
                 Brush.linearGradient(

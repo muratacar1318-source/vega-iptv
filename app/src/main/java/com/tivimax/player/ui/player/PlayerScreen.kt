@@ -25,6 +25,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -315,23 +316,18 @@ fun PlayerScreen(
         }
     }
 
-    // Tam Ekran (Immersive Mode): Arayüz gizlendiğinde sistem çubuklarını da gizle, tam ekran video sağla
-    LaunchedEffect(showControls) {
-        val window = activity?.window ?: return@LaunchedEffect
-        val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-        if (!showControls) {
+    // Tam Ekran (Immersive Mode): Oynatıcı açıldığında tam ekran moduna al, çıkışta geri yükle (Arayüz kapandığında yüzeyi yeniden hesaplayıp videoyu dondurmaz)
+    DisposableEffect(Unit) {
+        val window = activity?.window
+        if (window != null) {
+            val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-        } else {
-            insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
         }
-    }
-
-    DisposableEffect(Unit) {
         onDispose {
-            val window = activity?.window
-            if (window != null) {
-                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            val w = activity?.window
+            if (w != null) {
+                val insetsController = androidx.core.view.WindowCompat.getInsetsController(w, w.decorView)
                 insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }
         }
@@ -561,6 +557,31 @@ fun PlayerScreen(
                             return@onPreviewKeyEvent true
                         }
 
+                        // Canlı TV modundayken kumandadan yukarı/aşağı tuşlarına basıldığında
+                        // butonlar arasında takılmak yerine anında sonraki/önceki kanala zaplasın:
+                        if (isLive) {
+                            when (keyCode) {
+                                KeyEvent.KEYCODE_DPAD_UP,
+                                KeyEvent.KEYCODE_CHANNEL_UP -> {
+                                    showControls = false
+                                    val next = viewModel.zapNextChannel(streamId)
+                                    if (next != null) seekRipple = "Sonraki: ${next.name} ⏭"
+                                    showBottomInfoCard = true
+                                    try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
+                                    return@onPreviewKeyEvent true
+                                }
+                                KeyEvent.KEYCODE_DPAD_DOWN,
+                                KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                                    showControls = false
+                                    val prev = viewModel.zapPreviousChannel(streamId)
+                                    if (prev != null) seekRipple = "⏮ ${prev.name}"
+                                    showBottomInfoCard = true
+                                    try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
+                                    return@onPreviewKeyEvent true
+                                }
+                            }
+                        }
+
                         // Alt bardaki aksiyon butonları arasında gezinme ve Enter/OK tıklaması
                         return@onPreviewKeyEvent false
                     }
@@ -638,10 +659,22 @@ fun PlayerScreen(
                         KeyEvent.KEYCODE_DPAD_CENTER,
                         KeyEvent.KEYCODE_ENTER,
                         KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                            showControls = true
-                            if (isLive) showBottomInfoCard = true
-                            registerInteraction()
-                            return@onPreviewKeyEvent true
+                            if (isLive) {
+                                // Canlı TV'de orta tuşa basıldığında:
+                                // Bilgi kartı açıksa kapatır; temiz ekrandayken hızlı kanal listesini açıp kapatır
+                                if (showBottomInfoCard) {
+                                    showBottomInfoCard = false
+                                } else {
+                                    showChannelDrawer = !showChannelDrawer
+                                }
+                                showControls = false
+                                registerInteraction()
+                                return@onPreviewKeyEvent true
+                            } else {
+                                showControls = true
+                                registerInteraction()
+                                return@onPreviewKeyEvent true
+                            }
                         }
                         KeyEvent.KEYCODE_BACK -> {
                             if (!isLive && isBuffering) {
@@ -1336,9 +1369,9 @@ fun PlayerScreen(
                         .background(
                             Brush.verticalGradient(
                                 listOf(
-                                    Color.Black.copy(alpha = if (isPortrait) 0.65f else 0.8f),
+                                    Color.Black.copy(alpha = if (isPortrait) 0.30f else 0.35f),
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = if (isPortrait) 0.75f else 0.9f)
+                                    Color.Black.copy(alpha = if (isPortrait) 0.40f else 0.45f)
                                 )
                             )
                         )
@@ -1780,6 +1813,13 @@ fun PlayerScreen(
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
                                     )
+                                    val currentFraction = if (duration > 0) {
+                                        (effectivePosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                                    } else 0f
+                                    val bufferFraction = if (duration > 0) {
+                                        (bufferedPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                                    } else 0f
+
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
@@ -1790,12 +1830,13 @@ fun PlayerScreen(
                                                 color = if (isSliderFocused) OpusCyan else Color.Transparent,
                                                 shape = RoundedCornerShape(8.dp)
                                             )
-                                            .padding(if (isSliderFocused) 3.dp else 0.dp)
+                                            .padding(if (isSliderFocused) 4.dp else 2.dp)
                                             .focusRequester(sliderFocusRequester)
                                             .onFocusChanged { isSliderFocused = it.isFocused }
                                             .focusProperties {
                                                 down = bottomRowFocusRequester
                                             }
+                                            .focusable()
                                             .onPreviewKeyEvent { keyEvent ->
                                                 if (keyEvent.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
                                                 when (keyEvent.nativeKeyEvent.keyCode) {
@@ -1805,65 +1846,130 @@ fun PlayerScreen(
                                                         true
                                                     }
                                                     KeyEvent.KEYCODE_DPAD_LEFT -> {
-                                                        playerManager.rewind10Seconds()
+                                                        val target = (effectivePosition - 10000L).coerceAtLeast(0L)
+                                                        optimisticSeekPosition = target
+                                                        playerManager.seekTo(target)
                                                         seekRipple = "-10s"
                                                         registerInteraction()
                                                         true
                                                     }
                                                     KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                                                        playerManager.forward10Seconds()
+                                                        val target = (effectivePosition + 10000L).coerceAtMost(duration)
+                                                        optimisticSeekPosition = target
+                                                        playerManager.seekTo(target)
                                                         seekRipple = "+10s"
+                                                        registerInteraction()
+                                                        true
+                                                    }
+                                                    KeyEvent.KEYCODE_DPAD_CENTER,
+                                                    KeyEvent.KEYCODE_ENTER,
+                                                    KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                                                        playerManager.togglePlayPause()
                                                         registerInteraction()
                                                         true
                                                     }
                                                     else -> false
                                                 }
+                                            }
+                                            .pointerInput(duration) {
+                                                detectTapGestures { offset ->
+                                                    if (size.width > 0 && duration > 0) {
+                                                        val tapFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                                        val target = (tapFraction * duration).toLong()
+                                                        optimisticSeekPosition = target
+                                                        playerManager.seekTo(target)
+                                                        registerInteraction()
+                                                    }
+                                                }
+                                            }
+                                            .pointerInput(duration) {
+                                                detectHorizontalDragGestures(
+                                                    onDragStart = { offset ->
+                                                        if (size.width > 0 && duration > 0) {
+                                                            isScrubbing = true
+                                                            val startFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                                            scrubPosition = startFraction * duration
+                                                            registerInteraction()
+                                                        }
+                                                    },
+                                                    onHorizontalDrag = { change, _ ->
+                                                        if (size.width > 0 && duration > 0) {
+                                                            val dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                                            scrubPosition = dragFraction * duration
+                                                            registerInteraction()
+                                                        }
+                                                    },
+                                                    onDragEnd = {
+                                                        val target = scrubPosition.toLong().coerceIn(0L, duration)
+                                                        optimisticSeekPosition = target
+                                                        playerManager.seekTo(target)
+                                                        isScrubbing = false
+                                                        registerInteraction()
+                                                    },
+                                                    onDragCancel = {
+                                                        isScrubbing = false
+                                                    }
+                                                )
                                             },
                                         contentAlignment = Alignment.CenterStart
                                     ) {
-                                        if (duration > 0) {
-                                            val bufferFraction = (bufferedPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 6.dp)
-                                                    .height(4.dp)
-                                                    .clip(RoundedCornerShape(2.dp))
-                                                    .background(Color.White.copy(alpha = 0.2f))
-                                            ) {
+                                        // Custom Seekbar UI (Track + Buffer + Active + Thumb)
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(if (isSliderFocused) 8.dp else 6.dp)
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(Color.White.copy(alpha = 0.2f))
+                                        ) {
+                                            if (bufferFraction > 0f) {
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth(bufferFraction)
                                                         .fillMaxHeight()
-                                                    .background(Color.White.copy(alpha = 0.35f))
+                                                        .background(Color.White.copy(alpha = 0.35f))
+                                                )
+                                            }
+                                            if (currentFraction > 0f) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth(currentFraction)
+                                                        .fillMaxHeight()
+                                                        .background(
+                                                            Brush.horizontalGradient(
+                                                                listOf(
+                                                                    Color(0xFFFF2A6D),
+                                                                    if (isSliderFocused) OpusCyan else Color(0xFFFF5E8A)
+                                                                )
+                                                            )
+                                                        )
                                                 )
                                             }
                                         }
 
-                                        Slider(
-                                            value = effectivePosition.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
-                                            onValueChange = {
-                                                registerInteraction()
-                                                showControls = true
-                                                isScrubbing = true
-                                                scrubPosition = it
-                                            },
-                                            onValueChangeFinished = {
-                                                registerInteraction()
-                                                val target = scrubPosition.toLong()
-                                                optimisticSeekPosition = target
-                                                playerManager.seekTo(target)
-                                                isScrubbing = false
-                                                showControls = true
-                                            },
-                                            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = if (isSliderFocused) OpusCyan else Color.White,
-                                                activeTrackColor = Color(0xFFFF2A6D),
-                                                inactiveTrackColor = Color.Transparent
-                                            ),
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
+                                        // Thumb
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(18.dp),
+                                            contentAlignment = Alignment.CenterStart
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.fillMaxWidth(currentFraction.coerceAtLeast(0.001f))
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(if (isSliderFocused) 16.dp else 12.dp)
+                                                        .align(Alignment.CenterEnd)
+                                                        .clip(CircleShape)
+                                                        .background(if (isSliderFocused) OpusCyan else Color.White)
+                                                        .border(
+                                                            width = 2.dp,
+                                                            color = Color(0xFFFF2A6D),
+                                                            shape = CircleShape
+                                                        )
+                                                )
+                                            }
+                                        }
                                     }
                                     Text(
                                         text = remainingText,
@@ -3391,14 +3497,19 @@ private fun VideoPlayerSurface(
                 AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
                 AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
             }
+            var layoutChanged = false
             if (playerView.resizeMode != targetResizeMode) {
                 playerView.resizeMode = targetResizeMode
+                layoutChanged = true
             }
             if (playerView.scaleX != targetScaleX || playerView.scaleY != targetScaleY) {
                 playerView.scaleX = targetScaleX
                 playerView.scaleY = targetScaleY
+                layoutChanged = true
             }
-            playerView.requestLayout()
+            if (layoutChanged) {
+                playerView.requestLayout()
+            }
             try {
                 playerView.subtitleView?.let { subView ->
                     val subTextColor = when (subtitleColor) {
