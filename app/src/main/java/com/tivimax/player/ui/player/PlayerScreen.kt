@@ -320,13 +320,18 @@ fun PlayerScreen(
         }
     }
 
-    // Tam Ekran (Immersive Mode): Oynatıcı açıldığında tam ekran moduna al, çıkışta geri yükle (Arayüz kapandığında yüzeyi yeniden hesaplayıp videoyu dondurmaz)
+    // Tam Ekran (Immersive Mode): Oynatıcı açıldığında tam ekran moduna al, çıkışta geri yükle
     DisposableEffect(Unit) {
         val window = activity?.window
         if (window != null) {
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            
+            // Eğer varsa çentik/kamera boşluğunu da kullanmasına izin ver (Tam kapsayıcı medya deneyimi)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                window.attributes.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
         }
         onDispose {
             val w = activity?.window
