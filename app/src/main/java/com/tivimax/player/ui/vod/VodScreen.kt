@@ -50,21 +50,9 @@ fun VodScreen(viewModel: MainViewModel) {
     val currentSort by viewModel.vodSortOption.collectAsState()
     val watchProgressMap by viewModel.watchProgressMap.collectAsState()
 
-    val globalQuery by viewModel.globalSearchQuery.collectAsState()
-    var searchQuery by remember { mutableStateOf("") }
+    val searchQuery by viewModel.vodSearchQuery.collectAsState()
     var isSortMenuOpen by remember { mutableStateOf(false) }
     var showCategoryDialog by remember { mutableStateOf(false) }
-
-    LaunchedEffect(globalQuery) {
-        if (globalQuery.isNotBlank() && searchQuery != globalQuery) {
-            searchQuery = globalQuery
-            viewModel.setVodSearchQuery(globalQuery)
-        }
-    }
-
-    LaunchedEffect(searchQuery) {
-        viewModel.setVodSearchQuery(searchQuery)
-    }
 
     val filteredMovies = movies
 
@@ -229,50 +217,56 @@ fun VodScreen(viewModel: MainViewModel) {
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                // Arama ve Sıralama Çubuğu (Kompakt ve Şık)
+                // Sıralama ve Aktif Arama Filtresi Başlığı
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            viewModel.setVodSearchQuery(it)
-                        },
-                        placeholder = { Text("Film ara...", fontSize = 13.sp, color = TiviTextMuted) },
-                        singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 15.sp, color = Color.White),
-                        leadingIcon = {
-                            Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = TiviSecondary, modifier = Modifier.size(18.dp))
-                        },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = {
-                                    searchQuery = ""
-                                    viewModel.setVodSearchQuery("")
-                                }) {
-                                    Icon(imageVector = Icons.Default.Clear, contentDescription = "Temizle", tint = TiviTextSecondary, modifier = Modifier.size(16.dp))
+                    if (searchQuery.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = TiviSecondary.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, TiviSecondary.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = TiviSecondary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "\"$searchQuery\" (${filteredMovies.size} film)",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                IconButton(
+                                    onClick = {
+                                        viewModel.setVodSearchQuery("")
+                                    },
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Filtreyi Temizle",
+                                        tint = TiviTextSecondary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
                                 }
                             }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = TiviSecondary,
-                            unfocusedBorderColor = TiviCardBorder,
-                            focusedContainerColor = TiviCard,
-                            unfocusedContainerColor = TiviCard,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(6.dp))
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
 
                     // Sıralama Seçici Butonu
                     Box {
@@ -280,20 +274,26 @@ fun VodScreen(viewModel: MainViewModel) {
                             onClick = { isSortMenuOpen = true },
                             shape = RoundedCornerShape(10.dp),
                             color = TiviCard,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
-                            modifier = Modifier.height(44.dp)
+                            border = BorderStroke(1.dp, TiviCardBorder),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .dpadFocusable(
+                                    shape = RoundedCornerShape(10.dp),
+                                    focusedBorderColor = OpusCyan,
+                                    onClick = { isSortMenuOpen = true }
+                                )
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 8.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Sort,
                                     contentDescription = "Sırala",
                                     tint = TiviSecondary,
-                                    modifier = Modifier.size(17.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = when (currentSort) {
                                         SortOption.ADDED_DESC -> "Eklenme"

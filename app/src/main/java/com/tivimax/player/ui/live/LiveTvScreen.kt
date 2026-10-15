@@ -612,54 +612,73 @@ fun LiveTvPortraitLayout(
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                // Arama ve Sıralama Çubuğu
+                // Sıralama ve Aktif Arama Filtresi Başlığı
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        placeholder = { Text("Kanal veya program ara...", fontSize = 13.sp, color = TiviTextMuted) },
-                        singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 15.sp, color = Color.White),
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(18.dp)) },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { onSearchQueryChange("") }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Temizle", tint = TiviTextSecondary, modifier = Modifier.size(16.dp))
+                    if (searchQuery.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = OpusCyan.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = OpusCyan,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "\"$searchQuery\" (${displayedChannels.size} kanal)",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                IconButton(
+                                    onClick = { onSearchQueryChange("") },
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Filtreyi Temizle",
+                                        tint = TiviTextSecondary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
                                 }
                             }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OpusCyan,
-                            unfocusedBorderColor = TiviCardBorder,
-                            focusedContainerColor = TiviCard,
-                            unfocusedContainerColor = TiviCard,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp)
-                    )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
 
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    // Sıralama
-                    Box {
-                        Surface(
-                            onClick = { isSortMenuOpen = true },
-                            shape = RoundedCornerShape(10.dp),
-                            color = TiviCard,
-                            border = BorderStroke(1.dp, TiviCardBorder),
-                            modifier = Modifier.height(44.dp)
-                        ) {
-                            Row(modifier = Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Sort, contentDescription = "Sırala", tint = OpusCyan, modifier = Modifier.size(17.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Sıralama
+                        Box {
+                            Surface(
+                                onClick = { isSortMenuOpen = true },
+                                shape = RoundedCornerShape(10.dp),
+                                color = TiviCard,
+                                border = BorderStroke(1.dp, TiviCardBorder),
+                                modifier = Modifier
+                                    .height(38.dp)
+                                    .dpadFocusable(
+                                        shape = RoundedCornerShape(10.dp),
+                                        focusedBorderColor = OpusCyan,
+                                        onClick = { isSortMenuOpen = true }
+                                    )
+                            ) {
+                                Row(modifier = Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Sort, contentDescription = "Sırala", tint = OpusCyan, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = when (currentSort) {
@@ -733,6 +752,7 @@ fun LiveTvPortraitLayout(
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
+                    }
                     }
                 }
 

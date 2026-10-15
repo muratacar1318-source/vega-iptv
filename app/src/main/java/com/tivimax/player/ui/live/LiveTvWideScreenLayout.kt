@@ -66,24 +66,9 @@ fun LiveTvWideScreenLayout(
     onOpenParentalDialog: () -> Unit,
     onSelectProgramDetail: (LiveStream, EpgProgram) -> Unit
 ) {
-    var categorySearchQuery by remember { mutableStateOf("") }
-    var channelSearchQuery by remember { mutableStateOf("") }
-    var isChannelSearchOpen by remember { mutableStateOf(false) }
-
-    val filteredCategories = remember(categories, categorySearchQuery) {
-        if (categorySearchQuery.isBlank()) categories
-        else categories.filter { it.categoryName.lowercase().contains(categorySearchQuery.trim().lowercase()) }
-    }
-
-    val allChannels by viewModel.liveStreams.collectAsState()
-    val finalChannels = remember(displayedChannels, allChannels, channelSearchQuery) {
-        if (channelSearchQuery.isBlank()) {
-            displayedChannels
-        } else {
-            val q = channelSearchQuery.trim().lowercase()
-            allChannels.filter { (it.name ?: "").lowercase().contains(q) }
-        }
-    }
+    val liveSearchQuery by viewModel.liveSearchQuery.collectAsState()
+    val finalChannels = displayedChannels
+    val filteredCategories = categories
 
     var visibleLimit by remember(finalChannels) { mutableIntStateOf(50) }
     val pagedChannels = remember(finalChannels, visibleLimit) {
@@ -458,38 +443,34 @@ fun LiveTvWideScreenLayout(
                         }
                     }
 
-                    if (isChannelSearchOpen) {
-                        OutlinedTextField(
-                            value = channelSearchQuery,
-                            onValueChange = {
-                                channelSearchQuery = it
-                                viewModel.setLiveSearchQuery(it)
-                            },
-                            placeholder = { Text("Kanal ara...", fontSize = 13.sp, color = TiviTextMuted) },
-                            singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.White),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = OpusCyan,
-                                unfocusedBorderColor = TiviCardBorder,
-                                focusedContainerColor = TiviCardDark,
-                                unfocusedContainerColor = TiviCardDark,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp)
-                        )
-                        IconButton(
-                            onClick = {
-                                isChannelSearchOpen = false
-                                channelSearchQuery = ""
-                                viewModel.setLiveSearchQuery("")
-                            },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "Kapat", tint = TiviTextSecondary, modifier = Modifier.size(16.dp))
+                    if (liveSearchQuery.isNotBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = OpusCyan.copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Search, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(14.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "\"$liveSearchQuery\" (${finalChannels.size})",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    IconButton(
+                                        onClick = { viewModel.setLiveSearchQuery("") },
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Filtreyi Temizle", tint = TiviTextSecondary, modifier = Modifier.size(13.dp))
+                                    }
+                                }
+                            }
                         }
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -501,13 +482,6 @@ fun LiveTvWideScreenLayout(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                        }
-
-                        IconButton(
-                            onClick = { isChannelSearchOpen = true },
-                            modifier = Modifier.size(26.dp)
-                        ) {
-                            Icon(Icons.Default.Search, contentDescription = "Kanal Ara", tint = OpusCyan, modifier = Modifier.size(16.dp))
                         }
                     }
                 }
