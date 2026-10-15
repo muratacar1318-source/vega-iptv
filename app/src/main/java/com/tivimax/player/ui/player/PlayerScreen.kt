@@ -245,6 +245,7 @@ fun PlayerScreen(
     var doubleTapSide by remember { mutableStateOf<String?>(null) } // "left" or "right"
     var doubleTapSeconds by remember { mutableIntStateOf(0) }
     var lastDoubleTapTime by remember { mutableLongStateOf(0L) }
+    var isDoubleTapActive by remember { mutableStateOf(false) }
 
     // Fullscreen gesture scrub state
     var gestureScrubActive by remember { mutableStateOf(false) }
@@ -262,9 +263,11 @@ fun PlayerScreen(
 
     LaunchedEffect(doubleTapSide, doubleTapSeconds) {
         if (doubleTapSide != null) {
+            isDoubleTapActive = true
             delay(900L)
             doubleTapSide = null
             doubleTapSeconds = 0
+            isDoubleTapActive = false
         }
     }
 
@@ -758,41 +761,43 @@ fun PlayerScreen(
                             lastDoubleTapTime = now
 
                             if (!isLive) {
-                                if (offset.x < size.width * 0.38f) {
-                                    // Sol tarafa çift tık: Geri sar
-                                    doubleTapSide = "left"
-                                    doubleTapSeconds = if (isQuickSuccession && doubleTapSide == "left") doubleTapSeconds + 10 else 10
-                                    playerManager.rewind10Seconds()
-                                    seekRipple = null
-                                } else if (offset.x > size.width * 0.62f) {
-                                    // Sağ tarafa çift tık: İleri sar
-                                    doubleTapSide = "right"
-                                    doubleTapSeconds = if (isQuickSuccession && doubleTapSide == "right") doubleTapSeconds + 10 else 10
-                                    playerManager.forward10Seconds()
-                                    seekRipple = null
-                                } else {
-                                    // Ortaya çift tık: En-Boy Oranı değiştir
-                                    doubleTapSide = null
-                                    val newMode = playerManager.cycleAspectRatio()
-                                    seekRipple = when (newMode) {
-                                        AspectRatioMode.FIT -> "En-Boy: Orijinal (FIT)"
-                                        AspectRatioMode.FILL -> "En-Boy: Doldur (FILL)"
-                                        AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır (ZOOM)"
-                                        AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
-                                        AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
-                                    }
-                                }
+                            if (offset.x < size.width * 0.38f) {
+                                // Sol tarafa çift tık: Geri sar
+                                val oldSide = doubleTapSide
+                                doubleTapSide = "left"
+                                doubleTapSeconds = if (isQuickSuccession && oldSide == "left") doubleTapSeconds + 10 else 10
+                                playerManager.rewind10Seconds()
+                                seekRipple = null
+                            } else if (offset.x > size.width * 0.62f) {
+                                // Sağ tarafa çift tık: İleri sar
+                                val oldSide = doubleTapSide
+                                doubleTapSide = "right"
+                                doubleTapSeconds = if (isQuickSuccession && oldSide == "right") doubleTapSeconds + 10 else 10
+                                playerManager.forward10Seconds()
+                                seekRipple = null
                             } else {
-                                // Canlı TV'de en-boy oranı döngüsü
+                                // Ortaya çift tık: En-Boy Oranı değiştir
+                                doubleTapSide = null
                                 val newMode = playerManager.cycleAspectRatio()
                                 seekRipple = when (newMode) {
-                                    AspectRatioMode.FIT -> "En-Boy: Orijinal (FIT)"
-                                    AspectRatioMode.FILL -> "En-Boy: Doldur (FILL)"
-                                    AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır (ZOOM)"
+                                    AspectRatioMode.FIT -> "En-Boy: Orijinal"
+                                    AspectRatioMode.FILL -> "En-Boy: Doldur"
+                                    AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
                                     AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
                                     AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
                                 }
                             }
+                        } else {
+                            // Canlı TV'de en-boy oranı döngüsü
+                            val newMode = playerManager.cycleAspectRatio()
+                            seekRipple = when (newMode) {
+                                AspectRatioMode.FIT -> "En-Boy: Orijinal"
+                                AspectRatioMode.FILL -> "En-Boy: Doldur"
+                                AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
+                                AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
+                                AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
+                            }
+                        }
                         }
                     }
                 )
@@ -849,7 +854,7 @@ fun PlayerScreen(
 
                             when (dragDirection) {
                                 "horizontal" -> {
-                                    if (!isLive && duration > 0) {
+                                    if (!isLive && duration > 0 && !isDoubleTapActive) {
                                         gestureScrubActive = true
                                         val totalDragX = change.position.x - start.x
                                         val timeDeltaMs = (totalDragX * 120L).toLong()
