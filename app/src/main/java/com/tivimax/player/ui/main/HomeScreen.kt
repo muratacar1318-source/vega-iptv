@@ -148,15 +148,20 @@ fun HomeScreen(viewModel: MainViewModel) {
                         val tabs = listOf(HomeTab.LIVE_TV, HomeTab.MOVIES, HomeTab.SERIES, HomeTab.FAVORITES)
                         tabs.forEach { tab ->
                             val isSelected = selectedTab == tab
-                            IconButton(
+                            Surface(
                                 onClick = { viewModel.setSelectedHomeTab(tab) },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) TiviPrimary.copy(alpha = 0.22f) else Color.Transparent,
                                 modifier = Modifier
                                     .padding(vertical = 4.dp)
                                     .size(46.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isSelected) TiviPrimary.copy(alpha = 0.22f) else Color.Transparent)
+                                    .dpadFocusable(
+                                        shape = RoundedCornerShape(12.dp),
+                                        focusedBorderColor = TiviPrimary,
+                                        onClick = { viewModel.setSelectedHomeTab(tab) }
+                                    )
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = tab.icon,
                                         contentDescription = tab.title,
@@ -174,7 +179,9 @@ fun HomeScreen(viewModel: MainViewModel) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         val isSettingsActive = selectedTab == HomeTab.SETTINGS
-                        IconButton(
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSettingsActive) TiviPrimary.copy(alpha = 0.22f) else TiviCard,
                             onClick = {
                                 if (isSettingsActive) {
                                     viewModel.setSelectedHomeTab(HomeTab.LIVE_TV)
@@ -184,31 +191,49 @@ fun HomeScreen(viewModel: MainViewModel) {
                             },
                             modifier = Modifier
                                 .size(42.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSettingsActive) TiviPrimary.copy(alpha = 0.22f) else TiviCard)
+                                .dpadFocusable(
+                                    shape = RoundedCornerShape(12.dp),
+                                    focusedBorderColor = TiviPrimary,
+                                    onClick = {
+                                        if (isSettingsActive) {
+                                            viewModel.setSelectedHomeTab(HomeTab.LIVE_TV)
+                                        } else {
+                                            viewModel.setSelectedHomeTab(HomeTab.SETTINGS)
+                                        }
+                                    }
+                                )
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Ayarlar",
-                                tint = if (isSettingsActive) TiviPrimary else TiviTextSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = "Ayarlar",
+                                    tint = if (isSettingsActive) TiviPrimary else TiviTextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
 
                         // İçerikleri Güncelle / Senkronizasyon Butonu
-                        IconButton(
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = TiviCard,
                             onClick = { viewModel.openPlaylistSync() },
                             modifier = Modifier
                                 .size(42.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(TiviCard)
+                                .dpadFocusable(
+                                    shape = RoundedCornerShape(12.dp),
+                                    focusedBorderColor = TiviPrimary,
+                                    onClick = { viewModel.openPlaylistSync() }
+                                )
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "İçerikleri Güncelle",
-                                tint = TiviPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "İçerikleri Güncelle",
+                                    tint = TiviPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
 
                         // Bağlantı Sayısı Mini Rozet
@@ -844,8 +869,9 @@ private fun HomeTopBar(
                     shape = RoundedCornerShape(8.dp),
                     color = TiviCard,
                     border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+                    onClick = onSyncClick,
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(36.dp)
                         .dpadFocusable(
                             shape = RoundedCornerShape(8.dp),
                             focusedBorderColor = OpusCyan,
@@ -857,7 +883,7 @@ private fun HomeTopBar(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "İçerikleri Güncelle",
                             tint = TiviPrimary,
-                            modifier = Modifier.size(17.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -867,8 +893,9 @@ private fun HomeTopBar(
                         shape = RoundedCornerShape(8.dp),
                         color = TiviCard,
                         border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+                        onClick = onSettingsClick,
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(36.dp)
                             .dpadFocusable(
                                 shape = RoundedCornerShape(8.dp),
                                 focusedBorderColor = OpusCyan,
@@ -880,7 +907,7 @@ private fun HomeTopBar(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "Ayarlar",
                                 tint = TiviTextSecondary,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }

@@ -84,6 +84,10 @@ import com.tivimax.player.ui.player.components.LocalPlayerInteraction
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -415,6 +419,26 @@ fun PlayerScreen(
     LaunchedEffect(streamUrl, streamId) {
         if (playerManager.currentPlayingUrl == null && streamUrl.isNotBlank()) {
             playerManager.play(streamUrl, isLive = isLive)
+        }
+    }
+
+    // Lifecycle Observer (Arka plana atıldığında PiP açık değilse videoyu duraklat)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, isInPipMode) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                if (!isInPipMode) {
+                    playerManager.pause()
+                }
+            } else if (event == Lifecycle.Event.ON_START) {
+                if (!isControlsLocked) {
+                    playerManager.play()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -810,10 +834,12 @@ fun PlayerScreen(
                                 if (dx > 10f || dy > 10f) {
                                     dragDirection = if (dx > dy && !isLive && duration > 0) {
                                         "horizontal"
-                                    } else if (start.x < size.width * 0.45f) {
+                                    } else if (start.x < size.width * 0.35f) {
                                         "vertical_left"
-                                    } else {
+                                    } else if (start.x > size.width * 0.65f) {
                                         "vertical_right"
+                                    } else {
+                                        "vertical_center"
                                     }
                                 }
                             }
@@ -848,6 +874,24 @@ fun PlayerScreen(
                                         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
                                     }
                                     volumeFeedback = ((newVolFloat / maxVolume) * 100).toInt()
+                                }
+                                "vertical_center" -> {
+                                    if (isLive) {
+                                        val totalDragY = change.position.y - start.y
+                                        if (kotlin.math.abs(totalDragY) > size.height * 0.2f) {
+                                            if (totalDragY < 0) {
+                                                // Yukarı kaydırma (Sonraki Kanal)
+                                                val next = viewModel.zapNextChannel(streamId)
+                                                if (next != null) seekRipple = "Sonraki: ${next.name} ⏭"
+                                            } else {
+                                                // Aşağı kaydırma (Önceki Kanal)
+                                                val prev = viewModel.zapPreviousChannel(streamId)
+                                                if (prev != null) seekRipple = "⏮ ${prev.name}"
+                                            }
+                                            dragDirection = "handled" // Tekrar tetiklenmemesi için
+                                            showBottomInfoCard = true
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -2613,7 +2657,35 @@ fun PlayerScreen(
                         }
                     }
 
-                    // 4. UYKU ZAMANLAYICISI
+                    // 4. DECODER MODE (HW / SW)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = "Video Çözücü (HW/SW)", color = TiviPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val currentMode = viewModel.preferences.decoderModeFlow.collectAsState(initial = "HARDWARE").value
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        listOf("HARDWARE" to "Donanım (Önerilen)", "SOFTWARE" to "Yazılım (Güvenli)").forEach { (mode, label) ->
+                            val isSelected = currentMode == mode
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) TiviPrimary.copy(alpha = 0.2f) else TiviSurfaceVariant,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) TiviPrimary else TiviCardBorder),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { viewModel.setDecoderMode(mode) }
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) TiviPrimary else TiviTextSecondary,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    // 5. UYKU ZAMANLAYICISI
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(text = "Uyku Zamanlayıcısı", color = Color(0xFF64B5F6), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(8.dp))

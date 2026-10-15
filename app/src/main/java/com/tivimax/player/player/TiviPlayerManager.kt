@@ -194,25 +194,27 @@ class TiviPlayerManager(private val context: Context) {
 
     private fun createLoadControl(isLive: Boolean): DefaultLoadControl {
         return if (isLive) {
+            val liveBufferForPlayback = if (liveBufferSecondsState.value <= 2) 800 else liveBufferSecondsState.value * 1000
+            val liveBufferForPlaybackAfterRebuffer = if (liveBufferSecondsState.value <= 2) 1200 else liveBufferSecondsState.value * 1000 + 500
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                    /* minBufferMs = */ 15_000,
-                    /* maxBufferMs = */ 50_000,
-                    /* bufferForPlaybackMs = */ 800,
-                    /* bufferForPlaybackAfterRebufferMs = */ 1_500
+                    /* minBufferMs = */ 10_000,
+                    /* maxBufferMs = */ 30_000,
+                    /* bufferForPlaybackMs = */ liveBufferForPlayback,
+                    /* bufferForPlaybackAfterRebufferMs = */ liveBufferForPlaybackAfterRebuffer
                 )
                 .setPrioritizeTimeOverSizeThresholds(true)
                 .setBackBuffer(10_000, true)
                 .build()
         } else {
-            val vodMinBufferMs = (_vodBufferSeconds * 1000).coerceAtLeast(30_000)
-            val vodMaxBufferMs = (vodMinBufferMs * 2).coerceAtLeast(60_000).coerceAtMost(180_000)
+            val vodMinBufferMs = (_vodBufferSeconds * 1000).coerceAtLeast(15_000)
+            val vodMaxBufferMs = (vodMinBufferMs * 2).coerceAtLeast(50_000).coerceAtMost(180_000)
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
                     /* minBufferMs = */ vodMinBufferMs,
                     /* maxBufferMs = */ vodMaxBufferMs,
-                    /* bufferForPlaybackMs = */ 1_000,
-                    /* bufferForPlaybackAfterRebufferMs = */ 2_500
+                    /* bufferForPlaybackMs = */ 2_500,
+                    /* bufferForPlaybackAfterRebufferMs = */ 5_000
                 )
                 .setPrioritizeTimeOverSizeThresholds(true)
                 .setBackBuffer(20_000, true)
@@ -221,13 +223,15 @@ class TiviPlayerManager(private val context: Context) {
     }
 
     private var decoderRecoveryAttempt = 0
+    private var networkRecoveryAttempt = 0
+    private var isReconnecting = false
 
     fun initializePlayer(isLive: Boolean = isLiveStream): ExoPlayer {
         if (exoPlayer != null) return exoPlayer!!
 
         val renderersFactory = DefaultRenderersFactory(context).apply {
             setEnableDecoderFallback(true)
-            setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            setExtensionRendererMode(if (_decoderMode == "SOFTWARE") DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             forceEnableMediaCodecAsynchronousQueueing()
         }
 
@@ -286,6 +290,8 @@ class TiviPlayerManager(private val context: Context) {
 
             override fun onRenderedFirstFrame() {
                 decoderRecoveryAttempt = 0
+                networkRecoveryAttempt = 0
+                isReconnecting = false
                 updateDiagnostics()
             }
 
@@ -321,6 +327,36 @@ class TiviPlayerManager(private val context: Context) {
                     player.prepare()
                     player.play()
                     return
+                }
+
+                // Ağ Kopmalarında Exponential Backoff ile Otomatik Yeniden Bağlanma (Max 3 Deneme)
+                if (error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+                    error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
+                    
+                    if (networkRecoveryAttempt < 3 && !isReconnecting) {
+                        isReconnecting = true
+                        networkRecoveryAttempt++
+                        val currentPos = exoPlayer?.currentPosition ?: 0L
+                        val backoffDelay = when (networkRecoveryAttempt) {
+                            1 -> 1500L
+                            2 -> 3000L
+                            else -> 5000L
+                        }
+                        
+                        _errorMessage.value = "Yayın yeniden bağlanıyor... ($networkRecoveryAttempt/3)"
+                        
+                        scope.launch {
+                            delay(backoffDelay)
+                            android.util.Log.w("VegaIPTV", "Ağ koptu, yeniden bağlanılıyor (Deneme $networkRecoveryAttempt)...")
+                            player.stop()
+                            player.seekTo(currentPos)
+                            player.prepare()
+                            player.play()
+                            isReconnecting = false
+                        }
+                        return
+                    }
                 }
 
                 if (fallbackAttempt + 1 < fallbackUrls.size) {
