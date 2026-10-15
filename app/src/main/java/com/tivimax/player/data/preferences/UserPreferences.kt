@@ -84,6 +84,13 @@ class UserPreferences(private val context: Context) {
         val KEY_SUBTITLE_SIZE = stringPreferencesKey("subtitle_size") // "KUCUK", "ORTA", "BUYUK", "COK_BUYUK"
         val KEY_SUBTITLE_COLOR = stringPreferencesKey("subtitle_color") // "BEYAZ", "SARI", "YESIL", "MAVI"
 
+        // Varsayılan Ses ve Altyazı Dili Tercihleri
+        val KEY_DEFAULT_AUDIO_LANG = stringPreferencesKey("default_audio_lang") // "tr", "en", "de", "fr", "auto"
+        val KEY_DEFAULT_SUBTITLE_LANG = stringPreferencesKey("default_subtitle_lang") // "tr", "en", "de", "fr", "none", "auto"
+
+        // Oynatıcı Motoru Tercihi ("EXOPLAYER", "VLC", "EXTERNAL_VLC")
+        val KEY_PLAYER_ENGINE = stringPreferencesKey("player_engine")
+
         // Uygulama Teması (Görünüm)
         val KEY_APP_THEME = stringPreferencesKey("app_theme") // "MIDNIGHT", "OCEAN", "FOREST", "VIOLET"
 
@@ -349,6 +356,10 @@ class UserPreferences(private val context: Context) {
     val subtitleSizeFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_SIZE] ?: "ORTA" }
     val subtitleColorFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_COLOR] ?: "BEYAZ" }
 
+    val defaultAudioLangFlow: Flow<String> = context.dataStore.data.map { it[KEY_DEFAULT_AUDIO_LANG] ?: "tr" }
+    val defaultSubtitleLangFlow: Flow<String> = context.dataStore.data.map { it[KEY_DEFAULT_SUBTITLE_LANG] ?: "tr" }
+    val playerEngineFlow: Flow<String> = context.dataStore.data.map { it[KEY_PLAYER_ENGINE] ?: "EXOPLAYER" }
+
     val appThemeFlow: Flow<String> = context.dataStore.data.map { it[KEY_APP_THEME] ?: "MIDNIGHT" }
 
     suspend fun setAppTheme(themeName: String) {
@@ -361,5 +372,17 @@ class UserPreferences(private val context: Context) {
 
     suspend fun setSubtitleColor(color: String) {
         context.dataStore.edit { it[KEY_SUBTITLE_COLOR] = color }
+    }
+
+    suspend fun setDefaultAudioLang(lang: String) {
+        context.dataStore.edit { it[KEY_DEFAULT_AUDIO_LANG] = lang }
+    }
+
+    suspend fun setDefaultSubtitleLang(lang: String) {
+        context.dataStore.edit { it[KEY_DEFAULT_SUBTITLE_LANG] = lang }
+    }
+
+    suspend fun setPlayerEngine(engine: String) {
+        context.dataStore.edit { it[KEY_PLAYER_ENGINE] = engine }
     }
 }

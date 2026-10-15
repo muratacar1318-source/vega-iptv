@@ -606,12 +606,136 @@ private fun RenderSelectedSection(
         // 2. OYNATICI VE KODEK
         // ==========================================
         SettingsSection.PLAYER -> {
+            val playerEngine by viewModel.playerEngine.collectAsState()
+            val defaultAudioLang by viewModel.defaultAudioLang.collectAsState()
+            val defaultSubtitleLang by viewModel.defaultSubtitleLang.collectAsState()
+
             Card(
                 colors = CardDefaults.cardColors(containerColor = TiviCard),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
+                    // OYNATICI MOTORU SEÇİMİ (ExoPlayer / LibVLC / Harici)
+                    Text(text = "Oynatıcı Motoru (Player Engine)", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = when (playerEngine) {
+                            "VLC" -> "LibVLC Motoru aktif (Gelişmiş codec desteği ve bozuk yayın uyumluluğu)"
+                            "EXTERNAL_VLC" -> "Harici Oynatıcı aktif (Videolar cihazdaki VLC/MX Player uygulamasında açılır)"
+                            else -> "ExoPlayer + FFmpeg aktif (Anında kanal zapping ve düşük gecikme)"
+                        },
+                        color = TiviTextSecondary,
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        listOf(
+                            "EXOPLAYER" to "ExoPlayer (Media3)",
+                            "VLC" to "VLC (LibVLC)",
+                            "EXTERNAL_VLC" to "Harici VLC"
+                        ).forEach { (engine, label) ->
+                            val isSelected = playerEngine == engine
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
+                                border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .dpadFocusable(
+                                        focusedBorderColor = OpusCyan,
+                                        shape = RoundedCornerShape(10.dp),
+                                        onClick = {
+                                            scope.launch { viewModel.preferences.setPlayerEngine(engine) }
+                                            Toast.makeText(context, "Oynatıcı motoru: $label", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) OpusCyan else TiviTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 9.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                    // VARSAYILAN SES DİLİ SEÇİMİ
+                    Text(text = "Varsayılan Ses Dili", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Çok dilli yayınlarda öncelikli tercih edilecek ses dili", color = TiviTextSecondary, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        items(listOf("tr" to "Türkçe", "en" to "İngilizce", "de" to "Almanca", "fr" to "Fransızca", "auto" to "Orijinal")) { (langCode, label) ->
+                            val isSelected = defaultAudioLang == langCode
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
+                                border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                modifier = Modifier.dpadFocusable(
+                                    focusedBorderColor = OpusCyan,
+                                    shape = RoundedCornerShape(10.dp),
+                                    onClick = {
+                                        scope.launch { viewModel.preferences.setDefaultAudioLang(langCode) }
+                                        Toast.makeText(context, "Varsayılan Ses: $label", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) OpusCyan else TiviTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                    // VARSAYILAN ALTYAZI DİLİ SEÇİMİ
+                    Text(text = "Varsayılan Altyazı Dili", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Gömülü altyazılarda öncelikli otomatik açılacak altyazı dili", color = TiviTextSecondary, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        items(listOf("none" to "Kapalı", "tr" to "Türkçe", "en" to "İngilizce", "de" to "Almanca", "fr" to "Fransızca", "auto" to "Otomatik")) { (langCode, label) ->
+                            val isSelected = defaultSubtitleLang == langCode
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
+                                border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                modifier = Modifier.dpadFocusable(
+                                    focusedBorderColor = OpusCyan,
+                                    shape = RoundedCornerShape(10.dp),
+                                    onClick = {
+                                        scope.launch { viewModel.preferences.setDefaultSubtitleLang(langCode) }
+                                        Toast.makeText(context, "Varsayılan Altyazı: $label", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) OpusCyan else TiviTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
                     Text(text = "Video Çözücü (Decoder)", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(

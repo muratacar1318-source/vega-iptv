@@ -275,6 +275,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val subtitleSize = preferences.subtitleSizeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "ORTA")
     val subtitleColor = preferences.subtitleColorFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "BEYAZ")
 
+    // Varsayılan Dil Tercihleri ve Oynatıcı Motoru
+    val defaultAudioLang = preferences.defaultAudioLangFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "tr")
+    val defaultSubtitleLang = preferences.defaultSubtitleLangFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "tr")
+    val playerEngine = preferences.playerEngineFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "EXOPLAYER")
+
     // Uygulama Tema Ayarı
     val appTheme = preferences.appThemeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "MIDNIGHT")
 
@@ -354,6 +359,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             preferences.decoderModeFlow.collect {
                 playerManager.setDecoderMode(it)
+            }
+        }
+
+        viewModelScope.launch {
+            combine(preferences.defaultAudioLangFlow, preferences.defaultSubtitleLangFlow) { audio, sub ->
+                Pair(audio, sub)
+            }.collect { (audio, sub) ->
+                playerManager.setDefaultTrackLanguages(audio, sub)
             }
         }
 

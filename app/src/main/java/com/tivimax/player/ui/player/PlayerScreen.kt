@@ -293,11 +293,11 @@ fun PlayerScreen(
         { lastInteractionTime = System.currentTimeMillis() }
     }
 
-    // 7-8 Saniyelik Akıllı HUD ve Tam Ekran Zamanlayıcısı (7500ms)
-    // Kullanıcı işlem yaptığı sürece ASLA kapanmaz, her dokunuşta veya işlemde süre sıfırlanıp 7.5 saniye baştan başlar.
-    val HUD_AUTO_HIDE_TIMEOUT_MS = 7500L
+    // 7 Saniyelik Akıllı HUD ve Tam Ekran Zamanlayıcısı (7000ms)
+    // Kullanıcı işlem yaptığı sürece ASLA kapanmaz, her dokunuşta veya işlemde süre sıfırlanıp 7 saniye baştan başlar.
+    val HUD_AUTO_HIDE_TIMEOUT_MS = 7000L
 
-    // Kanal değiştiğinde alt bilgi paneli 7.5 saniye görünür ve sayaç başlar
+    // Kanal değiştiğinde alt bilgi paneli 7 saniye görünür ve sayaç başlar
     LaunchedEffect(streamId) {
         if (isLive) {
             showBottomInfoCard = true
@@ -307,7 +307,7 @@ fun PlayerScreen(
 
     LaunchedEffect(showControls, showBottomInfoCard, isPlaying, lastInteractionTime, isUserInteracting, isControlsLocked) {
         if ((showControls || showBottomInfoCard) && isPlaying && !isUserInteracting) {
-            val timeout = if (isControlsLocked) 4000L else if (!showControls && showBottomInfoCard) 4000L else 5000L
+            val timeout = if (isControlsLocked) 4000L else if (!showControls && showBottomInfoCard) 4000L else 7000L
             while (true) {
                 val elapsed = System.currentTimeMillis() - lastInteractionTime
                 val remaining = timeout - elapsed
@@ -1434,8 +1434,10 @@ fun PlayerScreen(
                         .fillMaxWidth()
                         .statusBarsPadding()
                         .padding(
-                            horizontal = if (isPortrait) 10.dp else 18.dp,
-                            vertical = if (isPortrait) 4.dp else 10.dp
+                            start = if (isPortrait) 10.dp else 18.dp,
+                            end = if (isPortrait) 10.dp else 18.dp,
+                            top = if (isPortrait) 22.dp else 10.dp,
+                            bottom = if (isPortrait) 6.dp else 10.dp
                         ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween

@@ -647,7 +647,7 @@ fun TiviBottomInfoCard(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Gerçek Teknik Rozetler
+                    // Gerçek Teknik Rozetler (Sadece Kalite ve FPS)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -655,8 +655,6 @@ fun TiviBottomInfoCard(
                     ) {
                         TechBadge(text = resBadge, isHighlight = true)
                         TechBadge(text = fpsBadge)
-                        TechBadge(text = vCodecBadge)
-                        TechBadge(text = aCodecBadge)
                     }
                 } else {
                     // YATAY MOD (LANDSCAPE / ANDROID TV): 3 Sütunlu TiviMate & Opus OSD
@@ -776,15 +774,13 @@ fun TiviBottomInfoCard(
 
                         Spacer(modifier = Modifier.width(14.dp))
 
-                        // 3. Sağ Köşe: FHD 1080p, 50 FPS, H.264, AAC net rozetler
+                        // 3. Sağ Köşe: FHD 1080p, 50 FPS net rozetler (Sadece Kalite ve FPS)
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             TechBadge(text = resBadge, isHighlight = true)
                             TechBadge(text = fpsBadge)
-                            TechBadge(text = vCodecBadge)
-                            TechBadge(text = aCodecBadge)
                         }
                     }
                 }

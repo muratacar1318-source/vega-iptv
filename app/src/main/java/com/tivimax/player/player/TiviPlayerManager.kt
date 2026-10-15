@@ -771,6 +771,28 @@ class TiviPlayerManager(private val context: Context) {
         _subtitleTracks.value = _subtitleTracks.value.map { it.copy(isSelected = false) }
     }
 
+    fun setDefaultTrackLanguages(audioLang: String, subtitleLang: String) {
+        val builder = trackSelector.buildUponParameters()
+        
+        if (audioLang.isNotBlank() && audioLang != "auto") {
+            builder.setPreferredAudioLanguage(audioLang)
+        } else {
+            builder.setPreferredAudioLanguage(null)
+        }
+
+        if (subtitleLang == "none") {
+            builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+        } else if (subtitleLang.isNotBlank() && subtitleLang != "auto") {
+            builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            builder.setPreferredTextLanguage(subtitleLang)
+        } else {
+            builder.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            builder.setPreferredTextLanguage(null)
+        }
+
+        trackSelector.setParameters(builder.build())
+    }
+
     fun updateDiagnostics() {
         val player = exoPlayer ?: return
         val vf = player.videoFormat

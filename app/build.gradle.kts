@@ -12,8 +12,8 @@ android {
         applicationId = "com.tivimax.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 39
-        versionName = "1.1.7"
+        versionCode = 40
+        versionName = "1.1.8"
     }
 
     buildTypes {
@@ -99,6 +99,9 @@ dependencies {
   implementation(libs.androidx.media3.session)
   implementation("androidx.media3:media3-datasource-okhttp:1.5.1")
   implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1")
+
+  // LibVLC Player Motoru
+  implementation("org.videolan.android:libvlc-all:3.6.0-eap5")
 
   // Coil for poster & logo caching
   implementation(libs.coil.compose)
