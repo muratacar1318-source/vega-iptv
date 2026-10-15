@@ -309,7 +309,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                         horizontalArrangement = Arrangement.SpaceAround,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val bottomTabs = listOf(HomeTab.LIVE_TV, HomeTab.MOVIES, HomeTab.SERIES, HomeTab.FAVORITES)
+                        val bottomTabs = listOf(HomeTab.LIVE_TV, HomeTab.MOVIES, HomeTab.SERIES, HomeTab.FAVORITES, HomeTab.SETTINGS)
                         bottomTabs.forEach { tab ->
                             val isSelected = selectedTab == tab
                             Surface(
@@ -748,6 +748,9 @@ private fun HomeTopBar(
             }
 
             // Sağ Üst Alan: Arşiv Yükleme Rozeti, Arama, Bitiş Tarihi, Bağlantı Rozeti, Senkronizasyon, Ayarlar
+            val configuration = LocalConfiguration.current
+            val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -817,50 +820,53 @@ private fun HomeTopBar(
                     }
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = TiviCard,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                // Geniş ekranda (TV / Yanal Mod) Bitiş Tarihi ve Cihaz Limiti gösterilir (Dar mobil ekranda taşmayı önler)
+                if (isWideScreen) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = TiviCard,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder)
                     ) {
-                        // Bitiş Tarihi
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Event,
-                                contentDescription = "Bitiş Tarihi",
-                                tint = TiviPrimary,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = expDateFormatted,
-                                color = TiviTextPrimary,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Bitiş Tarihi
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Event,
+                                    contentDescription = "Bitiş Tarihi",
+                                    tint = TiviPrimary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = expDateFormatted,
+                                    color = TiviTextPrimary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
 
-                        Text(text = "•", color = TiviTextMuted, fontSize = 10.sp)
+                            Text(text = "•", color = TiviTextMuted, fontSize = 10.sp)
 
-                        // Anlık Bağlantı Limiti
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Devices,
-                                contentDescription = "Bağlantı Limiti",
-                                tint = TiviGreen,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "$activeCons/$maxCons",
-                                color = TiviGreen,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            // Anlık Bağlantı Limiti
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Devices,
+                                    contentDescription = "Bağlantı Limiti",
+                                    tint = TiviGreen,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "$activeCons/$maxCons",
+                                    color = TiviGreen,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
