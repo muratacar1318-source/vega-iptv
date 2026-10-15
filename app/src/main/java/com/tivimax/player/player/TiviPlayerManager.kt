@@ -220,12 +220,15 @@ class TiviPlayerManager(private val context: Context) {
         }
     }
 
+    private var decoderRecoveryAttempt = 0
+
     fun initializePlayer(isLive: Boolean = isLiveStream): ExoPlayer {
         if (exoPlayer != null) return exoPlayer!!
 
         val renderersFactory = DefaultRenderersFactory(context).apply {
             setEnableDecoderFallback(true)
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            forceEnableMediaCodecAsynchronousQueueing()
         }
 
         val mediaSourceFactory = DefaultMediaSourceFactory(createDataSourceFactory())
@@ -282,6 +285,7 @@ class TiviPlayerManager(private val context: Context) {
             }
 
             override fun onRenderedFirstFrame() {
+                decoderRecoveryAttempt = 0
                 updateDiagnostics()
             }
 
@@ -300,6 +304,20 @@ class TiviPlayerManager(private val context: Context) {
 
                 if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW && isLiveStream) {
                     player.seekToDefaultPosition()
+                    player.prepare()
+                    player.play()
+                    return
+                }
+
+                // Donanım veya yazılım dekoder çökmesinde (ERROR_CODE_DECODING_FAILED / INIT_FAILED) yayını kaldığı saniyeden otomatik kurtar
+                if ((error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED ||
+                     error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED) &&
+                    decoderRecoveryAttempt < 3) {
+                    decoderRecoveryAttempt++
+                    val currentPos = exoPlayer?.currentPosition ?: 0L
+                    android.util.Log.w("VegaIPTV", "Dekoder hatası algılandı, yayın ${currentPos}ms konumundan otomatik kurtarılıyor (Deneme $decoderRecoveryAttempt)...")
+                    player.stop()
+                    player.seekTo(currentPos)
                     player.prepare()
                     player.play()
                     return
@@ -803,6 +821,7 @@ class TiviPlayerManager(private val context: Context) {
         val renderersFactory = DefaultRenderersFactory(context).apply {
             setEnableDecoderFallback(true)
             setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            forceEnableMediaCodecAsynchronousQueueing()
         }
 
         val player = ExoPlayer.Builder(context, renderersFactory)
