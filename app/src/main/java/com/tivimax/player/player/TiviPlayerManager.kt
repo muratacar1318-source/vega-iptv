@@ -136,7 +136,8 @@ class TiviPlayerManager(private val context: Context) {
     private var secondaryUrl: String = ""
 
     private var currentUrl: String = ""
-    private var isLiveStream: Boolean = false
+    var isLiveStream: Boolean = false
+        private set
     private var positionJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Main)
 
@@ -192,9 +193,15 @@ class TiviPlayerManager(private val context: Context) {
 
         val mediaSourceFactory = DefaultMediaSourceFactory(createDataSourceFactory())
 
+        val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
+
         val player = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
             .setMediaSourceFactory(mediaSourceFactory)
+            .setAudioAttributes(audioAttributes, true)
             .build()
 
         player.addListener(object : Player.Listener {
@@ -391,10 +398,12 @@ class TiviPlayerManager(private val context: Context) {
 
     fun pause() {
         exoPlayer?.pause()
+        secondaryExoPlayer?.pause()
     }
 
     fun stop() {
         exoPlayer?.stop()
+        secondaryExoPlayer?.stop()
     }
 
     fun togglePlayPause() {

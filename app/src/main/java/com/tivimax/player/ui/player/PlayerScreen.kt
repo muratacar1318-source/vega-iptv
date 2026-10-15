@@ -436,13 +436,21 @@ fun PlayerScreen(
 
     // Android 12+ (API 31+) için Otomatik PiP Kaydı (Sistem Seviyesi Akıcı Animasyon)
     DisposableEffect(isPlaying, autoPipEnabled) {
+        val isTv = activity?.let { act ->
+            val uiModeManager = act.getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager
+            val isTvMode = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+            val hasLeanback = act.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+            val hasNoTouch = !act.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN)
+            isTvMode || hasLeanback || hasNoTouch
+        } ?: false
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && activity != null) {
             try {
                 val hasPip = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
                 if (hasPip) {
                     val params = PictureInPictureParams.Builder()
                         .setAspectRatio(Rational(16, 9))
-                        .setAutoEnterEnabled(autoPipEnabled && isPlaying)
+                        .setAutoEnterEnabled(!isTv && autoPipEnabled && isPlaying)
                         .build()
                     activity.setPictureInPictureParams(params)
                 }

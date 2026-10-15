@@ -20,6 +20,15 @@ import com.tivimax.player.ui.Screen
 class MainActivity : ComponentActivity() {
 
     private lateinit var viewModel: MainViewModel
+    private var wasPlayingBeforeStop = false
+
+    private fun isTvDevice(): Boolean {
+        val uiModeManager = getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager
+        val isTvMode = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        val hasLeanback = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+        val hasNoTouch = !packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN)
+        return isTvMode || hasLeanback || hasNoTouch
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,6 +56,16 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        if (isTvDevice()) {
+            // TV kumandasında Ana Ekran (Home) tuşuna basıldığında arkaplanda oynatmayı anında durdur
+            if (::viewModel.isInitialized) {
+                if (viewModel.playerManager.isPlaying.value) {
+                    wasPlayingBeforeStop = true
+                }
+                viewModel.playerManager.pause()
+            }
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && ::viewModel.isInitialized) {
             try {
                 val hasPip = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
@@ -62,6 +81,56 @@ class MainActivity : ComponentActivity() {
             } catch (e: Throwable) {
                 // Ignore unsupported devices / ROMs
             }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (::viewModel.isInitialized) {
+            val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
+            if (isTvDevice() || !inPip) {
+                if (viewModel.playerManager.isPlaying.value) {
+                    wasPlayingBeforeStop = true
+                }
+                viewModel.playerManager.pause()
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (::viewModel.isInitialized) {
+            val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
+            if (isTvDevice() || !inPip) {
+                if (viewModel.playerManager.isPlaying.value) {
+                    wasPlayingBeforeStop = true
+                }
+                viewModel.playerManager.pause()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::viewModel.isInitialized && wasPlayingBeforeStop) {
+            wasPlayingBeforeStop = false
+            val isPlayerScreen = viewModel.currentScreen.value is Screen.Player
+            val isHomeScreen = viewModel.currentScreen.value is Screen.Home
+            if (isPlayerScreen || isHomeScreen) {
+                if (viewModel.playerManager.isLiveStream) {
+                    try {
+                        viewModel.playerManager.player?.seekToDefaultPosition()
+                    } catch (_: Throwable) {}
+                }
+                viewModel.playerManager.play()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::viewModel.isInitialized) {
+            viewModel.playerManager.release()
         }
     }
 
