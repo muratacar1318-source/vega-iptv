@@ -14,11 +14,16 @@ android {
         targetSdk = 36
         versionCode = 41
         versionName = "1.1.9"
+
+        ndk {
+            abiFilters.addAll(setOf("arm64-v8a", "armeabi-v7a"))
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -99,9 +104,6 @@ dependencies {
   implementation(libs.androidx.media3.session)
   implementation("androidx.media3:media3-datasource-okhttp:1.5.1")
   implementation("org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1")
-
-  // LibVLC Player Motoru
-  implementation("org.videolan.android:libvlc-all:3.6.0-eap5")
 
   // Coil for poster & logo caching
   implementation(libs.coil.compose)

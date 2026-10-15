@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.LiveStream
+import com.tivimax.player.data.model.SeriesStream
 import com.tivimax.player.data.model.VodStream
 import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
@@ -39,6 +40,7 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
     val recentChannels by viewModel.recentChannels.collectAsState()
     val liveCategories by viewModel.liveCategories.collectAsState()
     val vodStreams by viewModel.vodStreams.collectAsState()
+    val seriesStreams by viewModel.seriesStreams.collectAsState()
     val seriesCategories by viewModel.seriesCategories.collectAsState()
     val favoriteLiveIds by viewModel.favoriteLiveIds.collectAsState()
 
@@ -50,13 +52,22 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
             .take(10)
     }
 
-    // En Son Eklenen İçerikler (En yeni tarihe göre sıralama)
+    // En Son Eklenen Filmler
     val newlyAddedVodList = remember(vodStreams) {
         vodStreams
             .filter { !it.added.isNullOrBlank() }
             .sortedByDescending { it.added?.toLongOrNull() ?: 0L }
             .take(12)
             .ifEmpty { vodStreams.take(10) }
+    }
+
+    // En Son Eklenen Diziler
+    val newlyAddedSeriesList = remember(seriesStreams) {
+        seriesStreams
+            .filter { !it.added.isNullOrBlank() || !it.lastModified.isNullOrBlank() }
+            .sortedByDescending { (it.lastModified?.toLongOrNull() ?: it.added?.toLongOrNull() ?: 0L) }
+            .take(12)
+            .ifEmpty { seriesStreams.take(10) }
     }
 
     val totalLiveCount = remember(liveCategories) { liveCategories.sumOf { it.itemCount } }
@@ -265,7 +276,7 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
         }
 
         // ==========================================
-        // 4. SON EKLENEN FİLMLER & İÇERİKLER (YENİ)
+        // 4. SON EKLENEN FİLMLER
         // ==========================================
         if (newlyAddedVodList.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
@@ -276,7 +287,7 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                 Icon(Icons.Default.Whatshot, contentDescription = null, tint = TiviAccentLive, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Son Eklenen İçerikler",
+                    text = "Son Eklenen Filmler",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -291,6 +302,38 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                     NewlyAddedVodCard(
                         movie = movie,
                         onClick = { viewModel.loadVodDetail(movie) }
+                    )
+                }
+            }
+        }
+
+        // ==========================================
+        // 5. SON EKLENEN DİZİLER
+        // ==========================================
+        if (newlyAddedSeriesList.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = Color(0xFFA855F7), modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Son Eklenen Diziler",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 4.dp)
+            ) {
+                items(newlyAddedSeriesList, key = { "new_series_${it.seriesId}" }) { series ->
+                    NewlyAddedSeriesCard(
+                        series = series,
+                        onClick = { viewModel.loadSeriesDetail(series) }
                     )
                 }
             }
@@ -553,6 +596,85 @@ private fun NewlyAddedVodCard(
 
                 Text(
                     text = movie.name,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewlyAddedSeriesCard(
+    series: SeriesStream,
+    onClick: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = TiviCardDark),
+        border = BorderStroke(1.dp, TiviCardBorder),
+        modifier = Modifier
+            .width(120.dp)
+            .height(165.dp)
+            .dpadFocusable(
+                focusedBorderColor = Color(0xFFA855F7),
+                shape = RoundedCornerShape(12.dp),
+                onClick = onClick
+            )
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AsyncShimmerImage(
+                model = series.cover,
+                contentDescription = series.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFFA855F7))
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text("DİZİ", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+
+                    val rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+                    if (!rating.isNullOrBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(10.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(rating, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Text(
+                    text = series.name,
                     color = Color.White,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,

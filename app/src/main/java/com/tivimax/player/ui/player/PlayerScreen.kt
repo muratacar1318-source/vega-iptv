@@ -856,10 +856,6 @@ fun PlayerScreen(
                                 if (dx > 10f || dy > 10f) {
                                     dragDirection = if (dx > dy && !isLive && duration > 0) {
                                         "horizontal"
-                                    } else if (start.x < size.width * 0.35f) {
-                                        "vertical_left"
-                                    } else if (start.x > size.width * 0.65f) {
-                                        "vertical_right"
                                     } else {
                                         "vertical_center"
                                     }
@@ -876,26 +872,6 @@ fun PlayerScreen(
                                         gestureScrubTargetMs = target
                                         gestureScrubDiffMs = target - gestureDragInitialPos
                                     }
-                                }
-                                "vertical_left" -> {
-                                    val delta = -dragAmount.y / size.height
-                                    val newBrightness = (currentBrightness + delta).coerceIn(0.01f, 1.0f)
-                                    currentBrightness = newBrightness
-                                    activity?.window?.attributes = activity?.window?.attributes?.apply {
-                                        screenBrightness = newBrightness
-                                    }
-                                    brightnessFeedback = (newBrightness * 100).toInt()
-                                }
-                                "vertical_right" -> {
-                                    val delta = -dragAmount.y / size.height
-                                    val volumeDelta = delta * maxVolume * 1.5f
-                                    val newVolFloat = (currentVolume + volumeDelta).coerceIn(0f, maxVolume.toFloat())
-                                    val newVol = newVolFloat.toInt()
-                                    if (newVol != currentVolume) {
-                                        currentVolume = newVol
-                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                    }
-                                    volumeFeedback = ((newVolFloat / maxVolume) * 100).toInt()
                                 }
                                 "vertical_center" -> {
                                     if (isLive) {
