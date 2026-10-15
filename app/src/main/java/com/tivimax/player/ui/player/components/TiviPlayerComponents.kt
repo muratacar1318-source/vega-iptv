@@ -1547,6 +1547,8 @@ private fun DiagnosticMetricCard(
 // 6. MODERN PLAYER PILL ACTION BUTTON (FROSTED GLASS ROUNDED PILL)
 // ============================================================================
 
+val LocalPlayerInteraction = staticCompositionLocalOf<() -> Unit> { {} }
+
 @Composable
 fun PlayerPillButton(
     text: String,
@@ -1560,6 +1562,7 @@ fun PlayerPillButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val haptic = LocalHapticFeedback.current
+    val registerInteraction = LocalPlayerInteraction.current
 
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.91f else 1.0f,
@@ -1585,6 +1588,7 @@ fun PlayerPillButton(
     Surface(
         onClick = {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            registerInteraction()
             onClick()
         },
         interactionSource = interactionSource,
@@ -1632,6 +1636,7 @@ fun BouncyIconButton(
     content: @Composable () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val registerInteraction = LocalPlayerInteraction.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -1660,6 +1665,7 @@ fun BouncyIconButton(
                 enabled = enabled,
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    registerInteraction()
                     onClick()
                 }
             ),
@@ -1670,4 +1676,5 @@ fun BouncyIconButton(
         }
     }
 }
+
 

@@ -78,6 +78,7 @@ import com.tivimax.player.ui.player.components.TiviRecentChannelsBar
 import com.tivimax.player.ui.player.components.TiviPlayerHUD
 import com.tivimax.player.ui.player.components.PlayerPillButton
 import com.tivimax.player.ui.player.components.BouncyIconButton
+import com.tivimax.player.ui.player.components.LocalPlayerInteraction
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -228,40 +229,54 @@ fun PlayerScreen(
         { lastInteractionTime = System.currentTimeMillis() }
     }
 
-    // TiviMate İmzası: Kanal değiştiğinde alt bilgi paneli 5 saniye görünür ve otomatik kaybolur
+    // 7-8 Saniyelik Akıllı HUD ve Tam Ekran Zamanlayıcısı (7500ms)
+    // Kullanıcı işlem yaptığı sürece ASLA kapanmaz, her dokunuşta veya işlemde süre sıfırlanıp 7.5 saniye baştan başlar.
+    val HUD_AUTO_HIDE_TIMEOUT_MS = 7500L
+
+    // Kanal değiştiğinde alt bilgi paneli 7.5 saniye görünür ve sayaç başlar
     LaunchedEffect(streamId) {
         if (isLive) {
             showBottomInfoCard = true
-            delay(5000L)
-            if (!isUserInteracting) {
-                showBottomInfoCard = false
-            }
+            registerInteraction()
         }
     }
 
-    LaunchedEffect(showBottomInfoCard, isPlaying, lastInteractionTime, isUserInteracting) {
-        if (showBottomInfoCard && isLive && isPlaying && !isUserInteracting && !showControls) {
-            delay(5000L)
-            if (!isUserInteracting && !showControls) {
-                showBottomInfoCard = false
-            }
-        }
-    }
-
-    // Akıllı HUD Zamanlayıcısı (5000ms - Kullanıcı işlem yaparken ASLA kapanmaz)
-    LaunchedEffect(showControls, isPlaying, lastInteractionTime, isUserInteracting, isControlsLocked) {
-        if (showControls && isPlaying && !isUserInteracting) {
-            val timeout = if (isControlsLocked) 3000L else 5000L
+    LaunchedEffect(showControls, showBottomInfoCard, isPlaying, lastInteractionTime, isUserInteracting, isControlsLocked) {
+        if ((showControls || showBottomInfoCard) && isPlaying && !isUserInteracting) {
+            val timeout = if (isControlsLocked) 4000L else HUD_AUTO_HIDE_TIMEOUT_MS
             while (true) {
                 val elapsed = System.currentTimeMillis() - lastInteractionTime
                 val remaining = timeout - elapsed
                 if (remaining <= 0) {
                     if (!isUserInteracting) {
                         showControls = false
+                        showBottomInfoCard = false
                     }
                     break
                 }
                 delay(remaining.coerceAtLeast(100L))
+            }
+        }
+    }
+
+    // Tam Ekran (Immersive Mode): Arayüz gizlendiğinde sistem çubuklarını da gizle, tam ekran video sağla
+    LaunchedEffect(showControls) {
+        val window = activity?.window ?: return@LaunchedEffect
+        val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        if (!showControls) {
+            insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        } else {
+            insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            val window = activity?.window
+            if (window != null) {
+                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
             }
         }
     }
@@ -427,30 +442,38 @@ fun PlayerScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(isControlsLocked) {
-                detectTapGestures(
-                    onTap = {
-                        registerInteraction()
-                        if (isControlsLocked) {
-                            showControls = !showControls
-                        } else {
-                            if (showOverlayGuide) {
-                                showOverlayGuide = false
-                            } else if (showRecentChannelsBar) {
-                                showRecentChannelsBar = false
-                            } else {
+    CompositionLocalProvider(LocalPlayerInteraction provides registerInteraction) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .pointerInput(isControlsLocked, showControls, showBottomInfoCard, showOverlayGuide, showRecentChannelsBar, showChannelDrawer) {
+                    detectTapGestures(
+                        onTap = {
+                            if (isControlsLocked) {
                                 showControls = !showControls
-                                showChannelDrawer = false
-                                if (isLive) {
-                                    showBottomInfoCard = true
+                                registerInteraction()
+                            } else {
+                                if (showOverlayGuide) {
+                                    showOverlayGuide = false
+                                } else if (showRecentChannelsBar) {
+                                    showRecentChannelsBar = false
+                                } else if (showChannelDrawer) {
+                                    showChannelDrawer = false
+                                } else if (showControls || showBottomInfoCard) {
+                                    // Arayüz açıkken boş alana dokunursa arayüzü tamamen gizle
+                                    showControls = false
+                                    showBottomInfoCard = false
+                                } else {
+                                    // Arayüz kapalıyken dokunursa arayüzü aç ve 7-8 saniye sayacını başlat
+                                    showControls = true
+                                    if (isLive) {
+                                        showBottomInfoCard = true
+                                    }
+                                    registerInteraction()
                                 }
                             }
-                        }
-                    },
+                        },
                     onDoubleTap = { offset ->
                         registerInteraction()
                         if (!isControlsLocked) {
@@ -1046,6 +1069,15 @@ fun PlayerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = {
+                                    // Arayüzün boş alanına dokunulduğunda tüm arayüzü gizle
+                                    showControls = false
+                                    showBottomInfoCard = false
+                                }
+                            )
+                        }
                         .background(
                             Brush.verticalGradient(
                                 listOf(
@@ -1610,11 +1642,13 @@ fun PlayerScreen(
                                         Slider(
                                             value = effectivePosition.toFloat().coerceIn(0f, duration.toFloat().coerceAtLeast(1f)),
                                             onValueChange = {
+                                                registerInteraction()
                                                 showControls = true
                                                 isScrubbing = true
                                                 scrubPosition = it
                                             },
                                             onValueChangeFinished = {
+                                                registerInteraction()
                                                 val target = scrubPosition.toLong()
                                                 optimisticSeekPosition = target
                                                 playerManager.seekTo(target)
@@ -2548,6 +2582,7 @@ fun PlayerScreen(
                 onDismiss = { showCategoryManagementDialog = false }
             )
         }
+    }
     }
 }
 
