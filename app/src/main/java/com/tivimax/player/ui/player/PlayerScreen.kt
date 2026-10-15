@@ -600,14 +600,13 @@ fun PlayerScreen(
                                     return@onPreviewKeyEvent true
                                 }
                                 KeyEvent.KEYCODE_DPAD_DOWN,
-                                KeyEvent.KEYCODE_CHANNEL_DOWN -> {
-                                    showControls = false
-                                    val prev = viewModel.zapPreviousChannel(streamId)
-                                    if (prev != null) seekRipple = "⏮ ${prev.name}"
-                                    showBottomInfoCard = true
-                                    try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
-                                    return@onPreviewKeyEvent true
-                                }
+                        KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                            showControls = false
+                            showRecentChannelsBar = true
+                            showBottomInfoCard = true
+                            try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
+                            return@onPreviewKeyEvent true
+                        }
                             }
                         }
 
@@ -644,16 +643,15 @@ fun PlayerScreen(
                             false
                         }
                         KeyEvent.KEYCODE_DPAD_DOWN,
-                        KeyEvent.KEYCODE_CHANNEL_DOWN -> {
-                            if (isLive) {
-                                val prev = viewModel.zapPreviousChannel(streamId)
-                                if (prev != null) seekRipple = "⏮ ${prev.name}"
-                                showBottomInfoCard = true
-                                registerInteraction()
-                                return@onPreviewKeyEvent true
-                            }
-                            false
+                    KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                        if (isLive) {
+                            showRecentChannelsBar = true
+                            showBottomInfoCard = true
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
                         }
+                        false
+                    }
                         KeyEvent.KEYCODE_DPAD_LEFT -> {
                             if (isLive) {
                                 showOverlayGuide = true
@@ -1267,7 +1265,7 @@ fun PlayerScreen(
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        text = "🔒 Ekran Kilidi Aktif — Kilidi açmak için sağ üstteki kilit simgesine tıklayın veya kumandadan OK tuşuna 2 kez üst üste basın.",
+                        text = "🔒 Ekran Kilidi Aktif — Kilidi açmak için ekrana çift tıklayın veya kumandadan OK tuşuna 2 kez basın.",
                         color = Color.White,
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.Medium

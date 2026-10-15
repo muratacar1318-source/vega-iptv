@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.session.MediaSession
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +66,8 @@ class TiviPlayerManager(private val context: Context) {
 
     private var exoPlayer: ExoPlayer? = null
     val player: ExoPlayer? get() = exoPlayer
+
+    private var mediaSession: MediaSession? = null
 
     private val trackSelector = DefaultTrackSelector(context).apply {
         parameters = buildUponParameters()
@@ -388,6 +391,12 @@ class TiviPlayerManager(private val context: Context) {
 
         player.playWhenReady = true
         exoPlayer = player
+        
+        // OS Entegrasyonu: PiP modu ve kilit ekranı oynatma kontrolleri için MediaSession
+        if (mediaSession == null) {
+            mediaSession = MediaSession.Builder(context, player).build()
+        }
+
         return player
     }
 
