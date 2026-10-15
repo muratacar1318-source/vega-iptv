@@ -41,8 +41,13 @@ import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import kotlinx.coroutines.delay
 
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun LiveTvWideScreenLayout(
     viewModel: MainViewModel,
@@ -70,9 +75,14 @@ fun LiveTvWideScreenLayout(
         else categories.filter { it.categoryName.lowercase().contains(categorySearchQuery.trim().lowercase()) }
     }
 
-    val finalChannels = remember(displayedChannels, channelSearchQuery) {
-        if (channelSearchQuery.isBlank()) displayedChannels
-        else displayedChannels.filter { (it.name ?: "").lowercase().contains(channelSearchQuery.trim().lowercase()) }
+    val allChannels by viewModel.liveStreams.collectAsState()
+    val finalChannels = remember(displayedChannels, allChannels, channelSearchQuery) {
+        if (channelSearchQuery.isBlank()) {
+            displayedChannels
+        } else {
+            val q = channelSearchQuery.trim().lowercase()
+            allChannels.filter { (it.name ?: "").lowercase().contains(q) }
+        }
     }
 
     var visibleLimit by remember(finalChannels) { mutableIntStateOf(50) }
@@ -81,6 +91,24 @@ fun LiveTvWideScreenLayout(
     }
 
     val channelListState = rememberLazyListState()
+    val categoryFocusRequester = remember { FocusRequester() }
+
+    // Canlı TV açıldığında aktif kategoriye otomatik odaklan
+    LaunchedEffect(Unit) {
+        delay(150)
+        try {
+            categoryFocusRequester.requestFocus()
+        } catch (e: Exception) {}
+    }
+
+    // Tam ekrandan dönüldüğünde veya önizleme kanalı değiştiğinde kanal listesini o kanala kaydır
+    LaunchedEffect(activePreviewChannel?.streamId) {
+        val targetId = activePreviewChannel?.streamId ?: return@LaunchedEffect
+        val idx = pagedChannels.indexOfFirst { it.streamId == targetId }
+        if (idx >= 0) {
+            channelListState.animateScrollToItem((idx - 2).coerceAtLeast(0))
+        }
+    }
 
     Row(
         modifier = Modifier
@@ -160,6 +188,7 @@ fun LiveTvWideScreenLayout(
                     color = if (isFavSelected) TiviGold.copy(alpha = 0.2f) else Color.Transparent,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(if (isFavSelected) Modifier.focusRequester(categoryFocusRequester) else Modifier)
                         .dpadFocusable(
                             focusedBorderColor = TiviGold,
                             shape = RoundedCornerShape(8.dp),
@@ -175,8 +204,8 @@ fun LiveTvWideScreenLayout(
                         Text(
                             text = "Favoriler",
                             color = if (isFavSelected) TiviGold else Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = if (isFavSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.5.sp,
+                            fontWeight = if (isFavSelected) FontWeight.Bold else FontWeight.SemiBold,
                             modifier = Modifier.weight(1f)
                         )
                         if (favoriteIds.isNotEmpty()) {
@@ -201,6 +230,7 @@ fun LiveTvWideScreenLayout(
                     color = if (isRecentSelected) OpusCyan.copy(alpha = 0.16f) else Color.Transparent,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(if (isRecentSelected) Modifier.focusRequester(categoryFocusRequester) else Modifier)
                         .dpadFocusable(
                             focusedBorderColor = OpusCyan,
                             shape = RoundedCornerShape(8.dp),
@@ -216,8 +246,8 @@ fun LiveTvWideScreenLayout(
                         Text(
                             text = "Son İzlenenler",
                             color = if (isRecentSelected) OpusCyan else Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = if (isRecentSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.5.sp,
+                            fontWeight = if (isRecentSelected) FontWeight.Bold else FontWeight.SemiBold,
                             modifier = Modifier.weight(1f)
                         )
                         if (recentChannels.isNotEmpty()) {
@@ -242,6 +272,7 @@ fun LiveTvWideScreenLayout(
                     color = if (isAllSelected) OpusCyan.copy(alpha = 0.16f) else Color.Transparent,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(if (isAllSelected) Modifier.focusRequester(categoryFocusRequester) else Modifier)
                         .dpadFocusable(
                             focusedBorderColor = OpusCyan,
                             shape = RoundedCornerShape(8.dp),
@@ -257,8 +288,8 @@ fun LiveTvWideScreenLayout(
                         Text(
                             text = "Tüm Kanallar",
                             color = if (isAllSelected) OpusCyan else Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 13.5.sp,
+                            fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.SemiBold,
                             modifier = Modifier.weight(1f)
                         )
                         Box(
@@ -291,6 +322,7 @@ fun LiveTvWideScreenLayout(
                             color = if (isSelected) OpusCyan.copy(alpha = 0.16f) else Color.Transparent,
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .then(if (isSelected) Modifier.focusRequester(categoryFocusRequester) else Modifier)
                                 .dpadFocusable(
                                     focusedBorderColor = OpusCyan,
                                     shape = RoundedCornerShape(8.dp),
@@ -322,11 +354,13 @@ fun LiveTvWideScreenLayout(
                                 Text(
                                     text = category.categoryName,
                                     color = if (isSelected) OpusCyan else Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .then(if (isSelected) Modifier.basicMarquee(iterations = Int.MAX_VALUE, velocity = 35.dp) else Modifier)
                                 )
                                 if (category.itemCount > 0) {
                                     Box(
@@ -394,24 +428,24 @@ fun LiveTvWideScreenLayout(
         VerticalDivider(color = TiviCardBorder.copy(alpha = 0.6f), thickness = 1.dp)
 
         // ====================================================================
-        // 2. SÜTUN (ORTA - 320.dp - TEMİZ VE HIZLI KANAL LİSTESİ)
+        // 2. SÜTUN (ORTA - 248.dp - TEMİZ VE HIZLI KANAL LİSTESİ)
         // ====================================================================
         Surface(
             modifier = Modifier
-                .width(320.dp)
+                .width(248.dp)
                 .fillMaxHeight(),
             color = TiviBackground
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 6.dp, vertical = 6.dp)
+                    .padding(horizontal = 4.dp, vertical = 6.dp)
             ) {
                 // Kanal Listesi Üst Çubuğu (Kategori Başlığı ve Arama)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -427,25 +461,31 @@ fun LiveTvWideScreenLayout(
                     if (isChannelSearchOpen) {
                         OutlinedTextField(
                             value = channelSearchQuery,
-                            onValueChange = { channelSearchQuery = it },
-                            placeholder = { Text("Kanal ara...", fontSize = 11.sp) },
+                            onValueChange = {
+                                channelSearchQuery = it
+                                viewModel.setLiveSearchQuery(it)
+                            },
+                            placeholder = { Text("Kanal ara...", fontSize = 13.sp, color = TiviTextMuted) },
                             singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.White),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = OpusCyan,
                                 unfocusedBorderColor = TiviCardBorder,
                                 focusedContainerColor = TiviCardDark,
                                 unfocusedContainerColor = TiviCardDark,
-                                focusedTextColor = Color.White
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
                             ),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(38.dp)
+                                .height(50.dp)
                         )
                         IconButton(
                             onClick = {
                                 isChannelSearchOpen = false
                                 channelSearchQuery = ""
+                                viewModel.setLiveSearchQuery("")
                             },
                             modifier = Modifier.size(28.dp)
                         ) {
@@ -515,6 +555,7 @@ fun LiveTvWideScreenLayout(
                                 border = if (isCurrentPreview) BorderStroke(1.dp, OpusCyan.copy(alpha = 0.7f)) else null,
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .height(48.dp)
                                     .dpadFocusable(
                                         focusedBorderColor = OpusCyan,
                                         shape = RoundedCornerShape(8.dp),
@@ -523,8 +564,8 @@ fun LiveTvWideScreenLayout(
                             ) {
                                 Row(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 6.dp, vertical = 5.dp),
+                                        .fillMaxSize()
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     // Kanal Numarası
@@ -533,7 +574,7 @@ fun LiveTvWideScreenLayout(
                                         color = if (isCurrentPreview) OpusCyan else TiviTextSecondary,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        modifier = Modifier.width(26.dp)
+                                        modifier = Modifier.width(24.dp)
                                     )
 
                                     // Kanal Logosu
@@ -542,14 +583,14 @@ fun LiveTvWideScreenLayout(
                                         contentDescription = channel.name,
                                         contentScale = ContentScale.Fit,
                                         modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(RoundedCornerShape(6.dp))
+                                            .size(26.dp)
+                                            .clip(RoundedCornerShape(5.dp))
                                             .background(Color(0xFF0F141F))
-                                            .padding(2.dp),
+                                            .padding(1.dp),
                                         placeholderIcon = Icons.Default.Tv
                                     )
 
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
 
                                     // Kanal Adı ve Anlık Program Bilgisi
                                     Column(modifier = Modifier.weight(1f)) {
@@ -565,7 +606,9 @@ fun LiveTvWideScreenLayout(
                                                 fontWeight = FontWeight.Bold,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.weight(1f, fill = false)
+                                                modifier = Modifier
+                                                    .weight(1f, fill = false)
+                                                    .then(if (isCurrentPreview) Modifier.basicMarquee(iterations = Int.MAX_VALUE, velocity = 35.dp) else Modifier)
                                             )
 
                                             // Önizleme İpucu Rozeti

@@ -220,11 +220,11 @@ fun VodScreen(viewModel: MainViewModel) {
                                         Text(
                                             text = "${category.categoryName}$countSuffix",
                                             color = if (isSelected) TiviSecondary else TiviTextPrimary,
-                                            fontSize = 11.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 13.5.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis,
-                                            lineHeight = 14.sp
+                                            lineHeight = 16.sp
                                         )
                                     }
                                 }
@@ -258,8 +258,9 @@ fun VodScreen(viewModel: MainViewModel) {
                             searchQuery = it
                             viewModel.setVodSearchQuery(it)
                         },
-                        placeholder = { Text("Film ara...", fontSize = 12.sp) },
+                        placeholder = { Text("Film ara...", fontSize = 13.sp, color = TiviTextMuted) },
                         singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 15.sp, color = Color.White),
                         leadingIcon = {
                             Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = TiviSecondary, modifier = Modifier.size(18.dp))
                         },
@@ -278,13 +279,13 @@ fun VodScreen(viewModel: MainViewModel) {
                             unfocusedBorderColor = TiviCardBorder,
                             focusedContainerColor = TiviCard,
                             unfocusedContainerColor = TiviCard,
-                            focusedTextColor = TiviTextPrimary,
-                            unfocusedTextColor = TiviTextPrimary
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
                         ),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp)
+                            .height(50.dp)
                     )
 
                     Spacer(modifier = Modifier.width(6.dp))

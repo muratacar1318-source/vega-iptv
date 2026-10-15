@@ -85,6 +85,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import android.view.KeyEvent
 
@@ -142,6 +144,19 @@ fun PlayerScreen(
 
     val playerFocusRequester = remember { FocusRequester() }
     val firstButtonFocusRequester = remember { FocusRequester() }
+    val sliderFocusRequester = remember { FocusRequester() }
+    val bottomRowFocusRequester = remember { FocusRequester() }
+    val lockButtonFocusRequester = remember { FocusRequester() }
+    var isSliderFocused by remember { mutableStateOf(false) }
+    var showLockBanner by remember { mutableStateOf(false) }
+    var lastOkPressTime by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(showLockBanner) {
+        if (showLockBanner) {
+            delay(3500L)
+            showLockBanner = false
+        }
+    }
 
     // TV kumandası için ekrana ilk girişte ana video oynatıcıya odağı ver
     LaunchedEffect(Unit) {
@@ -475,10 +490,17 @@ fun PlayerScreen(
         } else if (isDualViewActive) {
             playerManager.closeDualView()
         } else {
-            if (!isLive && currentPosition > 0) {
-                viewModel.saveWatchProgress(streamId, currentPosition, duration)
+            if (!isLive) {
+                if (currentPosition > 0) {
+                    viewModel.saveWatchProgress(streamId, currentPosition, duration)
+                }
+                playerManager.release()
+            } else {
+                val curChan = allLiveStreams.firstOrNull { it.streamId == streamId } ?: lastPlayedLiveChannel
+                if (curChan != null) {
+                    viewModel.activePreviewChannel.value = curChan
+                }
             }
-            playerManager.release()
             onBack()
         }
     }
@@ -495,6 +517,24 @@ fun PlayerScreen(
                         return@onPreviewKeyEvent false
                     }
                     val keyCode = keyEvent.nativeKeyEvent.keyCode
+
+                    // EKRAN KİLİDİ AKTİFKEN:
+                    if (isControlsLocked) {
+                        registerInteraction()
+                        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+                            val now = System.currentTimeMillis()
+                            if (now - lastOkPressTime < 800L) {
+                                isControlsLocked = false
+                                showLockBanner = false
+                                seekRipple = "🔓 Ekran Kilidi Açıldı"
+                                return@onPreviewKeyEvent true
+                            }
+                            lastOkPressTime = now
+                        }
+                        showLockBanner = true
+                        showControls = true
+                        return@onPreviewKeyEvent true
+                    }
 
                     // HUD AÇIKKEN:
                     if (showControls) {
@@ -604,7 +644,8 @@ fun PlayerScreen(
                     detectTapGestures(
                         onTap = {
                             if (isControlsLocked) {
-                                showControls = !showControls
+                                showLockBanner = true
+                                showControls = true
                                 registerInteraction()
                             } else {
                                 if (showOverlayGuide) {
@@ -629,7 +670,11 @@ fun PlayerScreen(
                         },
                     onDoubleTap = { offset ->
                         registerInteraction()
-                        if (!isControlsLocked) {
+                        if (isControlsLocked) {
+                            isControlsLocked = false
+                            showLockBanner = false
+                            seekRipple = "🔓 Ekran Kilidi Açıldı"
+                        } else {
                             val now = System.currentTimeMillis()
                             val isQuickSuccession = (now - lastDoubleTapTime) < 850L
                             lastDoubleTapTime = now
@@ -656,6 +701,7 @@ fun PlayerScreen(
                                         AspectRatioMode.FILL -> "En-Boy: Doldur (FILL)"
                                         AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır (ZOOM)"
                                         AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
+                                        AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
                                     }
                                 }
                             } else {
@@ -666,6 +712,7 @@ fun PlayerScreen(
                                     AspectRatioMode.FILL -> "En-Boy: Doldur (FILL)"
                                     AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır (ZOOM)"
                                     AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
+                                    AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
                                 }
                             }
                         }
@@ -1092,6 +1139,43 @@ fun PlayerScreen(
             }
         }
 
+        // EKRAN KİLİDİ BİLGİLENDİRME BİLDİRİMİ
+        AnimatedVisibility(
+            visible = showLockBanner,
+            enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut(tween(250)) + slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 16.dp, start = 20.dp, end = 20.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xE6141923),
+                border = BorderStroke(1.2.dp, TiviAccentLive.copy(alpha = 0.85f)),
+                shadowElevation = 10.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = TiviAccentLive,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "🔒 Ekran Kilidi Aktif — Kilidi açmak için sağ üstteki kilit simgesine tıklayın veya kumandadan OK tuşuna 2 kez üst üste basın.",
+                        color = Color.White,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
         // Tam Ekran Yatay Kaydırma (Scrub / Hızlı Arama HUD Kartı)
         AnimatedVisibility(
             visible = gestureScrubActive,
@@ -1255,10 +1339,17 @@ fun PlayerScreen(
                 ) {
                     BouncyIconButton(
                         onClick = {
-                            if (!isLive && currentPosition > 0) {
-                                viewModel.saveWatchProgress(streamId, currentPosition, duration)
+                            if (!isLive) {
+                                if (currentPosition > 0) {
+                                    viewModel.saveWatchProgress(streamId, currentPosition, duration)
+                                }
+                                playerManager.release()
+                            } else {
+                                val curChan = allLiveStreams.firstOrNull { it.streamId == streamId } ?: lastPlayedLiveChannel
+                                if (curChan != null) {
+                                    viewModel.activePreviewChannel.value = curChan
+                                }
                             }
-                            playerManager.release()
                             onBack()
                         },
                         modifier = Modifier.size(if (isPortrait) 38.dp else 44.dp),
@@ -1363,8 +1454,18 @@ fun PlayerScreen(
                         }
 
                         BouncyIconButton(
-                            onClick = { isControlsLocked = !isControlsLocked },
-                            modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp),
+                            onClick = {
+                                isControlsLocked = !isControlsLocked
+                                if (!isControlsLocked) {
+                                    showLockBanner = false
+                                    seekRipple = "🔓 Ekran Kilidi Açıldı"
+                                } else {
+                                    showLockBanner = true
+                                }
+                            },
+                            modifier = Modifier
+                                .size(if (isPortrait) 34.dp else 40.dp)
+                                .focusRequester(lockButtonFocusRequester),
                             backgroundColor = Color.Black.copy(alpha = 0.25f)
                         ) {
                             Icon(
@@ -1511,6 +1612,7 @@ fun PlayerScreen(
                                                     AspectRatioMode.FILL -> "Doldur"
                                                     AspectRatioMode.ZOOM -> "Zoom"
                                                     AspectRatioMode.RATIO_16_9 -> "16:9"
+                                                    AspectRatioMode.RATIO_4_3 -> "4:3"
                                                 },
                                                 icon = Icons.Default.AspectRatio,
                                                 onClick = {
@@ -1520,6 +1622,7 @@ fun PlayerScreen(
                                                         AspectRatioMode.FILL -> "Ekranı Doldur"
                                                         AspectRatioMode.ZOOM -> "Yakınlaştır"
                                                         AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
+                                                        AspectRatioMode.RATIO_4_3 -> "4:3 Oran"
                                                     }
                                                 },
                                                 isPortrait = isPortrait
@@ -1662,7 +1765,42 @@ fun PlayerScreen(
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .padding(horizontal = 8.dp),
+                                            .padding(horizontal = 8.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .border(
+                                                width = if (isSliderFocused) 2.dp else 0.dp,
+                                                color = if (isSliderFocused) OpusCyan else Color.Transparent,
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .padding(if (isSliderFocused) 3.dp else 0.dp)
+                                            .focusRequester(sliderFocusRequester)
+                                            .onFocusChanged { isSliderFocused = it.isFocused }
+                                            .focusProperties {
+                                                down = bottomRowFocusRequester
+                                            }
+                                            .onPreviewKeyEvent { keyEvent ->
+                                                if (keyEvent.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                                                when (keyEvent.nativeKeyEvent.keyCode) {
+                                                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                                        try { bottomRowFocusRequester.requestFocus() } catch (e: Exception) {}
+                                                        registerInteraction()
+                                                        true
+                                                    }
+                                                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                                        playerManager.rewind10Seconds()
+                                                        seekRipple = "-10s"
+                                                        registerInteraction()
+                                                        true
+                                                    }
+                                                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                                        playerManager.forward10Seconds()
+                                                        seekRipple = "+10s"
+                                                        registerInteraction()
+                                                        true
+                                                    }
+                                                    else -> false
+                                                }
+                                            },
                                         contentAlignment = Alignment.CenterStart
                                     ) {
                                         if (duration > 0) {
@@ -1702,7 +1840,7 @@ fun PlayerScreen(
                                             },
                                             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                                             colors = SliderDefaults.colors(
-                                                thumbColor = Color.White,
+                                                thumbColor = if (isSliderFocused) OpusCyan else Color.White,
                                                 activeTrackColor = Color(0xFFFF2A6D),
                                                 inactiveTrackColor = Color.Transparent
                                             ),
@@ -1728,15 +1866,26 @@ fun PlayerScreen(
                                         playerManager.seekTo(0L)
                                         seekRipple = "Baştan Başlatıldı"
                                     },
-                                    isPortrait = isPortrait
+                                    isPortrait = isPortrait,
+                                    modifier = Modifier
+                                        .focusRequester(bottomRowFocusRequester)
+                                        .focusProperties { up = sliderFocusRequester }
+                                        .onPreviewKeyEvent { keyEvent ->
+                                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                                                keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                                                try { sliderFocusRequester.requestFocus() } catch (e: Exception) {}
+                                                true
+                                            } else false
+                                        }
                                 )
 
                                 PlayerPillButton(
                                     text = when (aspectRatio) {
-                                        AspectRatioMode.FIT -> "16:9 Oran"
+                                        AspectRatioMode.FIT -> "Orijinal"
                                         AspectRatioMode.FILL -> "Doldur"
                                         AspectRatioMode.ZOOM -> "Zoom"
                                         AspectRatioMode.RATIO_16_9 -> "16:9"
+                                        AspectRatioMode.RATIO_4_3 -> "4:3"
                                     },
                                     icon = Icons.Default.AspectRatio,
                                     onClick = {
@@ -1746,16 +1895,35 @@ fun PlayerScreen(
                                             AspectRatioMode.FILL -> "Ekranı Doldur"
                                             AspectRatioMode.ZOOM -> "Yakınlaştır"
                                             AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
+                                            AspectRatioMode.RATIO_4_3 -> "4:3 Oran"
                                         }
                                     },
-                                    isPortrait = isPortrait
+                                    isPortrait = isPortrait,
+                                    modifier = Modifier
+                                        .focusProperties { up = sliderFocusRequester }
+                                        .onPreviewKeyEvent { keyEvent ->
+                                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                                                keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                                                try { sliderFocusRequester.requestFocus() } catch (e: Exception) {}
+                                                true
+                                            } else false
+                                        }
                                 )
 
                                 PlayerPillButton(
                                     text = "Ses & Altyazı",
                                     icon = Icons.Default.Subtitles,
                                     onClick = { showTrackSheet = true },
-                                    isPortrait = isPortrait
+                                    isPortrait = isPortrait,
+                                    modifier = Modifier
+                                        .focusProperties { up = sliderFocusRequester }
+                                        .onPreviewKeyEvent { keyEvent ->
+                                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                                                keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                                                try { sliderFocusRequester.requestFocus() } catch (e: Exception) {}
+                                                true
+                                            } else false
+                                        }
                                 )
 
                                 if (currentSeriesInfo != null && !currentSeriesInfo?.episodes.isNullOrEmpty()) {
@@ -1765,7 +1933,16 @@ fun PlayerScreen(
                                         onClick = { showEpisodesDrawer = true },
                                         isActive = showEpisodesDrawer,
                                         activeColor = Color(0xFFFF2A6D),
-                                        isPortrait = isPortrait
+                                        isPortrait = isPortrait,
+                                        modifier = Modifier
+                                            .focusProperties { up = sliderFocusRequester }
+                                            .onPreviewKeyEvent { keyEvent ->
+                                                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                                                    keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                                                    try { sliderFocusRequester.requestFocus() } catch (e: Exception) {}
+                                                    true
+                                                } else false
+                                            }
                                     )
                                 }
 
@@ -1776,7 +1953,16 @@ fun PlayerScreen(
                                         onClick = { viewModel.playNextEpisode() },
                                         isActive = true,
                                         activeColor = Color(0xFFFF2A6D),
-                                        isPortrait = isPortrait
+                                        isPortrait = isPortrait,
+                                        modifier = Modifier
+                                            .focusProperties { up = sliderFocusRequester }
+                                            .onPreviewKeyEvent { keyEvent ->
+                                                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                                                    keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                                                    try { sliderFocusRequester.requestFocus() } catch (e: Exception) {}
+                                                    true
+                                                } else false
+                                            }
                                     )
                                 }
 
@@ -1787,7 +1973,16 @@ fun PlayerScreen(
                                         val newSpeed = playerManager.cyclePlaybackSpeed()
                                         seekRipple = "Hız: ${newSpeed}x"
                                     },
-                                    isPortrait = isPortrait
+                                    isPortrait = isPortrait,
+                                    modifier = Modifier
+                                        .focusProperties { up = sliderFocusRequester }
+                                        .onPreviewKeyEvent { keyEvent ->
+                                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                                                keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                                                try { sliderFocusRequester.requestFocus() } catch (e: Exception) {}
+                                                true
+                                            } else false
+                                        }
                                 )
 
                                 PlayerPillButton(
@@ -1801,7 +1996,16 @@ fun PlayerScreen(
                                     },
                                     isActive = showPlayerHUD,
                                     activeColor = Color(0xFFFF2A6D),
-                                    isPortrait = isPortrait
+                                    isPortrait = isPortrait,
+                                    modifier = Modifier
+                                        .focusProperties { up = sliderFocusRequester }
+                                        .onPreviewKeyEvent { keyEvent ->
+                                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
+                                                keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                                                try { sliderFocusRequester.requestFocus() } catch (e: Exception) {}
+                                                true
+                                            } else false
+                                        }
                                 )
                             }
 
@@ -2857,6 +3061,7 @@ fun DualViewSingleWindow(
                         AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                         AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                         AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                        AspectRatioMode.RATIO_4_3 -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                     }
                 }
             },
@@ -2870,6 +3075,7 @@ fun DualViewSingleWindow(
                     AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                     AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                    AspectRatioMode.RATIO_4_3 -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                 }
             },
             onRelease = { playerView ->
@@ -3143,12 +3349,16 @@ private fun VideoPlayerSurface(
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
                 player = playerManager.initializePlayer(isLive)
-                resizeMode = when (aspectRatio) {
-                    AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                    AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+                val (initialResizeMode, initialScaleX, initialScaleY) = when (aspectRatio) {
+                    AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                    AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                    AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
+                    AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                    AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
                 }
+                resizeMode = initialResizeMode
+                scaleX = initialScaleX
+                scaleY = initialScaleY
             }
         },
         update = { playerView ->
@@ -3156,15 +3366,21 @@ private fun VideoPlayerSurface(
             if (playerView.player != currentPlayer) {
                 playerView.player = currentPlayer
             }
-            val targetResizeMode = when (aspectRatio) {
-                AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+            val (targetResizeMode, targetScaleX, targetScaleY) = when (aspectRatio) {
+                AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
+                AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
             }
             if (playerView.resizeMode != targetResizeMode) {
                 playerView.resizeMode = targetResizeMode
             }
+            if (playerView.scaleX != targetScaleX || playerView.scaleY != targetScaleY) {
+                playerView.scaleX = targetScaleX
+                playerView.scaleY = targetScaleY
+            }
+            playerView.requestLayout()
             try {
                 playerView.subtitleView?.let { subView ->
                     val subTextColor = when (subtitleColor) {

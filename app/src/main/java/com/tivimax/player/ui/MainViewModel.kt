@@ -345,7 +345,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             combine(selectedLiveCategory, liveSearchQuery, liveSortOption) { cat, q, sort ->
                 Triple(cat, q, sort)
             }.collectLatest { (cat, q, sort) ->
-                val filterCat = if (cat == "all" || cat == "favorites") null else cat
+                val filterCat = if (q.isNotBlank() || cat == "all" || cat == "favorites" || cat == "recents") null else cat
                 repository.getLiveStreamsFilteredFlow(filterCat, q, sort.name).collect { streams ->
                     liveStreams.value = streams
                     if (streams.isNotEmpty()) {
@@ -359,7 +359,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             combine(selectedVodCategory, vodSearchQuery, vodSortOption) { cat, q, sort ->
                 Triple(cat, q, sort)
             }.collectLatest { (cat, q, sort) ->
-                val filterCat = if (cat == "all") null else cat
+                val filterCat = if (q.isNotBlank() || cat == "all") null else cat
                 repository.getVodStreamsFilteredFlow(filterCat, q, sort.name).collect { streams ->
                     vodStreams.value = streams
                     if (streams.isNotEmpty()) {
@@ -373,7 +373,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             combine(selectedSeriesCategory, seriesSearchQuery, seriesSortOption) { cat, q, sort ->
                 Triple(cat, q, sort)
             }.collectLatest { (cat, q, sort) ->
-                val filterCat = if (cat == "all") null else cat
+                val filterCat = if (q.isNotBlank() || cat == "all") null else cat
                 repository.getSeriesStreamsFilteredFlow(filterCat, q, sort.name).collect { streams ->
                     seriesStreams.value = streams
                     if (streams.isNotEmpty()) {

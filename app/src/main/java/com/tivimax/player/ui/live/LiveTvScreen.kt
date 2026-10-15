@@ -1,4 +1,4 @@
-﻿package com.tivimax.player.ui.live
+package com.tivimax.player.ui.live
 
 import android.content.res.Configuration
 import android.view.ViewGroup
@@ -563,7 +563,7 @@ fun LiveTvPortraitLayout(
                                     Icon(Icons.Default.Star, contentDescription = null, tint = if (isFavSelected) TiviGold else TiviTextSecondary, modifier = Modifier.size(16.dp))
                                     if (isSidebarExpanded) {
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Favoriler", color = if (isFavSelected) TiviGold else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Text("Favoriler", color = if (isFavSelected) TiviGold else Color.White, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -589,7 +589,7 @@ fun LiveTvPortraitLayout(
                                     if (isSidebarExpanded) {
                                         Spacer(modifier = Modifier.width(8.dp))
                                         val countSuffix = if (category.itemCount > 0) " (${category.itemCount})" else ""
-                                        Text("${category.categoryName}$countSuffix", color = if (isSelected) OpusCyan else Color.White, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                        Text("${category.categoryName}$countSuffix", color = if (isSelected) OpusCyan else Color.White, fontSize = 13.5.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                             }
@@ -639,8 +639,9 @@ fun LiveTvPortraitLayout(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = onSearchQueryChange,
-                        placeholder = { Text("Kanal veya program ara...", fontSize = 12.sp) },
+                        placeholder = { Text("Kanal veya program ara...", fontSize = 13.sp, color = TiviTextMuted) },
                         singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 15.sp, color = Color.White),
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(18.dp)) },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
@@ -660,7 +661,7 @@ fun LiveTvPortraitLayout(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp)
+                            .height(50.dp)
                     )
 
                     Spacer(modifier = Modifier.width(6.dp))

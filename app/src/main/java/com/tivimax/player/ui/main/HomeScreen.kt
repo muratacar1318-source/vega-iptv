@@ -33,11 +33,16 @@ import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.favorites.FavoritesScreen
 import com.tivimax.player.ui.live.LiveTvScreen
 import com.tivimax.player.ui.settings.SettingsScreen
 import com.tivimax.player.ui.series.SeriesScreen
 import com.tivimax.player.ui.vod.VodScreen
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextStyle
+import kotlinx.coroutines.delay
 
 enum class HomeTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     LIVE_TV("Canlı TV", Icons.Default.LiveTv),
@@ -53,6 +58,7 @@ fun HomeScreen(viewModel: MainViewModel) {
     val selectedTab by viewModel.selectedHomeTab.collectAsState()
     val context = LocalContext.current
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
+    var showSearchDialog by remember { mutableStateOf(false) }
 
     // Çıkış Önleme: Kullanıcı hangi sekmede olursa olsun yanlışlıkla çıkmayı önlemek için çift tıklama istenir
     BackHandler(enabled = true) {
@@ -224,7 +230,8 @@ fun HomeScreen(viewModel: MainViewModel) {
                     maxCons = maxCons,
                     showSettings = false, // Zaten rail üzerinde var
                     onSettingsClick = {},
-                    onSyncClick = { viewModel.openPlaylistSync() }
+                    onSyncClick = { viewModel.openPlaylistSync() },
+                    onSearchClick = { showSearchDialog = true }
                 )
 
                 // Tab İçeriği
@@ -248,7 +255,8 @@ fun HomeScreen(viewModel: MainViewModel) {
                             viewModel.setSelectedHomeTab(HomeTab.SETTINGS)
                         }
                     },
-                    onSyncClick = { viewModel.openPlaylistSync() }
+                    onSyncClick = { viewModel.openPlaylistSync() },
+                    onSearchClick = { showSearchDialog = true }
                 )
             },
             bottomBar = {
@@ -314,6 +322,207 @@ fun HomeScreen(viewModel: MainViewModel) {
             }
         }
     }
+
+    // Evrensel Arama Dialogu
+    if (showSearchDialog) {
+        var queryText by remember { mutableStateOf("") }
+        val searchFocusRequester = remember { FocusRequester() }
+
+        LaunchedEffect(Unit) {
+            delay(150)
+            try {
+                searchFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+
+        AlertDialog(
+            onDismissRequest = { showSearchDialog = false },
+            containerColor = TiviSurface,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = OpusCyan,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Evrensel Arama",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = queryText,
+                        onValueChange = { queryText = it },
+                        placeholder = {
+                            Text(
+                                text = "Kanal, film veya dizi ara...",
+                                color = TiviTextMuted,
+                                fontSize = 15.sp
+                            )
+                        },
+                        textStyle = TextStyle(fontSize = 15.sp, color = Color.White),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = OpusCyan,
+                            unfocusedBorderColor = TiviCardBorder,
+                            focusedContainerColor = TiviCard,
+                            unfocusedContainerColor = TiviCard,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .focusRequester(searchFocusRequester)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Aramak istediğiniz bölümü seçin:",
+                        color = TiviTextSecondary,
+                        fontSize = 12.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Canlı TV Butonu
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = TiviCard,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .dpadFocusable(
+                                    shape = RoundedCornerShape(8.dp),
+                                    focusedBorderColor = OpusCyan,
+                                    onClick = {
+                                        viewModel.setLiveSearchQuery(queryText)
+                                        viewModel.setSelectedHomeTab(HomeTab.LIVE_TV)
+                                        showSearchDialog = false
+                                    }
+                                )
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LiveTv,
+                                    contentDescription = null,
+                                    tint = TiviPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Canlı TV",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        // Filmler Butonu
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = TiviCard,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, TiviSecondary),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .dpadFocusable(
+                                    shape = RoundedCornerShape(8.dp),
+                                    focusedBorderColor = OpusCyan,
+                                    onClick = {
+                                        viewModel.setVodSearchQuery(queryText)
+                                        viewModel.setSelectedHomeTab(HomeTab.MOVIES)
+                                        showSearchDialog = false
+                                    }
+                                )
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Movie,
+                                    contentDescription = null,
+                                    tint = TiviSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Filmler",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        // Diziler Butonu
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = TiviCard,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, OpusCyan),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp)
+                                .dpadFocusable(
+                                    shape = RoundedCornerShape(8.dp),
+                                    focusedBorderColor = OpusCyan,
+                                    onClick = {
+                                        viewModel.setSeriesSearchQuery(queryText)
+                                        viewModel.setSelectedHomeTab(HomeTab.SERIES)
+                                        showSearchDialog = false
+                                    }
+                                )
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.VideoLibrary,
+                                    contentDescription = null,
+                                    tint = OpusCyan,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Diziler",
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSearchDialog = false }) {
+                    Text("Kapat", color = TiviTextSecondary)
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -324,7 +533,8 @@ private fun HomeTopBar(
     maxCons: String,
     showSettings: Boolean,
     onSettingsClick: () -> Unit,
-    onSyncClick: () -> Unit = {}
+    onSyncClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {}
 ) {
     Surface(
         color = TiviSurface,
@@ -365,11 +575,43 @@ private fun HomeTopBar(
                 )
             }
 
-            // Sağ Üst Alan: Bitiş Tarihi, Bağlantı Rozeti
+            // Sağ Üst Alan: Arama, Bitiş Tarihi, Bağlantı Rozeti, Senkronizasyon, Ayarlar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                // Kumandayla Odaklanılabilir "🔍 Arama" Butonu
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = TiviCard,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+                    modifier = Modifier
+                        .dpadFocusable(
+                            shape = RoundedCornerShape(8.dp),
+                            focusedBorderColor = OpusCyan,
+                            onClick = onSearchClick
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Arama",
+                            tint = OpusCyan,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = "Arama",
+                            color = TiviTextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = TiviCard,
@@ -418,35 +660,49 @@ private fun HomeTopBar(
                     }
                 }
 
-                IconButton(
-                    onClick = onSyncClick,
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = TiviCard,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
                     modifier = Modifier
                         .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(TiviCard)
+                        .dpadFocusable(
+                            shape = RoundedCornerShape(8.dp),
+                            focusedBorderColor = OpusCyan,
+                            onClick = onSyncClick
+                        )
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "İçerikleri Güncelle",
-                        tint = TiviPrimary,
-                        modifier = Modifier.size(17.dp)
-                    )
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "İçerikleri Güncelle",
+                            tint = TiviPrimary,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
                 }
 
                 if (showSettings) {
-                    IconButton(
-                        onClick = onSettingsClick,
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = TiviCard,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
                         modifier = Modifier
                             .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(TiviCard)
+                            .dpadFocusable(
+                                shape = RoundedCornerShape(8.dp),
+                                focusedBorderColor = OpusCyan,
+                                onClick = onSettingsClick
+                            )
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Ayarlar",
-                            tint = TiviTextSecondary,
-                            modifier = Modifier.size(17.dp)
-                        )
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Ayarlar",
+                                tint = TiviTextSecondary,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
                     }
                 }
             }

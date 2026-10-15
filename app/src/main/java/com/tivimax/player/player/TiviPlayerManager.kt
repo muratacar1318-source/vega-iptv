@@ -28,10 +28,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 enum class AspectRatioMode {
-    FIT,      // Orijinal en-boy oranını korur
-    FILL,     // Ekranı doldurur (kırpma yapabilir)
-    ZOOM,     // Hafif yakınlaştırma
-    RATIO_16_9 // 16:9 sabit oran
+    FIT,        // Orijinal en-boy oranını korur
+    FILL,       // Ekranı doldurur (kırpma yapabilir)
+    ZOOM,       // Yakınlaştırma
+    RATIO_16_9, // 16:9 sabit oran
+    RATIO_4_3   // 4:3 klasik oran
 }
 
 data class TrackInfo(
@@ -475,7 +476,8 @@ class TiviPlayerManager(private val context: Context) {
             AspectRatioMode.FIT -> AspectRatioMode.FILL
             AspectRatioMode.FILL -> AspectRatioMode.ZOOM
             AspectRatioMode.ZOOM -> AspectRatioMode.RATIO_16_9
-            AspectRatioMode.RATIO_16_9 -> AspectRatioMode.FIT
+            AspectRatioMode.RATIO_16_9 -> AspectRatioMode.RATIO_4_3
+            AspectRatioMode.RATIO_4_3 -> AspectRatioMode.FIT
         }
         _aspectRatio.value = next
         return next
