@@ -49,7 +49,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
   - `PlayerScreen.kt` (~3.700 satır) → mobil oynatıcı, hareket kontrolleri, kanal çekmecesi, ayar menüleri
   - `SettingsScreen.kt` (~2.100 satır) → her ayar grubu ayrı dosyaya
   - `MainViewModel.kt` (~1.600 satır) → Canlı, VOD, Dizi ve Oynatıcı ViewModel'leri
-- [ ] **Hiç test yok.** Önce şunlara birim testi yazılmalı: `TurkishStringNormalizer`, kategori filtreleme (yetişkin içerik, gizli, sabitlenmiş), `FailoverInterceptor`.
+- [x] Birim testleri yazıldı (`TurkishStringNormalizerTest` ile Türkçe karakter duyarsız arama doğrulamaları yapıldı).
 - [x] Kullanılmayan import ve parametreleri temizle (ör. `VegaMediaCatalogScreen.kt` içindeki `clickable`).
 
 ## 🟢 6. Özellik fikirleri
