@@ -51,7 +51,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
 
 ## 🟢 6. Özellik fikirleri
 
-- [ ] TV için tam EPG ızgarası (saat çizelgeli program rehberi, TiviMate tarzı)
+- [x] TV için tam EPG ızgarası (saat çizelgeli program rehberi, TiviMate tarzı `TvEpgGridScreen`) eklendi.
 - [ ] Kumandayla kanal numarası girerek doğrudan kanala geçiş (ör. "1-2-3")
 - [ ] Ebeveyn kilidini TV'de kumandayla PIN girilebilir hale getirme
 - [ ] Çoklu profil (aynı hesapta farklı favoriler ve izleme geçmişi)
