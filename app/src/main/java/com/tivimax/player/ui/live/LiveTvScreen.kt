@@ -62,6 +62,7 @@ import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
 import com.tivimax.player.ui.live.shelf.ShelfLiveLayout
+import com.tivimax.player.ui.live.modern.LiveTvModernPortraitLayout
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -204,7 +205,7 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                     // ====================================================================
                     // DİKEY TELEFON DÜZENİ (PORTRAIT MOBILE LAYOUT)
                     // ====================================================================
-                    LiveTvPortraitLayout(
+                    LiveTvModernPortraitLayout(
                         viewModel = viewModel,
                         categories = categories,
                         allCategories = allCategories,

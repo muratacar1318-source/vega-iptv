@@ -140,7 +140,13 @@ fun HomeScreen(viewModel: MainViewModel) {
             if (!isWideScreen) {
                 HomeBottomNavigationBar(
                     selectedTab = selectedTab,
-                    onTabSelected = { viewModel.setSelectedHomeTab(it) }
+                    onTabSelected = {
+                        if (it == HomeTab.LIVE_TV && selectedTab == HomeTab.LIVE_TV) {
+                            viewModel.triggerLiveScrollToTop()
+                        } else {
+                            viewModel.setSelectedHomeTab(it)
+                        }
+                    }
                 )
             }
         },

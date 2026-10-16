@@ -115,6 +115,12 @@ class UserPreferences(private val context: Context) {
         val KEY_LIVE_LAYOUT_MODE = stringPreferencesKey("live_layout_mode")
         const val LIVE_LAYOUT_SHELF = "SHELF"
         const val LIVE_LAYOUT_CLASSIC = "CLASSIC"
+
+        // Canlı TV Liste Görünüm Modu ("COMPACT" = Kompakt Liste [Varsayılan], "GRID" = Izgara, "DETAILED" = Detaylı)
+        val KEY_LIVE_VIEW_MODE = stringPreferencesKey("live_view_mode")
+        const val LIVE_VIEW_COMPACT = "COMPACT"
+        const val LIVE_VIEW_GRID = "GRID"
+        const val LIVE_VIEW_DETAILED = "DETAILED"
     }
 
     val usernameFlow: Flow<String> = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
@@ -459,6 +465,16 @@ class UserPreferences(private val context: Context) {
     suspend fun setLiveLayoutMode(mode: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_LIVE_LAYOUT_MODE] = mode
+        }
+    }
+
+    val liveViewModeFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_LIVE_VIEW_MODE] ?: LIVE_VIEW_COMPACT
+    }
+
+    suspend fun setLiveViewMode(mode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_LIVE_VIEW_MODE] = mode
         }
     }
 }

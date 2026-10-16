@@ -239,6 +239,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadLiveCategories()
     }
 
+    // Canlı TV Liste Görünüm Modu ("COMPACT" = Kompakt Liste, "GRID" = Izgara, "DETAILED" = Detaylı)
+    val liveViewMode: StateFlow<String> = preferences.liveViewModeFlow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences.LIVE_VIEW_COMPACT)
+
+    fun setLiveViewMode(mode: String) {
+        viewModelScope.launch {
+            preferences.setLiveViewMode(mode)
+        }
+    }
+
+    // Canlı TV Sekmesine Tekrar Tıklanınca En Üste Kaydırma Olayı
+    val scrollToTopLiveEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    fun triggerLiveScrollToTop() {
+        scrollToTopLiveEvent.tryEmit(Unit)
+    }
+
     fun isAdultCategory(name: String): Boolean {
         val clean = name.lowercase()
         return clean.contains("+18") || clean.contains("18+") || clean.contains("xxx") ||
