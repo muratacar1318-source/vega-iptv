@@ -15,3 +15,7 @@ app/build
 .gemini/
 phone_screenshot.jpg
 
+# Release imza dosyalari (ASLA commit etme)
+keystore.properties
+*.jks
+*.keystore

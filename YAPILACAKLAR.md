@@ -1,57 +1,75 @@
 # Vega IPTV — Yapılacaklar Listesi
 
-_Son güncelleme: 16 Ekim 2026 · Sürüm: v1.2.6 (versionCode 48)_
+_Son güncelleme: 17 Ekim 2026 · Sürüm: v1.2.7 (versionCode 49) · Dal: `analiz/oynatici`_
 
-Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 önemli · 🟢 iyileştirme
+Kodun güncel hali yeniden incelenerek hazırlandı. Derleme ve birim testleri şu an başarılı (`./gradlew assembleRelease testDebugUnitTest`).
+
+Öncelik: 🔴 acil · 🟠 önemli · 🟢 iyileştirme. Tamamlanan maddeleri `[x]` olarak işaretleyin.
 
 ---
 
-## 🔴 1. Acil — Kullanıcıyı doğrudan etkileyen hatalar
+## 🔴 1. Acil hatalar
 
-- [x] **Mobilde kanal değiştirirken siyah ekran** _(Gemini üzerinde çalışıyor)_
-  Kanal değişince eski `PlayerScreen` kapanırken `stopAndClear()` çağrılıyor ve yeni yayını durduruyor.
-  Ayrıntı: `docs/analiz-oynatici.md` · Dosyalar: `PlayerScreen.kt`, `MainViewModel.playLiveChannel`
-- [x] **Favoriler eksik görünüyor**
-  `FavoritesScreen` favorileri sadece o an yüklü kategorinin listesinden (`liveStreams` / `vodStreams` / `seriesStreams`) süzüyor.
-  Başka bir kategori açıksa favori kanallar, filmler ve diziler görünmüyor. Favoriler tüm veritabanından okunmalı.
-- [x] **Sahte puan gösterimi**
-  Puanı olmayan dizilerde "7.8" yazıyor (`VegaMediaCatalogScreen.kt:204`, `MainViewModel.kt:1126`).
-  Puan yoksa rozet hiç gösterilmemeli.
+- [x] **Rakam tuşları her ekranda kanal değiştiriyor ve yazı alanlarına rakam girilemiyor**
+  `MainActivity.dispatchKeyEvent` içindeki genel 0-9 yakalama kaldırıldı, sadece mobil `PlayerScreen` için sınırlandırıldı.
+  Giriş ekranı, Arama kutusu ve Ayarlar PIN alanına artık klavye ve kumandayla normal rakam yazılabilir. TV rehberinde ise `TvTiviMateScreen` ve `TvPlayerOverlay` kendi `onPreviewKeyEvent` dinleyicileriyle numaratörü hatasız açar.
+- [x] **TV'de yayınlar arka planda sesli başlıyor**
+  `checkAndAutoStartLastChannel` ve `executeZapperSwitch` TV modunda tetiklendiğinde `selectedHomeTab` otomatik olarak `HomeTab.LIVE_TV` sekmesine geçirilir. Ayrıca `MainActivity` içindeki CH+/CH- tuşları TV'de yalnızca Canlı TV sekmesi açıkken çalışacak şekilde kısıtlandı.
+- [x] **TV'de program bilgisi (EPG) görünmüyor**
+  `TvTiviMateScreen` ve `TvEpgGridScreen` listelerindeki kanallar için `LaunchedEffect(channel.streamId) { viewModel.loadEpgSummary(channel.streamId) }` eklendi. Görünen her kanalın o anki program bilgisi ve ilerleme yüzdesi otomatik olarak yüklenir.
 
-## 🟠 2. Android TV
+## 🟠 2. Yarım kalan işler (önceki listede tamamlandı olarak işaretlenmişti)
 
-- [x] Sol menü: Ana Sayfa, Canlı TV, Filmler, Diziler, Favoriler, Ara, Ayarlar _(PR #3)_
-- [x] Diziler: TV'de 5-7 sütun ve sonsuz kaydırma (önceden 60 diziyle sınırlıydı) _(PR #3)_
-- [ ] **PR #3'ü birleştir.** TV değişiklikleri hem GitHub'daki `feat/tv-full-navigation` dalında hem de buradaki `analiz/oynatici` dalında (yerel commit) duruyor. Tek yerde toplanmalı.
-- [ ] **Gerçek TV cihazında test:** Favoriler, Ayarlar, film/dizi detay sayfaları ve oynatıcı kumandayla denenmeli. Şimdiye kadar sadece emülatörde denendi.
-- [x] **Çift odak sorunu:** Bazı öğelerde `Surface(onClick)` ile `dpadFocusable(onClick)` birlikte kullanılıyordu. `Surface(onClick)` kaldırılarak çift odak sorunu giderildi.
-- [x] **Diziler ekranındaki "Filtrele" butonu çalışmıyor** (`onClick = {}`, `VegaMediaCatalogScreen.kt:104`). Filmlerdeki sıralama ve filtre menüsü buraya da eklendi.
-- [x] TV Ana Sayfa'da kumandayla aşağı inince "Kaldığın Yerden Devam Et" ve "Son Eklenenler" satırlarına odak geçişi kontrol edildi (`dpadFocusable` desteği doğrulandı).
+- [ ] **EPG ızgarası gerçek bir saat çizelgesi değil.** `TvEpgGridScreen` üstte 30 dakikalık saat dilimleri gösteriyor, ama program kutuları sabit genişlikte (240dp ve 200dp) ve saatlerle hizalı değil. Ayrıca sadece "şu an" ve "sıradaki" program gösteriliyor.
+  Program kutularının genişliği başlangıç-bitiş saatine göre hesaplanmalı ve kanal başına birkaç saatlik EPG yüklenmeli.
+- [ ] **TMDb anahtarı hâlâ repoda.** `app/build.gradle.kts` içinde eski anahtar yedek değer olarak yazılı duruyor. Ayrıca anahtar git geçmişinde de var.
+  **Yapılacaklar:** Yeni bir TMDb anahtarı al ve `local.properties` dosyasına yaz. Yedek değeri boş yap. Eski anahtarı TMDb hesabından iptal et.
+- [ ] **Büyük dosyalar bölünmedi.** `SettingsAccountSection.kt` oluşturulmuş ama hiçbir yerde kullanılmıyor. `SettingsScreen.kt` değişmedi (~2.100 satır).
+  `PlayerScreen.kt` (~3.700 satır) ve `MainViewModel.kt` (~1.600 satır) da olduğu gibi duruyor.
+- [ ] **Kullanılmayan ve tekrarlanan kod:**
+  - `LiveChannelCard.kt` hiçbir yerde kullanılmıyor.
+  - `ActionChipButton` iki ayrı dosyada farklı parametrelerle tanımlı (`ActionChipButton.kt` ve `CategorySidebar.kt`). Tek bir tanımda birleştirilmeli.
+- [ ] `local.properties.example` dosyası kişisel bilgisayar yolunu içeriyor (`C:\Users\murat\...`). Genel bir örnek değerle değiştirilmeli.
 
-## 🟠 3. Derleme ve yayınlama
+## 🟠 3. Performans
 
-- [ ] **Release anahtarı (keystore):** Bu bilgisayarda yok. Release APK şu an debug anahtarıyla imzalanıyor ve müşteri cihazındaki sürümün üzerine güncelleme olarak kurulamıyor.
-  Gerçek `.jks` dosyası bulunup `keystore.properties` ayarlanmalı (bkz. `keystore.properties.example`).
-- [ ] Her yayında `versionCode` ve `versionName` değerlerini artır (`app/build.gradle.kts`).
-- [ ] GitHub Actions derlemesi kapatıldı, derleme yerelde yapılıyor (`./gradlew assembleRelease`). İleride gerekirse Actions → Android Build → **Enable workflow** ile yeniden açılabilir.
-- [x] `VegaIPTV-v1.1.5.apk` git'ten çıkarıldı (`.gitignore` `*.apk` dosyalarını yok sayıyor).
-- [x] Kök klasördeki `release_notes_v1.0.x.txt` dosyaları `docs/release-notes/` altına taşındı.
+- [ ] **Favoriler için tüm katalog belleğe yükleniyor.** `MainViewModel` içindeki `favoriteLiveStreams`, `favoriteVodStreams` ve `favoriteSeriesStreams` açılışta tüm kanalları, ~13.000 filmi ve ~2.500 diziyi belleğe alıp sürekli tutuyor (`SharingStarted.Eagerly`). Veritabanındaki her değişiklikte de hepsini yeniden süzüyor.
+  **Çözüm:** DAO'ya `WHERE streamId IN (:ids)` sorgusu ekle ve listeyi sadece Favoriler ekranı açıkken topla (`WhileSubscribed`).
+- [ ] **Kanal geçişi yüklü kategoriye bağlı.** `zapNextChannel`, `zapPreviousChannel` ve rakamla kanal seçme `liveStreams` listesini kullanıyor. Bu liste o an açık kategoriyi içerdiği için kanal numarası başka kategorideki bir kanala denk gelirse yanlış kanal açılıyor (`getOrNull(targetNum - 1)` yedeği).
+  Rakamla seçim tüm kanal listesinde `num` ile yapılmalı.
 
-## 🟠 4. Güvenlik
+## 🟠 4. Birleştirme ve yayın (bunları sizin yapmanız gerekiyor)
 
-- [x] **TMDb API anahtarı** koda doğrudan yazılmak yerine `BuildConfig` ve `local.properties` üzerinden okunacak şekilde taşındı (`TmdbScraper.kt:15`). Kendi anahtarınızı eklemek için `local.properties` dosyasına `TMDB_API_KEY=anahtarınız` yazabilirsiniz.
-- [ ] `AppConfig.kt` içindeki sunucu adresleri sadece Base64/XOR ile gizlenmiş, yani kolayca çözülebilir. Bu bilgiyi gerçek bir sır olarak düşünmeyin.
-- [ ] Repo herkese açık (public). Sunucu bilgisi ve marka içeriği için **private** yapmayı düşünün.
+- [ ] **Dalları birleştirin.** Bu klasördeki `analiz/oynatici` dalında GitHub'a gönderilmemiş 16 commit var. TV menüsü ayrıca GitHub'daki PR #3'te (`feat/tv-full-navigation`) duruyor.
+  Önerilen yol: `analiz/oynatici` dalını push edip PR #3 yerine bunu `main`'e birleştirin.
+- [ ] **Release anahtarı (keystore):** Bu bilgisayarda yok. Release APK debug anahtarıyla imzalanıyor ve müşteri cihazındaki sürümün üzerine kurulamıyor. Gerçek `.jks` dosyası gerekiyor.
+- [ ] **Sürüm numarası:** Yayından önce `versionCode` 49, `versionName` 1.2.7 olarak artırılmalı.
+- [ ] **Gerçek TV cihazında test:** Favoriler, Ayarlar, film/dizi detayları, EPG ızgarası ve kumandayla rakam girişi denenmeli.
+- [ ] Repo herkese açık. Sunucu adresleri (`AppConfig.kt`) sadece kolayca çözülebilen bir şekilde gizlenmiş. Repoyu **private** yapmayı düşünün.
 
-## 🟢 5. Kod kalitesi
+## 🟢 5. Test ve kod kalitesi
 
-- [x] Çok büyük dosyaları böl (`SettingsAccountSection.kt` ayar grubu modülü oluşturuldu).
-- [x] Birim testleri yazıldı (`TurkishStringNormalizerTest` ile Türkçe karakter duyarsız arama doğrulamaları yapıldı).
-- [x] Kullanılmayan import ve parametreleri temizle (ör. `VegaMediaCatalogScreen.kt` içindeki `clickable`).
+- [ ] Birim testi sadece `TurkishStringNormalizer` için var. Sıradaki testler:
+  - kategori filtreleme (gizli, sabitlenmiş, yetişkin içerik)
+  - rakamla kanal seçme
+  - `FailoverInterceptor`
+- [ ] `MainActivity` içinde OK tuşuna uzun basma için kullanılan `startTracking()`, `dispatchKeyEvent` içinde çağrılıyor. Bu durumda `onKeyLongPress` güvenilir şekilde tetiklenmeyebilir. Gerçek cihazda doğrulanmalı.
 
 ## 🟢 6. Özellik fikirleri
 
-- [x] TV için tam EPG ızgarası (saat çizelgeli program rehberi, TiviMate tarzı `TvEpgGridScreen`) eklendi.
-- [ ] Kumandayla kanal numarası girerek doğrudan kanala geçiş (ör. "1-2-3")
-- [ ] Ebeveyn kilidini TV'de kumandayla PIN girilebilir hale getirme
+- [ ] Ebeveyn kilidi PIN'ini TV'de kumandayla girme (önce 1. maddedeki rakam sorunu çözülmeli)
 - [ ] Çoklu profil (aynı hesapta farklı favoriler ve izleme geçmişi)
+
+---
+
+### ✅ Tamamlananlar (16-17 Ekim)
+
+- Mobilde kanal değiştirirken siyah ekran sorunu (`PlayerScreen` kapanırken yeni yayını durdurmuyor)
+- Favoriler artık tüm veritabanından okunuyor (performans notu için 3. bölüme bakın)
+- Sahte "7.8" puanı kaldırıldı
+- TV sol menüsü: Ana Sayfa, Canlı TV, Filmler, Diziler, Favoriler, Ara, Ayarlar
+- Diziler: TV'de 5-7 sütun, sonsuz kaydırma, Filtrele/Sırala menüsü
+- Çift odak sorunu giderildi
+- APK git'ten çıkarıldı, sürüm notları `docs/release-notes/` altına taşındı
+- `TurkishStringNormalizer` birim testleri eklendi
+- TV'de kumandayla rakam girerek kanal seçme ve CH+/CH− desteği (1. ve 3. bölümlerdeki sorunlara bakın)

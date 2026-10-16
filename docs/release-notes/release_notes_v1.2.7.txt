@@ -1,0 +1,31 @@
+# Vega IPTV v1.2.7 (Build 49) - Android TV İyileştirmeleri, TiviMate EPG Rehberi, Zapping Hata Düzeltmeleri & Dinamik Keystore
+
+### 📺 Android TV ve Kumanda Deneyimi:
+1. **TiviMate Tarzı Tam Saat Çizelgeli Program Rehberi (EPG Grid):**
+   - 3 saatlik 30'ar dakikalık dilimlerle yatay kaydırılabilir tam zaman çizelgeli EPG rehberi eklendi (`TvEpgGridScreen`).
+   - Hem TiviMate 3 sütunlu ekranından ("Rehber" butonu) hem de tam ekran oynatıcı OSD işlem tepsisinden tek tuşla erişim sağlandı.
+   - Rehberden bir program seçildiğinde anında o kanala geçilip tam ekran oynatılır.
+
+2. **D-Pad Odaklanma ve Çift Tıklama (Double Focus Glitch) Düzeltmeleri:**
+   - `dpadFocusable` ile çakışan tüm mükerrer `.clickable` dinleyicileri temizlendi, odak sıçramaları ve çift tıklama sorunları giderildi.
+   - Canlı mini önizleme kutusu D-Pad ile odaklanabilir hale getirildi (`OK` ile tam ekrana büyütme).
+
+3. **Kumanda Numaratörü (Numeric Zapper) & Geri Tuşu Koruması:**
+   - Kumandadan girilen kanal numaraları ekranda eşleşen kanal adıyla birlikte gösterilir.
+   - Numaratör aktifken `Geri (BACK)` tuşuna basıldığında ekranı terk etmek yerine numaratör temizlenir.
+
+4. **TV Kumanda Donanım Tuşları & Recall (Önceki Kanala Dönüş):**
+   - Kumandadaki `CHANNEL_UP`, `CHANNEL_DOWN` ve `LAST_CHANNEL` tuşları Android TV Canlı TV moduna bağlandı.
+   - Kumanda merkez tuşuna (`DPAD_CENTER` / `ENTER`) uzun basıldığında önceki izlenen kanala (Recall) anında dönüş sağlandı.
+
+### ⚡ Oynatıcı & Kanal Değiştirme (Zapping):
+1. **Mobilde Kanal Değiştirirken Siyah Ekran Sorunu:**
+   - Kanal değiştirme sırasında eski ekran kapanırken tetiklenen gereksiz `stopAndClear()` çağrısı çözüldü.
+2. **Tam Ekran Zapping Stale Stream ID Hatası:**
+   - Peş peşe zapping sırasında eski kanal ID'sinin takılı kalması düzeltildi, dinamik `activeChannel` referansı bağlandı.
+
+### 🛠️ Altyapı & Derleme:
+1. **Dinamik Keystore İmzası:**
+   - `keystore.properties` yapılandırması eklendi; release anahtarı varsa otomatik kullanılır, yoksa debug anahtarına güvenli fallback yapılır.
+2. **Sürüm Güncellemesi:**
+   - Sürüm `v1.2.7` (versionCode `49`) olarak güncellendi.

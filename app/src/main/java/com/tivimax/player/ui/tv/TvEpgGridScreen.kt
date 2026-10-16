@@ -273,6 +273,9 @@ fun TvEpgGridScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(channels, key = { "epg_grid_${it.streamId}" }) { channel ->
+                    LaunchedEffect(channel.streamId) {
+                        viewModel.loadEpgSummary(channel.streamId)
+                    }
                     val epg = epgSummaryMap[channel.streamId]
 
                     Surface(

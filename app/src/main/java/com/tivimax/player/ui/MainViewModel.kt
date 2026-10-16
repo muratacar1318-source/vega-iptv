@@ -902,6 +902,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val streams = repository.getLiveStreamsFilteredFlow(null, "", "").first()
                     val targetChannel = streams.firstOrNull { it.streamId == lastStreamId }
                     if (targetChannel != null) {
+                        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
+                            setSelectedHomeTab(com.tivimax.player.ui.main.HomeTab.LIVE_TV)
+                        }
                         playLiveChannel(targetChannel)
                     }
                 }
@@ -1247,6 +1250,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         zapperJob?.cancel()
         val matched = zapperMatchedChannel.value
         if (matched != null) {
+            if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
+                setSelectedHomeTab(com.tivimax.player.ui.main.HomeTab.LIVE_TV)
+            }
             playLiveChannel(matched)
         }
         dismissZapper()

@@ -403,6 +403,9 @@ fun TvTiviMateScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             items(displayedChannels, key = { "${it.streamId}_${it.num}" }) { channel ->
+                                LaunchedEffect(channel.streamId) {
+                                    viewModel.loadEpgSummary(channel.streamId)
+                                }
                                 val isCurrentPreview = activePreviewChannel?.streamId == channel.streamId
                                 val epg = epgSummaryMap[channel.streamId]
                                 val currentProgram = epg?.getDecodedTitle() ?: channel.currentProgram
@@ -670,25 +673,25 @@ fun TvTiviMateScreen(
             }
         }
 
-        // NUMERIC ZAPPER (KUMANDA NUMARATÖR) OVERLAY
-        if (isZapperActive && zapperNumber.isNotBlank()) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = OpusCyan,
-                border = BorderStroke(1.5.dp, Color.White),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 16.dp, end = 16.dp)
-            ) {
-                Text(
-                    text = "[ $zapperNumber ] ${zapperMatchedChannel?.name ?: ""}",
-                    color = Color.Black,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+            // NUMERIC ZAPPER (KUMANDA NUMARATÖR) OVERLAY
+            if (isZapperActive && zapperNumber.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = OpusCyan,
+                    border = BorderStroke(1.5.dp, Color.White),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 16.dp, end = 16.dp)
+                ) {
+                    Text(
+                        text = "[ $zapperNumber ] ${zapperMatchedChannel?.name ?: ""}",
+                        color = Color.Black,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
             }
         }
     }
-}
 }

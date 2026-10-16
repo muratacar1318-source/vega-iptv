@@ -198,16 +198,23 @@ class MainActivity : ComponentActivity() {
 
         if (event.action == android.view.KeyEvent.ACTION_DOWN) {
             when (event.keyCode) {
-                android.view.KeyEvent.KEYCODE_0 -> { viewModel.onNumericKeyPressed(0); return true }
-                android.view.KeyEvent.KEYCODE_1 -> { viewModel.onNumericKeyPressed(1); return true }
-                android.view.KeyEvent.KEYCODE_2 -> { viewModel.onNumericKeyPressed(2); return true }
-                android.view.KeyEvent.KEYCODE_3 -> { viewModel.onNumericKeyPressed(3); return true }
-                android.view.KeyEvent.KEYCODE_4 -> { viewModel.onNumericKeyPressed(4); return true }
-                android.view.KeyEvent.KEYCODE_5 -> { viewModel.onNumericKeyPressed(5); return true }
-                android.view.KeyEvent.KEYCODE_6 -> { viewModel.onNumericKeyPressed(6); return true }
-                android.view.KeyEvent.KEYCODE_7 -> { viewModel.onNumericKeyPressed(7); return true }
-                android.view.KeyEvent.KEYCODE_8 -> { viewModel.onNumericKeyPressed(8); return true }
-                android.view.KeyEvent.KEYCODE_9 -> { viewModel.onNumericKeyPressed(9); return true }
+                android.view.KeyEvent.KEYCODE_0,
+                android.view.KeyEvent.KEYCODE_1,
+                android.view.KeyEvent.KEYCODE_2,
+                android.view.KeyEvent.KEYCODE_3,
+                android.view.KeyEvent.KEYCODE_4,
+                android.view.KeyEvent.KEYCODE_5,
+                android.view.KeyEvent.KEYCODE_6,
+                android.view.KeyEvent.KEYCODE_7,
+                android.view.KeyEvent.KEYCODE_8,
+                android.view.KeyEvent.KEYCODE_9 -> {
+                    // Sadece mobil tam ekran oynatıcıda yakala; diğer ekranlarda (Giriş, Arama, PIN)
+                    // ve TV rehberinde Compose katmanına bırak (yazı alanları çalışsın)
+                    if (isPlayerScreen) {
+                        viewModel.onNumericKeyPressed(event.keyCode - android.view.KeyEvent.KEYCODE_0)
+                        return true
+                    }
+                }
                 android.view.KeyEvent.KEYCODE_ENTER,
                 android.view.KeyEvent.KEYCODE_DPAD_CENTER -> {
                     if (viewModel.isZapperActive.value) {
@@ -223,7 +230,7 @@ class MainActivity : ComponentActivity() {
                         val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
                         viewModel.zapNextChannel(currentStreamId)
                         return true
-                    } else if (viewModel.deviceMode.value == DeviceMode.TV) {
+                    } else if (viewModel.deviceMode.value == DeviceMode.TV && viewModel.selectedHomeTab.value == com.tivimax.player.ui.main.HomeTab.LIVE_TV) {
                         val currentId = viewModel.activePreviewChannel.value?.streamId
                         if (currentId != null) {
                             viewModel.zapNextChannel(currentId)
@@ -236,7 +243,7 @@ class MainActivity : ComponentActivity() {
                         val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
                         viewModel.zapPreviousChannel(currentStreamId)
                         return true
-                    } else if (viewModel.deviceMode.value == DeviceMode.TV) {
+                    } else if (viewModel.deviceMode.value == DeviceMode.TV && viewModel.selectedHomeTab.value == com.tivimax.player.ui.main.HomeTab.LIVE_TV) {
                         val currentId = viewModel.activePreviewChannel.value?.streamId
                         if (currentId != null) {
                             viewModel.zapPreviousChannel(currentId)
@@ -246,7 +253,7 @@ class MainActivity : ComponentActivity() {
                 }
                 android.view.KeyEvent.KEYCODE_LAST_CHANNEL,
                 android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-                    if (isPlayerScreen || viewModel.deviceMode.value == DeviceMode.TV) {
+                    if (isPlayerScreen || (viewModel.deviceMode.value == DeviceMode.TV && viewModel.selectedHomeTab.value == com.tivimax.player.ui.main.HomeTab.LIVE_TV)) {
                         viewModel.zapRecall()
                         return true
                     }
