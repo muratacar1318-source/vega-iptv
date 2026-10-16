@@ -24,8 +24,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
 - [x] Diziler: TV'de 5-7 sütun ve sonsuz kaydırma (önceden 60 diziyle sınırlıydı) _(PR #3)_
 - [ ] **PR #3'ü birleştir.** TV değişiklikleri hem GitHub'daki `feat/tv-full-navigation` dalında hem de buradaki `analiz/oynatici` dalında (yerel commit) duruyor. Tek yerde toplanmalı.
 - [ ] **Gerçek TV cihazında test:** Favoriler, Ayarlar, film/dizi detay sayfaları ve oynatıcı kumandayla denenmeli. Şimdiye kadar sadece emülatörde denendi.
-- [ ] **Çift odak sorunu:** Bazı öğelerde `Surface(onClick)` ile `dpadFocusable(onClick)` birlikte kullanılıyor. Bu öğelerde kumanda iki kez basmayı gerektirebilir veya odak çerçevesi görünmeyebilir.
-  Örnekler: `TvTiviMateScreen.kt` kategori satırları, `ActionChipButton`.
+- [x] **Çift odak sorunu:** Bazı öğelerde `Surface(onClick)` ile `dpadFocusable(onClick)` birlikte kullanılıyordu. `Surface(onClick)` kaldırılarak çift odak sorunu giderildi.
 - [ ] **Diziler ekranındaki "Filtrele" butonu çalışmıyor** (`onClick = {}`, `VegaMediaCatalogScreen.kt:104`). Filmlerdeki sıralama ve filtre menüsü buraya da eklenmeli.
 - [ ] TV Ana Sayfa'da kumandayla aşağı inince "Kaldığın Yerden Devam Et" ve "Son Eklenenler" satırlarına odak geçişini kontrol et.
 

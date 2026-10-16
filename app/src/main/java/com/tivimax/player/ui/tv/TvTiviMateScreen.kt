@@ -172,7 +172,6 @@ fun TvTiviMateScreen(
 
                     // Favoriler
                     Surface(
-                        onClick = { viewModel.selectedLiveCategory.value = "favorites" },
                         shape = RoundedCornerShape(8.dp),
                         color = if (isFavSelected) TiviGold.copy(alpha = 0.2f) else Color.Transparent,
                         modifier = Modifier
@@ -183,6 +182,7 @@ fun TvTiviMateScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 onClick = { viewModel.selectedLiveCategory.value = "favorites" }
                             )
+                            .clickable { viewModel.selectedLiveCategory.value = "favorites" }
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -207,7 +207,6 @@ fun TvTiviMateScreen(
 
                     // Son İzlenenler
                     Surface(
-                        onClick = { viewModel.selectedLiveCategory.value = "recents" },
                         shape = RoundedCornerShape(8.dp),
                         color = if (isRecentSelected) OpusCyan.copy(alpha = 0.18f) else Color.Transparent,
                         modifier = Modifier
@@ -217,6 +216,7 @@ fun TvTiviMateScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 onClick = { viewModel.selectedLiveCategory.value = "recents" }
                             )
+                            .clickable { viewModel.selectedLiveCategory.value = "recents" }
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -247,7 +247,6 @@ fun TvTiviMateScreen(
                             val isSelected = category.categoryId == selectedCategory
 
                             Surface(
-                                onClick = { viewModel.loadLiveStreams(category.categoryId) },
                                 shape = RoundedCornerShape(8.dp),
                                 color = if (isSelected) OpusCyan.copy(alpha = 0.18f) else Color.Transparent,
                                 modifier = Modifier
@@ -257,6 +256,7 @@ fun TvTiviMateScreen(
                                         shape = RoundedCornerShape(8.dp),
                                         onClick = { viewModel.loadLiveStreams(category.categoryId) }
                                     )
+                                    .clickable { viewModel.loadLiveStreams(category.categoryId) }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
@@ -355,6 +355,13 @@ fun TvTiviMateScreen(
                                                 }
                                             }
                                         )
+                                        .clickable {
+                                            if (isCurrentPreview) {
+                                                isFullScreenPlayer = true
+                                            } else {
+                                                viewModel.previewChannel(channel)
+                                            }
+                                        }
                                 ) {
                                     Row(
                                         modifier = Modifier

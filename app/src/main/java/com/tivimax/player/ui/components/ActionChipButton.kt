@@ -1,6 +1,7 @@
 package com.tivimax.player.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -23,7 +24,6 @@ fun ActionChipButton(
     iconTint: Color = Color(0xFF00E5FF)
 ) {
     Surface(
-        onClick = onClick,
         shape = RoundedCornerShape(10.dp),
         color = Color.White.copy(alpha = 0.07f),
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
@@ -34,6 +34,7 @@ fun ActionChipButton(
                 shape = RoundedCornerShape(10.dp),
                 onClick = onClick
             )
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp),
