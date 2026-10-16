@@ -42,6 +42,7 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
     val seriesList by viewModel.seriesStreams.collectAsState()
     val selectedCategory by viewModel.selectedSeriesCategory.collectAsState()
     val isLoading by viewModel.seriesLoading.collectAsState()
+    val currentSort by viewModel.seriesSortOption.collectAsState()
 
     val uiCategories = remember(categories) {
         categories.map {
@@ -78,6 +79,8 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
             VegaMediaContentGrid(
                 isLoading = isLoading,
                 seriesList = seriesList,
+                currentSort = currentSort,
+                onSortSelected = { sort -> viewModel.setSeriesSort(sort) },
                 onSeriesClick = { series -> viewModel.loadSeriesDetail(series) }
             )
         }
@@ -88,8 +91,12 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
 private fun VegaMediaContentGrid(
     isLoading: Boolean,
     seriesList: List<SeriesStream>,
+    currentSort: com.tivimax.player.data.model.SortOption,
+    onSortSelected: (com.tivimax.player.data.model.SortOption) -> Unit,
     onSeriesClick: (SeriesStream) -> Unit
 ) {
+    var isSortMenuOpen by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
@@ -98,11 +105,68 @@ private fun VegaMediaContentGrid(
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ActionChipButton(
-                text = "Filtrele",
-                icon = Icons.Default.FilterList,
-                onClick = {}
-            )
+            Box {
+                val sortLabel = when (currentSort) {
+                    com.tivimax.player.data.model.SortOption.ADDED_DESC -> "Eklenme"
+                    com.tivimax.player.data.model.SortOption.RATING_DESC -> "Puan"
+                    com.tivimax.player.data.model.SortOption.NAME_ASC -> "A - Z"
+                    com.tivimax.player.data.model.SortOption.NAME_DESC -> "Z - A"
+                    com.tivimax.player.data.model.SortOption.DEFAULT -> "Filtrele"
+                }
+
+                ActionChipButton(
+                    text = sortLabel,
+                    icon = Icons.Default.FilterList,
+                    onClick = { isSortMenuOpen = true }
+                )
+
+                DropdownMenu(
+                    expanded = isSortMenuOpen,
+                    onDismissRequest = { isSortMenuOpen = false },
+                    modifier = Modifier.background(com.tivimax.player.theme.TiviSurface)
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Eklenme Tarihi (Yeni)", color = if (currentSort == com.tivimax.player.data.model.SortOption.ADDED_DESC) NeonCyan else Color.White, fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp)) },
+                        onClick = {
+                            onSortSelected(com.tivimax.player.data.model.SortOption.ADDED_DESC)
+                            isSortMenuOpen = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Puan Sıralaması (En Yüksek)", color = if (currentSort == com.tivimax.player.data.model.SortOption.RATING_DESC) NeonCyan else Color.White, fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp)) },
+                        onClick = {
+                            onSortSelected(com.tivimax.player.data.model.SortOption.RATING_DESC)
+                            isSortMenuOpen = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("A - Z (İsme Göre)", color = if (currentSort == com.tivimax.player.data.model.SortOption.NAME_ASC) NeonCyan else Color.White, fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp)) },
+                        onClick = {
+                            onSortSelected(com.tivimax.player.data.model.SortOption.NAME_ASC)
+                            isSortMenuOpen = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Z - A (İsme Göre Ters)", color = if (currentSort == com.tivimax.player.data.model.SortOption.NAME_DESC) NeonCyan else Color.White, fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp)) },
+                        onClick = {
+                            onSortSelected(com.tivimax.player.data.model.SortOption.NAME_DESC)
+                            isSortMenuOpen = false
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Varsayılan Sıra", color = if (currentSort == com.tivimax.player.data.model.SortOption.DEFAULT) NeonCyan else Color.White, fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp)) },
+                        onClick = {
+                            onSortSelected(com.tivimax.player.data.model.SortOption.DEFAULT)
+                            isSortMenuOpen = false
+                        }
+                    )
+                }
+            }
         }
 
         if (isLoading) {

@@ -25,7 +25,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
 - [ ] **PR #3'ü birleştir.** TV değişiklikleri hem GitHub'daki `feat/tv-full-navigation` dalında hem de buradaki `analiz/oynatici` dalında (yerel commit) duruyor. Tek yerde toplanmalı.
 - [ ] **Gerçek TV cihazında test:** Favoriler, Ayarlar, film/dizi detay sayfaları ve oynatıcı kumandayla denenmeli. Şimdiye kadar sadece emülatörde denendi.
 - [x] **Çift odak sorunu:** Bazı öğelerde `Surface(onClick)` ile `dpadFocusable(onClick)` birlikte kullanılıyordu. `Surface(onClick)` kaldırılarak çift odak sorunu giderildi.
-- [ ] **Diziler ekranındaki "Filtrele" butonu çalışmıyor** (`onClick = {}`, `VegaMediaCatalogScreen.kt:104`). Filmlerdeki sıralama ve filtre menüsü buraya da eklenmeli.
+- [x] **Diziler ekranındaki "Filtrele" butonu çalışmıyor** (`onClick = {}`, `VegaMediaCatalogScreen.kt:104`). Filmlerdeki sıralama ve filtre menüsü buraya da eklendi.
 - [ ] TV Ana Sayfa'da kumandayla aşağı inince "Kaldığın Yerden Devam Et" ve "Son Eklenenler" satırlarına odak geçişini kontrol et.
 
 ## 🟠 3. Derleme ve yayınlama
