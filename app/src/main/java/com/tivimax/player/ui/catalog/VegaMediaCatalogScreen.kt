@@ -263,32 +263,34 @@ private fun VegaMediaCard(
                         )
                 )
 
-                val ratingText = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) } ?: "7.8"
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = Color.Black.copy(alpha = 0.65f),
-                    border = BorderStroke(0.5.dp, GlassBorder),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                val ratingText = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+                if (!ratingText.isNullOrBlank() && ratingText != "0" && ratingText != "0.0") {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color.Black.copy(alpha = 0.65f),
+                        border = BorderStroke(0.5.dp, GlassBorder),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Puan",
-                            tint = Color(0xFFFFD700),
-                            modifier = Modifier.size(10.dp)
-                        )
-                        Text(
-                            text = ratingText,
-                            color = Color.White,
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Puan",
+                                tint = Color(0xFFFFD700),
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Text(
+                                text = ratingText,
+                                color = Color.White,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
                     }
                 }
             }

@@ -368,8 +368,9 @@ fun LiveTvScreen(viewModel: MainViewModel) {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    val decodedProgramDesc = program.getDecodedDescription()
                     Text(
-                        text = if (!program.description.isNullOrBlank()) program.description else "Bu program için detaylı özet bilgisi sunucu tarafından iletilmedi.",
+                        text = if (!decodedProgramDesc.isNullOrBlank()) decodedProgramDesc else "Bu program için detaylı özet bilgisi sunucu tarafından iletilmedi.",
                         color = TiviTextSecondary,
                         fontSize = 13.sp,
                         lineHeight = 18.sp

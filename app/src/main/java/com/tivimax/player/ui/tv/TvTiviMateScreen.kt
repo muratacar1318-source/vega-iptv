@@ -532,6 +532,9 @@ fun TvTiviMateScreen(
                                 PlayerView(ctx).apply {
                                     useController = false
                                     setKeepContentOnPlayerReset(true)
+                                    isFocusable = false
+                                    isFocusableInTouchMode = false
+                                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                                     layoutParams = FrameLayout.LayoutParams(
                                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -628,8 +631,9 @@ fun TvTiviMateScreen(
                                 fontWeight = FontWeight.Bold
                             )
 
+                            val decodedDesc = activeEpg?.getDecodedDescription()
                             Text(
-                                text = if (!activeEpg?.description.isNullOrBlank()) activeEpg!!.description else "Detaylı akış özet bilgisi sunucu tarafından iletilmedi.",
+                                text = if (!decodedDesc.isNullOrBlank()) decodedDesc else "Detaylı akış özet bilgisi sunucu tarafından iletilmedi.",
                                 color = TiviTextSecondary,
                                 fontSize = 11.5.sp,
                                 maxLines = 3,

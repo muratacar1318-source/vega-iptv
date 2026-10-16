@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.MediaPosterCard
@@ -36,6 +38,10 @@ fun FavoritesScreen(viewModel: MainViewModel) {
     val watchProgressMap by viewModel.watchProgressMap.collectAsState()
 
     val totalFavorites = favChannels.size + favMovies.size + favSeries.size
+
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
+    val gridColumns = if (isWideScreen) (configuration.screenWidthDp / 140).coerceIn(5, 7) else 3
 
     Column(
         modifier = Modifier
@@ -61,7 +67,6 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                     tabs.forEachIndexed { index, title ->
                         val isSelected = selectedTab == index
                         Surface(
-                            onClick = { selectedTab = index },
                             shape = RoundedCornerShape(50),
                             color = if (isSelected) OpusCyan else Color.Transparent,
                             modifier = Modifier
@@ -135,7 +140,7 @@ fun FavoritesScreen(viewModel: MainViewModel) {
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Fixed(gridColumns),
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 80.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -39,7 +39,6 @@ fun MediaPosterCard(
                 shape = RoundedCornerShape(10.dp),
                 onClick = onClick
             )
-            .clickable(onClick = onClick)
     ) {
         // Afiş Görseli (2:3 En-Boy Oranı, 10.dp Köşe Yuvarlatmalı)
         Card(

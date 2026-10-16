@@ -115,6 +115,13 @@ fun TvPlayerOverlay(
         try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
     }
 
+    LaunchedEffect(showInfoCard, showActionTray, showOverlayGuide, showQuickSettings) {
+        if (!showActionTray && !showOverlayGuide && !showQuickSettings) {
+            delay(50)
+            try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
+        }
+    }
+
     // 5 Saniyelik Otomatik Gizlenme Zamanlayıcısı
     LaunchedEffect(showInfoCard, showActionTray, lastInteractionTime) {
         if ((showInfoCard || showActionTray) && !showOverlayGuide && !showQuickSettings) {
@@ -236,6 +243,9 @@ fun TvPlayerOverlay(
                     useController = false
                     keepScreenOn = true
                     setKeepContentOnPlayerReset(true)
+                    isFocusable = false
+                    isFocusableInTouchMode = false
+                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -534,7 +544,7 @@ fun TvPlayerOverlay(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        items(allStreams.take(40), key = { "guide_${it.streamId}" }) { st ->
+                        items(allStreams, key = { "guide_${it.streamId}" }) { st ->
                             val isSel = st.streamId == activeChannel.streamId
                             Surface(
                                 shape = RoundedCornerShape(8.dp),

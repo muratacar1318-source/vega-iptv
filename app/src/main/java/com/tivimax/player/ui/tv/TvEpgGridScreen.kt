@@ -167,7 +167,7 @@ fun TvEpgGridScreen(
                             Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
-                                text = currentEpg?.description?.takeIf { it.isNotBlank() } ?: "Bu yayın için EPG rehber detayı sunucudan iletilmedi.",
+                                text = currentEpg?.getDecodedDescription()?.takeIf { it.isNotBlank() } ?: "Bu yayın için EPG rehber detayı sunucudan iletilmedi.",
                                 color = TiviTextSecondary,
                                 fontSize = 11.sp,
                                 maxLines = 2,
