@@ -25,6 +25,7 @@ import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
+import com.tivimax.player.ui.devicemode.DeviceModeSetupScreen
 import com.tivimax.player.ui.login.LoginScreen
 import com.tivimax.player.ui.main.HomeScreen
 import com.tivimax.player.ui.player.PlayerScreen
@@ -40,6 +41,9 @@ fun AppNavigation(viewModel: MainViewModel = viewModel()) {
         when (screen) {
             is Screen.Splash -> {
                 SplashScreen()
+            }
+            is Screen.DeviceModeSetup -> {
+                DeviceModeSetupScreen(viewModel = viewModel)
             }
             is Screen.Login -> {
                 LoginScreen(viewModel = viewModel)

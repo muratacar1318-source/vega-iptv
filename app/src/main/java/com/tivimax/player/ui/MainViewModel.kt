@@ -22,9 +22,13 @@ import com.google.gson.reflect.TypeToken
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
+import com.tivimax.player.util.DeviceMode
+import com.tivimax.player.util.OrientationManager
+import com.tivimax.player.util.detectRecommendedDeviceMode
 
 sealed class Screen {
     object Splash : Screen()
+    object DeviceModeSetup : Screen()
     object Login : Screen()
     object PlaylistSync : Screen()
     object Home : Screen()
@@ -90,6 +94,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val preferences = UserPreferences(application)
     val playerManager = TiviPlayerManager(application)
     val autoUpdateManager = com.tivimax.player.data.update.AutoUpdateManager(application)
+
+    // Cihaz Modu (Telefon / Tablet / TV)
+    private val _deviceMode = MutableStateFlow<DeviceMode>(
+        OrientationManager.getFastCachedDeviceMode(application) ?: application.detectRecommendedDeviceMode()
+    )
+    val deviceMode: StateFlow<DeviceMode> = _deviceMode.asStateFlow()
+
+    val isDeviceModeSet: StateFlow<Boolean> = preferences.isDeviceModeSetFlow.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        OrientationManager.getFastCachedDeviceMode(application) != null
+    )
 
     // Navigasyon Durumu & Geri Yığını (BackStack)
     private val backStack = ArrayDeque<Screen>()
@@ -429,60 +445,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
-        // Otomatik Giriş Kontrolü
+        // Cihaz Modu Değişikliklerini Dinle
         viewModelScope.launch {
-            val user = preferences.usernameFlow.first()
-            val pass = preferences.passwordFlow.first()
-            val server = preferences.serverUrlFlow.first()
-            val loggedIn = preferences.isLoggedInFlow.first()
-            val expDate = preferences.expDateFlow.first()
-            val maxCons = preferences.maxConnectionsFlow.first()
-            val activeCons = preferences.activeConnectionsFlow.first()
+            preferences.deviceModeFlow.collect { saved ->
+                if (saved != null) {
+                    _deviceMode.value = saved
+                }
+            }
+        }
 
-            val effectiveServer = if (server.isBlank() || server.contains("my-iptv-server")) {
-                AppConfig.DEFAULT_SERVER_URL
-            } else {
-                server
+        // Başlangıç Ekranı: Cihaz Modu Seçilmemişse "Cihazını Seç" ekranına git
+        viewModelScope.launch {
+            val isModeSet = preferences.isDeviceModeSetFlow.first()
+            if (!isModeSet) {
+                _currentScreen.value = Screen.DeviceModeSetup
+                return@launch
             }
 
-            if (loggedIn && user.isNotBlank() && pass.isNotBlank()) {
-                // Önceden giriş yapılmış: Bilgileri ata
-                userInfo.value = XtreamUserInfo(
-                    username = user,
-                    status = "Active",
-                    expDate = expDate,
-                    maxConnections = maxCons,
-                    activeCons = activeCons,
-                    auth = 1
-                )
-                repository.updateCredentials(effectiveServer, user, pass)
-                _isLoggedIn.value = true
-
-                val isSynced = preferences.isPlaylistSyncedFlow.first()
-                if (isSynced) {
-                    _currentScreen.value = Screen.Home
-                    loadInitialData()
-                } else {
-                    _currentScreen.value = Screen.PlaylistSync
-                    startPlaylistSync(fromStep = 1)
-                }
-
-                // Arka planda sunucudan üyelik bilgilerini tazele (sessiz senkronizasyon)
-                val result = repository.authenticate(effectiveServer, user, pass)
-                result.onSuccess { authResp ->
-                    userInfo.value = authResp.userInfo
-                    preferences.saveAuth(
-                        username = user,
-                        password = pass,
-                        serverUrl = effectiveServer,
-                        expDate = authResp.userInfo?.expDate ?: expDate,
-                        maxCons = authResp.userInfo?.maxConnections ?: maxCons,
-                        activeCons = authResp.userInfo?.activeCons ?: activeCons
-                    )
-                }
-            } else {
-                _currentScreen.value = Screen.Login
-            }
+            checkUserLoginAndNavigate()
         }
 
         // Kaydedilmiş son izlenen canlı kanalları geri yükle (Son 20 Kanal)
@@ -531,6 +511,83 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun saveWatchProgress(streamId: Int, positionMs: Long, durationMs: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             preferences.saveWatchProgress(streamId, positionMs, durationMs)
+        }
+    }
+
+    fun setDeviceMode(mode: DeviceMode) {
+        _deviceMode.value = mode
+        viewModelScope.launch {
+            preferences.setDeviceMode(mode)
+        }
+    }
+
+    fun resetDeviceMode() {
+        viewModelScope.launch {
+            preferences.resetDeviceMode()
+            _currentScreen.value = Screen.DeviceModeSetup
+        }
+    }
+
+    fun onDeviceModeSetupCompleted(selectedMode: DeviceMode) {
+        _deviceMode.value = selectedMode
+        viewModelScope.launch {
+            preferences.setDeviceMode(selectedMode)
+            checkUserLoginAndNavigate()
+        }
+    }
+
+    fun checkUserLoginAndNavigate() {
+        viewModelScope.launch {
+            val user = preferences.usernameFlow.first()
+            val pass = preferences.passwordFlow.first()
+            val server = preferences.serverUrlFlow.first()
+            val loggedIn = preferences.isLoggedInFlow.first()
+            val expDate = preferences.expDateFlow.first()
+            val maxCons = preferences.maxConnectionsFlow.first()
+            val activeCons = preferences.activeConnectionsFlow.first()
+
+            val effectiveServer = if (server.isBlank() || server.contains("my-iptv-server")) {
+                AppConfig.DEFAULT_SERVER_URL
+            } else {
+                server
+            }
+
+            if (loggedIn && user.isNotBlank() && pass.isNotBlank()) {
+                userInfo.value = XtreamUserInfo(
+                    username = user,
+                    status = "Active",
+                    expDate = expDate,
+                    maxConnections = maxCons,
+                    activeCons = activeCons,
+                    auth = 1
+                )
+                repository.updateCredentials(effectiveServer, user, pass)
+                _isLoggedIn.value = true
+
+                val isSynced = preferences.isPlaylistSyncedFlow.first()
+                if (isSynced) {
+                    _currentScreen.value = Screen.Home
+                    loadInitialData()
+                } else {
+                    _currentScreen.value = Screen.PlaylistSync
+                    startPlaylistSync(fromStep = 1)
+                }
+
+                val result = repository.authenticate(effectiveServer, user, pass)
+                result.onSuccess { authResp ->
+                    userInfo.value = authResp.userInfo
+                    preferences.saveAuth(
+                        username = user,
+                        password = pass,
+                        serverUrl = effectiveServer,
+                        expDate = authResp.userInfo?.expDate ?: expDate,
+                        maxCons = authResp.userInfo?.maxConnections ?: maxCons,
+                        activeCons = authResp.userInfo?.activeCons ?: activeCons
+                    )
+                }
+            } else {
+                _currentScreen.value = Screen.Login
+            }
         }
     }
 

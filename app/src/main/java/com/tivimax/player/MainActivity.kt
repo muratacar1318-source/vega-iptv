@@ -11,41 +11,73 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import com.tivimax.player.theme.TiviMaxTheme
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
+import com.tivimax.player.util.DeviceMode
+import com.tivimax.player.util.LocalDeviceMode
 import com.tivimax.player.util.LocalIsTvDevice
+import com.tivimax.player.util.LocalOrientationManager
+import com.tivimax.player.util.OrientationManager
+import com.tivimax.player.util.detectRecommendedDeviceMode
 import com.tivimax.player.util.isTvDevice
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var viewModel: MainViewModel
+    private lateinit var orientationManager: OrientationManager
     private var wasPlayingBeforeStop = false
 
-    private fun isTvDevice(): Boolean {
-        val uiModeManager = getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager
-        val isTvMode = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
-        val hasLeanback = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
-        val hasNoTouch = !packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_TOUCHSCREEN)
-        return isTvMode || hasLeanback || hasNoTouch
+    private fun isTvModeActive(): Boolean {
+        if (::viewModel.isInitialized) {
+            return viewModel.deviceMode.value == DeviceMode.TV
+        }
+        val cached = OrientationManager.getFastCachedDeviceMode(this)
+        return cached == DeviceMode.TV || isTvDevice()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Soğuk başlatmada (Cold start) sıfır gecikmeyle doğru yönü Activity'ye uygula (Flicker önleme)
+        val fastMode = OrientationManager.getFastCachedDeviceMode(this)
+        if (fastMode != null) {
+            OrientationManager.applyInitialOrientation(this, fastMode)
+        } else {
+            val detected = detectRecommendedDeviceMode()
+            if (detected == DeviceMode.TV) {
+                OrientationManager.applyInitialOrientation(this, DeviceMode.TV)
+            }
+        }
+
+        orientationManager = OrientationManager(this)
         enableEdgeToEdge()
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
         setContent {
             val appTheme by viewModel.appTheme.collectAsState()
-            val isTv = remember { isTvDevice() }
+            val deviceMode by viewModel.deviceMode.collectAsState()
+            val currentScreen by viewModel.currentScreen.collectAsState()
+            val inPip by viewModel.isInPipMode.collectAsState()
 
-            CompositionLocalProvider(LocalIsTvDevice provides isTv) {
+            // Merkezi Yön ve Tam Ekran Yönetimi
+            LaunchedEffect(deviceMode, currentScreen, inPip) {
+                orientationManager.applyOrientation(deviceMode, currentScreen, inPip)
+            }
+
+            val isTv = deviceMode == DeviceMode.TV
+
+            CompositionLocalProvider(
+                LocalDeviceMode provides deviceMode,
+                LocalIsTvDevice provides isTv,
+                LocalOrientationManager provides orientationManager
+            ) {
                 TiviMaxTheme(themeName = appTheme) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
@@ -62,12 +94,19 @@ class MainActivity : ComponentActivity() {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         if (::viewModel.isInitialized) {
             viewModel.isInPipMode.value = isInPictureInPictureMode
+            if (!isInPictureInPictureMode && ::orientationManager.isInitialized) {
+                orientationManager.applyOrientation(
+                    viewModel.deviceMode.value,
+                    viewModel.currentScreen.value,
+                    false
+                )
+            }
         }
     }
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (isTvDevice()) {
+        if (isTvModeActive()) {
             // TV kumandasında Ana Ekran (Home) tuşuna basıldığında arkaplanda oynatmayı anında durdur
             if (::viewModel.isInitialized) {
                 if (viewModel.playerManager.isPlaying.value) {
@@ -99,7 +138,7 @@ class MainActivity : ComponentActivity() {
         super.onPause()
         if (::viewModel.isInitialized) {
             val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
-            if (isTvDevice() || !inPip) {
+            if (isTvModeActive() || !inPip) {
                 if (viewModel.playerManager.isPlaying.value) {
                     wasPlayingBeforeStop = true
                 }
@@ -112,7 +151,7 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         if (::viewModel.isInitialized) {
             val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
-            if (isTvDevice() || !inPip) {
+            if (isTvModeActive() || !inPip) {
                 if (viewModel.playerManager.isPlaying.value) {
                     wasPlayingBeforeStop = true
                 }
@@ -123,6 +162,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (::viewModel.isInitialized && ::orientationManager.isInitialized) {
+            orientationManager.applyOrientation(
+                viewModel.deviceMode.value,
+                viewModel.currentScreen.value,
+                viewModel.isInPipMode.value
+            )
+        }
         if (::viewModel.isInitialized && wasPlayingBeforeStop) {
             wasPlayingBeforeStop = false
             val isPlayerScreen = viewModel.currentScreen.value is Screen.Player

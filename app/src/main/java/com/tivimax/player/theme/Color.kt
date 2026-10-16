@@ -33,6 +33,7 @@ var TiviPrimaryDark = Color(0xFF4F46E5)     // Koyu İndigo
 var TiviSecondary = Color(0xFF6366F1)       // Standart İndigo Vurgu
 var TiviAccentLive = Color(0xFFFF2A55)      // Canlı Yayın Kırmızısı
 var OpusCyan = Color(0xFF00E5FF)            // Opus IPTV Neon Camgöbeği
+var OpusPurple = Color(0xFF8B5CF6)          // Opus IPTV Neon Mor
 var TiviCardDark = Color(0xFF121824)        // Koyu Kart Yüzeyi
 
 val TiviOverlayDark = Color(0xCC0F141C)     // %80 Opak Buzlu Cam Paneli

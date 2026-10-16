@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -41,6 +42,7 @@ import com.tivimax.player.ui.components.CategoryManagementDialog
 import com.tivimax.player.ui.components.dpadFocusable
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import com.tivimax.player.util.DeviceMode
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -49,6 +51,7 @@ enum class SettingsSection(val title: String, val icon: ImageVector, val subtitl
     ACCOUNT("Hesap ve Liste", Icons.Default.AccountCircle, "Sunucu, hesap ve liste güncelleme"),
     PLAYER("Oynatıcı ve Kodek", Icons.Default.Tune, "Video çözücü, tampon (buffer) & PiP"),
     APPEARANCE("Görünüm ve Altyazı", Icons.Default.Subtitles, "Altyazı boyutu, rengi & kategoriler"),
+    DEVICE_MODE("Cihaz Modu", Icons.Default.Tv, "Telefon, Tablet ve TV çalışma düzeni"),
     PARENTAL("Ebeveyn Kontrolü", Icons.Default.Security, "+18 içerik kilidi & PIN kodu & HTTPS"),
     BACKUP_APP("Yedekleme ve Uygulama", Icons.Default.Backup, "Yedekle, önbellek, hız testi & sürüm")
 }
@@ -78,6 +81,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     var selectedSection by remember { mutableStateOf(SettingsSection.ACCOUNT) }
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
+    var showDeviceModeDialog by remember { mutableStateOf(false) }
     var newPinInput by remember { mutableStateOf("") }
     var pinSuccessMessage by remember { mutableStateOf<String?>(null) }
 
@@ -193,7 +197,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         pinSuccessMessage = pinSuccessMessage,
                         context = context,
                         onOpenCategoryDialog = { showCategoryDialog = true },
-                        onOpenPinDialog = { showPinDialog = true }
+                        onOpenPinDialog = { showPinDialog = true },
+                        onOpenDeviceModeDialog = { showDeviceModeDialog = true }
                     )
                     Spacer(modifier = Modifier.height(90.dp))
                 }
@@ -360,7 +365,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             pinSuccessMessage = pinSuccessMessage,
                             context = context,
                             onOpenCategoryDialog = { showCategoryDialog = true },
-                            onOpenPinDialog = { showPinDialog = true }
+                            onOpenPinDialog = { showPinDialog = true },
+                            onOpenDeviceModeDialog = { showDeviceModeDialog = true }
                         )
                         Spacer(modifier = Modifier.height(90.dp))
                     }
@@ -431,6 +437,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
         )
     }
+
+    // CİHAZ MODU SEÇİM DİYALOĞU
+    if (showDeviceModeDialog) {
+        DeviceModeSelectionDialog(
+            viewModel = viewModel,
+            onDismiss = { showDeviceModeDialog = false }
+        )
+    }
 }
 
 @OptIn(coil.annotation.ExperimentalCoilApi::class)
@@ -456,7 +470,8 @@ private fun RenderSelectedSection(
     pinSuccessMessage: String?,
     context: Context,
     onOpenCategoryDialog: () -> Unit,
-    onOpenPinDialog: () -> Unit
+    onOpenPinDialog: () -> Unit,
+    onOpenDeviceModeDialog: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
 
@@ -1196,6 +1211,261 @@ private fun RenderSelectedSection(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "Kategorileri Düzenle / Gizle", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = TiviCardBorder)
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Cihaz Modu
+                    val currentDeviceMode by viewModel.deviceMode.collectAsState()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(text = "Cihaz Modu", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Mevcut: ${currentDeviceMode.badgeText}",
+                                color = OpusCyan,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = currentDeviceMode.description,
+                                color = TiviTextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Button(
+                            onClick = onOpenDeviceModeDialog,
+                            colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.dpadFocusable(
+                                focusedBorderColor = Color.White,
+                                shape = RoundedCornerShape(10.dp),
+                                onClick = onOpenDeviceModeDialog
+                            )
+                        ) {
+                            Text("Değiştir", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 4. CİHAZ MODU VE EKRAN YÖNÜ
+        // ==========================================
+        SettingsSection.DEVICE_MODE -> {
+            val activeDeviceMode by viewModel.deviceMode.collectAsState()
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = TiviCard),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    // Üst Başlık & Açıklama
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(OpusCyan.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(imageVector = Icons.Default.Tv, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(24.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(text = "Cihaz Modu ve Yön Yönetimi", color = TiviTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Arayüzü ve ekran yönünü cihazınıza göre özelleştirin", color = TiviTextSecondary, fontSize = 11.sp)
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                    // Aktif Mod Bilgi Kartı
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = OpusCyan.copy(alpha = 0.10f),
+                        border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Aktif Seçim: ${activeDeviceMode.badgeText}",
+                                    color = OpusCyan,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.ExtraBold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = activeDeviceMode.description,
+                                    color = TiviTextPrimary.copy(alpha = 0.9f),
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = OpusCyan,
+                                contentColor = Color.Black
+                            ) {
+                                Text(
+                                    text = "AKTİF",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Kullanmak İstediğiniz Cihaz Düzenini Seçin:",
+                        color = TiviTextPrimary,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 3 Cihaz Seçim Kartı
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        DeviceMode.values().forEach { mode ->
+                            val isSelected = activeDeviceMode == mode
+                            val icon = when (mode) {
+                                DeviceMode.PHONE -> Icons.Default.PhoneAndroid
+                                DeviceMode.TABLET -> Icons.Default.TabletAndroid
+                                DeviceMode.TV -> Icons.Default.Tv
+                            }
+                            val modeBehaviorSummary = when (mode) {
+                                DeviceMode.PHONE -> "Uygulama dikey kilitli; oynatıcı açılınca otomatik yatay tam ekran (immersive sticky); oynatıcı içinde tek dokunuşla döndürme butonu."
+                                DeviceMode.TABLET -> "Ekran yönü serbest sensör (360° döndürme); master-detail iki sütunlu geniş ekran düzeni."
+                                DeviceMode.TV -> "Uygulama genelinde yatay kilitli; tam 10-foot UI ve D-pad kumanda odağı."
+                            }
+
+                            Surface(
+                                onClick = {
+                                    viewModel.setDeviceMode(mode)
+                                    Toast.makeText(context, "Cihaz modu güncellendi: ${mode.badgeText}", Toast.LENGTH_SHORT).show()
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isSelected) OpusCyan.copy(alpha = 0.14f) else TiviSurfaceVariant,
+                                border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .dpadFocusable(
+                                        shape = RoundedCornerShape(14.dp),
+                                        focusedBorderColor = OpusCyan,
+                                        onClick = {
+                                            viewModel.setDeviceMode(mode)
+                                            Toast.makeText(context, "Cihaz modu güncellendi: ${mode.badgeText}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (isSelected) OpusCyan.copy(alpha = 0.25f) else TiviCard),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = null,
+                                            tint = if (isSelected) OpusCyan else Color.White,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(14.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = mode.badgeText,
+                                                color = if (isSelected) OpusCyan else Color.White,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            if (isSelected) {
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Icon(
+                                                    imageVector = Icons.Default.CheckCircle,
+                                                    contentDescription = null,
+                                                    tint = OpusCyan,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = mode.description,
+                                            color = TiviTextPrimary,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Text(
+                                            text = modeBehaviorSummary,
+                                            color = TiviTextSecondary,
+                                            fontSize = 11.sp,
+                                            lineHeight = 14.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = TiviCardBorder)
+
+                    // Cihaz Seçimini Sıfırla (İlk Açılış Sihirbazını Yeniden Tetikleme)
+                    Text(text = "Cihaz Seçimini Sıfırla", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Uygulama açılışındaki 'Cihazını Seç' ekranını tekrar görüntülemek ve cihaz tespitini baştan çalıştırmak için sıfırlayabilirsiniz.",
+                        color = TiviTextSecondary,
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.resetDeviceMode()
+                            Toast.makeText(context, "Cihaz seçimi sıfırlandı. İlk kurulum ekranına yönlendiriliyorsunuz...", Toast.LENGTH_LONG).show()
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TiviAccentLive),
+                        border = BorderStroke(1.2.dp, TiviAccentLive.copy(alpha = 0.7f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp)
+                            .dpadFocusable(
+                                focusedBorderColor = Color.White,
+                                shape = RoundedCornerShape(12.dp),
+                                onClick = {
+                                    viewModel.resetDeviceMode()
+                                    Toast.makeText(context, "Cihaz seçimi sıfırlandı. İlk kurulum ekranına yönlendiriliyorsunuz...", Toast.LENGTH_LONG).show()
+                                }
+                            )
+                    ) {
+                        Icon(imageVector = Icons.Default.RestartAlt, contentDescription = null, tint = TiviAccentLive, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Cihaz Seçimini Sıfırla ve İlk Kuruluma Git", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
                 }
             }
         }
@@ -1512,3 +1782,166 @@ private fun RenderSelectedSection(
         }
     }
 }
+
+/**
+ * Cihaz Modu Seçim ve Değiştirme Modal Diyaloğu.
+ * Kullanıcının uygulama açıkken hızlıca Telefon / Tablet / TV modları arasında geçiş yapmasını sağlar.
+ */
+@Composable
+fun DeviceModeSelectionDialog(
+    viewModel: MainViewModel,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val currentMode by viewModel.deviceMode.collectAsState()
+    var selectedMode by remember(currentMode) { mutableStateOf(currentMode) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = TiviSurface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Tv,
+                    contentDescription = null,
+                    tint = OpusCyan,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Cihaz Modunu Değiştir",
+                    color = TiviTextPrimary,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Kullanım senaryonuza göre arayüzü ve ekran yönünü anında uyarlayın:",
+                    color = TiviTextSecondary,
+                    fontSize = 12.5.sp
+                )
+
+                DeviceMode.values().forEach { mode ->
+                    val isSelected = selectedMode == mode
+                    val icon = when (mode) {
+                        DeviceMode.PHONE -> Icons.Default.PhoneAndroid
+                        DeviceMode.TABLET -> Icons.Default.TabletAndroid
+                        DeviceMode.TV -> Icons.Default.Tv
+                    }
+                    Surface(
+                        onClick = { selectedMode = mode },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) OpusCyan.copy(alpha = 0.15f) else TiviCard,
+                        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .dpadFocusable(
+                                shape = RoundedCornerShape(12.dp),
+                                focusedBorderColor = OpusCyan,
+                                onClick = { selectedMode = mode }
+                            )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) OpusCyan.copy(alpha = 0.25f) else TiviSurfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) OpusCyan else Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = mode.badgeText,
+                                    color = if (isSelected) OpusCyan else Color.White,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = mode.description,
+                                    color = TiviTextSecondary,
+                                    fontSize = 11.sp,
+                                    lineHeight = 14.sp
+                                )
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = OpusCyan,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                // Cihaz seçimini sıfırla seçeneği
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            viewModel.resetDeviceMode()
+                            Toast.makeText(context, "Cihaz seçimi sıfırlandı", Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.RestartAlt,
+                        contentDescription = null,
+                        tint = TiviAccentLive,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Cihaz seçimini sıfırla (İlk açılış sihirbazı)",
+                        color = TiviAccentLive,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    viewModel.setDeviceMode(selectedMode)
+                    Toast.makeText(context, "Cihaz modu güncellendi: ${selectedMode.badgeText}", Toast.LENGTH_SHORT).show()
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Uygula", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("İptal", color = TiviTextSecondary)
+            }
+        }
+    )
+}
+

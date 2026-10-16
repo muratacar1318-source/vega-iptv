@@ -1,3 +1,20 @@
 <resources>
     <string name="app_name">Vega IPTV</string>
+
+    <!-- Cihaz Modu (Device Mode) -->
+    <string name="device_mode_title">Cihazını Seç</string>
+    <string name="device_mode_subtitle">Vega IPTV deneyiminizi cihazınıza göre optimize edin</string>
+    <string name="device_mode_phone">Telefon</string>
+    <string name="device_mode_phone_desc">Dikey kullanım, içerik açılınca otomatik yatay</string>
+    <string name="device_mode_tablet">Tablet</string>
+    <string name="device_mode_tablet_desc">Geniş ekran düzeni, serbest döndürme</string>
+    <string name="device_mode_tv">TV (Televizyon)</string>
+    <string name="device_mode_tv_desc">Kumanda ile kullanım, tam ekran düzen</string>
+    <string name="device_mode_recommended">Önerilen Cihaz</string>
+    <string name="device_mode_continue">Devam Et</string>
+    <string name="device_mode_info">Bu seçimi daha sonra Ayarlar > Cihaz Modu bölümünden değiştirebilirsin.</string>
+    <string name="device_mode_changed">Mod değiştirildi: %1$s</string>
+    <string name="device_mode_reset">Cihaz seçimini sıfırla</string>
+    <string name="device_mode_help">Ekran yönü ve düzen seçilen moda göre ayarlanır.</string>
+    <string name="device_mode_settings_label">Cihaz Modu</string>
 </resources>

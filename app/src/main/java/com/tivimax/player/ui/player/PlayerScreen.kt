@@ -95,7 +95,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import android.view.KeyEvent
 
+import com.tivimax.player.util.DeviceMode
+import com.tivimax.player.util.LocalDeviceMode
 import com.tivimax.player.util.LocalIsTvDevice
+import com.tivimax.player.util.LocalOrientationManager
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
@@ -124,6 +127,12 @@ fun PlayerScreen(
     val context = LocalContext.current
     val activity = context as? Activity
     val playerManager = viewModel.playerManager
+
+    val deviceMode = LocalDeviceMode.current
+    val orientationManager = LocalOrientationManager.current
+    var isPhonePortraitLocked by remember {
+        mutableStateOf(orientationManager?.isPhonePlayerPortraitLocked() ?: false)
+    }
 
     val isPlaying by playerManager.isPlaying.collectAsState()
     val isBuffering by playerManager.isBuffering.collectAsState()
@@ -1548,6 +1557,29 @@ fun PlayerScreen(
                                     imageVector = Icons.Default.PictureInPictureAlt,
                                     contentDescription = "Küçük Pencere (PiP)",
                                     tint = Color.White,
+                                    modifier = Modifier.size(if (isPortrait) 20.dp else 23.dp)
+                                )
+                            }
+                        }
+
+                        // Telefon modunda tek dokunuşla "yönü kilitle / döndür" (dikeyde izleme esnekliği)
+                        if (deviceMode == DeviceMode.PHONE && orientationManager != null) {
+                            BouncyIconButton(
+                                onClick = {
+                                    isPhonePortraitLocked = orientationManager.togglePhonePlayerOrientationLock(
+                                        viewModel.currentScreen.value,
+                                        deviceMode
+                                    )
+                                    seekRipple = if (isPhonePortraitLocked) "📱 Dikey Yön Kilitlendi" else "🔄 Otomatik Yatay Aktif"
+                                    registerInteraction()
+                                },
+                                modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp),
+                                backgroundColor = Color.Black.copy(alpha = 0.25f)
+                            ) {
+                                Icon(
+                                    imageVector = if (isPhonePortraitLocked) Icons.Default.ScreenLockPortrait else Icons.Default.ScreenRotation,
+                                    contentDescription = if (isPhonePortraitLocked) "Yatay Döndürmeyi Aç" else "Dikey Yönü Kilitle",
+                                    tint = if (isPhonePortraitLocked) OpusCyan else Color.White,
                                     modifier = Modifier.size(if (isPortrait) 20.dp else 23.dp)
                                 )
                             }

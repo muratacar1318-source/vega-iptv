@@ -10,6 +10,8 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.tivimax.player.data.config.AppConfig
+import com.tivimax.player.util.DeviceMode
+import com.tivimax.player.util.OrientationManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -104,6 +106,10 @@ class UserPreferences(private val context: Context) {
         // Oynatma Listesi Senkronizasyon Durumu
         val KEY_IS_PLAYLIST_SYNCED = booleanPreferencesKey("is_playlist_synced")
         val KEY_LAST_SYNC_TIMESTAMP = stringPreferencesKey("last_sync_timestamp")
+
+        // Cihaz Modu (PHONE, TABLET, TV)
+        val KEY_DEVICE_MODE = stringPreferencesKey("device_mode")
+        val KEY_DEVICE_MODE_SET = booleanPreferencesKey("device_mode_set")
     }
 
     val usernameFlow: Flow<String> = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
@@ -407,5 +413,37 @@ class UserPreferences(private val context: Context) {
 
     suspend fun setLastPlayedStreamId(streamId: Int) {
         context.dataStore.edit { it[KEY_LAST_PLAYED_STREAM_ID] = streamId }
+    }
+
+    val deviceModeFlow: Flow<DeviceMode?> = context.dataStore.data.map { prefs ->
+        val modeStr = prefs[KEY_DEVICE_MODE]
+        if (modeStr.isNullOrEmpty()) null
+        else {
+            try {
+                DeviceMode.valueOf(modeStr)
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    val isDeviceModeSetFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_DEVICE_MODE_SET] ?: false
+    }
+
+    suspend fun setDeviceMode(mode: DeviceMode) {
+        OrientationManager.saveFastCache(context, mode)
+        context.dataStore.edit { prefs ->
+            prefs[KEY_DEVICE_MODE] = mode.name
+            prefs[KEY_DEVICE_MODE_SET] = true
+        }
+    }
+
+    suspend fun resetDeviceMode() {
+        OrientationManager.clearFastCache(context)
+        context.dataStore.edit { prefs ->
+            prefs.remove(KEY_DEVICE_MODE)
+            prefs[KEY_DEVICE_MODE_SET] = false
+        }
     }
 }
