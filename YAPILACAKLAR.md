@@ -34,7 +34,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
   Gerçek `.jks` dosyası bulunup `keystore.properties` ayarlanmalı (bkz. `keystore.properties.example`).
 - [ ] Her yayında `versionCode` ve `versionName` değerlerini artır (`app/build.gradle.kts`).
 - [ ] GitHub Actions derlemesi kapatıldı, derleme yerelde yapılıyor (`./gradlew assembleRelease`). İleride gerekirse Actions → Android Build → **Enable workflow** ile yeniden açılabilir.
-- [ ] `VegaIPTV-v1.1.5.apk` git'e eklenmiş durumda. Repodan çıkarılmalı (`.gitignore` zaten `*.apk` içeriyor).
+- [x] `VegaIPTV-v1.1.5.apk` git'ten çıkarıldı (`.gitignore` `*.apk` dosyalarını yok sayıyor).
 - [ ] Kök klasördeki `release_notes_v1.0.x.txt` dosyaları `docs/release-notes/` altına taşınmalı.
 
 ## 🟠 4. Güvenlik
