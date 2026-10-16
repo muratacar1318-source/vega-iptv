@@ -14,7 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -536,7 +536,7 @@ fun VegaPlayerControlsOverlay(
                     // Episodes List Icon
                     IconButton(onClick = onEpisodesClick, modifier = Modifier.size(32.dp)) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
+                            imageVector = Icons.AutoMirrored.Filled.List,
                             contentDescription = "Bölüm Listesi",
                             tint = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.size(20.dp)
