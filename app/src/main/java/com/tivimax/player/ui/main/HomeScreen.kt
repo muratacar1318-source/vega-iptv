@@ -138,13 +138,13 @@ fun HomeScreen(viewModel: MainViewModel) {
         },
         bottomBar = {
             if (!isWideScreen) {
-                HomeBottomNavigationBar(
-                    selectedTab = selectedTab,
-                    onTabSelected = {
-                        if (it == HomeTab.LIVE_TV && selectedTab == HomeTab.LIVE_TV) {
+                VegaBottomNavigationBar(
+                    activeTab = selectedTab,
+                    onTabSelected = { tab ->
+                        if (tab == HomeTab.LIVE_TV && selectedTab == HomeTab.LIVE_TV) {
                             viewModel.triggerLiveScrollToTop()
                         } else {
-                            viewModel.setSelectedHomeTab(it)
+                            viewModel.setSelectedHomeTab(tab)
                         }
                     }
                 )
@@ -761,8 +761,8 @@ private fun HomeTopBar(
 }
 
 @Composable
-private fun HomeBottomNavigationBar(
-    selectedTab: HomeTab,
+fun VegaBottomNavigationBar(
+    activeTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit
 ) {
     val bottomTabs = listOf(
@@ -787,7 +787,7 @@ private fun HomeBottomNavigationBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             bottomTabs.forEach { tab ->
-                val isSelected = selectedTab == tab
+                val isSelected = activeTab == tab
                 Box(
                     modifier = Modifier
                         .weight(1f)
