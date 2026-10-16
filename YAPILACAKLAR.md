@@ -26,7 +26,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
 - [ ] **Gerçek TV cihazında test:** Favoriler, Ayarlar, film/dizi detay sayfaları ve oynatıcı kumandayla denenmeli. Şimdiye kadar sadece emülatörde denendi.
 - [x] **Çift odak sorunu:** Bazı öğelerde `Surface(onClick)` ile `dpadFocusable(onClick)` birlikte kullanılıyordu. `Surface(onClick)` kaldırılarak çift odak sorunu giderildi.
 - [x] **Diziler ekranındaki "Filtrele" butonu çalışmıyor** (`onClick = {}`, `VegaMediaCatalogScreen.kt:104`). Filmlerdeki sıralama ve filtre menüsü buraya da eklendi.
-- [ ] TV Ana Sayfa'da kumandayla aşağı inince "Kaldığın Yerden Devam Et" ve "Son Eklenenler" satırlarına odak geçişini kontrol et.
+- [x] TV Ana Sayfa'da kumandayla aşağı inince "Kaldığın Yerden Devam Et" ve "Son Eklenenler" satırlarına odak geçişi kontrol edildi (`dpadFocusable` desteği doğrulandı).
 
 ## 🟠 3. Derleme ve yayınlama
 
