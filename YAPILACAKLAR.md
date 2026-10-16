@@ -50,7 +50,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
   - `SettingsScreen.kt` (~2.100 satır) → her ayar grubu ayrı dosyaya
   - `MainViewModel.kt` (~1.600 satır) → Canlı, VOD, Dizi ve Oynatıcı ViewModel'leri
 - [ ] **Hiç test yok.** Önce şunlara birim testi yazılmalı: `TurkishStringNormalizer`, kategori filtreleme (yetişkin içerik, gizli, sabitlenmiş), `FailoverInterceptor`.
-- [ ] Kullanılmayan import ve parametreleri temizle (ör. `VegaMediaCatalogScreen.kt` içindeki `clickable`).
+- [x] Kullanılmayan import ve parametreleri temizle (ör. `VegaMediaCatalogScreen.kt` içindeki `clickable`).
 
 ## 🟢 6. Özellik fikirleri
 
