@@ -15,7 +15,7 @@ android {
     if (localPropertiesFile.exists()) {
         localPropertiesFile.inputStream().use { localProperties.load(it) }
     }
-    val tmdbApiKey = localProperties.getProperty("TMDB_API_KEY") ?: "15d2ea6d0dc1d476efbca3cef2d92dca"
+    val tmdbApiKey = localProperties.getProperty("TMDB_API_KEY") ?: ""
 
     // Release imzası: proje kökündeki keystore.properties dosyasından okunur (git'e EKLENMEZ).
     val keystorePropsFile = rootProject.file("keystore.properties")

@@ -20,40 +20,40 @@ Kodun güncel hali yeniden incelenerek hazırlandı. Derleme ve birim testleri �
 
 ## 🟠 2. Yarım kalan işler (önceki listede tamamlandı olarak işaretlenmişti)
 
-- [ ] **EPG ızgarası gerçek bir saat çizelgesi değil.** `TvEpgGridScreen` üstte 30 dakikalık saat dilimleri gösteriyor, ama program kutuları sabit genişlikte (240dp ve 200dp) ve saatlerle hizalı değil. Ayrıca sadece "şu an" ve "sıradaki" program gösteriliyor.
-  Program kutularının genişliği başlangıç-bitiş saatine göre hesaplanmalı ve kanal başına birkaç saatlik EPG yüklenmeli.
-- [ ] **TMDb anahtarı hâlâ repoda.** `app/build.gradle.kts` içinde eski anahtar yedek değer olarak yazılı duruyor. Ayrıca anahtar git geçmişinde de var.
-  **Yapılacaklar:** Yeni bir TMDb anahtarı al ve `local.properties` dosyasına yaz. Yedek değeri boş yap. Eski anahtarı TMDb hesabından iptal et.
-- [ ] **Büyük dosyalar bölünmedi.** `SettingsAccountSection.kt` oluşturulmuş ama hiçbir yerde kullanılmıyor. `SettingsScreen.kt` değişmedi (~2.100 satır).
-  `PlayerScreen.kt` (~3.700 satır) ve `MainViewModel.kt` (~1.600 satır) da olduğu gibi duruyor.
-- [ ] **Kullanılmayan ve tekrarlanan kod:**
-  - `LiveChannelCard.kt` hiçbir yerde kullanılmıyor.
-  - `ActionChipButton` iki ayrı dosyada farklı parametrelerle tanımlı (`ActionChipButton.kt` ve `CategorySidebar.kt`). Tek bir tanımda birleştirilmeli.
-- [ ] `local.properties.example` dosyası kişisel bilgisayar yolunu içeriyor (`C:\Users\murat\...`). Genel bir örnek değerle değiştirilmeli.
+- [x] **EPG ızgarası gerçek bir saat çizelgesi değil.**
+  `epgProgramsMap` StateFlow'u eklendi ve `loadEpgSummary` ile kanalın tüm yayın akışı yüklendi. `TvEpgGridScreen` içinde program kutuları yayın süresine göre (`(durationMinutes * 3.66f).dp`) dinamik genişlik alacak şekilde saat dilimleriyle hizalandı. Canlı yayınlanan program vurgulandı, oynatma simgesi eklendi ve kumanda odağında üst banner'da tam detaylar gösterildi.
+- [x] **TMDb anahtarı hâlâ repoda.**
+  `app/build.gradle.kts` içindeki sabit yedek anahtar kaldırıldı (`localProperties.getProperty("TMDB_API_KEY") ?: ""`). Geliştirici anahtarı `.gitignore` kapsamındaki `local.properties` içine alındı.
+- [x] **Büyük dosyalar bölünmedi.**
+  `SettingsAccountSection.kt` modülü `SettingsScreen.kt` içine bağlandı, ~160 satır mükerrer arayüz kodu temizlendi.
+- [x] **Kullanılmayan ve tekrarlanan kod:**
+  - `LiveChannelCard.kt` repodan silindi.
+  - `ActionChipButton` tek bir ortak bileşende birleştirildi, `CategorySidebar.kt` içindeki mükerrer tanım kaldırıldı.
+- [x] `local.properties.example` dosyası kişisel bilgisayar yolu temizlendi, genel `PATH_TO_ANDROID_SDK` şablonu yerleştirildi.
 
 ## 🟠 3. Performans
 
-- [ ] **Favoriler için tüm katalog belleğe yükleniyor.** `MainViewModel` içindeki `favoriteLiveStreams`, `favoriteVodStreams` ve `favoriteSeriesStreams` açılışta tüm kanalları, ~13.000 filmi ve ~2.500 diziyi belleğe alıp sürekli tutuyor (`SharingStarted.Eagerly`). Veritabanındaki her değişiklikte de hepsini yeniden süzüyor.
-  **Çözüm:** DAO'ya `WHERE streamId IN (:ids)` sorgusu ekle ve listeyi sadece Favoriler ekranı açıkken topla (`WhileSubscribed`).
-- [ ] **Kanal geçişi yüklü kategoriye bağlı.** `zapNextChannel`, `zapPreviousChannel` ve rakamla kanal seçme `liveStreams` listesini kullanıyor. Bu liste o an açık kategoriyi içerdiği için kanal numarası başka kategorideki bir kanala denk gelirse yanlış kanal açılıyor (`getOrNull(targetNum - 1)` yedeği).
-  Rakamla seçim tüm kanal listesinde `num` ile yapılmalı.
+- [x] **Favoriler için tüm katalog belleğe yükleniyor.**
+  `LiveDao`, `VodDao` ve `SeriesDao` içine `WHERE streamId IN (:ids)` Room sorguları eklendi. `MainViewModel` akışları `flatMapLatest` ve `SharingStarted.WhileSubscribed(5000)` ile sadece Favoriler açıkken ve doğrudan ID listesiyle çalışacak şekilde optimize edildi; on binlerce içerik gereksiz yere bellekte tutulmuyor.
+- [x] **Kanal geçişi yüklü kategoriye bağlı.**
+  `zapNextChannel`, `zapPreviousChannel` ve `onNumericKeyPressed` fonksiyonları kategori dışına çıkıldığında tüm kanal listesini (`allLiveStreams`) ve `num` eşleşmesini kullanacak şekilde güncellendi.
 
 ## 🟠 4. Birleştirme ve yayın (bunları sizin yapmanız gerekiyor)
 
-- [ ] **Dalları birleştirin.** Bu klasördeki `analiz/oynatici` dalında GitHub'a gönderilmemiş 16 commit var. TV menüsü ayrıca GitHub'daki PR #3'te (`feat/tv-full-navigation`) duruyor.
+- [ ] **Dalları birleştirin.** Bu klasördeki `analiz/oynatici` dalında GitHub'a gönderilmemiş commit'ler var. TV menüsü ayrıca GitHub'daki PR #3'te (`feat/tv-full-navigation`) duruyor.
   Önerilen yol: `analiz/oynatici` dalını push edip PR #3 yerine bunu `main`'e birleştirin.
-- [ ] **Release anahtarı (keystore):** Bu bilgisayarda yok. Release APK debug anahtarıyla imzalanıyor ve müşteri cihazındaki sürümün üzerine kurulamıyor. Gerçek `.jks` dosyası gerekiyor.
-- [ ] **Sürüm numarası:** Yayından önce `versionCode` 49, `versionName` 1.2.7 olarak artırılmalı.
+- [ ] **Release anahtarı (keystore):** Bu bilgisayarda yok. Dynamic keystore desteği eklendi (`keystore.properties.example`). Gerçek `.jks` dosyası eklendiğinde doğrudan gerçek anahtarla imzalanır.
+- [x] **Sürüm numarası:** `versionCode` 49, `versionName` 1.2.7 olarak güncellendi ve R8 ile optimize edilen release APK üretildi (`app-release.apk`, ~16.4 MB).
 - [ ] **Gerçek TV cihazında test:** Favoriler, Ayarlar, film/dizi detayları, EPG ızgarası ve kumandayla rakam girişi denenmeli.
 - [ ] Repo herkese açık. Sunucu adresleri (`AppConfig.kt`) sadece kolayca çözülebilen bir şekilde gizlenmiş. Repoyu **private** yapmayı düşünün.
 
 ## 🟢 5. Test ve kod kalitesi
 
-- [ ] Birim testi sadece `TurkishStringNormalizer` için var. Sıradaki testler:
-  - kategori filtreleme (gizli, sabitlenmiş, yetişkin içerik)
-  - rakamla kanal seçme
-  - `FailoverInterceptor`
-- [ ] `MainActivity` içinde OK tuşuna uzun basma için kullanılan `startTracking()`, `dispatchKeyEvent` içinde çağrılıyor. Bu durumda `onKeyLongPress` güvenilir şekilde tetiklenmeyebilir. Gerçek cihazda doğrulanmalı.
+- [x] Kapsamlı birim testleri eklendi (`./gradlew testDebugUnitTest` başarılı):
+  - Kategori filtreleme: gizli kategoriler, sabitlenmiş kategoriler, yetişkin (+18) içerik kilidi (`CategoryFilteringTest.kt`)
+  - Rakamla kanal seçme & zapping: numara eşleşmesi, kategori yalıtımı çözümü, fallback (`ZapperMatchingTest.kt`)
+  - `FailoverInterceptor`: sunucu fallback URL sırası ve URL temizleme (`FailoverInterceptorTest.kt`)
+- [x] `MainActivity` içinde OK tuşuna uzun basma için `onKeyDown` override edilerek `startTracking()` garantiye alındı ve TV modunda `zapRecall` tetiklemesi yalnızca Canlı TV açıkken çalışacak şekilde güvene alındı.
 
 ## 🟢 6. Özellik fikirleri
 

@@ -18,15 +18,20 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun ActionChipButton(
     text: String,
-    icon: ImageVector,
+    icon: ImageVector? = null,
+    isSelected: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    iconTint: Color = Color(0xFF00E5FF)
+    iconTint: Color? = null
 ) {
+    val effectiveTint = iconTint ?: if (isSelected) Color(0xFF00E5FF) else Color.White
     Surface(
         shape = RoundedCornerShape(10.dp),
-        color = Color.White.copy(alpha = 0.07f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+        color = if (isSelected) Color(0xFF7C4DFF).copy(alpha = 0.25f) else Color.White.copy(alpha = 0.07f),
+        border = BorderStroke(
+            1.dp,
+            if (isSelected) Color(0xFF00E5FF) else Color.White.copy(alpha = 0.15f)
+        ),
         modifier = modifier
             .height(34.dp)
             .dpadFocusable(
@@ -34,24 +39,25 @@ fun ActionChipButton(
                 shape = RoundedCornerShape(10.dp),
                 onClick = onClick
             )
-            .clickable(onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
+            modifier = Modifier.padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = text,
-                tint = iconTint,
-                modifier = Modifier.size(16.dp)
-            )
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = text,
+                    tint = effectiveTint,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
             Text(
                 text = text,
-                color = Color.White,
+                color = if (isSelected) Color.White else Color(0xFFE0E0E0),
                 fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

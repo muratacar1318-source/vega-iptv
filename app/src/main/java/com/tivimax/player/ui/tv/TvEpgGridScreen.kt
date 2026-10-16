@@ -52,6 +52,7 @@ fun TvEpgGridScreen(
 
     val channels by viewModel.liveStreams.collectAsState()
     val epgSummaryMap by viewModel.epgSummaryMap.collectAsState()
+    val epgProgramsMap by viewModel.epgProgramsMap.collectAsState()
     val selectedCategory by viewModel.selectedLiveCategory.collectAsState()
     val categories by viewModel.visibleLiveCategories.collectAsState()
 
@@ -336,6 +337,9 @@ fun TvEpgGridScreen(
                             }
 
                             // SAĞ: ZAMAN ÇİZELGELİ PROGRAM BLOKLARI
+                            val channelPrograms = epgProgramsMap[channel.streamId]
+                            val nowSec = remember(currentTimeText) { System.currentTimeMillis() / 1000L }
+
                             LazyRow(
                                 modifier = Modifier
                                     .weight(1f)
@@ -344,84 +348,150 @@ fun TvEpgGridScreen(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                item {
-                                    val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın Programı"
-                                    val timeText = epg?.getFormattedTime() ?: "Şu An Oynatılıyor"
+                                if (!channelPrograms.isNullOrEmpty()) {
+                                    val filteredPrograms = channelPrograms.filter {
+                                        it.stopTimestamp == 0L || it.stopTimestamp > nowSec - 900
+                                    }.ifEmpty { channelPrograms }
 
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = OpusCyan.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
-                                        modifier = Modifier
-                                            .width(240.dp)
-                                            .fillMaxHeight(0.85f)
-                                            .dpadFocusable(
-                                                focusedBorderColor = OpusCyan,
-                                                shape = RoundedCornerShape(6.dp),
-                                                onFocusStateChange = { focused ->
-                                                    if (focused) {
-                                                        focusedProgram = Pair(channel, epg)
-                                                    }
-                                                },
-                                                onClick = { onSelectChannel(channel) }
-                                            )
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = programTitle,
-                                                    color = Color.White,
-                                                    fontSize = 11.5.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                                Text(
-                                                    text = timeText,
-                                                    color = OpusCyan,
-                                                    fontSize = 9.5.sp,
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
-                                            }
-                                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(14.dp))
-                                        }
-                                    }
-                                }
+                                    items(filteredPrograms, key = { prog -> "${channel.streamId}_${prog.startTimestamp}_${prog.title.hashCode()}" }) { prog ->
+                                        val isCurrent = prog.nowPlaying == 1 || (prog.startTimestamp > 0 && prog.stopTimestamp > 0 && nowSec in prog.startTimestamp..prog.stopTimestamp)
+                                        val durationMinutes = prog.getDurationMinutes()
+                                        val blockWidth = (durationMinutes * 3.66f).dp.coerceIn(90.dp, 440.dp)
+                                        val programTitle = prog.getDecodedTitle()
+                                        val timeText = prog.getFormattedTime()
 
-                                if (!channel.nextProgram.isNullOrBlank()) {
-                                    item {
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = TiviSurfaceVariant,
-                                            border = BorderStroke(0.5.dp, TiviCardBorder),
+                                            color = if (isCurrent) OpusCyan.copy(alpha = 0.15f) else TiviSurfaceVariant,
+                                            border = BorderStroke(
+                                                if (isCurrent) 1.dp else 0.5.dp,
+                                                if (isCurrent) OpusCyan.copy(alpha = 0.6f) else TiviCardBorder
+                                            ),
                                             modifier = Modifier
-                                                .width(200.dp)
+                                                .width(blockWidth)
                                                 .fillMaxHeight(0.85f)
                                                 .dpadFocusable(
                                                     focusedBorderColor = OpusCyan,
                                                     shape = RoundedCornerShape(6.dp),
+                                                    onFocusStateChange = { focused ->
+                                                        if (focused) {
+                                                            focusedProgram = Pair(channel, prog)
+                                                        }
+                                                    },
                                                     onClick = { onSelectChannel(channel) }
                                                 )
                                         ) {
-                                            Box(
+                                            Row(
                                                 modifier = Modifier
                                                     .fillMaxSize()
                                                     .padding(horizontal = 8.dp),
-                                                contentAlignment = Alignment.CenterStart
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text(
-                                                    text = channel.nextProgram,
-                                                    color = TiviTextSecondary,
-                                                    fontSize = 11.sp,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = programTitle,
+                                                        color = Color.White,
+                                                        fontSize = 11.5.sp,
+                                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        text = timeText,
+                                                        color = if (isCurrent) OpusCyan else TiviTextSecondary,
+                                                        fontSize = 9.5.sp,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
+                                                if (isCurrent) {
+                                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(14.dp))
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    item {
+                                        val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın Programı"
+                                        val timeText = epg?.getFormattedTime() ?: "Şu An Oynatılıyor"
+                                        val durationMinutes = epg?.getDurationMinutes() ?: 60
+                                        val blockWidth = (durationMinutes * 3.66f).dp.coerceIn(120.dp, 400.dp)
+
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = OpusCyan.copy(alpha = 0.15f),
+                                            border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
+                                            modifier = Modifier
+                                                .width(blockWidth)
+                                                .fillMaxHeight(0.85f)
+                                                .dpadFocusable(
+                                                    focusedBorderColor = OpusCyan,
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    onFocusStateChange = { focused ->
+                                                        if (focused) {
+                                                            focusedProgram = Pair(channel, epg)
+                                                        }
+                                                    },
+                                                    onClick = { onSelectChannel(channel) }
                                                 )
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .padding(horizontal = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = programTitle,
+                                                        color = Color.White,
+                                                        fontSize = 11.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        text = timeText,
+                                                        color = OpusCyan,
+                                                        fontSize = 9.5.sp,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
+                                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(14.dp))
+                                            }
+                                        }
+                                    }
+
+                                    if (!channel.nextProgram.isNullOrBlank()) {
+                                        item {
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = TiviSurfaceVariant,
+                                                border = BorderStroke(0.5.dp, TiviCardBorder),
+                                                modifier = Modifier
+                                                    .width(200.dp)
+                                                    .fillMaxHeight(0.85f)
+                                                    .dpadFocusable(
+                                                        focusedBorderColor = OpusCyan,
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        onClick = { onSelectChannel(channel) }
+                                                    )
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .padding(horizontal = 8.dp),
+                                                    contentAlignment = Alignment.CenterStart
+                                                ) {
+                                                    Text(
+                                                        text = channel.nextProgram,
+                                                        color = TiviTextSecondary,
+                                                        fontSize = 11.sp,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
                                             }
                                         }
                                     }

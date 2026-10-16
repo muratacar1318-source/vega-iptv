@@ -43,6 +43,9 @@ interface LiveDao {
     @Query("SELECT * FROM live_streams WHERE streamId = :streamId LIMIT 1")
     suspend fun getStreamById(streamId: Int): LiveStreamEntity?
 
+    @Query("SELECT * FROM live_streams WHERE streamId IN (:ids) ORDER BY num ASC, name ASC")
+    fun getStreamsByIds(ids: List<Int>): Flow<List<LiveStreamEntity>>
+
     @Query("""
         SELECT * FROM live_streams 
         WHERE (:categoryId IS NULL OR categoryId = :categoryId)
@@ -116,6 +119,9 @@ interface VodDao {
 
     @Query("SELECT * FROM vod_streams WHERE streamId = :streamId LIMIT 1")
     suspend fun getStreamById(streamId: Int): VodStreamEntity?
+
+    @Query("SELECT * FROM vod_streams WHERE streamId IN (:ids) ORDER BY name ASC")
+    fun getStreamsByIds(ids: List<Int>): Flow<List<VodStreamEntity>>
 
     @Query("""
         SELECT * FROM vod_streams 
@@ -191,6 +197,9 @@ interface SeriesDao {
 
     @Query("SELECT * FROM series_streams WHERE seriesId = :seriesId LIMIT 1")
     suspend fun getStreamById(seriesId: Int): SeriesStreamEntity?
+
+    @Query("SELECT * FROM series_streams WHERE seriesId IN (:ids) ORDER BY name ASC")
+    fun getSeriesByIds(ids: List<Int>): Flow<List<SeriesStreamEntity>>
 
     @Query("""
         SELECT * FROM series_streams 

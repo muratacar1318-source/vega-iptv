@@ -263,11 +263,22 @@ class MainActivity : ComponentActivity() {
         return super.dispatchKeyEvent(event)
     }
 
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean {
+        if (keyCode == android.view.KeyEvent.KEYCODE_ENTER || keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER) {
+            if (event.repeatCount == 0) {
+                event.startTracking()
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     override fun onKeyLongPress(keyCode: Int, event: android.view.KeyEvent): Boolean {
         if (keyCode == android.view.KeyEvent.KEYCODE_ENTER || keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER) {
             val isPlayerScreen = ::viewModel.isInitialized && viewModel.currentScreen.value is Screen.Player
-            val isTv = ::viewModel.isInitialized && viewModel.deviceMode.value == DeviceMode.TV
-            if (isPlayerScreen || isTv) {
+            val isLiveTv = ::viewModel.isInitialized &&
+                viewModel.deviceMode.value == DeviceMode.TV &&
+                viewModel.selectedHomeTab.value == com.tivimax.player.ui.main.HomeTab.LIVE_TV
+            if (isPlayerScreen || isLiveTv) {
                 viewModel.zapRecall()
                 return true
             }

@@ -248,6 +248,13 @@ data class EpgProgram(
             0.4f
         }
     }
+
+    fun getDurationMinutes(): Int {
+        if (stopTimestamp > startTimestamp && startTimestamp > 0) {
+            return ((stopTimestamp - startTimestamp) / 60).toInt().coerceIn(10, 360)
+        }
+        return 30
+    }
 }
 
 /**

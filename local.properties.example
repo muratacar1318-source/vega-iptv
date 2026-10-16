@@ -1,6 +1,8 @@
 # Local Configuration Example
 # Copy this file to local.properties and insert your keys
-sdk.dir=C\:\\Users\\murat\\AppData\\Local\\Android\\Sdk
+# Windows: sdk.dir=C\:\\Users\\USERNAME\\AppData\\Local\\Android\\Sdk
+# macOS/Linux: sdk.dir=/Users/USERNAME/Library/Android/sdk
+sdk.dir=PATH_TO_ANDROID_SDK
 
 # TMDb API Key for Movie/Series Scraper (Get your key from https://www.themoviedb.org/settings/api)
 TMDB_API_KEY=YOUR_TMDB_API_KEY_HERE

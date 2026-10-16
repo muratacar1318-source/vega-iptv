@@ -746,6 +746,12 @@ class XtreamRepository(private val context: Context? = null) {
         return sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
+    fun getLiveStreamsByIdsFlow(ids: List<Int>): Flow<List<LiveStream>> {
+        val dao = database?.liveDao() ?: return flowOf(emptyList())
+        if (ids.isEmpty()) return flowOf(emptyList())
+        return dao.getStreamsByIds(ids).map { list -> list.map { it.toModel() } }
+    }
+
     fun searchLiveStreamsFlow(query: String, categoryId: String? = null): Flow<List<LiveStream>> {
         val dao = database?.liveDao() ?: return flowOf(emptyList())
         val sourceFlow = if (categoryId.isNullOrEmpty() || categoryId == "all") {
@@ -893,6 +899,12 @@ class XtreamRepository(private val context: Context? = null) {
         return sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
+    fun getVodStreamsByIdsFlow(ids: List<Int>): Flow<List<VodStream>> {
+        val dao = database?.vodDao() ?: return flowOf(emptyList())
+        if (ids.isEmpty()) return flowOf(emptyList())
+        return dao.getStreamsByIds(ids).map { list -> list.map { it.toModel() } }
+    }
+
     fun searchVodStreamsFlow(query: String, categoryId: String? = null): Flow<List<VodStream>> {
         val dao = database?.vodDao() ?: return flowOf(emptyList())
         val sourceFlow = if (categoryId.isNullOrEmpty() || categoryId == "all") {
@@ -1038,6 +1050,12 @@ class XtreamRepository(private val context: Context? = null) {
             dao.getStreamsByCategory(categoryId)
         }
         return sourceFlow.map { list -> list.map { it.toModel() } }
+    }
+
+    fun getSeriesStreamsByIdsFlow(ids: List<Int>): Flow<List<SeriesStream>> {
+        val dao = database?.seriesDao() ?: return flowOf(emptyList())
+        if (ids.isEmpty()) return flowOf(emptyList())
+        return dao.getSeriesByIds(ids).map { list -> list.map { it.toModel() } }
     }
 
     fun searchSeriesStreamsFlow(query: String, categoryId: String? = null): Flow<List<SeriesStream>> {

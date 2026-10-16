@@ -88,6 +88,7 @@ data class PlaylistSyncState(
         }
 }
 
+@OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val repository = XtreamRepository(application)
@@ -183,30 +184,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val favoriteVodIds = preferences.favoriteVodFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val favoriteSeriesIds = preferences.favoriteSeriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     
-    // Tüm Veritabanındaki Favoriler (Kategori Bağımsız)
-    val favoriteLiveStreams: StateFlow<List<LiveStream>> = combine(
-        favoriteLiveIds,
-        repository.getLiveStreamsFlow("all")
-    ) { ids, allLive ->
-        if (ids.isEmpty()) emptyList()
-        else allLive.filter { ids.contains(it.streamId.toString()) }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    // Tüm Veritabanındaki Favoriler (Kategori Bağımsız & Room DAO Düzeyinde Optimize)
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val favoriteLiveStreams: StateFlow<List<LiveStream>> = favoriteLiveIds.flatMapLatest { ids ->
+        val intIds = ids.mapNotNull { it.toIntOrNull() }
+        repository.getLiveStreamsByIdsFlow(intIds)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val favoriteVodStreams: StateFlow<List<VodStream>> = combine(
-        favoriteVodIds,
-        repository.getVodStreamsFlow("all")
-    ) { ids, allVod ->
-        if (ids.isEmpty()) emptyList()
-        else allVod.filter { ids.contains(it.streamId.toString()) }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val favoriteVodStreams: StateFlow<List<VodStream>> = favoriteVodIds.flatMapLatest { ids ->
+        val intIds = ids.mapNotNull { it.toIntOrNull() }
+        repository.getVodStreamsByIdsFlow(intIds)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val favoriteSeriesStreams: StateFlow<List<SeriesStream>> = combine(
-        favoriteSeriesIds,
-        repository.getSeriesStreamsFlow("all")
-    ) { ids, allSeries ->
-        if (ids.isEmpty()) emptyList()
-        else allSeries.filter { ids.contains(it.seriesId.toString()) }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val favoriteSeriesStreams: StateFlow<List<SeriesStream>> = favoriteSeriesIds.flatMapLatest { ids ->
+        val intIds = ids.mapNotNull { it.toIntOrNull() }
+        repository.getSeriesStreamsByIdsFlow(intIds)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val recentChannels = MutableStateFlow<List<LiveStream>>(emptyList())
 
@@ -373,6 +368,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Canlı TV Kanal Listesi Kısa EPG Önbelleği (Kanal Kartlarında Anlık Program & İlerleme)
     val epgSummaryMap = MutableStateFlow<Map<Int, EpgProgram>>(emptyMap())
+    val epgProgramsMap = MutableStateFlow<Map<Int, List<EpgProgram>>>(emptyMap())
 
     fun setVodBufferSeconds(seconds: Int) {
         viewModelScope.launch {
@@ -419,6 +415,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                     withContext(Dispatchers.Main) {
                         epgSummaryMap.value = epgSummaryMap.value + (streamId to currentProgram)
+                        epgProgramsMap.value = epgProgramsMap.value + (streamId to list)
                     }
                 }
             }
@@ -1233,10 +1230,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         isZapperActive.value = true
 
         val targetNum = newNumber.toIntOrNull() ?: return
-        val list = liveStreams.value
-        val matched = list.firstOrNull { it.num == targetNum }
-            ?: list.firstOrNull { it.streamId == targetNum }
-            ?: list.getOrNull(targetNum - 1)
+        val allList = allLiveStreams.value.ifEmpty { liveStreams.value }
+        val matched = allList.firstOrNull { it.num == targetNum }
+            ?: allList.firstOrNull { it.streamId == targetNum }
+            ?: allList.getOrNull(targetNum - 1)
         zapperMatchedChannel.value = matched
 
         zapperJob?.cancel()
@@ -1393,7 +1390,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun zapNextChannel(currentStreamId: Int): LiveStream? {
-        val list = liveStreams.value
+        val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
+            liveStreams.value
+        } else {
+            allLiveStreams.value.ifEmpty { liveStreams.value }
+        }
         if (list.isEmpty()) return null
         val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
         val nextIndex = if (currentIndex != -1) (currentIndex + 1) % list.size else 0
@@ -1407,10 +1408,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun zapPreviousChannel(currentStreamId: Int): LiveStream? {
-        val list = liveStreams.value
+        val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
+            liveStreams.value
+        } else {
+            allLiveStreams.value.ifEmpty { liveStreams.value }
+        }
         if (list.isEmpty()) return null
         val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
-        val prevIndex = if (currentIndex > 0) currentIndex - 1 else list.size - 1
+        val prevIndex = if (currentIndex > 0) currentIndex - 1 else if (currentIndex == 0) list.size - 1 else 0
         val prevChannel = list[prevIndex]
         if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
             previewChannel(prevChannel)
