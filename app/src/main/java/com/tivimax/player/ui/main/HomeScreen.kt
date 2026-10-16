@@ -48,6 +48,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.TextStyle
 import kotlinx.coroutines.delay
 
+import com.tivimax.player.ui.tv.TvNavigationRail
 import com.tivimax.player.ui.tv.TvTiviMateScreen
 import com.tivimax.player.util.LocalIsTvDevice
 
@@ -64,10 +65,6 @@ enum class HomeTab(val title: String, val icon: androidx.compose.ui.graphics.vec
 @Composable
 fun HomeScreen(viewModel: MainViewModel) {
     val isTvDevice = LocalIsTvDevice.current
-    if (isTvDevice) {
-        TvTiviMateScreen(viewModel = viewModel)
-        return
-    }
 
     val selectedTab by viewModel.selectedHomeTab.collectAsState()
     val context = LocalContext.current
@@ -75,12 +72,39 @@ fun HomeScreen(viewModel: MainViewModel) {
     var showSearchDialog by remember { mutableStateOf(false) }
     var showSyncConfirmationDialog by remember { mutableStateOf(false) }
 
+    // Android TV: sol menü odak durumu ve Canlı TV tam ekran oynatıcı durumu
+    val tvRailFocusRequester = remember { FocusRequester() }
+    var tvRailHasFocus by remember { mutableStateOf(false) }
+    var tvLiveFullScreen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isTvDevice) {
+        if (isTvDevice) {
+            // Kumandanın ilk basışta bir odak noktası bulabilmesi için menüdeki seçili sekmeye odaklan
+            delay(150)
+            try {
+                tvRailFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
+
     val playlistSyncState by viewModel.playlistSyncState.collectAsState()
     val updateInfo by viewModel.autoUpdateManager.updateInfo.collectAsState()
     val downloadProgress by viewModel.autoUpdateManager.downloadProgress.collectAsState()
 
     // Çıkış Önleme: Kullanıcı hangi sekmede olursa olsun yanlışlıkla çıkmayı önlemek için çift tıklama istenir
     BackHandler(enabled = true) {
+        if (isTvDevice && !tvRailHasFocus) {
+            // TV: Geri tuşu önce içerikten sol menüye döner
+            try {
+                tvRailFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+            return@BackHandler
+        }
+        if (isTvDevice && selectedTab != HomeTab.DASHBOARD) {
+            // TV: Menüdeyken geri tuşu Ana Sayfa'ya döner
+            viewModel.setSelectedHomeTab(HomeTab.DASHBOARD)
+            return@BackHandler
+        }
         val now = System.currentTimeMillis()
         if (now - lastBackPressTime < 2000L) {
             (context as? Activity)?.finish()
@@ -114,7 +138,47 @@ fun HomeScreen(viewModel: MainViewModel) {
     val activeCons = userInfo?.activeCons?.ifEmpty { "1" } ?: "1"
     val maxCons = userInfo?.maxConnections?.ifEmpty { "1" } ?: "1"
 
-    Scaffold(
+    if (isTvDevice) {
+        // ANDROID TV: Mobil arayüzün tüm sekmeleri (Ana Sayfa, Canlı TV, Filmler, Diziler, Favoriler, Ayarlar)
+        // kumanda ile gezilebilen sol menü ile gösterilir. Canlı TV sekmesi TiviMate rehber düzenini kullanır.
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF0B0C1A))
+        ) {
+            // Canlı TV tam ekran oynatılırken menü gizlenir
+            if (!(selectedTab == HomeTab.LIVE_TV && tvLiveFullScreen)) {
+                TvNavigationRail(
+                    selectedTab = selectedTab,
+                    onTabSelected = { tab ->
+                        if (tab != selectedTab) {
+                            tvLiveFullScreen = false
+                            viewModel.setSelectedHomeTab(tab)
+                        }
+                    },
+                    onSearchClick = { showSearchDialog = true },
+                    selectedTabFocusRequester = tvRailFocusRequester,
+                    onRailFocusChanged = { tvRailHasFocus = it },
+                    activeCons = activeCons,
+                    maxCons = maxCons
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                if (selectedTab == HomeTab.LIVE_TV) {
+                    TvTiviMateScreen(
+                        viewModel = viewModel,
+                        onFullScreenChange = { tvLiveFullScreen = it }
+                    )
+                } else {
+                    HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
+                }
+            }
+        }
+    } else Scaffold(
         topBar = {
             HomeTopBar(
                 appName = AppConfig.APP_NAME,
