@@ -81,6 +81,8 @@ import com.tivimax.player.ui.player.components.TiviPlayerHUD
 import com.tivimax.player.ui.player.components.PlayerPillButton
 import com.tivimax.player.ui.player.components.BouncyIconButton
 import com.tivimax.player.ui.player.components.LocalPlayerInteraction
+import com.tivimax.player.ui.player.components.LivePlayerActionBar
+import com.tivimax.player.ui.player.components.LivePlayerMoreSheet
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -169,6 +171,7 @@ fun PlayerScreen(
     var showCategoryManagementDialog by remember { mutableStateOf(false) }
     var showBottomInfoCard by remember { mutableStateOf(true) }
     var showEpisodesDrawer by remember { mutableStateOf(false) }
+    var showMoreSheet by remember { mutableStateOf(false) }
 
     val playerFocusRequester = remember { FocusRequester() }
     val firstButtonFocusRequester = remember { FocusRequester() }
@@ -310,7 +313,7 @@ fun PlayerScreen(
     }
 
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val isUserInteracting = isScrubbing || gestureScrubActive || (doubleTapSide != null) || (optimisticSeekPosition != null) || (seekRipple != null) || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showPlayerHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || (dragStartOffset != null)
+    val isUserInteracting = isScrubbing || gestureScrubActive || (doubleTapSide != null) || (optimisticSeekPosition != null) || (seekRipple != null) || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showPlayerHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || showMoreSheet || (dragStartOffset != null)
 
     LaunchedEffect(isUserInteracting) {
         lastInteractionTime = System.currentTimeMillis()
@@ -320,11 +323,11 @@ fun PlayerScreen(
         { lastInteractionTime = System.currentTimeMillis() }
     }
 
-    // 7 Saniyelik Akıllı HUD ve Tam Ekran Zamanlayıcısı (7000ms)
-    // Kullanıcı işlem yaptığı sürece ASLA kapanmaz, her dokunuşta veya işlemde süre sıfırlanıp 7 saniye baştan başlar.
-    val HUD_AUTO_HIDE_TIMEOUT_MS = 7000L
+    // Akıllı HUD ve Tam Ekran Zamanlayıcısı (Canlı TV: 4000ms, VOD: 7000ms)
+    // Kullanıcı işlem yaptığı sürece ASLA kapanmaz, her dokunuşta süre sıfırlanır.
+    val HUD_AUTO_HIDE_TIMEOUT_MS = if (isLive) 4000L else 7000L
 
-    // Kanal değiştiğinde alt bilgi paneli 7 saniye görünür ve sayaç başlar
+    // Kanal değiştiğinde alt bilgi paneli 4 saniye görünür ve sayaç başlar
     LaunchedEffect(streamId) {
         if (isLive) {
             showBottomInfoCard = true
@@ -334,7 +337,7 @@ fun PlayerScreen(
 
     LaunchedEffect(showControls, showBottomInfoCard, isPlaying, lastInteractionTime, isUserInteracting, isControlsLocked) {
         if ((showControls || showBottomInfoCard) && isPlaying && !isUserInteracting) {
-            val timeout = if (isControlsLocked) 4000L else if (!showControls && showBottomInfoCard) 4000L else 7000L
+            val timeout = if (isControlsLocked) 4000L else if (isLive) 4000L else 7000L
             while (true) {
                 val elapsed = System.currentTimeMillis() - lastInteractionTime
                 val remaining = timeout - elapsed
@@ -1698,120 +1701,37 @@ fun PlayerScreen(
                                 isFavorite = isFavorite,
                                 diagnostics = streamDiagnostics,
                                 onToggleFavorite = { viewModel.toggleFavoriteLive(streamId.toString()) },
+                                upcomingEpg = epgList.drop(1).take(3),
+                                onDismiss = {
+                                    showControls = false
+                                    showBottomInfoCard = false
+                                },
                                 actions = if (showControls && !showOverlayGuide) {
                                     {
-                                        val livePillsContent: @Composable () -> Unit = {
-                                            PlayerPillButton(
-                                                text = "Rehber",
-                                                icon = Icons.AutoMirrored.Filled.FormatListBulleted,
-                                                modifier = Modifier.focusRequester(firstButtonFocusRequester),
-                                                onClick = {
-                                                    showOverlayGuide = true
-                                                    showControls = false
-                                                },
-                                                isActive = showOverlayGuide,
-                                                activeColor = OpusCyan,
-                                                isPortrait = isPortrait
-                                            )
-
-                                            PlayerPillButton(
-                                                text = "Son Kanallar",
-                                                icon = Icons.Default.History,
-                                                onClick = { showRecentChannelsBar = !showRecentChannelsBar },
-                                                isActive = showRecentChannelsBar,
-                                                isPortrait = isPortrait
-                                            )
-
-                                            if (lastPlayedLiveChannel != null && lastPlayedLiveChannel?.streamId != streamId) {
-                                                PlayerPillButton(
-                                                    text = "↩ ${lastPlayedLiveChannel?.name?.take(10) ?: "Önceki"}",
-                                                    icon = Icons.Default.Replay,
-                                                    onClick = {
-                                                        val prev = viewModel.zapRecall()
-                                                        if (prev != null) seekRipple = "↩ ${prev.name}"
-                                                    },
-                                                    isActive = true,
-                                                    activeColor = TiviGold,
-                                                    isPortrait = isPortrait
-                                                )
-                                            }
-
-                                            PlayerPillButton(
-                                                text = "Ses & Altyazı",
-                                                icon = Icons.Default.Subtitles,
-                                                onClick = { showTrackSheet = true },
-                                                isPortrait = isPortrait
-                                            )
-
-                                            PlayerPillButton(
-                                                text = when (aspectRatio) {
-                                                    AspectRatioMode.FIT -> "Orijinal"
-                                                    AspectRatioMode.FILL -> "Doldur"
-                                                    AspectRatioMode.ZOOM -> "Zoom"
-                                                    AspectRatioMode.RATIO_16_9 -> "16:9"
-                                                    AspectRatioMode.RATIO_4_3 -> "4:3"
-                                                },
-                                                icon = Icons.Default.AspectRatio,
-                                                onClick = {
-                                                    val newMode = playerManager.cycleAspectRatio()
-                                                    seekRipple = when (newMode) {
-                                                        AspectRatioMode.FIT -> "Orijinal Oran"
-                                                        AspectRatioMode.FILL -> "Ekranı Doldur"
-                                                        AspectRatioMode.ZOOM -> "Yakınlaştır"
-                                                        AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
-                                                        AspectRatioMode.RATIO_4_3 -> "4:3 Oran"
-                                                    }
-                                                },
-                                                isPortrait = isPortrait
-                                            )
-
-                                            PlayerPillButton(
-                                                text = if (isDualViewActive) "Çift Ekran Açık" else "Çift Ekran",
-                                                icon = Icons.Default.GridView,
-                                                onClick = { showDualViewPicker = true },
-                                                isActive = isDualViewActive,
-                                                activeColor = TiviPrimary,
-                                                isPortrait = isPortrait
-                                            )
-
-                                            PlayerPillButton(
-                                                text = "123",
-                                                icon = Icons.Default.Dialpad,
-                                                onClick = { showNumericKeypad = true },
-                                                isPortrait = isPortrait
-                                            )
-
-                                            PlayerPillButton(
-                                                text = "Kategoriler",
-                                                icon = Icons.Default.Category,
-                                                onClick = { showChannelDrawer = !showChannelDrawer },
-                                                isActive = showChannelDrawer,
-                                                activeColor = OpusCyan,
-                                                isPortrait = isPortrait
-                                            )
-                                        }
-
-                                        if (isPortrait) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .horizontalScroll(rememberScrollState()),
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                livePillsContent()
-                                            }
-                                        } else {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.Center,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    livePillsContent()
-                                                }
-                                            }
-                                        }
+                                        LivePlayerActionBar(
+                                            onOpenGuide = {
+                                                showOverlayGuide = true
+                                                showControls = false
+                                            },
+                                            isGuideActive = showOverlayGuide,
+                                            onToggleRecentChannels = {
+                                                showRecentChannelsBar = !showRecentChannelsBar
+                                            },
+                                            isRecentActive = showRecentChannelsBar,
+                                            hasPreviousChannel = lastPlayedLiveChannel != null && lastPlayedLiveChannel?.streamId != streamId,
+                                            previousChannelName = lastPlayedLiveChannel?.name,
+                                            onZapRecall = {
+                                                val prev = viewModel.zapRecall()
+                                                if (prev != null) seekRipple = "↩ ${prev.name}"
+                                            },
+                                            onOpenAudioSubtitles = {
+                                                showTrackSheet = true
+                                            },
+                                            onOpenMore = {
+                                                showMoreSheet = true
+                                            },
+                                            firstButtonFocusRequester = firstButtonFocusRequester
+                                        )
                                     }
                                 } else null
                             )
@@ -2500,6 +2420,43 @@ fun PlayerScreen(
                     }
                 }
             }
+        }
+
+        // DAHA FAZLA (⋯) İKİNCİL SEÇENEKLER BOTTOM SHEET
+        if (showMoreSheet) {
+            LivePlayerMoreSheet(
+                aspectRatio = aspectRatio,
+                onCycleAspectRatio = {
+                    val newMode = playerManager.cycleAspectRatio()
+                    seekRipple = when (newMode) {
+                        AspectRatioMode.FIT -> "En-Boy: Orijinal"
+                        AspectRatioMode.FILL -> "En-Boy: Doldur"
+                        AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
+                        AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
+                        AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
+                    }
+                },
+                isDualViewActive = isDualViewActive,
+                onOpenDualView = {
+                    showMoreSheet = false
+                    showDualViewPicker = true
+                },
+                onOpenNumpad = {
+                    showMoreSheet = false
+                    showNumericKeypad = true
+                },
+                onOpenChannelDrawer = {
+                    showMoreSheet = false
+                    showChannelDrawer = true
+                },
+                onLockControls = {
+                    showMoreSheet = false
+                    isControlsLocked = true
+                    seekRipple = "🔒 Ekran Kilitlendi"
+                },
+                diagnostics = streamDiagnostics,
+                onDismiss = { showMoreSheet = false }
+            )
         }
 
         // MEDYA VE OYNATMA SEÇENEKLERİ MODAL BOTTOM SHEET
