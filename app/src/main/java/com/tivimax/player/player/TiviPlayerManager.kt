@@ -470,8 +470,8 @@ class TiviPlayerManager(private val context: Context) {
 
         try {
             val player = initializePlayer(isLive)
-            player.stop()
-            player.clearMediaItems()
+            // player.stop()
+            // player.clearMediaItems()
 
             val mediaItemBuilder = MediaItem.Builder().setUri(url)
 
