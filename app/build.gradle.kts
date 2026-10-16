@@ -7,6 +7,13 @@ plugins {
   id("com.google.devtools.ksp")
 }
 
+// Release imzası: proje kökündeki keystore.properties dosyasından okunur (git'e EKLENMEZ).
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) keystorePropsFile.inputStream().use { load(it) }
+}
+val hasReleaseKeystore = keystorePropsFile.exists()
+
 android {
     namespace = "com.tivimax.player"
     compileSdk = 36
@@ -53,9 +60,12 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // keystore.properties yoksa debug anahtarına düşer (sadece yerel deneme için).
+            // Müşteriye dağıtılan APK mutlaka release anahtarıyla imzalanmalı.
             signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")
             } else {
+                logger.warn("UYARI: keystore.properties bulunamadi, release APK DEBUG anahtariyla imzalaniyor!")
                 signingConfigs.getByName("debug")
             }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
