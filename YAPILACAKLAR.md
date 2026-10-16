@@ -8,7 +8,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
 
 ## 🔴 1. Acil — Kullanıcıyı doğrudan etkileyen hatalar
 
-- [ ] **Mobilde kanal değiştirirken siyah ekran** _(Gemini üzerinde çalışıyor)_
+- [x] **Mobilde kanal değiştirirken siyah ekran** _(Gemini üzerinde çalışıyor)_
   Kanal değişince eski `PlayerScreen` kapanırken `stopAndClear()` çağrılıyor ve yeni yayını durduruyor.
   Ayrıntı: `docs/analiz-oynatici.md` · Dosyalar: `PlayerScreen.kt`, `MainViewModel.playLiveChannel`
 - [ ] **Favoriler eksik görünüyor**
