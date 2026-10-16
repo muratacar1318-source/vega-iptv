@@ -214,6 +214,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val zapperMatchedChannel = MutableStateFlow<LiveStream?>(null)
     private var zapperJob: Job? = null
 
+    // Canlı TV Düzen Modu ("SHELF" = Raf Düzeni [Varsayılan], "CLASSIC" = Klasik Düzen)
+    val liveLayoutMode: StateFlow<String> = preferences.liveLayoutModeFlow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences.LIVE_LAYOUT_SHELF)
+
+    fun setLiveLayoutMode(mode: String) {
+        viewModelScope.launch {
+            preferences.setLiveLayoutMode(mode)
+        }
+    }
+
+    fun toggleLiveLayoutMode() {
+        val current = liveLayoutMode.value
+        val next = if (current == UserPreferences.LIVE_LAYOUT_SHELF) UserPreferences.LIVE_LAYOUT_CLASSIC else UserPreferences.LIVE_LAYOUT_SHELF
+        setLiveLayoutMode(next)
+    }
+
+    // Tüm Canlı Kanallar (Raf Düzeni Kategorizasyonu ve Hızlı Erişim İçin)
+    val allLiveStreams: StateFlow<List<LiveStream>> = repository.getLiveStreamsFilteredFlow(null, "", "DEFAULT")
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun refreshLiveChannels() {
+        loadLiveStreams(selectedLiveCategory.value, forceRefresh = true)
+        loadLiveCategories()
+    }
+
     fun isAdultCategory(name: String): Boolean {
         val clean = name.lowercase()
         return clean.contains("+18") || clean.contains("18+") || clean.contains("xxx") ||

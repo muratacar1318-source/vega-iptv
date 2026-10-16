@@ -36,6 +36,7 @@ import androidx.media3.ui.PlayerView
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
+import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
@@ -145,16 +146,29 @@ fun LiveTvWideScreenLayout(
                         )
                     }
 
-                    IconButton(
-                        onClick = onOpenCategoryManager,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = "Kategorileri Düzenle",
-                            tint = OpusCyan,
-                            modifier = Modifier.size(18.dp)
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_SHELF) },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ViewCarousel,
+                                contentDescription = "Raf Düzenine Geç",
+                                tint = OpusCyan,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = onOpenCategoryManager,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Kategorileri Düzenle",
+                                tint = OpusCyan,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
 

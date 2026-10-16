@@ -51,6 +51,7 @@ import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.data.model.SortOption
+import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
@@ -60,6 +61,7 @@ import com.tivimax.player.ui.components.GlobalSearchOptionsCard
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
+import com.tivimax.player.ui.live.shelf.ShelfLiveLayout
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -73,6 +75,8 @@ fun LiveTvScreen(viewModel: MainViewModel) {
     val allCategories by viewModel.liveCategories.collectAsState()
     val hiddenCategories by viewModel.hiddenCategories.collectAsState()
     val isParentalUnlocked by viewModel.isParentalUnlocked.collectAsState()
+    val liveLayoutMode by viewModel.liveLayoutMode.collectAsState()
+    val allLiveStreams by viewModel.allLiveStreams.collectAsState()
 
     val channels by viewModel.liveStreams.collectAsState()
     val selectedCategory by viewModel.selectedLiveCategory.collectAsState()
@@ -140,62 +144,95 @@ fun LiveTvScreen(viewModel: MainViewModel) {
             .fillMaxSize()
             .background(TiviBackground)
     ) {
-        if (isWideScreen) {
-            // ====================================================================
-            // 4 BÖLMELİ PROFESYONEL CANLI TV KONTROL MERKEZİ (TIVIMATE & OPUS IPTV)
-            // ====================================================================
-            LiveTvWideScreenLayout(
-                viewModel = viewModel,
-                categories = categories,
-                allCategories = allCategories,
-                selectedCategory = selectedCategory,
-                displayedChannels = displayedChannels,
-                activePreviewChannel = activePreviewChannel,
-                epgSummaryMap = epgSummaryMap,
-                currentEpgList = currentEpgList,
-                favoriteIds = favoriteIds,
-                recentChannels = recentChannels,
-                isLoading = isLoading,
-                isParentalUnlocked = isParentalUnlocked,
-                onOpenCategoryManager = { showCategoryManagerDialog = true },
-                onOpenParentalDialog = {
-                    parentalPinInput = ""
-                    parentalPinError = false
-                    showParentalPinDialog = true
-                },
-                onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
-            )
-        } else {
-            // ====================================================================
-            // DİKEY TELEFON DÜZENİ (PORTRAIT MOBILE LAYOUT)
-            // ====================================================================
-            LiveTvPortraitLayout(
-                viewModel = viewModel,
-                categories = categories,
-                allCategories = allCategories,
-                selectedCategory = selectedCategory,
-                displayedChannels = displayedChannels,
-                activePreviewChannel = activePreviewChannel,
-                isMiniPlayerActive = isMiniPlayerActive,
-                epgSummaryMap = epgSummaryMap,
-                favoriteIds = favoriteIds,
-                recentChannels = recentChannels,
-                currentSort = currentSort,
-                isLoading = isLoading,
-                searchQuery = searchQuery,
-                isParentalUnlocked = isParentalUnlocked,
-                onSearchQueryChange = {
-                    searchQuery = it
-                    viewModel.setLiveSearchQuery(it)
-                },
-                onOpenCategoryManager = { showCategoryManagerDialog = true },
-                onOpenParentalDialog = {
-                    parentalPinInput = ""
-                    parentalPinError = false
-                    showParentalPinDialog = true
-                },
-                onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
-            )
+        Crossfade(
+            targetState = liveLayoutMode,
+            animationSpec = tween(200),
+            label = "live_layout_mode_crossfade"
+        ) { mode ->
+            if (mode == UserPreferences.LIVE_LAYOUT_SHELF) {
+                ShelfLiveLayout(
+                    allLiveStreams = allLiveStreams,
+                    visibleCategories = categories,
+                    recentChannels = recentChannels,
+                    favoriteIds = favoriteIds,
+                    epgSummaryMap = epgSummaryMap,
+                    currentPlayingId = activePreviewChannel?.streamId,
+                    isLoading = isLoading,
+                    onChannelClick = { channel ->
+                        viewModel.playLiveChannel(channel)
+                    },
+                    onFavoriteToggle = { channel ->
+                        viewModel.toggleFavoriteLive(channel.streamId.toString())
+                    },
+                    onLoadEpg = { streamId ->
+                        viewModel.loadEpgSummary(streamId)
+                    },
+                    onRefresh = {
+                        viewModel.refreshLiveChannels()
+                    },
+                    onToggleLayout = {
+                        viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_CLASSIC)
+                    }
+                )
+            } else {
+                if (isWideScreen) {
+                    // ====================================================================
+                    // 4 BÖLMELİ PROFESYONEL CANLI TV KONTROL MERKEZİ (TIVIMATE & OPUS IPTV)
+                    // ====================================================================
+                    LiveTvWideScreenLayout(
+                        viewModel = viewModel,
+                        categories = categories,
+                        allCategories = allCategories,
+                        selectedCategory = selectedCategory,
+                        displayedChannels = displayedChannels,
+                        activePreviewChannel = activePreviewChannel,
+                        epgSummaryMap = epgSummaryMap,
+                        currentEpgList = currentEpgList,
+                        favoriteIds = favoriteIds,
+                        recentChannels = recentChannels,
+                        isLoading = isLoading,
+                        isParentalUnlocked = isParentalUnlocked,
+                        onOpenCategoryManager = { showCategoryManagerDialog = true },
+                        onOpenParentalDialog = {
+                            parentalPinInput = ""
+                            parentalPinError = false
+                            showParentalPinDialog = true
+                        },
+                        onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
+                    )
+                } else {
+                    // ====================================================================
+                    // DİKEY TELEFON DÜZENİ (PORTRAIT MOBILE LAYOUT)
+                    // ====================================================================
+                    LiveTvPortraitLayout(
+                        viewModel = viewModel,
+                        categories = categories,
+                        allCategories = allCategories,
+                        selectedCategory = selectedCategory,
+                        displayedChannels = displayedChannels,
+                        activePreviewChannel = activePreviewChannel,
+                        isMiniPlayerActive = isMiniPlayerActive,
+                        epgSummaryMap = epgSummaryMap,
+                        favoriteIds = favoriteIds,
+                        recentChannels = recentChannels,
+                        currentSort = currentSort,
+                        isLoading = isLoading,
+                        searchQuery = searchQuery,
+                        isParentalUnlocked = isParentalUnlocked,
+                        onSearchQueryChange = {
+                            searchQuery = it
+                            viewModel.setLiveSearchQuery(it)
+                        },
+                        onOpenCategoryManager = { showCategoryManagerDialog = true },
+                        onOpenParentalDialog = {
+                            parentalPinInput = ""
+                            parentalPinError = false
+                            showParentalPinDialog = true
+                        },
+                        onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
+                    )
+                }
+            }
         }
 
         // --- KATEGORİ YÖNETİMİ DİYALOGU (GİZLEME, SABİTLEME VE TOPLU İŞLEMLER) ---
@@ -509,6 +546,12 @@ fun LiveTvPortraitLayout(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text("KATEGORİLER", color = TiviTextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                                 Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(
+                                    onClick = { viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_SHELF) },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Default.ViewCarousel, contentDescription = "Raf Düzenine Geç", tint = OpusCyan, modifier = Modifier.size(19.dp))
+                                }
                                 IconButton(onClick = onOpenCategoryManager, modifier = Modifier.size(36.dp)) {
                                     Icon(Icons.Default.Tune, contentDescription = "Yönetim", tint = OpusCyan, modifier = Modifier.size(18.dp))
                                 }
@@ -722,6 +765,16 @@ fun LiveTvPortraitLayout(
                             icon = if (isEpgTimelineMode) Icons.Default.CalendarViewWeek else Icons.AutoMirrored.Filled.ViewList,
                             isSelected = isEpgTimelineMode,
                             onClick = { isEpgTimelineMode = !isEpgTimelineMode }
+                        )
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        // Raf Düzenine Geçiş Butonu
+                        ActionChipButton(
+                            text = "Raf",
+                            icon = Icons.Default.ViewCarousel,
+                            isSelected = false,
+                            onClick = { viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_SHELF) }
                         )
                     }
                 }

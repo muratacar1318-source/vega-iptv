@@ -110,6 +110,11 @@ class UserPreferences(private val context: Context) {
         // Cihaz Modu (PHONE, TABLET, TV)
         val KEY_DEVICE_MODE = stringPreferencesKey("device_mode")
         val KEY_DEVICE_MODE_SET = booleanPreferencesKey("device_mode_set")
+
+        // Canlı TV Düzeni ("SHELF" = Raf Düzeni [Varsayılan], "CLASSIC" = Klasik Düzen)
+        val KEY_LIVE_LAYOUT_MODE = stringPreferencesKey("live_layout_mode")
+        const val LIVE_LAYOUT_SHELF = "SHELF"
+        const val LIVE_LAYOUT_CLASSIC = "CLASSIC"
     }
 
     val usernameFlow: Flow<String> = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
@@ -444,6 +449,16 @@ class UserPreferences(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs.remove(KEY_DEVICE_MODE)
             prefs[KEY_DEVICE_MODE_SET] = false
+        }
+    }
+
+    val liveLayoutModeFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_LIVE_LAYOUT_MODE] ?: LIVE_LAYOUT_SHELF
+    }
+
+    suspend fun setLiveLayoutMode(mode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_LIVE_LAYOUT_MODE] = mode
         }
     }
 }

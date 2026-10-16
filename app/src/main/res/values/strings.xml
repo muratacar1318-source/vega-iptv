@@ -17,4 +17,24 @@
     <string name="device_mode_reset">Cihaz seçimini sıfırla</string>
     <string name="device_mode_help">Ekran yönü ve düzen seçilen moda göre ayarlanır.</string>
     <string name="device_mode_settings_label">Cihaz Modu</string>
+
+    <!-- Canlı TV Düzeni (Live Layout) -->
+    <string name="live_layout_title">Canlı TV Düzeni</string>
+    <string name="live_layout_subtitle">Canlı yayın ekranının görünüm ve gezinme düzeni</string>
+    <string name="live_layout_shelf">Raf Düzeni (Netflix Tarzı)</string>
+    <string name="live_layout_shelf_desc">Kanalları kategorilere göre yatay raflarda göster</string>
+    <string name="live_layout_classic">Klasik Düzen</string>
+    <string name="live_layout_classic_desc">Kategori çipleri ve kompakt kanal listesi</string>
+    <string name="live_layout_changed">Canlı TV düzeni değiştirildi: %1$s</string>
+    <string name="live_shelf_continue">Devam Et</string>
+    <string name="live_shelf_favorites">Favoriler</string>
+    <string name="live_shelf_now_playing">Şu An Canlı</string>
+    <string name="live_shelf_see_all">Tümünü Gör</string>
+    <string name="live_shelf_watch">İzle</string>
+    <string name="live_shelf_playing">Oynatılıyor</string>
+    <string name="live_shelf_live_badge">CANLI</string>
+    <string name="live_shelf_empty">Görüntülenecek kanal bulunamadı</string>
+    <string name="live_shelf_search_hint">Kanal veya program ara...</string>
+    <string name="live_shelf_remaining_min">kalan %1$d dk</string>
+    <string name="live_shelf_channel_count">%1$d Kanal</string>
 </resources>

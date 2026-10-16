@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.data.model.XtreamUserInfo
+import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
@@ -981,6 +983,149 @@ private fun RenderSelectedSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
+                    // Canlı TV Düzeni Seçimi (Raf Düzeni vs Klasik Düzen)
+                    val liveLayoutMode by viewModel.liveLayoutMode.collectAsState()
+                    Text(text = "Canlı TV Düzeni", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Canlı yayın ekranının görünüm ve gezinme düzeni", color = TiviTextSecondary, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        // 1. Raf Düzeni (Netflix Tarzı)
+                        val isShelfSelected = liveLayoutMode == UserPreferences.LIVE_LAYOUT_SHELF
+                        Surface(
+                            onClick = {
+                                scope.launch {
+                                    viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_SHELF)
+                                    Toast.makeText(context, "Canlı TV düzeni: Raf Düzeni seçildi", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isShelfSelected) OpusCyan.copy(alpha = 0.16f) else TiviSurfaceVariant,
+                            border = BorderStroke(1.5.dp, if (isShelfSelected) OpusCyan else TiviCardBorder),
+                            modifier = Modifier
+                                .weight(1f)
+                                .dpadFocusable(
+                                    focusedBorderColor = OpusCyan,
+                                    shape = RoundedCornerShape(12.dp),
+                                    onClick = {
+                                        scope.launch {
+                                            viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_SHELF)
+                                            Toast.makeText(context, "Canlı TV düzeni: Raf Düzeni seçildi", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ViewCarousel,
+                                        contentDescription = null,
+                                        tint = if (isShelfSelected) OpusCyan else TiviTextSecondary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    RadioButton(
+                                        selected = isShelfSelected,
+                                        onClick = {
+                                            scope.launch {
+                                                viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_SHELF)
+                                                Toast.makeText(context, "Canlı TV düzeni: Raf Düzeni seçildi", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        colors = RadioButtonDefaults.colors(selectedColor = OpusCyan)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Raf Düzeni",
+                                    color = if (isShelfSelected) Color.White else TiviTextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Kanalları kategorilere göre yatay raflarda göster (Netflix tarzı)",
+                                    color = if (isShelfSelected) OpusCyan.copy(alpha = 0.9f) else TiviTextSecondary,
+                                    fontSize = 10.5.sp,
+                                    lineHeight = 14.sp
+                                )
+                            }
+                        }
+
+                        // 2. Klasik Düzen
+                        val isClassicSelected = liveLayoutMode == UserPreferences.LIVE_LAYOUT_CLASSIC
+                        Surface(
+                            onClick = {
+                                scope.launch {
+                                    viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_CLASSIC)
+                                    Toast.makeText(context, "Canlı TV düzeni: Klasik Düzen seçildi", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isClassicSelected) OpusCyan.copy(alpha = 0.16f) else TiviSurfaceVariant,
+                            border = BorderStroke(1.5.dp, if (isClassicSelected) OpusCyan else TiviCardBorder),
+                            modifier = Modifier
+                                .weight(1f)
+                                .dpadFocusable(
+                                    focusedBorderColor = OpusCyan,
+                                    shape = RoundedCornerShape(12.dp),
+                                    onClick = {
+                                        scope.launch {
+                                            viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_CLASSIC)
+                                            Toast.makeText(context, "Canlı TV düzeni: Klasik Düzen seçildi", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ViewList,
+                                        contentDescription = null,
+                                        tint = if (isClassicSelected) OpusCyan else TiviTextSecondary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    RadioButton(
+                                        selected = isClassicSelected,
+                                        onClick = {
+                                            scope.launch {
+                                                viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_CLASSIC)
+                                                Toast.makeText(context, "Canlı TV düzeni: Klasik Düzen seçildi", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        colors = RadioButtonDefaults.colors(selectedColor = OpusCyan)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Klasik Düzen",
+                                    color = if (isClassicSelected) Color.White else TiviTextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Kategori çipleri ve kompakt kanal listesi",
+                                    color = if (isClassicSelected) OpusCyan.copy(alpha = 0.9f) else TiviTextSecondary,
+                                    fontSize = 10.5.sp,
+                                    lineHeight = 14.sp
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
                     // Tema Seçimi
                     val appTheme by viewModel.appTheme.collectAsState()
                     Text(text = "Uygulama Teması", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
