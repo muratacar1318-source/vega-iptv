@@ -1,163 +1,185 @@
 package com.tivimax.player.ui.favorites
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
-import com.tivimax.player.ui.live.EpgChannelCard
-import com.tivimax.player.ui.series.SeriesPosterCard
-import com.tivimax.player.ui.vod.MoviePosterCard
+import com.tivimax.player.ui.components.MediaPosterCard
+import com.tivimax.player.ui.components.dpadFocusable
 
 @Composable
 fun FavoritesScreen(viewModel: MainViewModel) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Canlı Kanallar", "Filmler", "Diziler")
+    val tabs = listOf("Tümü", "Canlı TV", "Filmler & Diziler")
 
-    val favoriteLiveIds by viewModel.favoriteLiveIds.collectAsState()
-    val favoriteVodIds by viewModel.favoriteVodIds.collectAsState()
-    val favoriteSeriesIds by viewModel.favoriteSeriesIds.collectAsState()
-
-    val allChannels by viewModel.liveStreams.collectAsState()
-    val allMovies by viewModel.vodStreams.collectAsState()
-    val allSeries by viewModel.seriesStreams.collectAsState()
+    val favChannels by viewModel.favoriteLiveStreams.collectAsState()
+    val favMovies by viewModel.favoriteVodStreams.collectAsState()
+    val favSeries by viewModel.favoriteSeriesStreams.collectAsState()
     val watchProgressMap by viewModel.watchProgressMap.collectAsState()
 
-    val favChannels = remember(favoriteLiveIds, allChannels) {
-        allChannels.filter { favoriteLiveIds.contains(it.streamId.toString()) }.distinctBy { it.streamId }
-    }
-
-    val favMovies = remember(favoriteVodIds, allMovies) {
-        allMovies.filter { favoriteVodIds.contains(it.streamId.toString()) }.distinctBy { it.streamId }
-    }
-
-    val favSeries = remember(favoriteSeriesIds, allSeries) {
-        allSeries.filter { favoriteSeriesIds.contains(it.seriesId.toString()) }.distinctBy { it.seriesId }
-    }
+    val totalFavorites = favChannels.size + favMovies.size + favSeries.size
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(TiviBackground)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = TiviSurface,
-            contentColor = TiviPrimary
+        // ÜST KAPSÜL FİLTRE SEKMELERİ (SEGMENTED CONTROL)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
         ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    text = {
-                        Text(
-                            text = title,
-                            fontSize = 13.sp,
-                            color = if (selectedTab == index) TiviPrimary else TiviTextSecondary
-                        )
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = TiviSurface,
+                border = BorderStroke(1.dp, TiviCardBorder),
+                modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        val isSelected = selectedTab == index
+                        Surface(
+                            onClick = { selectedTab = index },
+                            shape = RoundedCornerShape(50),
+                            color = if (isSelected) OpusCyan else Color.Transparent,
+                            modifier = Modifier
+                                .height(36.dp)
+                                .dpadFocusable(
+                                    shape = RoundedCornerShape(50),
+                                    focusedBorderColor = Color.White,
+                                    onClick = { selectedTab = index }
+                                )
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .padding(horizontal = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = title,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) Color.Black else Color.White
+                                )
+                            }
+                        }
                     }
-                )
+                }
             }
         }
 
-        when (selectedTab) {
-            0 -> {
-                // CANLI KANALLAR FAVORİLERİ
-                if (favChannels.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Henüz favori canlı kanal eklemediniz.\nKanalların yanındaki yıldız simgesine tıklayarak ekleyebilirsiniz.",
-                            color = TiviTextSecondary,
-                            fontSize = 13.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(24.dp)
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 90.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(favChannels, key = { "${it.streamId}_${it.num}" }) { channel ->
-                            EpgChannelCard(
-                                channel = channel,
-                                isFavorite = true,
-                                isPlaying = false,
-                                onChannelClick = { viewModel.playLiveChannel(channel) },
-                                onPlayFullscreen = { viewModel.playLiveChannel(channel) },
-                                onFavoriteToggle = { viewModel.toggleFavoriteLive(channel.streamId.toString()) }
-                            )
-                        }
-                    }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // İÇERİK VEYA BOŞ DURUM (EMPTY STATE)
+        val isEmpty = when (selectedTab) {
+            0 -> totalFavorites == 0
+            1 -> favChannels.isEmpty()
+            2 -> favMovies.isEmpty() && favSeries.isEmpty()
+            else -> false
+        }
+
+        if (isEmpty) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.StarBorder,
+                        contentDescription = null,
+                        tint = TiviTextMuted,
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Henüz favori içerik eklemediniz",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Beğendiğiniz canlı kanal, film veya dizileri yıldız ikonasını kullanarak favorilerinize ekleyebilirsiniz.",
+                        color = TiviTextSecondary,
+                        fontSize = 12.5.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    )
                 }
             }
-            1 -> {
-                // FİLMLER FAVORİLERİ
-                if (favMovies.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Henüz favori film eklemediniz.\nFilm detay sayfasından 'Listeme Ekle' ile ekleyebilirsiniz.",
-                            color = TiviTextSecondary,
-                            fontSize = 13.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(24.dp)
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 80.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                // CANLI TV FAVORİLERİ
+                if (selectedTab == 0 || selectedTab == 1) {
+                    items(favChannels, key = { "fav_live_${it.streamId}" }) { channel ->
+                        MediaPosterCard(
+                            imageUrl = channel.streamIcon,
+                            title = channel.name,
+                            subtitle = "Canlı TV",
+                            rating = null,
+                            onClick = { viewModel.playLiveChannel(channel) }
                         )
-                    }
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 110.dp),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 90.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        items(favMovies, key = { "${it.streamId}_${it.num}" }) { movie ->
-                            MoviePosterCard(
-                                movie = movie,
-                                watchProgress = watchProgressMap[movie.streamId.toString()],
-                                onClick = { viewModel.loadVodDetail(movie) }
-                            )
-                        }
                     }
                 }
-            }
-            2 -> {
-                // DİZİLER FAVORİLERİ
-                if (favSeries.isEmpty()) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "Henüz favori dizi eklemediniz.\nDizi detay sayfasından 'Diziyi Favorilerime Ekle' ile ekleyebilirsiniz.",
-                            color = TiviTextSecondary,
-                            fontSize = 13.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            modifier = Modifier.padding(24.dp)
+
+                // FİLM FAVORİLERİ
+                if (selectedTab == 0 || selectedTab == 2) {
+                    items(favMovies, key = { "fav_vod_${it.streamId}" }) { movie ->
+                        val rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+                        MediaPosterCard(
+                            imageUrl = movie.streamIcon,
+                            title = movie.name,
+                            subtitle = "Film",
+                            rating = rating,
+                            onClick = { viewModel.loadVodDetail(movie) }
                         )
                     }
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 110.dp),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 90.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        items(favSeries, key = { "${it.seriesId}_${it.num}" }) { series ->
-                            SeriesPosterCard(
-                                series = series,
-                                onClick = { viewModel.loadSeriesDetail(series) }
-                            )
-                        }
+                }
+
+                // DİZİ FAVORİLERİ
+                if (selectedTab == 0 || selectedTab == 2) {
+                    items(favSeries, key = { "fav_series_${it.seriesId}" }) { series ->
+                        val rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+                        val releaseYear = series.releaseDate?.take(4)?.ifBlank { "2024" } ?: "2024"
+                        MediaPosterCard(
+                            imageUrl = series.cover,
+                            title = series.name,
+                            subtitle = "$releaseYear • Dizi",
+                            rating = rating,
+                            onClick = { viewModel.loadSeriesDetail(series) }
+                        )
                     }
                 }
             }

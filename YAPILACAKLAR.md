@@ -11,10 +11,10 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
 - [x] **Mobilde kanal değiştirirken siyah ekran** _(Gemini üzerinde çalışıyor)_
   Kanal değişince eski `PlayerScreen` kapanırken `stopAndClear()` çağrılıyor ve yeni yayını durduruyor.
   Ayrıntı: `docs/analiz-oynatici.md` · Dosyalar: `PlayerScreen.kt`, `MainViewModel.playLiveChannel`
-- [ ] **Favoriler eksik görünüyor**
+- [x] **Favoriler eksik görünüyor**
   `FavoritesScreen` favorileri sadece o an yüklü kategorinin listesinden (`liveStreams` / `vodStreams` / `seriesStreams`) süzüyor.
   Başka bir kategori açıksa favori kanallar, filmler ve diziler görünmüyor. Favoriler tüm veritabanından okunmalı.
-- [ ] **Sahte puan gösterimi**
+- [x] **Sahte puan gösterimi**
   Puanı olmayan dizilerde "7.8" yazıyor (`VegaMediaCatalogScreen.kt:204`, `MainViewModel.kt:1126`).
   Puan yoksa rozet hiç gösterilmemeli.
 

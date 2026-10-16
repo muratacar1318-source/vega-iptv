@@ -182,6 +182,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val favoriteLiveIds = preferences.favoriteLiveFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val favoriteVodIds = preferences.favoriteVodFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val favoriteSeriesIds = preferences.favoriteSeriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    
+    // Tüm Veritabanındaki Favoriler (Kategori Bağımsız)
+    val favoriteLiveStreams: StateFlow<List<LiveStream>> = combine(
+        favoriteLiveIds,
+        repository.getLiveStreamsFlow("all")
+    ) { ids, allLive ->
+        if (ids.isEmpty()) emptyList()
+        else allLive.filter { ids.contains(it.streamId.toString()) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val favoriteVodStreams: StateFlow<List<VodStream>> = combine(
+        favoriteVodIds,
+        repository.getVodStreamsFlow("all")
+    ) { ids, allVod ->
+        if (ids.isEmpty()) emptyList()
+        else allVod.filter { ids.contains(it.streamId.toString()) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    val favoriteSeriesStreams: StateFlow<List<SeriesStream>> = combine(
+        favoriteSeriesIds,
+        repository.getSeriesStreamsFlow("all")
+    ) { ids, allSeries ->
+        if (ids.isEmpty()) emptyList()
+        else allSeries.filter { ids.contains(it.seriesId.toString()) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     val recentChannels = MutableStateFlow<List<LiveStream>>(emptyList())
 
     // Kategori İçerik İşleri (Room Database üzerinden Flow ile canlı gözlemlenir)
