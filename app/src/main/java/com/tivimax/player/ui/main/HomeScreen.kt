@@ -4,9 +4,11 @@ import android.app.Activity
 import android.content.res.Configuration
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -112,255 +114,59 @@ fun HomeScreen(viewModel: MainViewModel) {
     val activeCons = userInfo?.activeCons?.ifEmpty { "1" } ?: "1"
     val maxCons = userInfo?.maxConnections?.ifEmpty { "1" } ?: "1"
 
-    if (isWideScreen) {
-        // --- TABLET & YATAY MOD: SOLDA NAVIGATION RAIL, SAĞDA İÇERİK ---
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(TiviBackground)
-        ) {
-            // SOL DİKEY NAVIGATION RAIL
-            Surface(
+    Scaffold(
+        topBar = {
+            HomeTopBar(
+                appName = AppConfig.APP_NAME,
+                expDateFormatted = expDateFormatted,
+                activeCons = activeCons,
+                maxCons = maxCons,
+                showSettings = true,
+                isSyncing = playlistSyncState.isSyncing,
+                syncPercentage = playlistSyncState.overallPercentage,
+                onLogoClick = { viewModel.setSelectedHomeTab(HomeTab.DASHBOARD) },
+                onSettingsClick = {
+                    if (selectedTab == HomeTab.SETTINGS) {
+                        viewModel.setSelectedHomeTab(HomeTab.DASHBOARD)
+                    } else {
+                        viewModel.setSelectedHomeTab(HomeTab.SETTINGS)
+                    }
+                },
+                onSyncClick = { showSyncConfirmationDialog = true },
+                onSearchClick = { showSearchDialog = true }
+            )
+        },
+        bottomBar = {
+            if (!isWideScreen) {
+                HomeBottomNavigationBar(
+                    selectedTab = selectedTab,
+                    onTabSelected = { viewModel.setSelectedHomeTab(it) }
+                )
+            }
+        },
+        containerColor = Color(0xFF0B0C1A)
+    ) { innerPadding ->
+        if (isWideScreen) {
+            Row(
                 modifier = Modifier
-                    .width(76.dp)
-                    .fillMaxHeight(),
-                color = TiviSurface,
-                tonalElevation = 6.dp
+                    .fillMaxSize()
+                    .padding(innerPadding)
             ) {
-                Column(
+                HomeNavigationRail(
+                    selectedTab = selectedTab,
+                    onTabSelected = { viewModel.setSelectedHomeTab(it) },
+                    activeCons = activeCons,
+                    maxCons = maxCons
+                )
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                        .navigationBarsPadding()
-                        .padding(vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .weight(1f)
+                        .fillMaxHeight()
                 ) {
-                    // Üst Logo
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(TiviPrimary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Tv,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        // Dikey Menü Sekmeleri
-                        val tabs = listOf(HomeTab.DASHBOARD, HomeTab.LIVE_TV, HomeTab.MOVIES, HomeTab.SERIES, HomeTab.FAVORITES)
-                        tabs.forEach { tab ->
-                            val isSelected = selectedTab == tab
-                            Surface(
-                                onClick = { viewModel.setSelectedHomeTab(tab) },
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) TiviPrimary.copy(alpha = 0.22f) else Color.Transparent,
-                                modifier = Modifier
-                                    .padding(vertical = 4.dp)
-                                    .size(46.dp)
-                                    .dpadFocusable(
-                                        shape = RoundedCornerShape(12.dp),
-                                        focusedBorderColor = TiviPrimary,
-                                        onClick = { viewModel.setSelectedHomeTab(tab) }
-                                    )
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = tab.icon,
-                                        contentDescription = tab.title,
-                                        tint = if (isSelected) TiviPrimary else TiviTextSecondary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Alt Alan: Ayarlar Butonu & Bağlantı Rozeti
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val isSettingsActive = selectedTab == HomeTab.SETTINGS
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSettingsActive) TiviPrimary.copy(alpha = 0.22f) else TiviCard,
-                            onClick = {
-                                if (isSettingsActive) {
-                                    viewModel.setSelectedHomeTab(HomeTab.LIVE_TV)
-                                } else {
-                                    viewModel.setSelectedHomeTab(HomeTab.SETTINGS)
-                                }
-                            },
-                            modifier = Modifier
-                                .size(42.dp)
-                                .dpadFocusable(
-                                    shape = RoundedCornerShape(12.dp),
-                                    focusedBorderColor = TiviPrimary,
-                                    onClick = {
-                                        if (isSettingsActive) {
-                                            viewModel.setSelectedHomeTab(HomeTab.LIVE_TV)
-                                        } else {
-                                            viewModel.setSelectedHomeTab(HomeTab.SETTINGS)
-                                        }
-                                    }
-                                )
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Settings,
-                                    contentDescription = "Ayarlar",
-                                    tint = if (isSettingsActive) TiviPrimary else TiviTextSecondary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        // İçerikleri Güncelle / Senkronizasyon Butonu (Onay Diyaloğu Gösterir)
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = TiviCard,
-                            onClick = { showSyncConfirmationDialog = true },
-                            modifier = Modifier
-                                .size(42.dp)
-                                .dpadFocusable(
-                                    shape = RoundedCornerShape(12.dp),
-                                    focusedBorderColor = TiviPrimary,
-                                    onClick = { showSyncConfirmationDialog = true }
-                                )
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = "İçerikleri Güncelle",
-                                    tint = TiviPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        // Bağlantı Sayısı Mini Rozet
-                        Text(
-                            text = "$activeCons/$maxCons",
-                            color = TiviGreen,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
                 }
             }
-
-            // SAĞ ALAN: ÜST BİLGİ BARI & TAB İÇERİĞİ
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-            ) {
-                // Kompakt Üst Bar
-                HomeTopBar(
-                    appName = AppConfig.APP_NAME,
-                    expDateFormatted = expDateFormatted,
-                    activeCons = activeCons,
-                    maxCons = maxCons,
-                    showSettings = false, // Zaten rail üzerinde var
-                    isSyncing = playlistSyncState.isSyncing,
-                    syncPercentage = playlistSyncState.overallPercentage,
-                    onLogoClick = { viewModel.setSelectedHomeTab(HomeTab.DASHBOARD) },
-                    onSettingsClick = {},
-                    onSyncClick = { showSyncConfirmationDialog = true },
-                    onSearchClick = { showSearchDialog = true }
-                )
-
-                // Tab İçeriği
-                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
-            }
-        }
-    } else {
-        // --- TELEFON DİKEY MOD: ÜSTTE BAR, ALTA BOTTOM NAVIGATION BAR ---
-        Scaffold(
-            topBar = {
-                HomeTopBar(
-                    appName = AppConfig.APP_NAME,
-                    expDateFormatted = expDateFormatted,
-                    activeCons = activeCons,
-                    maxCons = maxCons,
-                    showSettings = true,
-                    isSyncing = playlistSyncState.isSyncing,
-                    syncPercentage = playlistSyncState.overallPercentage,
-                    onLogoClick = { viewModel.setSelectedHomeTab(HomeTab.DASHBOARD) },
-                    onSettingsClick = {
-                        if (selectedTab == HomeTab.SETTINGS) {
-                            viewModel.setSelectedHomeTab(HomeTab.DASHBOARD)
-                        } else {
-                            viewModel.setSelectedHomeTab(HomeTab.SETTINGS)
-                        }
-                    },
-                    onSyncClick = { showSyncConfirmationDialog = true },
-                    onSearchClick = { showSearchDialog = true }
-                )
-            },
-            bottomBar = {
-                Surface(
-                    color = TiviSurface,
-                    tonalElevation = 6.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .navigationBarsPadding()
-                            .fillMaxWidth()
-                            .height(54.dp)
-                            .padding(horizontal = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val bottomTabs = listOf(HomeTab.DASHBOARD, HomeTab.LIVE_TV, HomeTab.MOVIES, HomeTab.SERIES, HomeTab.FAVORITES)
-                        bottomTabs.forEach { tab ->
-                            val isSelected = selectedTab == tab
-                            Surface(
-                                onClick = { viewModel.setSelectedHomeTab(tab) },
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) TiviPrimary.copy(alpha = 0.16f) else Color.Transparent,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .padding(vertical = 4.dp, horizontal = 2.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = tab.icon,
-                                        contentDescription = tab.title,
-                                        tint = if (isSelected) TiviPrimary else TiviTextSecondary,
-                                        modifier = Modifier.size(19.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = tab.title,
-                                        fontSize = 10.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (isSelected) TiviPrimary else TiviTextSecondary,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            containerColor = TiviBackground
-        ) { innerPadding ->
+        } else {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -761,84 +567,132 @@ private fun HomeTopBar(
     onSearchClick: () -> Unit = {}
 ) {
     Surface(
-        color = TiviSurface,
-        tonalElevation = 4.dp,
+        color = Color(0xFF0B0C1A),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .statusBarsPadding()
                 .fillMaxWidth()
-                .height(48.dp)
-                .padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .height(64.dp)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Logo ve Başlık (Tıklanınca Ana Sayfaya Gider)
+            // Sol: Uygulama logosu (32.dp) ve yanında "Vega IPTV" başlığı
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable { onLogoClick() }
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .dpadFocusable(
+                        shape = RoundedCornerShape(8.dp),
+                        focusedBorderColor = Color(0xFF00E5FF),
+                        onClick = onLogoClick
+                    )
             ) {
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(TiviPrimary),
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFF00E5FF), Color(0xFF7C4DFF))
+                            )
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Tv,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = appName,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = TiviTextPrimary
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1
                 )
             }
 
-            // Sağ Üst Alan: Arşiv Yükleme Rozeti, Arama, Bitiş Tarihi, Bağlantı Rozeti, Senkronizasyon, Ayarlar
-            val configuration = LocalConfiguration.current
-            val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
+            // Orta: Arama Butonu/Çubuğu
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = Color.White.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(40.dp)
+                    .padding(horizontal = 10.dp)
+                    .dpadFocusable(
+                        shape = RoundedCornerShape(50),
+                        focusedBorderColor = Color(0xFF00E5FF),
+                        onClick = onSearchClick
+                    )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { onSearchClick() }
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Arama",
+                        tint = Color(0xFF00E5FF),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = "İçerik ara...",
+                        color = Color(0xFF8E92AA),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
 
+            // Sağ: Senkronizasyon (aktifse), Yenile ve Ayarlar butonları
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Arka Planda Arşiv Güncelleniyor Rozeti (Madde 6)
                 if (isSyncing) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = TiviPrimary.copy(alpha = 0.18f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary),
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFF7C4DFF).copy(alpha = 0.18f),
+                        border = BorderStroke(1.dp, Color(0xFF7C4DFF).copy(alpha = 0.4f)),
                         modifier = Modifier
+                            .height(40.dp)
                             .dpadFocusable(
-                                shape = RoundedCornerShape(8.dp),
-                                focusedBorderColor = OpusCyan,
+                                shape = RoundedCornerShape(10.dp),
+                                focusedBorderColor = Color(0xFF00E5FF),
                                 onClick = onSyncClick
                             )
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .clickable { onSyncClick() }
+                                .padding(horizontal = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             CircularProgressIndicator(
                                 strokeWidth = 2.dp,
-                                color = TiviPrimary,
-                                modifier = Modifier.size(12.dp)
+                                color = Color(0xFF00E5FF),
+                                modifier = Modifier.size(14.dp)
                             )
                             Text(
-                                text = "Arşiv güncelleniyor: %$syncPercentage",
-                                color = TiviPrimary,
+                                text = "%$syncPercentage",
+                                color = Color.White,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -846,134 +700,42 @@ private fun HomeTopBar(
                     }
                 }
 
-                // Arama Çubuğu (Capsule Search Bar)
+                // Yenile Butonu (40.dp, RoundedCornerShape(12.dp))
                 Surface(
-                    shape = RoundedCornerShape(50),
-                    color = TiviCard,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp)
-                        .height(40.dp)
-                        .dpadFocusable(
-                            shape = RoundedCornerShape(50),
-                            focusedBorderColor = OpusCyan,
-                            onClick = onSearchClick
-                        )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable { onSearchClick() }
-                            .padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Arama",
-                            tint = OpusCyan,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Dizi, film veya kanal ara...",
-                            color = TiviTextMuted,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                // Geniş ekranda (TV / Yanal Mod) Bitiş Tarihi ve Cihaz Limiti gösterilir (Dar mobil ekranda taşmayı önler)
-                if (isWideScreen) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = TiviCard,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            // Bitiş Tarihi
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Event,
-                                    contentDescription = "Bitiş Tarihi",
-                                    tint = TiviPrimary,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = expDateFormatted,
-                                    color = TiviTextPrimary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-
-                            Text(text = "•", color = TiviTextMuted, fontSize = 11.sp)
-
-                            // Anlık Bağlantı Limiti
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Devices,
-                                    contentDescription = "Bağlantı Limiti",
-                                    tint = TiviGreen,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "$activeCons/$maxCons",
-                                    color = TiviGreen,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Senkronizasyon Butonu (%20 Büyütüldü)
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = TiviCard,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
                     onClick = onSyncClick,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(40.dp)
                         .dpadFocusable(
-                            shape = RoundedCornerShape(10.dp),
-                            focusedBorderColor = OpusCyan,
+                            shape = RoundedCornerShape(12.dp),
+                            focusedBorderColor = Color(0xFF00E5FF),
                             onClick = onSyncClick
                         )
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "İçerikleri Güncelle",
-                            tint = TiviPrimary,
-                            modifier = Modifier.size(22.dp)
+                            contentDescription = "Yenile",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                // Ayarlar Butonu (%20 Büyütüldü)
+                // Ayarlar Butonu (40.dp, RoundedCornerShape(12.dp))
                 if (showSettings) {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = TiviCard,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White.copy(alpha = 0.08f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
                         onClick = onSettingsClick,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(40.dp)
                             .dpadFocusable(
-                                shape = RoundedCornerShape(10.dp),
-                                focusedBorderColor = OpusCyan,
+                                shape = RoundedCornerShape(12.dp),
+                                focusedBorderColor = Color(0xFF00E5FF),
                                 onClick = onSettingsClick
                             )
                     ) {
@@ -981,13 +743,219 @@ private fun HomeTopBar(
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "Ayarlar",
-                                tint = TiviTextSecondary,
-                                modifier = Modifier.size(22.dp)
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HomeBottomNavigationBar(
+    selectedTab: HomeTab,
+    onTabSelected: (HomeTab) -> Unit
+) {
+    val bottomTabs = listOf(
+        HomeTab.DASHBOARD,
+        HomeTab.LIVE_TV,
+        HomeTab.MOVIES,
+        HomeTab.SERIES,
+        HomeTab.FAVORITES
+    )
+
+    Surface(
+        color = Color(0xFF0B0C1A),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .fillMaxWidth()
+                .height(60.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            bottomTabs.forEach { tab ->
+                val isSelected = selectedTab == tab
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { onTabSelected(tab) }
+                        .dpadFocusable(
+                            shape = RoundedCornerShape(4.dp),
+                            focusedBorderColor = Color(0xFF00E5FF),
+                            onClick = { onTabSelected(tab) }
+                        ),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    if (isSelected) {
+                        // Seçili sekmenin üst kenarında 3.dp kalınlığında parlak mor/mavi (#00E5FF - #7C4DFF) çizgi
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.7f)
+                                .height(3.dp)
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(Color(0xFF00E5FF), Color(0xFF7C4DFF))
+                                    ),
+                                    shape = RoundedCornerShape(bottomStart = 2.dp, bottomEnd = 2.dp)
+                                )
+                        )
+                        // Arkasında yumuşak dikey mor gradyan parlama (glow) efekti
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color(0xFF7C4DFF).copy(alpha = 0.22f),
+                                            Color(0xFF7C4DFF).copy(alpha = 0.04f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 6.dp, bottom = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = tab.icon,
+                            contentDescription = tab.title,
+                            tint = if (isSelected) Color(0xFF00E5FF) else Color(0xFF8E92AA),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = tab.title,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) Color.White else Color(0xFF8E92AA),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeNavigationRail(
+    selectedTab: HomeTab,
+    onTabSelected: (HomeTab) -> Unit,
+    activeCons: String,
+    maxCons: String
+) {
+    val tabs = listOf(
+        HomeTab.DASHBOARD,
+        HomeTab.LIVE_TV,
+        HomeTab.MOVIES,
+        HomeTab.SERIES,
+        HomeTab.FAVORITES
+    )
+
+    Surface(
+        modifier = Modifier
+            .width(76.dp)
+            .fillMaxHeight(),
+        color = Color(0xFF0B0C1A),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                tabs.forEach { tab ->
+                    val isSelected = selectedTab == tab
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isSelected) {
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color(0xFF7C4DFF).copy(alpha = 0.28f),
+                                            Color(0xFF7C4DFF).copy(alpha = 0.08f)
+                                        )
+                                    )
+                                } else {
+                                    Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+                                }
+                            )
+                            .clickable { onTabSelected(tab) }
+                            .dpadFocusable(
+                                shape = RoundedCornerShape(12.dp),
+                                focusedBorderColor = Color(0xFF00E5FF),
+                                onClick = { onTabSelected(tab) }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .width(3.dp)
+                                    .height(28.dp)
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(Color(0xFF00E5FF), Color(0xFF7C4DFF))
+                                        ),
+                                        shape = RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp)
+                                    )
+                            )
+                        }
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = tab.title,
+                                tint = if (isSelected) Color(0xFF00E5FF) else Color(0xFF8E92AA),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = tab.title,
+                                fontSize = 10.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else Color(0xFF8E92AA),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
+            Text(
+                text = "$activeCons/$maxCons",
+                color = Color(0xFF00E676),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
