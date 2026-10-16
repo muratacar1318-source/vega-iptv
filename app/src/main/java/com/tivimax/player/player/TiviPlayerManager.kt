@@ -274,7 +274,6 @@ class TiviPlayerManager(private val context: Context) {
         val renderersFactory = DefaultRenderersFactory(context).apply {
             setEnableDecoderFallback(true)
             setExtensionRendererMode(if (_decoderMode == "SOFTWARE") DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
-            forceEnableMediaCodecAsynchronousQueueing()
         }
 
         val mediaSourceFactory = DefaultMediaSourceFactory(createDataSourceFactory())
@@ -470,18 +469,10 @@ class TiviPlayerManager(private val context: Context) {
 
         try {
             val player = initializePlayer(isLive)
-            // player.stop()
-            // player.clearMediaItems()
+            player.stop()
+            player.clearMediaItems()
 
             val mediaItemBuilder = MediaItem.Builder().setUri(url)
-
-            if (isLive) {
-                val liveConfig = MediaItem.LiveConfiguration.Builder()
-                    .setMinPlaybackSpeed(0.97f)
-                    .setMaxPlaybackSpeed(1.03f)
-                    .build()
-                mediaItemBuilder.setLiveConfiguration(liveConfig)
-            }
 
             if (url.contains(".m3u8", ignoreCase = true)) {
                 mediaItemBuilder.setMimeType(MimeTypes.APPLICATION_M3U8)

@@ -3584,6 +3584,7 @@ private fun VideoPlayerSurface(
             PlayerView(ctx).apply {
                 useController = false
                 keepScreenOn = true
+                setKeepContentOnPlayerReset(true)
                 setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
                 setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                 layoutParams = FrameLayout.LayoutParams(

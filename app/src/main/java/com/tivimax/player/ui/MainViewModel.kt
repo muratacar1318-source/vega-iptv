@@ -1333,15 +1333,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         playerManager.playWithFallbacks(urls, isLive = true)
         loadEpgForChannel(channel.streamId)
-        navigateTo(
-            Screen.Player(
-                streamUrl = urls.firstOrNull() ?: "",
-                title = channel.name,
-                isLive = true,
-                streamId = channel.streamId,
-                categoryId = channel.categoryId
+        
+        if (deviceMode.value != com.tivimax.player.util.DeviceMode.TV) {
+            navigateTo(
+                Screen.Player(
+                    streamUrl = urls.firstOrNull() ?: "",
+                    title = channel.name,
+                    isLive = true,
+                    streamId = channel.streamId,
+                    categoryId = channel.categoryId
+                )
             )
-        )
+        }
     }
 
     fun startDualView(channel: LiveStream) {
@@ -1357,19 +1360,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun zapRecall(): LiveStream? {
-        val prev = lastPlayedLiveChannel.value ?: return null
-        playLiveChannel(prev)
-        return prev
-    }
-
     fun zapNextChannel(currentStreamId: Int): LiveStream? {
         val list = liveStreams.value
         if (list.isEmpty()) return null
         val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
         val nextIndex = if (currentIndex != -1) (currentIndex + 1) % list.size else 0
         val nextChannel = list[nextIndex]
-        playLiveChannel(nextChannel)
+        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
+            previewChannel(nextChannel)
+        } else {
+            playLiveChannel(nextChannel)
+        }
         return nextChannel
     }
 
@@ -1379,8 +1380,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
         val prevIndex = if (currentIndex > 0) currentIndex - 1 else list.size - 1
         val prevChannel = list[prevIndex]
-        playLiveChannel(prevChannel)
+        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
+            previewChannel(prevChannel)
+        } else {
+            playLiveChannel(prevChannel)
+        }
         return prevChannel
+    }
+
+    fun zapRecall(): LiveStream? {
+        val prev = lastPlayedLiveChannel.value ?: return null
+        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
+            previewChannel(prev)
+        } else {
+            playLiveChannel(prev)
+        }
+        return prev
     }
 
     fun playVod(vod: VodStream, resume: Boolean = false) {

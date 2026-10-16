@@ -224,6 +224,7 @@ fun TvPlayerOverlay(
                 PlayerView(ctx).apply {
                     useController = false
                     keepScreenOn = true
+                    setKeepContentOnPlayerReset(true)
                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,

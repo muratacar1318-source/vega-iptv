@@ -425,6 +425,7 @@ fun TvTiviMateScreen(viewModel: MainViewModel) {
                             factory = { ctx ->
                                 PlayerView(ctx).apply {
                                     useController = false
+                                    setKeepContentOnPlayerReset(true)
                                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                                     layoutParams = FrameLayout.LayoutParams(
                                         ViewGroup.LayoutParams.MATCH_PARENT,
