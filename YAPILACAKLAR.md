@@ -39,7 +39,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
 
 ## 🟠 4. Güvenlik
 
-- [ ] **TMDb API anahtarı** açık repoda düz metin olarak duruyor (`TmdbScraper.kt:15`). Kendi anahtarınızı alıp `BuildConfig` üzerinden okuyun.
+- [x] **TMDb API anahtarı** koda doğrudan yazılmak yerine `BuildConfig` ve `local.properties` üzerinden okunacak şekilde taşındı (`TmdbScraper.kt:15`). Kendi anahtarınızı eklemek için `local.properties` dosyasına `TMDB_API_KEY=anahtarınız` yazabilirsiniz.
 - [ ] `AppConfig.kt` içindeki sunucu adresleri sadece Base64/XOR ile gizlenmiş, yani kolayca çözülebilir. Bu bilgiyi gerçek bir sır olarak düşünmeyin.
 - [ ] Repo herkese açık (public). Sunucu bilgisi ve marka içeriği için **private** yapmayı düşünün.
 

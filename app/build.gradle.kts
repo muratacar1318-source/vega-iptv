@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
@@ -8,12 +10,21 @@ plugins {
 android {
     namespace = "com.tivimax.player"
     compileSdk = 36
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { localProperties.load(it) }
+    }
+    val tmdbApiKey = localProperties.getProperty("TMDB_API_KEY") ?: "15d2ea6d0dc1d476efbca3cef2d92dca"
+
     defaultConfig {
         applicationId = "com.tivimax.player"
         minSdk = 26
         targetSdk = 36
         versionCode = 48
         versionName = "1.2.6"
+
+        buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
 
         ndk {
             abiFilters.addAll(setOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64"))

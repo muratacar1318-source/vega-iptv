@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit
 
 object TmdbScraper {
 
-    private const val API_KEY = "15d2ea6d0dc1d476efbca3cef2d92dca"
+    private val API_KEY = com.tivimax.player.BuildConfig.TMDB_API_KEY
     private const val BASE_URL = "https://api.themoviedb.org/3"
     private const val IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 
