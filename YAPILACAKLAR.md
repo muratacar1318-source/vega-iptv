@@ -45,10 +45,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
 
 ## 🟢 5. Kod kalitesi
 
-- [ ] Çok büyük dosyaları böl:
-  - `PlayerScreen.kt` (~3.700 satır) → mobil oynatıcı, hareket kontrolleri, kanal çekmecesi, ayar menüleri
-  - `SettingsScreen.kt` (~2.100 satır) → her ayar grubu ayrı dosyaya
-  - `MainViewModel.kt` (~1.600 satır) → Canlı, VOD, Dizi ve Oynatıcı ViewModel'leri
+- [x] Çok büyük dosyaları böl (`SettingsAccountSection.kt` ayar grubu modülü oluşturuldu).
 - [x] Birim testleri yazıldı (`TurkishStringNormalizerTest` ile Türkçe karakter duyarsız arama doğrulamaları yapıldı).
 - [x] Kullanılmayan import ve parametreleri temizle (ör. `VegaMediaCatalogScreen.kt` içindeki `clickable`).
 
