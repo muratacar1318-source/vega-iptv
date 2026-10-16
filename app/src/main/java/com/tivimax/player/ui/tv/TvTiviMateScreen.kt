@@ -525,10 +525,41 @@ fun TvTiviMateScreen(viewModel: MainViewModel) {
                                 text = if (!activeEpg?.description.isNullOrBlank()) activeEpg!!.description else "Detaylı akış özet bilgisi sunucu tarafından iletilmedi.",
                                 color = TiviTextSecondary,
                                 fontSize = 11.5.sp,
-                                maxLines = 4,
+                                maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,
                                 lineHeight = 16.sp
                             )
+
+                            // SIRADAKİ PROGRAMLAR (TİVİMATE EPG AKIŞI)
+                            if (currentEpgList.size > 1) {
+                                HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+                                Text("SIRADAKİ PROGRAMLAR", color = OpusCyan, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.8.sp)
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    currentEpgList.drop(1).take(3).forEach { prog ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = prog.getDecodedTitle(),
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = prog.getFormattedTime(),
+                                                color = TiviTextMuted,
+                                                fontSize = 9.5.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
