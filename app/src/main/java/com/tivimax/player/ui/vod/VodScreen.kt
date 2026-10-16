@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuOpen
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -71,111 +72,34 @@ fun VodScreen(viewModel: MainViewModel) {
     val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
     val gridColumns = if (isWideScreen) (configuration.screenWidthDp / 140).coerceIn(5, 7) else 3
 
-    // --- TIVIMATE SOL DİKEY KATEGORİ SÜTUNU & SAĞ FİLM ALANI ---
-    var isSidebarExpanded by remember { mutableStateOf(true) }
-    val sidebarWidth by animateDpAsState(
-        targetValue = if (isSidebarExpanded) 125.dp else 46.dp,
-        animationSpec = tween(220),
-        label = "VodSidebarWidth"
-    )
+    val uiCategories = remember(categories) {
+        categories.map {
+            com.tivimax.player.ui.components.CategoryUiItem(
+                id = it.categoryId,
+                name = it.categoryName,
+                count = it.itemCount,
+                icon = Icons.Default.Movie,
+                iconTint = Color(0xFF7C4DFF)
+            )
+        }
+    }
 
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-            // SOL PANEL: DİKEY FİLM KATEGORİLERİ
-            Surface(
-                modifier = Modifier
-                    .width(sidebarWidth)
-                    .fillMaxHeight(),
-                color = TiviSurface,
-                tonalElevation = 3.dp
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = if (isSidebarExpanded) Arrangement.SpaceBetween else Arrangement.Center
-                    ) {
-                        if (isSidebarExpanded) {
-                            Text(
-                                text = "TÜRLER",
-                                color = TiviTextMuted,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { showCategoryDialog = true },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Tune,
-                                        contentDescription = "Kategorileri Düzenle",
-                                        tint = TiviSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { isSidebarExpanded = false },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.MenuOpen,
-                                        contentDescription = "Türleri Kapat",
-                                        tint = TiviTextSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            IconButton(
-                                onClick = { isSidebarExpanded = true },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = "Türleri Aç",
-                                    tint = TiviSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
+        // Ortak Sol Kategori Menüsü
+        com.tivimax.player.ui.components.CategorySidebar(
+            categories = uiCategories,
+            selectedCategoryId = selectedCategory,
+            onCategorySelected = { viewModel.loadVodStreams(it) },
+            title = "TÜRLER",
+            onFilterClick = { showCategoryDialog = true }
+        )
 
-                    HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
-
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentPadding = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        items(categories, key = { it.categoryId }) { category ->
-                            val isSelected = category.categoryId == selectedCategory
-                            com.tivimax.player.ui.components.CategoryItem(
-                                name = category.categoryName,
-                                count = category.itemCount,
-                                icon = Icons.Default.Movie,
-                                isSelected = isSelected,
-                                onClick = { viewModel.loadVodStreams(category.categoryId) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            VerticalDivider(
-                color = TiviCardBorder.copy(alpha = 0.6f),
-                thickness = 1.dp
-            )
-
-            // SAĞ PANEL: ARAMA ÇUBUĞU & FİLMLER IZGARASI
+        // SAĞ PANEL: ARAMA ÇUBUĞU & FİLMLER IZGARASI
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -234,44 +158,17 @@ fun VodScreen(viewModel: MainViewModel) {
 
                     // Sıralama Seçici Butonu
                     Box {
-                        Surface(
-                            onClick = { isSortMenuOpen = true },
-                            shape = RoundedCornerShape(10.dp),
-                            color = TiviCard,
-                            border = BorderStroke(1.dp, TiviCardBorder),
-                            modifier = Modifier
-                                .height(38.dp)
-                                .dpadFocusable(
-                                    shape = RoundedCornerShape(10.dp),
-                                    focusedBorderColor = OpusCyan,
-                                    onClick = { isSortMenuOpen = true }
-                                )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Sort,
-                                    contentDescription = "Sırala",
-                                    tint = TiviSecondary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text(
-                                    text = when (currentSort) {
-                                        SortOption.ADDED_DESC -> "Eklenme"
-                                        SortOption.RATING_DESC -> "Puan"
-                                        SortOption.NAME_ASC -> "A - Z"
-                                        SortOption.NAME_DESC -> "Z - A"
-                                        SortOption.DEFAULT -> "Varsayılan"
-                                    },
-                                    color = TiviTextPrimary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
+                        com.tivimax.player.ui.components.ActionChipButton(
+                            text = when (currentSort) {
+                                SortOption.ADDED_DESC -> "Eklenme"
+                                SortOption.RATING_DESC -> "Puan"
+                                SortOption.NAME_ASC -> "A - Z"
+                                SortOption.NAME_DESC -> "Z - A"
+                                SortOption.DEFAULT -> "Varsayılan"
+                            },
+                            icon = Icons.AutoMirrored.Filled.Sort,
+                            onClick = { isSortMenuOpen = true }
+                        )
 
                         DropdownMenu(
                             expanded = isSortMenuOpen,
@@ -634,19 +531,21 @@ fun MoviePosterCard(
 
         Text(
             text = movie.name,
-            color = TiviTextPrimary,
-            fontSize = 12.5.sp,
-            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            minLines = 2,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            lineHeight = 16.sp
+            lineHeight = 15.sp
         )
 
         Spacer(modifier = Modifier.height(2.dp))
 
+        val extText = movie.containerExtension.uppercase().ifBlank { "MP4" }
         Text(
-            text = "Film",
-            color = TiviTextSecondary,
+            text = "Film • $extText",
+            color = Color(0xFF9E9E9E),
             fontSize = 10.sp,
             fontWeight = FontWeight.Normal,
             maxLines = 1,

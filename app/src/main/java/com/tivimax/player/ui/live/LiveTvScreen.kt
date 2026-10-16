@@ -22,7 +22,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuOpen
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
+import com.tivimax.player.ui.components.ActionChipButton
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -667,95 +670,59 @@ fun LiveTvPortraitLayout(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         // Sıralama
                         Box {
-                            Surface(
-                                onClick = { isSortMenuOpen = true },
-                                shape = RoundedCornerShape(10.dp),
-                                color = TiviCard,
-                                border = BorderStroke(1.dp, TiviCardBorder),
-                                modifier = Modifier
-                                    .height(38.dp)
-                                    .dpadFocusable(
-                                        shape = RoundedCornerShape(10.dp),
-                                        focusedBorderColor = OpusCyan,
-                                        onClick = { isSortMenuOpen = true }
-                                    )
+                            ActionChipButton(
+                                text = when (currentSort) {
+                                    SortOption.DEFAULT -> "Varsayılan"
+                                    SortOption.NAME_ASC -> "A - Z"
+                                    SortOption.NAME_DESC -> "Z - A"
+                                    SortOption.ADDED_DESC -> "Eklenme"
+                                    SortOption.RATING_DESC -> "Kanal No"
+                                },
+                                icon = Icons.AutoMirrored.Filled.Sort,
+                                onClick = { isSortMenuOpen = true }
+                            )
+
+                            DropdownMenu(
+                                expanded = isSortMenuOpen,
+                                onDismissRequest = { isSortMenuOpen = false },
+                                modifier = Modifier.background(TiviSurface)
                             ) {
-                                Row(modifier = Modifier.padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Sort, contentDescription = "Sırala", tint = OpusCyan, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = when (currentSort) {
-                                        SortOption.DEFAULT -> "Varsayılan"
-                                        SortOption.NAME_ASC -> "A - Z"
-                                        SortOption.NAME_DESC -> "Z - A"
-                                        SortOption.ADDED_DESC -> "Eklenme"
-                                        SortOption.RATING_DESC -> "Kanal No"
-                                    },
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                DropdownMenuItem(
+                                    text = { Text("Varsayılan Sıra", color = if (currentSort == SortOption.DEFAULT) OpusCyan else Color.White, fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(16.dp)) },
+                                    onClick = {
+                                        viewModel.setLiveSort(SortOption.DEFAULT)
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("A - Z (İsme Göre)", color = if (currentSort == SortOption.NAME_ASC) OpusCyan else Color.White, fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
+                                    onClick = {
+                                        viewModel.setLiveSort(SortOption.NAME_ASC)
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Z - A (İsme Göre Ters)", color = if (currentSort == SortOption.NAME_DESC) OpusCyan else Color.White, fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
+                                    onClick = {
+                                        viewModel.setLiveSort(SortOption.NAME_DESC)
+                                        isSortMenuOpen = false
+                                    }
                                 )
                             }
                         }
 
-                        DropdownMenu(
-                            expanded = isSortMenuOpen,
-                            onDismissRequest = { isSortMenuOpen = false },
-                            modifier = Modifier.background(TiviSurface)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Varsayılan Sıra", color = if (currentSort == SortOption.DEFAULT) OpusCyan else Color.White, fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    viewModel.setLiveSort(SortOption.DEFAULT)
-                                    isSortMenuOpen = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("A - Z (İsme Göre)", color = if (currentSort == SortOption.NAME_ASC) OpusCyan else Color.White, fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    viewModel.setLiveSort(SortOption.NAME_ASC)
-                                    isSortMenuOpen = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Z - A (İsme Göre Ters)", color = if (currentSort == SortOption.NAME_DESC) OpusCyan else Color.White, fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    viewModel.setLiveSort(SortOption.NAME_DESC)
-                                    isSortMenuOpen = false
-                                }
-                            )
-                        }
-                    }
+                        Spacer(modifier = Modifier.width(6.dp))
 
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    // TV Rehberi / Liste Görünümü
-                    Surface(
-                        onClick = { isEpgTimelineMode = !isEpgTimelineMode },
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isEpgTimelineMode) OpusCyan.copy(alpha = 0.2f) else TiviCard,
-                        border = BorderStroke(1.dp, if (isEpgTimelineMode) OpusCyan else TiviCardBorder),
-                        modifier = Modifier.height(44.dp)
-                    ) {
-                        Row(modifier = Modifier.padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (isEpgTimelineMode) Icons.Default.CalendarViewWeek else Icons.Default.ViewList,
-                                contentDescription = "Görünüm",
-                                tint = if (isEpgTimelineMode) OpusCyan else Color.White,
-                                modifier = Modifier.size(17.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (isEpgTimelineMode) "Rehber" else "Liste",
-                                color = if (isEpgTimelineMode) OpusCyan else Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                        // TV Rehberi / Liste Görünümü
+                        ActionChipButton(
+                            text = if (isEpgTimelineMode) "Rehber" else "Liste",
+                            icon = if (isEpgTimelineMode) Icons.Default.CalendarViewWeek else Icons.AutoMirrored.Filled.ViewList,
+                            isSelected = isEpgTimelineMode,
+                            onClick = { isEpgTimelineMode = !isEpgTimelineMode }
+                        )
                     }
                 }
 
@@ -951,9 +918,13 @@ fun EpgChannelCard(
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(text = programTime, color = TiviTextMuted, fontSize = 10.sp)
+                    Text(
+                        text = programTime,
+                        color = TiviTextMuted,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
                 IconButton(onClick = onPlayFullscreen) {

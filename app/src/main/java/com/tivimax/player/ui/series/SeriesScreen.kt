@@ -64,8 +64,23 @@ fun SeriesPosterCard(
             Text(
                 text = series.name,
                 color = Color.White,
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                minLines = 2,
+                maxLines = 2,
+                lineHeight = 15.sp,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            val releaseYear = series.releaseDate?.take(4)?.ifBlank { "2024" } ?: "2024"
+            val genreText = series.genre?.split(",")?.firstOrNull()?.trim()?.ifBlank { "Dizi" } ?: "Dizi"
+            Text(
+                text = "$releaseYear • $genreText",
+                color = Color(0xFF9E9E9E),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

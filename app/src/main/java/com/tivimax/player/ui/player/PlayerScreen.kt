@@ -449,15 +449,16 @@ fun PlayerScreen(
     }
 
     // Lifecycle Observer (Arka plana atıldığında PiP açık değilse videoyu duraklat)
+    // Lifecycle Observer (Arka plana atıldığında PiP açık değilse videoyu duraklat)
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, isInPipMode) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
                 if (!isInPipMode) {
                     playerManager.pause()
                 }
-            } else if (event == Lifecycle.Event.ON_START) {
-                if (!isControlsLocked) {
+            } else if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
+                if (!isControlsLocked && !isInPipMode) {
                     playerManager.play()
                 }
             }
@@ -468,13 +469,13 @@ fun PlayerScreen(
         }
     }
 
-    // Video izlerken ekranın kapanmasını önle (KEEP_SCREEN_ON)
+    // Video izlerken ekranın kapanmasını önle (KEEP_SCREEN_ON) ve çıkışta belleği temizle
     DisposableEffect(Unit) {
         val window = activity?.window
         window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
             window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            if (!isLive) {
+            if (!viewModel.isMiniPlayerActive.value) {
                 playerManager.stopAndClear()
             }
         }

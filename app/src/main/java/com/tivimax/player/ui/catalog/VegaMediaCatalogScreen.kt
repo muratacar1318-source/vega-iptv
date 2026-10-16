@@ -26,9 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.SeriesCategory
 import com.tivimax.player.data.model.SeriesStream
 import com.tivimax.player.ui.MainViewModel
-import com.tivimax.player.ui.components.AsyncShimmerImage
-import com.tivimax.player.ui.components.CategoryItem
-import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.components.*
 
 private val NeonCyan = Color(0xFF00E5FF)
 private val GlassBorder = Color(0x33FFFFFF)
@@ -42,65 +40,36 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
     val selectedCategory by viewModel.selectedSeriesCategory.collectAsState()
     val isLoading by viewModel.seriesLoading.collectAsState()
 
-    // 1. NESTED SCAFFOLD REMOVED: Ekranın kök bileşeni yalnızca Row
+    val uiCategories = remember(categories) {
+        categories.map {
+            CategoryUiItem(
+                id = it.categoryId,
+                name = it.categoryName,
+                count = it.itemCount,
+                icon = Icons.Default.Folder,
+                iconTint = Color(0xFF7C4DFF)
+            )
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // 2. SOL KATEGORİ MENÜSÜ (LazyColumn) - Dış border/padding kaldırıldı
-        Column(
-            modifier = Modifier
-                .weight(0.32f)
-                .fillMaxHeight()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "KATEGORİLER",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.5f),
-                    letterSpacing = 1.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = "Filtre",
-                    tint = Color.White.copy(alpha = 0.5f),
-                    modifier = Modifier.size(15.dp)
-                )
-            }
+        // Ortak Sol Kategori Menüsü
+        CategorySidebar(
+            categories = uiCategories,
+            selectedCategoryId = selectedCategory,
+            onCategorySelected = { viewModel.loadSeriesStreams(it) },
+            title = "KATEGORİLER"
+        )
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                items(categories, key = { it.categoryId }) { category ->
-                    val isSelected = category.categoryId == selectedCategory
-                    CategoryItem(
-                        name = category.categoryName,
-                        count = category.itemCount,
-                        isSelected = isSelected,
-                        onClick = { viewModel.loadSeriesStreams(category.categoryId) }
-                    )
-                }
-            }
-        }
-
-        // 3. SAĞ İÇERİK ALANI (LazyVerticalGrid - 3 Sütun)
+        // SAĞ İÇERİK ALANI (LazyVerticalGrid - 3 Sütun)
         Box(
             modifier = Modifier
-                .weight(0.68f)
+                .weight(1f)
                 .fillMaxHeight()
         ) {
             VegaMediaContentGrid(
@@ -126,29 +95,11 @@ private fun VegaMediaContentGrid(
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                onClick = {},
-                shape = RoundedCornerShape(10.dp),
-                color = GlassSurfaceLight,
-                border = BorderStroke(1.dp, GlassBorder),
-                modifier = Modifier
-                    .height(32.dp)
-                    .dpadFocusable(focusedBorderColor = NeonCyan, shape = RoundedCornerShape(10.dp), onClick = {})
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = "Filtrele",
-                        tint = NeonCyan,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text("Filtrele", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                }
-            }
+            ActionChipButton(
+                text = "Filtrele",
+                icon = Icons.Default.FilterList,
+                onClick = {}
+            )
         }
 
         if (isLoading) {
@@ -260,7 +211,8 @@ private fun VegaMediaCard(
             text = series.name,
             color = Color.White,
             fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
+            minLines = 2,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             lineHeight = 15.sp
