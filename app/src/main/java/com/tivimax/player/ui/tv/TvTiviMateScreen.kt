@@ -39,6 +39,7 @@ import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import kotlinx.coroutines.delay
@@ -48,7 +49,10 @@ import kotlinx.coroutines.delay
  */
 @OptIn(UnstableApi::class)
 @Composable
-fun TvTiviMateScreen(viewModel: MainViewModel) {
+fun TvTiviMateScreen(
+    viewModel: MainViewModel,
+    onFullScreenChange: (Boolean) -> Unit = {}
+) {
     val categories by viewModel.visibleLiveCategories.collectAsState()
     val allCategories by viewModel.liveCategories.collectAsState()
     val channels by viewModel.liveStreams.collectAsState()
@@ -62,10 +66,32 @@ fun TvTiviMateScreen(viewModel: MainViewModel) {
     val currentEpgList by viewModel.currentEpgList.collectAsState()
 
     var isFullScreenPlayer by remember { mutableStateOf(false) }
-    var navRailTab by remember { mutableStateOf("LIVE_TV") } // "LIVE_TV", "MOVIES", "SERIES", "FAVORITES", "SETTINGS"
+
+    // Tam ekrana geçişte ana ekran sol menüyü gizler
+    LaunchedEffect(isFullScreenPlayer) {
+        onFullScreenChange(isFullScreenPlayer)
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            onFullScreenChange(false)
+            // Ana ekranda başka sekmeye geçildiyse önizleme arka planda ses vermesin.
+            // (Oynatıcı ekranına geçişte durdurma yapılmaz; orada yeni yayın zaten başlatılmıştır.)
+            if (viewModel.currentScreen.value is Screen.Home) {
+                viewModel.playerManager.pause()
+            }
+        }
+    }
 
     val channelListState = rememberLazyListState()
     val defaultCategoryFocus = remember { FocusRequester() }
+
+    // Başka sekmeden Canlı TV'ye dönüldüğünde duraklatılan önizlemeyi canlı noktadan yeniden başlat
+    LaunchedEffect(Unit) {
+        val previous = activePreviewChannel
+        if (previous != null && !viewModel.playerManager.isPlaying.value) {
+            viewModel.previewChannel(previous)
+        }
+    }
 
     // İlk açılışta ilk kanalı otomatik sağ üst önizlemeye al
     LaunchedEffect(channels) {
@@ -129,7 +155,7 @@ fun TvTiviMateScreen(viewModel: MainViewModel) {
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "TIVIMATE REHBER",
+                            text = "CANLI TV REHBERİ",
                             color = Color.White,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.ExtraBold,

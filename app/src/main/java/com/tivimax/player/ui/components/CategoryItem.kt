@@ -63,7 +63,6 @@ fun CategoryItem(
                 shape = RoundedCornerShape(10.dp),
                 onClick = onClick
             )
-            .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

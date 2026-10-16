@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -19,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -115,18 +118,43 @@ private fun VegaMediaContentGrid(
                 )
             }
         } else {
+            // TV / yatay ekranda daha fazla sütun (Filmler ekranıyla aynı ölçü)
+            val configuration = LocalConfiguration.current
+            val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
+            val gridColumns = if (isWideScreen) (configuration.screenWidthDp / 140).coerceIn(5, 7) else 3
+
+            // Sonsuz kaydırma: tüm diziler parça parça yüklenir (önceden ilk 60 ile sınırlıydı)
+            var visibleLimit by remember(seriesList) { mutableIntStateOf(40) }
+            val pagedSeries = remember(seriesList, visibleLimit) { seriesList.take(visibleLimit) }
+
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Fixed(gridColumns),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(top = 8.dp, start = 8.dp, end = 8.dp, bottom = 90.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(seriesList.take(60), key = { "series_${it.seriesId}_${it.num}" }) { series ->
+                items(pagedSeries, key = { "series_${it.seriesId}_${it.num}" }) { series ->
                     VegaMediaCard(
                         series = series,
                         onClick = { onSeriesClick(series) }
                     )
+                }
+
+                if (visibleLimit < seriesList.size) {
+                    item(span = { GridItemSpan(gridColumns) }) {
+                        LaunchedEffect(Unit) {
+                            visibleLimit += 30
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = NeonCyan, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                        }
+                    }
                 }
             }
         }
@@ -154,7 +182,6 @@ private fun VegaMediaCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .clickable { onClick() }
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 AsyncShimmerImage(

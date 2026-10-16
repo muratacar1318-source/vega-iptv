@@ -42,7 +42,6 @@ fun SeriesPosterCard(
                 shape = RoundedCornerShape(12.dp),
                 onClick = onClick
             )
-            .clickable { onClick() }
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
             Box(
