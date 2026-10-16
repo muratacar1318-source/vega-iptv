@@ -301,7 +301,11 @@ fun PlayerScreen(
     }
 
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val isUserInteracting = isScrubbing || gestureScrubActive || (doubleTapSide != null) || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showPlayerHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || (dragStartOffset != null)
+    val isUserInteracting = isScrubbing || gestureScrubActive || (doubleTapSide != null) || (optimisticSeekPosition != null) || (seekRipple != null) || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showPlayerHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || (dragStartOffset != null)
+
+    LaunchedEffect(isUserInteracting) {
+        lastInteractionTime = System.currentTimeMillis()
+    }
 
     val registerInteraction: () -> Unit = remember {
         { lastInteractionTime = System.currentTimeMillis() }
@@ -1584,6 +1588,7 @@ fun PlayerScreen(
                             onClick = {
                                 playerManager.rewind10Seconds()
                                 seekRipple = "-10s"
+                                registerInteraction()
                             },
                             modifier = Modifier.size(if (isPortrait) 48.dp else 56.dp),
                             backgroundColor = Color.Black.copy(alpha = 0.35f),
@@ -1598,7 +1603,10 @@ fun PlayerScreen(
                         }
 
                         BouncyIconButton(
-                            onClick = { playerManager.togglePlayPause() },
+                            onClick = {
+                                playerManager.togglePlayPause()
+                                registerInteraction()
+                            },
                             modifier = Modifier
                                 .size(if (isPortrait) 66.dp else 78.dp)
                                 .focusRequester(firstButtonFocusRequester),
@@ -1618,6 +1626,7 @@ fun PlayerScreen(
                             onClick = {
                                 playerManager.forward10Seconds()
                                 seekRipple = "+10s"
+                                registerInteraction()
                             },
                             modifier = Modifier.size(if (isPortrait) 48.dp else 56.dp),
                             backgroundColor = Color.Black.copy(alpha = 0.35f),

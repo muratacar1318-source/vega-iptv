@@ -224,17 +224,17 @@ fun HomeScreen(viewModel: MainViewModel) {
                             }
                         }
 
-                        // İçerikleri Güncelle / Senkronizasyon Butonu
+                        // İçerikleri Güncelle / Senkronizasyon Butonu (Onay Diyaloğu Gösterir)
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = TiviCard,
-                            onClick = { viewModel.openPlaylistSync() },
+                            onClick = { showSyncConfirmationDialog = true },
                             modifier = Modifier
                                 .size(42.dp)
                                 .dpadFocusable(
                                     shape = RoundedCornerShape(12.dp),
                                     focusedBorderColor = TiviPrimary,
-                                    onClick = { viewModel.openPlaylistSync() }
+                                    onClick = { showSyncConfirmationDialog = true }
                                 )
                         ) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
