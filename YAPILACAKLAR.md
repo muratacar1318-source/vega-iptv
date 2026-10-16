@@ -35,7 +35,7 @@ Tamamlanan maddeleri `[x]` olarak işaretleyin. Öncelik: 🔴 acil · 🟠 öne
 - [ ] Her yayında `versionCode` ve `versionName` değerlerini artır (`app/build.gradle.kts`).
 - [ ] GitHub Actions derlemesi kapatıldı, derleme yerelde yapılıyor (`./gradlew assembleRelease`). İleride gerekirse Actions → Android Build → **Enable workflow** ile yeniden açılabilir.
 - [x] `VegaIPTV-v1.1.5.apk` git'ten çıkarıldı (`.gitignore` `*.apk` dosyalarını yok sayıyor).
-- [ ] Kök klasördeki `release_notes_v1.0.x.txt` dosyaları `docs/release-notes/` altına taşınmalı.
+- [x] Kök klasördeki `release_notes_v1.0.x.txt` dosyaları `docs/release-notes/` altına taşındı.
 
 ## 🟠 4. Güvenlik
 
