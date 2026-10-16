@@ -44,7 +44,7 @@ fun SeriesPosterCard(
             )
             .clickable { onClick() }
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(6.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -59,25 +59,26 @@ fun SeriesPosterCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = series.name,
                 color = Color.White,
-                fontSize = 12.sp,
+                fontSize = 11.5.sp,
                 fontWeight = FontWeight.SemiBold,
                 minLines = 2,
                 maxLines = 2,
-                lineHeight = 15.sp,
+                lineHeight = 14.sp,
                 overflow = TextOverflow.Ellipsis
             )
 
             Spacer(modifier = Modifier.height(2.dp))
 
-            val releaseYear = series.releaseDate?.take(4)?.ifBlank { "2024" } ?: "2024"
+            val releaseYear = series.releaseDate?.take(4)?.ifBlank { "" } ?: ""
             val genreText = series.genre?.split(",")?.firstOrNull()?.trim()?.ifBlank { "Dizi" } ?: "Dizi"
+            val subText = if (releaseYear.isNotBlank()) "$releaseYear • $genreText" else genreText
             Text(
-                text = "$releaseYear • $genreText",
+                text = subText,
                 color = Color(0xFF9E9E9E),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Normal,

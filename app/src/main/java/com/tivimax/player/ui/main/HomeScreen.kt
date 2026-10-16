@@ -795,11 +795,12 @@ private fun HomeBottomNavigationBar(
                     contentAlignment = Alignment.TopCenter
                 ) {
                     if (isSelected) {
-                        // Seçili sekmenin üst kenarında 3.dp kalınlığında parlak mor/mavi (#00E5FF - #7C4DFF) çizgi
+                        // Seçili sekmenin üst kenarına tam yapışık parlak çizgi
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.7f)
-                                .height(3.dp)
+                                .align(Alignment.TopCenter)
+                                .fillMaxWidth(0.65f)
+                                .height(2.5.dp)
                                 .background(
                                     brush = Brush.horizontalGradient(
                                         colors = listOf(Color(0xFF00E5FF), Color(0xFF7C4DFF))
@@ -826,7 +827,7 @@ private fun HomeBottomNavigationBar(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = 6.dp, bottom = 4.dp),
+                            .padding(top = 5.dp, bottom = 3.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
@@ -836,7 +837,7 @@ private fun HomeBottomNavigationBar(
                             tint = if (isSelected) Color(0xFF00E5FF) else Color(0xFF8E92AA),
                             modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = tab.title,
                             fontSize = 11.sp,

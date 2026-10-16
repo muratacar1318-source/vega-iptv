@@ -5,6 +5,7 @@ import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -27,6 +28,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -193,6 +195,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         onOpenCategoryDialog = { showCategoryDialog = true },
                         onOpenPinDialog = { showPinDialog = true }
                     )
+                    Spacer(modifier = Modifier.height(90.dp))
                 }
             }
         } else {
@@ -284,6 +287,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.height(90.dp))
                 }
             } else {
                 // ÖZEL DİKEY ALT SAYFA (SUB-PAGE)
@@ -358,6 +362,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             onOpenCategoryDialog = { showCategoryDialog = true },
                             onOpenPinDialog = { showPinDialog = true }
                         )
+                        Spacer(modifier = Modifier.height(90.dp))
                     }
                 }
             }
@@ -510,42 +515,58 @@ private fun RenderSelectedSection(
                         }
                     }
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(text = "Bitiş Tarihi:", color = TiviTextSecondary, fontSize = 13.sp)
                             Text(text = "Aboneliğinizin sona ereceği tarih", color = TiviTextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
                         }
-                        Text(text = expDateFormatted, color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = expDateFormatted, color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(text = "Eşzamanlı Bağlantı:", color = TiviTextSecondary, fontSize = 13.sp)
                             Text(text = "Aynı anda kullanabileceğiniz cihaz limiti", color = TiviTextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
                         }
-                        Text(text = "${userInfo?.activeCons ?: "1"} / ${userInfo?.maxConnections ?: "1"} Cihaz", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = "${userInfo?.activeCons ?: "1"} / ${userInfo?.maxConnections ?: "1"} Cihaz", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                             Text(text = "Aktif Sunucu:", color = TiviTextSecondary, fontSize = 13.sp)
                             Text(text = "Bağlı olduğunuz IPTV paneli", color = TiviTextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
                         }
-                        Text(text = viewModel.repository.serverUrl, color = TiviTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(text = viewModel.repository.serverUrl, color = TiviTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.End)
                     }
 
                     if (lastSync.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(14.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                 Text(text = "Son Güncelleme:", color = TiviTextSecondary, fontSize = 13.sp)
                                 Text(text = "Kanalların en son senkronize edildiği an", color = TiviTextSecondary.copy(alpha = 0.6f), fontSize = 10.sp)
                             }
-                            Text(text = lastSync, color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(text = lastSync, color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
                         }
                     }
 
@@ -631,7 +652,12 @@ private fun RenderSelectedSection(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                    ) {
                         listOf(
                             "EXOPLAYER" to "ExoPlayer (Media3)",
                             "VLC" to "VLC (LibVLC)",
@@ -643,7 +669,6 @@ private fun RenderSelectedSection(
                                 color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
                                 border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
                                 modifier = Modifier
-                                    .weight(1f)
                                     .dpadFocusable(
                                         focusedBorderColor = OpusCyan,
                                         shape = RoundedCornerShape(10.dp),
@@ -656,10 +681,12 @@ private fun RenderSelectedSection(
                                 Text(
                                     text = label,
                                     color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                    fontSize = 11.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 9.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -945,7 +972,12 @@ private fun RenderSelectedSection(
                     Text(text = "Arayüz renk paletini kişiselleştirin", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                    ) {
                         listOf(
                             "MIDNIGHT" to "Gece Mavisi",
                             "OCEAN" to "Okyanus",
@@ -958,7 +990,6 @@ private fun RenderSelectedSection(
                                 color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
                                 border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
                                 modifier = Modifier
-                                    .weight(1f)
                                     .dpadFocusable(
                                         focusedBorderColor = OpusCyan,
                                         shape = RoundedCornerShape(10.dp),
@@ -968,10 +999,12 @@ private fun RenderSelectedSection(
                                 Text(
                                     text = label,
                                     color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                    fontSize = 11.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -1206,7 +1239,7 @@ private fun RenderSelectedSection(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(46.dp)
+                            .defaultMinSize(minHeight = 48.dp)
                             .dpadFocusable(
                                 focusedBorderColor = Color.White,
                                 shape = RoundedCornerShape(12.dp),
@@ -1215,7 +1248,13 @@ private fun RenderSelectedSection(
                     ) {
                         Icon(imageVector = Icons.Default.Password, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "4 Haneli Ebeveyn PIN Kodunu Değiştir", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(
+                            text = "4 Haneli Ebeveyn PIN Kodunu Değiştir",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)

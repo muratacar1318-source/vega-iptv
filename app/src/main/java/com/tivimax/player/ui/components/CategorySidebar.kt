@@ -43,9 +43,10 @@ fun CategorySidebar(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .fillMaxWidth(0.30f)
+            .widthIn(min = 110.dp)
+            .fillMaxWidth(0.31f)
             .background(Color(0xFF0E1022))
-            .padding(horizontal = 6.dp, vertical = 6.dp)
+            .padding(horizontal = 4.dp, vertical = 6.dp)
     ) {
         // Üst Başlık: "KATEGORİLER" / "TÜRLER" + Filtre İkonu
         Row(
@@ -87,6 +88,7 @@ fun CategorySidebar(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             items(categories, key = { it.id }) { cat ->

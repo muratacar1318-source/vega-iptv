@@ -363,7 +363,7 @@ fun VodScreen(viewModel: MainViewModel) {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(gridColumns),
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 90.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
@@ -527,24 +527,24 @@ fun MoviePosterCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = movie.name,
             color = Color.White,
-            fontSize = 12.sp,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.SemiBold,
             minLines = 2,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            lineHeight = 15.sp
+            lineHeight = 14.sp
         )
 
         Spacer(modifier = Modifier.height(2.dp))
 
-        val extText = movie.containerExtension.uppercase().ifBlank { "MP4" }
+        val extText = movie.containerExtension.uppercase().ifBlank { "FILM" }
         Text(
-            text = "Film • $extText",
+            text = extText,
             color = Color(0xFF9E9E9E),
             fontSize = 10.sp,
             fontWeight = FontWeight.Normal,

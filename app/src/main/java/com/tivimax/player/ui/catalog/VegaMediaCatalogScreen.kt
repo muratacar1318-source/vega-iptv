@@ -119,7 +119,7 @@ private fun VegaMediaContentGrid(
                 columns = GridCells.Fixed(3),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(8.dp),
+                contentPadding = PaddingValues(top = 8.dp, start = 8.dp, end = 8.dp, bottom = 90.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(seriesList.take(60), key = { "series_${it.seriesId}_${it.num}" }) { series ->
@@ -210,20 +210,21 @@ private fun VegaMediaCard(
         Text(
             text = series.name,
             color = Color.White,
-            fontSize = 12.sp,
+            fontSize = 11.5.sp,
             fontWeight = FontWeight.SemiBold,
             minLines = 2,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            lineHeight = 15.sp
+            lineHeight = 14.sp
         )
 
         Spacer(modifier = Modifier.height(2.dp))
 
-        val releaseYear = series.releaseDate?.take(4)?.ifBlank { "2024" } ?: "2024"
-        val genreText = series.genre?.split(",")?.firstOrNull()?.trim()?.ifBlank { "Dram" } ?: "Dram"
+        val releaseYear = series.releaseDate?.take(4)?.ifBlank { "" } ?: ""
+        val genreText = series.genre?.split(",")?.firstOrNull()?.trim()?.ifBlank { "Dizi" } ?: "Dizi"
+        val subText = if (releaseYear.isNotBlank()) "$releaseYear • $genreText" else genreText
         Text(
-            text = "$releaseYear • $genreText",
+            text = subText,
             color = Color.White.copy(alpha = 0.5f),
             fontSize = 10.sp,
             fontWeight = FontWeight.Normal,

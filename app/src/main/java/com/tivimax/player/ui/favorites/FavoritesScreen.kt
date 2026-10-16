@@ -86,7 +86,7 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 90.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(favChannels, key = { "${it.streamId}_${it.num}" }) { channel ->
@@ -118,7 +118,7 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 110.dp),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 90.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
@@ -148,7 +148,7 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 110.dp),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 90.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {

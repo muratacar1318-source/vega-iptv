@@ -64,30 +64,30 @@ fun CategoryItem(
                 onClick = onClick
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (isSelected) {
             Box(
                 modifier = Modifier
-                    .width(3.dp)
-                    .height(18.dp)
+                    .width(2.5.dp)
+                    .height(16.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(Color(0xFF00E5FF))
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(4.dp))
         }
 
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = if (isSelected) Color(0xFF00E5FF) else iconTint,
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(16.dp)
         )
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
 
-        // İsim ve sayı tek Text içinde olduğu için isim asla kaybolmaz
+        // İsim ve sayı tek Text içinde olduğu için isim asla kaybolmaz, maxLines=1 ile kelime bölünmesi önlenir
         Text(
             text = buildAnnotatedString {
                 withStyle(
@@ -109,9 +109,10 @@ fun CategoryItem(
                     }
                 }
             },
-            fontSize = 12.sp,
-            lineHeight = 15.sp,
-            maxLines = 2,
+            fontSize = 11.sp,
+            lineHeight = 14.sp,
+            maxLines = 1,
+            softWrap = false,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )

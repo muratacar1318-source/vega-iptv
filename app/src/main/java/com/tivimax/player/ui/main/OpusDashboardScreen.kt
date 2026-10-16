@@ -525,6 +525,9 @@ private fun DashboardProgressCard(
                 }
             }
         }
+
+        // Alt navigasyon barı arkasında içerik kalmaması için alt boşluk
+        Spacer(modifier = Modifier.height(90.dp))
     }
 }
 
@@ -564,45 +567,57 @@ private fun NewlyAddedVodCard(
                     )
             )
 
-            Column(
+            // Kompakt YENİ Rozeti - Sol Üst Köşeye Sıfır
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.SpaceBetween
+                    .align(Alignment.TopStart)
+                    .clip(RoundedCornerShape(bottomEnd = 8.dp))
+                    .background(TiviAccentLive)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(TiviAccentLive)
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                    ) {
-                        Text("YENİ", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
-                    }
-
-                    val rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
-                    if (!rating.isNullOrBlank()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(10.dp))
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(rating, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-
                 Text(
-                    text = movie.name,
+                    text = "YENİ",
                     color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    fontSize = 7.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp
                 )
             }
+
+            // Puan Rozeti - Sağ Üst
+            val rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+            if (!rating.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(10.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(rating, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            // Film İsmi - Alt
+            Text(
+                text = movie.name,
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            )
         }
     }
 }
@@ -643,45 +658,57 @@ private fun NewlyAddedSeriesCard(
                     )
             )
 
-            Column(
+            // DİZİ Rozeti - Sol Üst Köşeye Sıfır
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.SpaceBetween
+                    .align(Alignment.TopStart)
+                    .clip(RoundedCornerShape(bottomEnd = 8.dp))
+                    .background(Color(0xFFA855F7))
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFFA855F7))
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                    ) {
-                        Text("DİZİ", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
-                    }
-
-                    val rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
-                    if (!rating.isNullOrBlank()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(10.dp))
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(rating, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-
                 Text(
-                    text = series.name,
+                    text = "DİZİ",
                     color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    fontSize = 7.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp
                 )
             }
+
+            // Puan Rozeti - Sağ Üst
+            val rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+            if (!rating.isNullOrBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(10.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(rating, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            // Dizi İsmi - Alt
+            Text(
+                text = series.name,
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            )
         }
     }
 }

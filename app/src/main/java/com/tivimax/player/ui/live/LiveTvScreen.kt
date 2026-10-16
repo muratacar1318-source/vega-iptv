@@ -530,7 +530,7 @@ fun LiveTvPortraitLayout(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
-                        contentPadding = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
+                        contentPadding = PaddingValues(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 90.dp),
                         verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         // Favoriler
@@ -788,7 +788,7 @@ fun LiveTvPortraitLayout(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                            contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 90.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(
@@ -884,8 +884,8 @@ fun EpgChannelCard(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF0F141F))
-                        .padding(3.dp),
+                        .background(Color.White.copy(alpha = 0.04f))
+                        .padding(2.dp),
                     placeholderIcon = Icons.Default.Tv
                 )
 
@@ -923,6 +923,7 @@ fun EpgChannelCard(
                         color = TiviTextMuted,
                         fontSize = 10.sp,
                         maxLines = 1,
+                        softWrap = false,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -952,6 +953,8 @@ fun EpgChannelCard(
                 color = if (isPlaying) OpusCyan else TiviPrimary,
                 trackColor = Color.White.copy(alpha = 0.1f)
             )
+
+            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }
@@ -995,7 +998,7 @@ fun EpgTimelineRow(
                     model = channel.streamIcon,
                     contentDescription = channel.name,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(32.dp).clip(RoundedCornerShape(6.dp)).background(Color.Black),
+                    modifier = Modifier.size(32.dp).clip(RoundedCornerShape(6.dp)).background(Color.White.copy(alpha = 0.04f)),
                     placeholderIcon = Icons.Default.Tv
                 )
 
@@ -1064,7 +1067,13 @@ fun EpgTimelineRow(
                                 )
                             }
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = epg.getFormattedTime(), color = TiviTextSecondary, fontSize = 10.sp)
+                            Text(
+                                text = epg.getFormattedTime(),
+                                color = TiviTextSecondary,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                softWrap = false
+                            )
                         }
 
                         LinearProgressIndicator(
