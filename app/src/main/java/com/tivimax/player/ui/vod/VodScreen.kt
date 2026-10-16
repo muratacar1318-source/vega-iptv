@@ -154,54 +154,17 @@ fun VodScreen(viewModel: MainViewModel) {
                             .fillMaxWidth()
                             .weight(1f),
                         contentPadding = PaddingValues(vertical = 4.dp, horizontal = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         items(categories, key = { it.categoryId }) { category ->
                             val isSelected = category.categoryId == selectedCategory
-
-                            Surface(
-                                onClick = { viewModel.loadVodStreams(category.categoryId) },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) TiviSecondary.copy(alpha = 0.18f) else Color.Transparent,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (isSelected) {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(3.dp)
-                                                .height(18.dp)
-                                                .clip(RoundedCornerShape(1.5.dp))
-                                                .background(TiviSecondary)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                    }
-
-                                    Icon(
-                                        imageVector = Icons.Default.Movie,
-                                        contentDescription = null,
-                                        tint = if (isSelected) TiviSecondary else TiviTextSecondary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-
-                                    if (isSidebarExpanded) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        val countSuffix = if (category.itemCount > 0) " (${category.itemCount})" else ""
-                                        Text(
-                                            text = "${category.categoryName}$countSuffix",
-                                            color = if (isSelected) TiviSecondary else TiviTextPrimary,
-                                            fontSize = 13.5.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            lineHeight = 16.sp
-                                        )
-                                    }
-                                }
-                            }
+                            com.tivimax.player.ui.components.CategoryItem(
+                                name = category.categoryName,
+                                count = category.itemCount,
+                                icon = Icons.Default.Movie,
+                                isSelected = isSelected,
+                                onClick = { viewModel.loadVodStreams(category.categoryId) }
+                            )
                         }
                     }
                 }
@@ -672,9 +635,21 @@ fun MoviePosterCard(
         Text(
             text = movie.name,
             color = TiviTextPrimary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.Bold,
             maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            lineHeight = 16.sp
+        )
+
+        Spacer(modifier = Modifier.height(2.dp))
+
+        Text(
+            text = "Film",
+            color = TiviTextSecondary,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Normal,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     }

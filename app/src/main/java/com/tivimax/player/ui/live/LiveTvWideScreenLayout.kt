@@ -39,6 +39,7 @@ import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.CategoryItem
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
@@ -300,71 +301,12 @@ fun LiveTvWideScreenLayout(
                 ) {
                     items(filteredCategories.filter { it.categoryId != "all" }, key = { it.categoryId }) { category ->
                         val isSelected = category.categoryId == selectedCategory
-                        val categoryIcon = getCategoryIcon(category.categoryName)
-
-                        Surface(
-                            onClick = { viewModel.loadLiveStreams(category.categoryId) },
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isSelected) OpusCyan.copy(alpha = 0.16f) else Color.Transparent,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(if (isSelected) Modifier.focusRequester(categoryFocusRequester) else Modifier)
-                                .dpadFocusable(
-                                    focusedBorderColor = OpusCyan,
-                                    shape = RoundedCornerShape(8.dp),
-                                    onClick = { viewModel.loadLiveStreams(category.categoryId) }
-                                )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (isSelected) {
-                                    Box(
-                                        modifier = Modifier
-                                            .width(3.dp)
-                                            .height(16.dp)
-                                            .clip(RoundedCornerShape(1.5.dp))
-                                            .background(OpusCyan)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                }
-
-                                Icon(
-                                    imageVector = categoryIcon,
-                                    contentDescription = null,
-                                    tint = if (isSelected) OpusCyan else TiviTextSecondary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = category.categoryName,
-                                    color = if (isSelected) OpusCyan else Color.White,
-                                    fontSize = 13.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .then(if (isSelected) Modifier.basicMarquee(iterations = Int.MAX_VALUE, velocity = 35.dp) else Modifier)
-                                )
-                                if (category.itemCount > 0) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isSelected) OpusCyan.copy(alpha = 0.25f) else TiviCardDark)
-                                            .padding(horizontal = 5.dp, vertical = 1.dp)
-                                    ) {
-                                        Text(
-                                            text = "${category.itemCount}",
-                                            color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                        CategoryItem(
+                            name = category.categoryName,
+                            count = category.itemCount,
+                            isSelected = isSelected,
+                            onClick = { viewModel.loadLiveStreams(category.categoryId) }
+                        )
                     }
                 }
 

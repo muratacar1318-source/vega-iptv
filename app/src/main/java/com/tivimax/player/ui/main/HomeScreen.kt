@@ -846,21 +846,26 @@ private fun HomeTopBar(
                     }
                 }
 
-                // Kumandayla Odaklanılabilir "🔍 Arama" Butonu (%20 Büyütüldü)
+                // Arama Çubuğu (Capsule Search Bar)
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(50),
                     color = TiviCard,
                     border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
                     modifier = Modifier
-                        .height(44.dp)
+                        .weight(1f)
+                        .padding(horizontal = 12.dp)
+                        .height(40.dp)
                         .dpadFocusable(
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(50),
                             focusedBorderColor = OpusCyan,
                             onClick = onSearchClick
                         )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { onSearchClick() }
+                            .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
@@ -868,13 +873,16 @@ private fun HomeTopBar(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Arama",
                             tint = OpusCyan,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = "Arama",
-                            color = TiviTextPrimary,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.SemiBold
+                            text = "Dizi, film veya kanal ara...",
+                            color = TiviTextMuted,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
