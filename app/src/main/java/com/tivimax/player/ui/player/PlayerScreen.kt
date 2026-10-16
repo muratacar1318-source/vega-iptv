@@ -2580,27 +2580,73 @@ fun PlayerScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    val currentSpInt = when (subtitleSize) {
+                        "KUCUK" -> 14
+                        "ORTA" -> 18
+                        "BUYUK" -> 22
+                        "COK_BUYUK" -> 26
+                        else -> subtitleSize.toIntOrNull() ?: 18
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = TiviSurfaceVariant,
+                        border = BorderStroke(1.dp, TiviCardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        val sizes = listOf(
-                            "KUCUK" to "Küçük",
-                            "ORTA" to "Orta (Varsayılan)",
-                            "BUYUK" to "Büyük",
-                            "COK_BUYUK" to "Çok Büyük"
-                        )
-                        items(sizes) { (key, label) ->
-                            val isSelected = (subtitleSize == key)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { viewModel.setSubtitleSize(key) },
-                                label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = TiviSecondary,
-                                    selectedLabelColor = Color.Black
-                                )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Surface(
+                                onClick = {
+                                    val newSp = (currentSpInt - 2).coerceAtLeast(12)
+                                    viewModel.setSubtitleSize(newSp.toString())
+                                },
+                                enabled = currentSpInt > 12,
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (currentSpInt > 12) TiviCard else TiviCardBorder,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Remove,
+                                        contentDescription = "Küçült",
+                                        tint = if (currentSpInt > 12) OpusCyan else TiviTextMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            Text(
+                                text = "$currentSpInt SP Punto",
+                                color = OpusCyan,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.ExtraBold
                             )
+
+                            Surface(
+                                onClick = {
+                                    val newSp = (currentSpInt + 2).coerceAtMost(36)
+                                    viewModel.setSubtitleSize(newSp.toString())
+                                },
+                                enabled = currentSpInt < 36,
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (currentSpInt < 36) TiviCard else TiviCardBorder,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Büyüt",
+                                        tint = if (currentSpInt < 36) OpusCyan else TiviTextMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -3602,9 +3648,10 @@ private fun VideoPlayerSurface(
                     }
                     val subTextSp = when (subtitleSize) {
                         "KUCUK" -> 14f
+                        "ORTA" -> 18f
                         "BUYUK" -> 22f
                         "COK_BUYUK" -> 26f
-                        else -> 18f
+                        else -> subtitleSize.toFloatOrNull() ?: 18f
                     }
                     subView.setStyle(
                         androidx.media3.ui.CaptionStyleCompat(

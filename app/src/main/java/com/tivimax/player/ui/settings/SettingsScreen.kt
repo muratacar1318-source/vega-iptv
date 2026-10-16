@@ -979,36 +979,118 @@ private fun RenderSelectedSection(
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
                     Text(text = "Altyazı Boyutu", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Desteklenen filmlerde altyazıların görünüm boyutu", color = TiviTextSecondary, fontSize = 11.sp)
+                    Text(text = "Desteklenen filmlerde altyazıların görünüm punto boyutu", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        listOf(
-                            "KUCUK" to "Küçük",
-                            "ORTA" to "Orta (Önerilen)",
-                            "BUYUK" to "Büyük",
-                            "COK_BUYUK" to "Çok Büyük"
-                        ).forEach { (key, label) ->
-                            val isSelected = subtitleSize == key
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
-                                border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .dpadFocusable(
-                                        focusedBorderColor = OpusCyan,
-                                        shape = RoundedCornerShape(10.dp),
-                                        onClick = { scope.launch { viewModel.preferences.setSubtitleSize(key) } }
-                                    )
+                    val currentSpInt = when (subtitleSize) {
+                        "KUCUK" -> 14
+                        "ORTA" -> 18
+                        "BUYUK" -> 22
+                        "COK_BUYUK" -> 26
+                        else -> subtitleSize.toIntOrNull() ?: 18
+                    }
+
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = TiviSurfaceVariant),
+                        border = BorderStroke(1.dp, TiviCardBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp)
-                                )
+                                // "-" BUTONU (KÜÇÜLT)
+                                Surface(
+                                    onClick = {
+                                        val newSp = (currentSpInt - 2).coerceAtLeast(12)
+                                        scope.launch { viewModel.preferences.setSubtitleSize(newSp.toString()) }
+                                    },
+                                    enabled = currentSpInt > 12,
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (currentSpInt > 12) TiviCard else TiviCardBorder,
+                                    border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .dpadFocusable(
+                                            focusedBorderColor = OpusCyan,
+                                            shape = RoundedCornerShape(10.dp),
+                                            onClick = {
+                                                val newSp = (currentSpInt - 2).coerceAtLeast(12)
+                                                scope.launch { viewModel.preferences.setSubtitleSize(newSp.toString()) }
+                                            }
+                                        )
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Remove,
+                                            contentDescription = "Küçült",
+                                            tint = if (currentSpInt > 12) OpusCyan else TiviTextMuted,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+
+                                // ORTA: PUNTO GOSTERGECI & CANLI ÖNİZLEME
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "$currentSpInt SP Punto",
+                                        color = OpusCyan,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Örnek Altyazı Metni",
+                                        color = when (subtitleColor) {
+                                            "SARI" -> Color(0xFFFFD700)
+                                            "YESIL" -> Color(0xFF00E676)
+                                            "MAVI" -> Color(0xFF40C4FF)
+                                            else -> Color.White
+                                        },
+                                        fontSize = (currentSpInt * 0.8f).sp,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+
+                                // "+" BUTONU (BÜYÜT)
+                                Surface(
+                                    onClick = {
+                                        val newSp = (currentSpInt + 2).coerceAtMost(36)
+                                        scope.launch { viewModel.preferences.setSubtitleSize(newSp.toString()) }
+                                    },
+                                    enabled = currentSpInt < 36,
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (currentSpInt < 36) TiviCard else TiviCardBorder,
+                                    border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .dpadFocusable(
+                                            focusedBorderColor = OpusCyan,
+                                            shape = RoundedCornerShape(10.dp),
+                                            onClick = {
+                                                val newSp = (currentSpInt + 2).coerceAtMost(36)
+                                                scope.launch { viewModel.preferences.setSubtitleSize(newSp.toString()) }
+                                            }
+                                        )
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Büyüt",
+                                            tint = if (currentSpInt < 36) OpusCyan else TiviTextMuted,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
