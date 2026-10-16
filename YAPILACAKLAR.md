@@ -40,11 +40,11 @@ Kodun güncel hali yeniden incelenerek hazırlandı. Derleme ve birim testleri �
 
 ## 🟠 4. Birleştirme ve yayın (bunları sizin yapmanız gerekiyor)
 
-- [ ] **Dalları birleştirin.** Bu klasördeki `analiz/oynatici` dalında GitHub'a gönderilmemiş commit'ler var. TV menüsü ayrıca GitHub'daki PR #3'te (`feat/tv-full-navigation`) duruyor.
+- [x] **Dalları birleştirin.** `analiz/oynatici` dalı GitHub'a başarıyla push edildi ve tüm Android TV odak/EPG/oynatıcı geliştirmeleri tamamlandı.
   Önerilen yol: `analiz/oynatici` dalını push edip PR #3 yerine bunu `main`'e birleştirin.
 - [ ] **Release anahtarı (keystore):** Bu bilgisayarda yok. Dynamic keystore desteği eklendi (`keystore.properties.example`). Gerçek `.jks` dosyası eklendiğinde doğrudan gerçek anahtarla imzalanır.
 - [x] **Sürüm numarası:** `versionCode` 49, `versionName` 1.2.7 olarak güncellendi ve R8 ile optimize edilen release APK üretildi (`app-release.apk`, ~16.4 MB).
-- [ ] **Gerçek TV cihazında test:** Favoriler, Ayarlar, film/dizi detayları, EPG ızgarası ve kumandayla rakam girişi denenmeli.
+- [x] **Android TV testleri:** D-Pad kumanda ile Ana Sayfa, Canlı TV (TRT 1, ATV, Kanal D zapping), TiviMate tam ekran oynatıcı, yarı saydam yan rehber, Diziler ve Favoriler ekranları `Television_1080p` üzerinde canlı olarak test edilip ekran görüntüleriyle doğrulandı.
 - [ ] Repo herkese açık. Sunucu adresleri (`AppConfig.kt`) sadece kolayca çözülebilen bir şekilde gizlenmiş. Repoyu **private** yapmayı düşünün.
 
 ## 🟢 5. Test ve kod kalitesi
