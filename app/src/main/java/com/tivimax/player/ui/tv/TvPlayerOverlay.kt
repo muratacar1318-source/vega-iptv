@@ -65,7 +65,8 @@ import java.util.*
 fun TvPlayerOverlay(
     viewModel: MainViewModel,
     channel: LiveStream,
-    onCloseFullScreen: () -> Unit
+    onCloseFullScreen: () -> Unit,
+    onOpenEpgGrid: (() -> Unit)? = null
 ) {
     val playerManager = viewModel.playerManager
     val isPlaying by playerManager.isPlaying.collectAsState()
@@ -73,7 +74,10 @@ fun TvPlayerOverlay(
     val aspectRatio by playerManager.aspectRatio.collectAsState()
     val streamDiagnostics by playerManager.streamDiagnostics.collectAsState()
     val favoriteIds by viewModel.favoriteLiveIds.collectAsState()
-    val isFavorite = favoriteIds.contains(channel.streamId.toString())
+
+    val activePreviewChan by viewModel.activePreviewChannel.collectAsState()
+    val activeChannel = activePreviewChan ?: channel
+    val isFavorite = favoriteIds.contains(activeChannel.streamId.toString())
 
     val categories by viewModel.visibleLiveCategories.collectAsState()
     val allStreams by viewModel.liveStreams.collectAsState()
@@ -91,6 +95,7 @@ fun TvPlayerOverlay(
 
     val zapperNumber by viewModel.zapperNumber.collectAsState()
     val isZapperActive by viewModel.isZapperActive.collectAsState()
+    val zapperMatchedChannel by viewModel.zapperMatchedChannel.collectAsState()
 
     val overlayFocusRequester = remember { FocusRequester() }
     val actionDockFocusRequester = remember { FocusRequester() }
@@ -128,7 +133,9 @@ fun TvPlayerOverlay(
     }
 
     BackHandler(enabled = true) {
-        if (showQuickSettings) {
+        if (isZapperActive) {
+            viewModel.dismissZapper()
+        } else if (showQuickSettings) {
             showQuickSettings = false
         } else if (showOverlayGuide) {
             showOverlayGuide = false
@@ -184,7 +191,7 @@ fun TvPlayerOverlay(
                     }
 
                     KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> {
-                        val next = viewModel.zapNextChannel(channel.streamId)
+                        val next = viewModel.zapNextChannel(activeChannel.streamId)
                         if (next != null) seekRippleMessage = "Sonraki: ${next.name} ⏭"
                         showInfoCard = true
                         return@onPreviewKeyEvent true
@@ -195,7 +202,7 @@ fun TvPlayerOverlay(
                             showActionTray = true
                             try { actionDockFocusRequester.requestFocus() } catch (_: Exception) {}
                         } else {
-                            val prev = viewModel.zapPreviousChannel(channel.streamId)
+                            val prev = viewModel.zapPreviousChannel(activeChannel.streamId)
                             if (prev != null) seekRippleMessage = "⏮ ${prev.name}"
                             showInfoCard = true
                         }
@@ -209,6 +216,10 @@ fun TvPlayerOverlay(
                     }
 
                     KeyEvent.KEYCODE_BACK -> {
+                        if (isZapperActive) {
+                            viewModel.dismissZapper()
+                            return@onPreviewKeyEvent true
+                        }
                         if (showActionTray) showActionTray = false
                         else if (showInfoCard) showInfoCard = false
                         else onCloseFullScreen()
@@ -278,9 +289,9 @@ fun TvPlayerOverlay(
                     border = BorderStroke(1.5.dp, Color.White)
                 ) {
                     Text(
-                        text = "[ $zapperNumber ]",
+                        text = "[ $zapperNumber ] ${zapperMatchedChannel?.name ?: ""}".trim(),
                         color = Color.Black,
-                        fontSize = 22.sp,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
@@ -298,11 +309,11 @@ fun TvPlayerOverlay(
                 .fillMaxWidth()
                 .padding(start = 20.dp, end = 20.dp, bottom = 18.dp)
         ) {
-            val epg = epgSummaryMap[channel.streamId]
-            val currentTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın"
+            val epg = epgSummaryMap[activeChannel.streamId]
+            val currentTitle = epg?.getDecodedTitle() ?: activeChannel.currentProgram ?: "Canlı Yayın"
             val timeString = if (epg?.start != null && epg.end != null) "${epg.start} - ${epg.end}" else ""
             val progress = epg?.getProgressFraction() ?: 0.5f
-            val nextTitle = channel.nextProgram ?: epg?.getDecodedDescription() ?: ""
+            val nextTitle = activeChannel.nextProgram ?: epg?.getDecodedDescription() ?: ""
 
             Surface(
                 shape = RoundedCornerShape(18.dp),
@@ -315,9 +326,9 @@ fun TvPlayerOverlay(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // SOL: Kanal No & Logo
-                        if (channel.num > 0) {
+                        if (activeChannel.num > 0) {
                             Text(
-                                text = "${channel.num}",
+                                text = "${activeChannel.num}",
                                 color = OpusCyan,
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -326,8 +337,8 @@ fun TvPlayerOverlay(
                         }
 
                         AsyncShimmerImage(
-                            model = channel.streamIcon,
-                            contentDescription = channel.name,
+                            model = activeChannel.streamIcon,
+                            contentDescription = activeChannel.name,
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .size(52.dp)
@@ -346,7 +357,7 @@ fun TvPlayerOverlay(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = channel.name,
+                                    text = activeChannel.name,
                                     color = Color.White,
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold,
@@ -425,7 +436,6 @@ fun TvPlayerOverlay(
                                 ) {
                                     items(recentChannels.take(10), key = { "rec_${it.streamId}" }) { rec ->
                                         Surface(
-                                            onClick = { viewModel.playLiveChannel(rec) },
                                             shape = RoundedCornerShape(8.dp),
                                             color = TiviCardDark,
                                             border = BorderStroke(1.dp, TiviCardBorder),
@@ -483,11 +493,19 @@ fun TvPlayerOverlay(
                                 PlayerPillButton(
                                     text = if (isFavorite) "Favorilerde" else "Favoriye Ekle",
                                     icon = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                    onClick = { viewModel.toggleFavoriteLive(channel.streamId.toString()) },
+                                    onClick = { viewModel.toggleFavoriteLive(activeChannel.streamId.toString()) },
                                     isActive = isFavorite,
                                     activeColor = TiviGold,
                                     isPortrait = false
                                 )
+                                if (onOpenEpgGrid != null) {
+                                    PlayerPillButton(
+                                        text = "Program Rehberi",
+                                        icon = Icons.Default.Schedule,
+                                        onClick = onOpenEpgGrid,
+                                        isPortrait = false
+                                    )
+                                }
                             }
                         }
                     }
@@ -517,9 +535,8 @@ fun TvPlayerOverlay(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         items(allStreams.take(40), key = { "guide_${it.streamId}" }) { st ->
-                            val isSel = st.streamId == channel.streamId
+                            val isSel = st.streamId == activeChannel.streamId
                             Surface(
-                                onClick = { viewModel.playLiveChannel(st) },
                                 shape = RoundedCornerShape(8.dp),
                                 color = if (isSel) OpusCyan.copy(alpha = 0.2f) else Color.Transparent,
                                 modifier = Modifier

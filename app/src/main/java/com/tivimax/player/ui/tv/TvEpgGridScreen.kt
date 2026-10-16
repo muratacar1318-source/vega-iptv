@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.tv
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,8 +42,14 @@ import java.util.*
 @Composable
 fun TvEpgGridScreen(
     viewModel: MainViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onSelectChannel: (LiveStream) -> Unit = { channel ->
+        viewModel.playLiveChannel(channel)
+        onBack()
+    }
 ) {
+    BackHandler(enabled = true, onBack = onBack)
+
     val channels by viewModel.liveStreams.collectAsState()
     val epgSummaryMap by viewModel.epgSummaryMap.collectAsState()
     val selectedCategory by viewModel.selectedLiveCategory.collectAsState()
@@ -286,17 +293,10 @@ fun TvEpgGridScreen(
                                     .width(200.dp)
                                     .fillMaxHeight()
                                     .background(TiviSurface)
-                                    .clickable {
-                                        viewModel.playLiveChannel(channel)
-                                        onBack()
-                                    }
                                     .dpadFocusable(
                                         focusedBorderColor = OpusCyan,
                                         shape = RoundedCornerShape(8.dp),
-                                        onClick = {
-                                            viewModel.playLiveChannel(channel)
-                                            onBack()
-                                        }
+                                        onClick = { onSelectChannel(channel) }
                                     )
                                     .padding(horizontal = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -360,10 +360,7 @@ fun TvEpgGridScreen(
                                                         focusedProgram = Pair(channel, epg)
                                                     }
                                                 },
-                                                onClick = {
-                                                    viewModel.playLiveChannel(channel)
-                                                    onBack()
-                                                }
+                                                onClick = { onSelectChannel(channel) }
                                             )
                                     ) {
                                         Row(
@@ -406,10 +403,7 @@ fun TvEpgGridScreen(
                                                 .dpadFocusable(
                                                     focusedBorderColor = OpusCyan,
                                                     shape = RoundedCornerShape(6.dp),
-                                                    onClick = {
-                                                        viewModel.playLiveChannel(channel)
-                                                        onBack()
-                                                    }
+                                                    onClick = { onSelectChannel(channel) }
                                                 )
                                         ) {
                                             Box(

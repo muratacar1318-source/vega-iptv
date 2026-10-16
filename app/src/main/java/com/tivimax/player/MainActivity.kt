@@ -214,9 +214,8 @@ class MainActivity : ComponentActivity() {
                         viewModel.executeZapperSwitch()
                         return true
                     }
-                    if (event.isLongPress && isPlayerScreen) {
-                        viewModel.zapRecall()
-                        return true
+                    if (event.repeatCount == 0) {
+                        event.startTracking()
                     }
                 }
                 android.view.KeyEvent.KEYCODE_CHANNEL_UP -> {
@@ -224,6 +223,12 @@ class MainActivity : ComponentActivity() {
                         val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
                         viewModel.zapNextChannel(currentStreamId)
                         return true
+                    } else if (viewModel.deviceMode.value == DeviceMode.TV) {
+                        val currentId = viewModel.activePreviewChannel.value?.streamId
+                        if (currentId != null) {
+                            viewModel.zapNextChannel(currentId)
+                            return true
+                        }
                     }
                 }
                 android.view.KeyEvent.KEYCODE_CHANNEL_DOWN -> {
@@ -231,11 +236,17 @@ class MainActivity : ComponentActivity() {
                         val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
                         viewModel.zapPreviousChannel(currentStreamId)
                         return true
+                    } else if (viewModel.deviceMode.value == DeviceMode.TV) {
+                        val currentId = viewModel.activePreviewChannel.value?.streamId
+                        if (currentId != null) {
+                            viewModel.zapPreviousChannel(currentId)
+                            return true
+                        }
                     }
                 }
                 android.view.KeyEvent.KEYCODE_LAST_CHANNEL,
                 android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-                    if (isPlayerScreen) {
+                    if (isPlayerScreen || viewModel.deviceMode.value == DeviceMode.TV) {
                         viewModel.zapRecall()
                         return true
                     }
@@ -243,5 +254,17 @@ class MainActivity : ComponentActivity() {
             }
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    override fun onKeyLongPress(keyCode: Int, event: android.view.KeyEvent): Boolean {
+        if (keyCode == android.view.KeyEvent.KEYCODE_ENTER || keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER) {
+            val isPlayerScreen = ::viewModel.isInitialized && viewModel.currentScreen.value is Screen.Player
+            val isTv = ::viewModel.isInitialized && viewModel.deviceMode.value == DeviceMode.TV
+            if (isPlayerScreen || isTv) {
+                viewModel.zapRecall()
+                return true
+            }
+        }
+        return super.onKeyLongPress(keyCode, event)
     }
 }

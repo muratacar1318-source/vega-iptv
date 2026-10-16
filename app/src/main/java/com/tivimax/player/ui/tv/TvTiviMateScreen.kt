@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -65,11 +66,16 @@ fun TvTiviMateScreen(
     val epgSummaryMap by viewModel.epgSummaryMap.collectAsState()
     val currentEpgList by viewModel.currentEpgList.collectAsState()
 
-    var isFullScreenPlayer by remember { mutableStateOf(false) }
+    val zapperNumber by viewModel.zapperNumber.collectAsState()
+    val isZapperActive by viewModel.isZapperActive.collectAsState()
+    val zapperMatchedChannel by viewModel.zapperMatchedChannel.collectAsState()
 
-    // Tam ekrana geçişte ana ekran sol menüyü gizler
-    LaunchedEffect(isFullScreenPlayer) {
-        onFullScreenChange(isFullScreenPlayer)
+    var isFullScreenPlayer by remember { mutableStateOf(false) }
+    var showEpgGrid by remember { mutableStateOf(false) }
+
+    // Tam ekrana veya tam saat çizelgeli EPG rehberine geçişte ana ekran sol menüyü gizler
+    LaunchedEffect(isFullScreenPlayer, showEpgGrid) {
+        onFullScreenChange(isFullScreenPlayer || showEpgGrid)
     }
     DisposableEffect(Unit) {
         onDispose {
@@ -108,20 +114,54 @@ fun TvTiviMateScreen(
         }
     }
 
-    if (isFullScreenPlayer && activePreviewChannel != null) {
+    if (showEpgGrid) {
+        // TİVİMATE TAM SAAT ÇİZELGELİ EPG PROGRAM REHBERİ
+        TvEpgGridScreen(
+            viewModel = viewModel,
+            onBack = { showEpgGrid = false },
+            onSelectChannel = { channel ->
+                viewModel.playLiveChannel(channel)
+                showEpgGrid = false
+                isFullScreenPlayer = true
+            }
+        )
+    } else if (isFullScreenPlayer && activePreviewChannel != null) {
         // TAM EKRAN TIVIMATE PLAYER OSD (ZERO REBUFFERING)
         TvPlayerOverlay(
             viewModel = viewModel,
             channel = activePreviewChannel!!,
-            onCloseFullScreen = { isFullScreenPlayer = false }
+            onCloseFullScreen = { isFullScreenPlayer = false },
+            onOpenEpgGrid = {
+                isFullScreenPlayer = false
+                showEpgGrid = true
+            }
         )
     } else {
         // 3 SÜTUNLU TIVIMATE REHBER EKRANI
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(TiviBackground)
+                .onPreviewKeyEvent { keyEvent ->
+                    if (keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) {
+                        val keyCode = keyEvent.nativeKeyEvent.keyCode
+                        if (keyCode in android.view.KeyEvent.KEYCODE_0..android.view.KeyEvent.KEYCODE_9) {
+                            val digit = keyCode - android.view.KeyEvent.KEYCODE_0
+                            viewModel.onNumericKeyPressed(digit)
+                            return@onPreviewKeyEvent true
+                        }
+                        if (keyCode == android.view.KeyEvent.KEYCODE_BACK && isZapperActive) {
+                            viewModel.dismissZapper()
+                            return@onPreviewKeyEvent true
+                        }
+                    }
+                    false
+                }
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(TiviBackground)
+            ) {
             // ==========================================
             // 1. SOL SÜTUN: COLLAPSIBLE NAV RAIL & KATEGORİLER (230.dp)
             // ==========================================
@@ -182,7 +222,6 @@ fun TvTiviMateScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 onClick = { viewModel.selectedLiveCategory.value = "favorites" }
                             )
-                            .clickable { viewModel.selectedLiveCategory.value = "favorites" }
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -216,7 +255,6 @@ fun TvTiviMateScreen(
                                 shape = RoundedCornerShape(8.dp),
                                 onClick = { viewModel.selectedLiveCategory.value = "recents" }
                             )
-                            .clickable { viewModel.selectedLiveCategory.value = "recents" }
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -256,7 +294,6 @@ fun TvTiviMateScreen(
                                         shape = RoundedCornerShape(8.dp),
                                         onClick = { viewModel.loadLiveStreams(category.categoryId) }
                                     )
-                                    .clickable { viewModel.loadLiveStreams(category.categoryId) }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
@@ -304,14 +341,50 @@ fun TvTiviMateScreen(
                         .fillMaxSize()
                         .padding(horizontal = 6.dp, vertical = 8.dp)
                 ) {
-                    Text(
-                        text = "KANALLAR (${displayedChannels.size})",
-                        color = TiviTextMuted,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "KANALLAR (${displayedChannels.size})",
+                            color = TiviTextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = OpusCyan.copy(alpha = 0.15f),
+                            border = BorderStroke(0.5.dp, OpusCyan),
+                            modifier = Modifier.dpadFocusable(
+                                shape = RoundedCornerShape(6.dp),
+                                focusedBorderColor = OpusCyan,
+                                onClick = { showEpgGrid = true }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    tint = OpusCyan,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = "Rehber",
+                                    color = OpusCyan,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
 
                     HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 0.5.dp, modifier = Modifier.padding(bottom = 6.dp))
 
@@ -355,13 +428,6 @@ fun TvTiviMateScreen(
                                                 }
                                             }
                                         )
-                                        .clickable {
-                                            if (isCurrentPreview) {
-                                                isFullScreenPlayer = true
-                                            } else {
-                                                viewModel.previewChannel(channel)
-                                            }
-                                        }
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -447,11 +513,15 @@ fun TvTiviMateScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
-                        .clickable {
-                            if (activePreviewChannel != null) {
-                                isFullScreenPlayer = true
+                        .dpadFocusable(
+                            shape = RoundedCornerShape(14.dp),
+                            focusedBorderColor = Color.White,
+                            onClick = {
+                                if (activePreviewChannel != null) {
+                                    isFullScreenPlayer = true
+                                }
                             }
-                        }
+                        )
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AndroidView(
@@ -599,5 +669,26 @@ fun TvTiviMateScreen(
                 }
             }
         }
+
+        // NUMERIC ZAPPER (KUMANDA NUMARATÖR) OVERLAY
+        if (isZapperActive && zapperNumber.isNotBlank()) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = OpusCyan,
+                border = BorderStroke(1.5.dp, Color.White),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 16.dp, end = 16.dp)
+            ) {
+                Text(
+                    text = "[ $zapperNumber ] ${zapperMatchedChannel?.name ?: ""}",
+                    color = Color.Black,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+        }
     }
+}
 }
