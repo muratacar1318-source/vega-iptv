@@ -428,6 +428,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     }
 }
 
+@OptIn(coil.annotation.ExperimentalCoilApi::class)
 @Composable
 private fun RenderSelectedSection(
     section: SettingsSection,
