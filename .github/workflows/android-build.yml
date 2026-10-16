@@ -1,0 +1,72 @@
+name: Android Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Kodu indir
+        uses: actions/checkout@v4
+
+      - name: JDK 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle kur (önbellekli)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: gradlew çalıştırılabilir yap
+        run: chmod +x gradlew
+
+      - name: Release imza dosyalarını oluştur
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > vega-release.jks
+            {
+              echo "storeFile=vega-release.jks"
+              echo "storePassword=$KEYSTORE_PASSWORD"
+              echo "keyAlias=vega"
+              echo "keyPassword=$KEYSTORE_PASSWORD"
+            } > keystore.properties
+            echo "Release keystore hazır."
+          else
+            echo "::warning::KEYSTORE_BASE64 / KEYSTORE_PASSWORD secret'ları yok; release APK debug anahtarıyla imzalanacak."
+          fi
+
+      - name: Debug ve Release APK derle
+        run: ./gradlew assembleDebug assembleRelease --stacktrace
+
+      - name: Debug APK'yı yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: vega-iptv-debug
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      - name: Release APK'yı yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: vega-iptv-release
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: İmza dosyalarını temizle
+        if: always()
+        run: rm -f vega-release.jks keystore.properties
