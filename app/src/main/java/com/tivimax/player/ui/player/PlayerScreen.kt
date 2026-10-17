@@ -134,9 +134,6 @@ fun PlayerScreen(
 
     val deviceMode = LocalDeviceMode.current
     val orientationManager = LocalOrientationManager.current
-    var isPhonePortraitLocked by remember {
-        mutableStateOf(orientationManager?.isPhonePlayerPortraitLocked() ?: false)
-    }
 
     val isPlaying by playerManager.isPlaying.collectAsState()
     val isBuffering by playerManager.isBuffering.collectAsState()
@@ -232,8 +229,14 @@ fun PlayerScreen(
     // Dokunmatik Hareket Geri Bildirimleri (Parlaklık & Ses)
     var brightnessFeedback by remember { mutableStateOf<Int?>(null) }
     var volumeFeedback by remember { mutableStateOf<Int?>(null) }
-    var seekRipple by remember { mutableStateOf<String?>(null) }
+    var infoBannerText by remember { mutableStateOf<String?>(null) }
+    var lastInfoBannerTime by remember { mutableLongStateOf(0L) }
     var dragStartOffset by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+
+    // Sarma Göstergesi Durumu (±10sn, birikmeli, 700ms)
+    var seekDirection by remember { mutableStateOf<SeekDirection?>(null) }
+    var seekAccumulatedSeconds by remember { mutableIntStateOf(0) }
+    var lastSeekTriggerTime by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(brightnessFeedback) {
         if (brightnessFeedback != null) {
@@ -269,12 +272,6 @@ fun PlayerScreen(
     var scrubPosition by remember { mutableFloatStateOf(0f) }
     var optimisticSeekPosition by remember { mutableStateOf<Long?>(null) }
 
-    // YouTube-style dynamic double-tap ripple
-    var doubleTapSide by remember { mutableStateOf<String?>(null) } // "left" or "right"
-    var doubleTapSeconds by remember { mutableIntStateOf(0) }
-    var lastDoubleTapTime by remember { mutableLongStateOf(0L) }
-    var isDoubleTapActive by remember { mutableStateOf(false) }
-
     // Fullscreen gesture scrub state
     var gestureScrubActive by remember { mutableStateOf(false) }
     var gestureScrubTargetMs by remember { mutableLongStateOf(0L) }
@@ -289,13 +286,18 @@ fun PlayerScreen(
         else -> currentPosition
     }
 
-    LaunchedEffect(doubleTapSide, doubleTapSeconds) {
-        if (doubleTapSide != null) {
-            isDoubleTapActive = true
-            delay(900L)
-            doubleTapSide = null
-            doubleTapSeconds = 0
-            isDoubleTapActive = false
+    LaunchedEffect(lastSeekTriggerTime) {
+        if (seekDirection != null) {
+            delay(700L)
+            seekDirection = null
+            seekAccumulatedSeconds = 0
+        }
+    }
+
+    LaunchedEffect(lastInfoBannerTime) {
+        if (infoBannerText != null) {
+            delay(1200L)
+            infoBannerText = null
         }
     }
 
@@ -315,7 +317,7 @@ fun PlayerScreen(
     }
 
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val isUserInteracting = isScrubbing || gestureScrubActive || (doubleTapSide != null) || (optimisticSeekPosition != null) || (seekRipple != null) || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showPlayerHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || showMoreSheet || (dragStartOffset != null)
+    val isUserInteracting = isScrubbing || gestureScrubActive || (seekDirection != null) || (optimisticSeekPosition != null) || (infoBannerText != null) || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showPlayerHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || showMoreSheet || (dragStartOffset != null)
 
     LaunchedEffect(isUserInteracting) {
         lastInteractionTime = System.currentTimeMillis()
@@ -323,6 +325,35 @@ fun PlayerScreen(
 
     val registerInteraction: () -> Unit = remember {
         { lastInteractionTime = System.currentTimeMillis() }
+    }
+
+    val showInfoBanner: (String) -> Unit = remember {
+        { message ->
+            infoBannerText = message
+            lastInfoBannerTime = System.currentTimeMillis()
+            lastInteractionTime = System.currentTimeMillis()
+        }
+    }
+
+    val triggerSeek: (Boolean) -> Unit = { isForward ->
+        lastInteractionTime = System.currentTimeMillis()
+        val now = System.currentTimeMillis()
+        val isQuickSuccession = (now - lastSeekTriggerTime) < 700L
+        val targetDirection = if (isForward) SeekDirection.FORWARD else SeekDirection.REWIND
+
+        if (seekDirection == targetDirection && isQuickSuccession) {
+            seekAccumulatedSeconds += 10
+        } else {
+            seekDirection = targetDirection
+            seekAccumulatedSeconds = 10
+        }
+        lastSeekTriggerTime = now
+
+        if (isForward) {
+            playerManager.forward10Seconds()
+        } else {
+            playerManager.rewind10Seconds()
+        }
     }
 
     // Akıllı HUD ve Tam Ekran Zamanlayıcısı (Canlı TV: 4000ms, VOD: 7000ms)
@@ -363,6 +394,7 @@ fun PlayerScreen(
             if (!viewModel.isVideoFullscreen.value && viewModel.deviceMode.value != com.tivimax.player.util.DeviceMode.TV) {
                 orientationManager?.setImmersiveMode(false)
             }
+            orientationManager?.stopOrientationReleaseListener()
         }
     }
 
@@ -613,7 +645,7 @@ fun PlayerScreen(
                             if (now - lastOkPressTime < 800L) {
                                 isControlsLocked = false
                                 showLockBanner = false
-                                seekRipple = "🔓 Ekran Kilidi Açıldı"
+                                showInfoBanner("🔓 Ekran Kilidi Açıldı")
                                 return@onPreviewKeyEvent true
                             }
                             lastOkPressTime = now
@@ -648,7 +680,7 @@ fun PlayerScreen(
                                 KeyEvent.KEYCODE_CHANNEL_UP -> {
                                     showControls = false
                                     val next = viewModel.zapNextChannel(streamId)
-                                    if (next != null) seekRipple = "Sonraki: ${next.name} ⏭"
+                                    if (next != null) showInfoBanner("Sonraki: ${next.name} ⏭")
                                     showBottomInfoCard = true
                                     try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
                                     return@onPreviewKeyEvent true
@@ -689,7 +721,7 @@ fun PlayerScreen(
                         KeyEvent.KEYCODE_CHANNEL_UP -> {
                             if (isLive) {
                                 val next = viewModel.zapNextChannel(streamId)
-                                if (next != null) seekRipple = "Sonraki: ${next.name} ⏭"
+                                if (next != null) showInfoBanner("Sonraki: ${next.name} ⏭")
                                 showBottomInfoCard = true
                                 registerInteraction()
                                 return@onPreviewKeyEvent true
@@ -713,9 +745,7 @@ fun PlayerScreen(
                                 registerInteraction()
                                 return@onPreviewKeyEvent true
                             } else {
-                                playerManager.rewind10Seconds()
-                                seekRipple = "-10s"
-                                registerInteraction()
+                                triggerSeek(false)
                                 return@onPreviewKeyEvent true
                             }
                         }
@@ -723,7 +753,7 @@ fun PlayerScreen(
                             if (isLive) {
                                 val prev = viewModel.zapRecall()
                                 if (prev != null) {
-                                    seekRipple = "↩ ${prev.name}"
+                                    showInfoBanner("↩ ${prev.name}")
                                 } else {
                                     showRecentChannelsBar = true
                                 }
@@ -731,9 +761,7 @@ fun PlayerScreen(
                                 registerInteraction()
                                 return@onPreviewKeyEvent true
                             } else {
-                                playerManager.forward10Seconds()
-                                seekRipple = "+10s"
-                                registerInteraction()
+                                triggerSeek(true)
                                 return@onPreviewKeyEvent true
                             }
                         }
@@ -805,50 +833,41 @@ fun PlayerScreen(
                         if (isControlsLocked) {
                             isControlsLocked = false
                             showLockBanner = false
-                            seekRipple = "🔓 Ekran Kilidi Açıldı"
+                            showInfoBanner("🔓 Ekran Kilidi Açıldı")
                         } else {
-                            val now = System.currentTimeMillis()
-                            val isQuickSuccession = (now - lastDoubleTapTime) < 850L
-                            lastDoubleTapTime = now
-
                             if (!isLive) {
-                            if (offset.x < size.width * 0.38f) {
-                                // Sol tarafa çift tık: Geri sar
-                                val oldSide = doubleTapSide
-                                doubleTapSide = "left"
-                                doubleTapSeconds = if (isQuickSuccession && oldSide == "left") doubleTapSeconds + 10 else 10
-                                playerManager.rewind10Seconds()
-                                seekRipple = null
-                            } else if (offset.x > size.width * 0.62f) {
-                                // Sağ tarafa çift tık: İleri sar
-                                val oldSide = doubleTapSide
-                                doubleTapSide = "right"
-                                doubleTapSeconds = if (isQuickSuccession && oldSide == "right") doubleTapSeconds + 10 else 10
-                                playerManager.forward10Seconds()
-                                seekRipple = null
-                            } else {
-                                // Ortaya çift tık: En-Boy Oranı değiştir
-                                doubleTapSide = null
-                                val newMode = playerManager.cycleAspectRatio()
-                                seekRipple = when (newMode) {
-                                    AspectRatioMode.FIT -> "En-Boy: Orijinal"
-                                    AspectRatioMode.FILL -> "En-Boy: Doldur"
-                                    AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
-                                    AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
-                                    AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
+                                if (offset.x < size.width * 0.38f) {
+                                    // Sol tarafa çift tık: Geri sar
+                                    triggerSeek(false)
+                                } else if (offset.x > size.width * 0.62f) {
+                                    // Sağ tarafa çift tık: İleri sar
+                                    triggerSeek(true)
+                                } else {
+                                    // Ortaya çift tık: En-Boy Oranı değiştir
+                                    val newMode = playerManager.cycleAspectRatio()
+                                    showInfoBanner(
+                                        when (newMode) {
+                                            AspectRatioMode.FIT -> "En-Boy: Orijinal"
+                                            AspectRatioMode.FILL -> "En-Boy: Doldur"
+                                            AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
+                                            AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
+                                            AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
+                                        }
+                                    )
                                 }
+                            } else {
+                                // Canlı TV'de en-boy oranı döngüsü
+                                val newMode = playerManager.cycleAspectRatio()
+                                showInfoBanner(
+                                    when (newMode) {
+                                        AspectRatioMode.FIT -> "En-Boy: Orijinal"
+                                        AspectRatioMode.FILL -> "En-Boy: Doldur"
+                                        AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
+                                        AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
+                                        AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
+                                    }
+                                )
                             }
-                        } else {
-                            // Canlı TV'de en-boy oranı döngüsü
-                            val newMode = playerManager.cycleAspectRatio()
-                            seekRipple = when (newMode) {
-                                AspectRatioMode.FIT -> "En-Boy: Orijinal"
-                                AspectRatioMode.FILL -> "En-Boy: Doldur"
-                                AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
-                                AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
-                                AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
-                            }
-                        }
                         }
                     }
                 )
@@ -901,7 +920,7 @@ fun PlayerScreen(
 
                             when (dragDirection) {
                                 "horizontal" -> {
-                                    if (!isLive && duration > 0 && !isDoubleTapActive) {
+                                    if (!isLive && duration > 0 && seekDirection == null) {
                                         gestureScrubActive = true
                                         val totalDragX = change.position.x - start.x
                                         val timeDeltaMs = (totalDragX * 120L).toLong()
@@ -917,11 +936,11 @@ fun PlayerScreen(
                                             if (totalDragY < 0) {
                                                 // Yukarı kaydırma (Sonraki Kanal)
                                                 val next = viewModel.zapNextChannel(streamId)
-                                                if (next != null) seekRipple = "Sonraki: ${next.name} ⏭"
+                                                if (next != null) showInfoBanner("Sonraki: ${next.name} ⏭")
                                             } else {
                                                 // Aşağı kaydırma (Önceki Kanal)
                                                 val prev = viewModel.zapPreviousChannel(streamId)
-                                                if (prev != null) seekRipple = "⏮ ${prev.name}"
+                                                if (prev != null) showInfoBanner("⏮ ${prev.name}")
                                             }
                                             dragDirection = "handled" // Tekrar tetiklenmemesi için
                                             showBottomInfoCard = true
@@ -1145,130 +1164,6 @@ fun PlayerScreen(
             }
         }
 
-        // Animasyonlu Bilgi Etiketi (1.5s Pill Badge: +10s, -10s, En-Boy Oranı)
-        AnimatedVisibility(
-            visible = seekRipple != null,
-            enter = fadeIn(tween(180)) + scaleIn(initialScale = 0.85f),
-            exit = fadeOut(tween(250)) + scaleOut(targetScale = 0.85f),
-            modifier = Modifier.align(Alignment.Center)
-        ) {
-            seekRipple?.let { text ->
-                LaunchedEffect(text) {
-                    delay(1500)
-                    seekRipple = null
-                }
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = TiviOverlayDark,
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, TiviPrimary.copy(alpha = 0.7f)),
-                    tonalElevation = 6.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val icon = when {
-                            text.contains("-10") -> Icons.Default.Replay10
-                            text.contains("+10") -> Icons.Default.Forward10
-                            else -> Icons.Default.AspectRatio
-                        }
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = TiviPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = text,
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        // YouTube Tarzı Sol Çift Tık (Geri Sarma Dalgası)
-        AnimatedVisibility(
-            visible = doubleTapSide == "left",
-            enter = fadeIn(tween(100)) + scaleIn(initialScale = 0.85f),
-            exit = fadeOut(tween(250)),
-            modifier = Modifier.align(Alignment.CenterStart)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight(if (isPortrait) 0.65f else 0.85f)
-                    .width(if (isPortrait) 130.dp else 220.dp)
-                    .clip(RoundedCornerShape(topEnd = 160.dp, bottomEnd = 160.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.22f),
-                                Color.Transparent
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Replay,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(if (isPortrait) 36.dp else 48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "-${doubleTapSeconds} sn",
-                        color = Color.White,
-                        fontSize = if (isPortrait) 14.sp else 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        // YouTube Tarzı Sağ Çift Tık (İleri Sarma Dalgası)
-        AnimatedVisibility(
-            visible = doubleTapSide == "right",
-            enter = fadeIn(tween(100)) + scaleIn(initialScale = 0.85f),
-            exit = fadeOut(tween(250)),
-            modifier = Modifier.align(Alignment.CenterEnd)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight(if (isPortrait) 0.65f else 0.85f)
-                    .width(if (isPortrait) 130.dp else 220.dp)
-                    .clip(RoundedCornerShape(topStart = 160.dp, bottomStart = 160.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color.White.copy(alpha = 0.22f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.FastForward,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(if (isPortrait) 36.dp else 48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "+${doubleTapSeconds} sn",
-                        color = Color.White,
-                        fontSize = if (isPortrait) 14.sp else 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
 
         // EKRAN KİLİDİ BİLGİLENDİRME BİLDİRİMİ
         AnimatedVisibility(
@@ -1586,24 +1481,23 @@ fun PlayerScreen(
                             }
                         }
 
-                        // Telefon modunda tek dokunuşla "yönü kilitle / döndür" (dikeyde izleme esnekliği)
+                        // Telefon modunda tek dokunuşla "Döndür" (yatay <-> dikey)
                         if (deviceMode == DeviceMode.PHONE && orientationManager != null) {
                             BouncyIconButton(
                                 onClick = {
-                                    isPhonePortraitLocked = orientationManager.togglePhonePlayerOrientationLock(
+                                    orientationManager.rotatePhonePlayer(
                                         viewModel.currentScreen.value,
                                         deviceMode
                                     )
-                                    seekRipple = if (isPhonePortraitLocked) "📱 Dikey Yön Kilitlendi" else "🔄 Otomatik Yatay Aktif"
                                     registerInteraction()
                                 },
                                 modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp),
                                 backgroundColor = Color.Black.copy(alpha = 0.25f)
                             ) {
                                 Icon(
-                                    imageVector = if (isPhonePortraitLocked) Icons.Default.ScreenLockPortrait else Icons.Default.ScreenRotation,
-                                    contentDescription = if (isPhonePortraitLocked) "Yatay Döndürmeyi Aç" else "Dikey Yönü Kilitle",
-                                    tint = if (isPhonePortraitLocked) OpusCyan else Color.White,
+                                    imageVector = Icons.Default.ScreenRotation,
+                                    contentDescription = "Döndür",
+                                    tint = Color.White,
                                     modifier = Modifier.size(if (isPortrait) 20.dp else 23.dp)
                                 )
                             }
@@ -1614,7 +1508,7 @@ fun PlayerScreen(
                                 isControlsLocked = !isControlsLocked
                                 if (!isControlsLocked) {
                                     showLockBanner = false
-                                    seekRipple = "🔓 Ekran Kilidi Açıldı"
+                                    showInfoBanner("🔓 Ekran Kilidi Açıldı")
                                 } else {
                                     showLockBanner = true
                                 }
@@ -1643,9 +1537,7 @@ fun PlayerScreen(
                     ) {
                         BouncyIconButton(
                             onClick = {
-                                playerManager.rewind10Seconds()
-                                seekRipple = "-10s"
-                                registerInteraction()
+                                triggerSeek(false)
                             },
                             modifier = Modifier.size(if (isPortrait) 48.dp else 56.dp),
                             backgroundColor = Color.Black.copy(alpha = 0.35f),
@@ -1681,9 +1573,7 @@ fun PlayerScreen(
 
                         BouncyIconButton(
                             onClick = {
-                                playerManager.forward10Seconds()
-                                seekRipple = "+10s"
-                                registerInteraction()
+                                triggerSeek(true)
                             },
                             modifier = Modifier.size(if (isPortrait) 48.dp else 56.dp),
                             backgroundColor = Color.Black.copy(alpha = 0.35f),
@@ -1743,7 +1633,7 @@ fun PlayerScreen(
                                             previousChannelName = lastPlayedLiveChannel?.name,
                                             onZapRecall = {
                                                 val prev = viewModel.zapRecall()
-                                                if (prev != null) seekRipple = "↩ ${prev.name}"
+                                                if (prev != null) showInfoBanner("↩ ${prev.name}")
                                             },
                                             onOpenAudioSubtitles = {
                                                 showTrackSheet = true
@@ -1873,19 +1763,11 @@ fun PlayerScreen(
                                                         true
                                                     }
                                                     KeyEvent.KEYCODE_DPAD_LEFT -> {
-                                                        val target = (effectivePosition - 10000L).coerceAtLeast(0L)
-                                                        optimisticSeekPosition = target
-                                                        playerManager.seekTo(target)
-                                                        seekRipple = "-10s"
-                                                        registerInteraction()
+                                                        triggerSeek(false)
                                                         true
                                                     }
                                                     KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                                                        val target = (effectivePosition + 10000L).coerceAtMost(duration)
-                                                        optimisticSeekPosition = target
-                                                        playerManager.seekTo(target)
-                                                        seekRipple = "+10s"
-                                                        registerInteraction()
+                                                        triggerSeek(true)
                                                         true
                                                     }
                                                     KeyEvent.KEYCODE_DPAD_CENTER,
@@ -2015,7 +1897,7 @@ fun PlayerScreen(
                                     icon = Icons.Default.Replay,
                                     onClick = {
                                         playerManager.seekTo(0L)
-                                        seekRipple = "Baştan Başlatıldı"
+                                        showInfoBanner("Baştan Başlatıldı")
                                     },
                                     isPortrait = isPortrait,
                                     modifier = Modifier
@@ -2041,13 +1923,15 @@ fun PlayerScreen(
                                     icon = Icons.Default.AspectRatio,
                                     onClick = {
                                         val newMode = playerManager.cycleAspectRatio()
-                                        seekRipple = when (newMode) {
-                                            AspectRatioMode.FIT -> "Orijinal Oran"
-                                            AspectRatioMode.FILL -> "Ekranı Doldur"
-                                            AspectRatioMode.ZOOM -> "Yakınlaştır"
-                                            AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
-                                            AspectRatioMode.RATIO_4_3 -> "4:3 Oran"
-                                        }
+                                        showInfoBanner(
+                                            when (newMode) {
+                                                AspectRatioMode.FIT -> "Orijinal Oran"
+                                                AspectRatioMode.FILL -> "Ekranı Doldur"
+                                                AspectRatioMode.ZOOM -> "Yakınlaştır"
+                                                AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
+                                                AspectRatioMode.RATIO_4_3 -> "4:3 Oran"
+                                            }
+                                        )
                                     },
                                     isPortrait = isPortrait,
                                     modifier = Modifier
@@ -2122,7 +2006,7 @@ fun PlayerScreen(
                                     icon = Icons.Default.Speed,
                                     onClick = {
                                         val newSpeed = playerManager.cyclePlaybackSpeed()
-                                        seekRipple = "Hız: ${newSpeed}x"
+                                        showInfoBanner("Hız: ${newSpeed}x")
                                     },
                                     isPortrait = isPortrait,
                                     modifier = Modifier
@@ -2182,6 +2066,93 @@ fun PlayerScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        // EN ÜST KATMAN: SARMA GÖSTERGESİ (SeekIndicator - Sol 1/3 ve Sağ 1/3, dokunmaları yutmaz)
+        AnimatedVisibility(
+            visible = seekDirection != null,
+            enter = fadeIn(tween(100)) + scaleIn(initialScale = 0.85f),
+            exit = fadeOut(tween(180)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                val currentDir = seekDirection
+                if (currentDir == SeekDirection.REWIND) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(0.33f)
+                            .align(Alignment.CenterStart),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        SeekIndicator(
+                            direction = SeekDirection.REWIND,
+                            seconds = seekAccumulatedSeconds,
+                            isPortrait = isPortrait
+                        )
+                    }
+                } else if (currentDir == SeekDirection.FORWARD) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(0.33f)
+                            .align(Alignment.CenterEnd),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        SeekIndicator(
+                            direction = SeekDirection.FORWARD,
+                            seconds = seekAccumulatedSeconds,
+                            isPortrait = isPortrait
+                        )
+                    }
+                }
+            }
+        }
+
+        // EN ÜST KATMAN: BİLGİ BALONU (Hız, En-Boy, Kilit vb. bildirimler - Ekranın üst ortasında, dokunmaları yutmaz)
+        AnimatedVisibility(
+            visible = infoBannerText != null,
+            enter = fadeIn(tween(150)) + slideInVertically(initialOffsetY = { -it / 2 }),
+            exit = fadeOut(tween(180)) + slideOutVertically(targetOffsetY = { -it / 2 }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .displayCutoutPadding()
+                .padding(top = if (isPortrait) 64.dp else 48.dp)
+        ) {
+            infoBannerText?.let { text ->
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xDD0F141C),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                    tonalElevation = 6.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val icon = when {
+                            text.contains("Hız", ignoreCase = true) -> Icons.Default.Speed
+                            text.contains("Baştan", ignoreCase = true) -> Icons.Default.Replay
+                            text.contains("En-Boy", ignoreCase = true) -> Icons.Default.AspectRatio
+                            text.contains("Kilit", ignoreCase = true) -> Icons.Default.Lock
+                            else -> Icons.Default.Info
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = TiviPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = text,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
@@ -2449,13 +2420,15 @@ fun PlayerScreen(
                 aspectRatio = aspectRatio,
                 onCycleAspectRatio = {
                     val newMode = playerManager.cycleAspectRatio()
-                    seekRipple = when (newMode) {
-                        AspectRatioMode.FIT -> "En-Boy: Orijinal"
-                        AspectRatioMode.FILL -> "En-Boy: Doldur"
-                        AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
-                        AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
-                        AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
-                    }
+                    showInfoBanner(
+                        when (newMode) {
+                            AspectRatioMode.FIT -> "En-Boy: Orijinal"
+                            AspectRatioMode.FILL -> "En-Boy: Doldur"
+                            AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
+                            AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
+                            AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
+                        }
+                    )
                 },
                 isDualViewActive = isDualViewActive,
                 onOpenDualView = {
@@ -2473,7 +2446,7 @@ fun PlayerScreen(
                 onLockControls = {
                     showMoreSheet = false
                     isControlsLocked = true
-                    seekRipple = "🔒 Ekran Kilitlendi"
+                    showInfoBanner("🔒 Ekran Kilitlendi")
                 },
                 diagnostics = streamDiagnostics,
                 onDismiss = { showMoreSheet = false }
@@ -3789,5 +3762,43 @@ private fun VideoPlayerSurface(
         },
         modifier = modifier
     )
+}
+
+enum class SeekDirection { FORWARD, REWIND }
+
+@Composable
+private fun SeekIndicator(
+    direction: SeekDirection,
+    seconds: Int,
+    isPortrait: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = CircleShape,
+        color = Color(0xCC0F141C),
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color.White.copy(alpha = 0.25f)),
+        tonalElevation = 6.dp,
+        modifier = modifier.size(if (isPortrait) 72.dp else 84.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = if (direction == SeekDirection.FORWARD) Icons.Default.Forward10 else Icons.Default.Replay10,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(if (isPortrait) 28.dp else 34.dp)
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = if (direction == SeekDirection.FORWARD) "+$seconds sn" else "-$seconds sn",
+                color = Color.White,
+                fontSize = if (isPortrait) 12.sp else 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
 }
 
