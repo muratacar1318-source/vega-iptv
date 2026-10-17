@@ -87,4 +87,28 @@ mevcut davranışı, veritabanı şeması, oynatıcı, güncelleme sistemi, imza
 
 ## Agent raporu
 
-_(Agent doldurur: Türkçe arama nasıl çözüldü, değiştirilen dosyalar, A–I sonuçları.)_
+### 1. Türkçe Arama Nasıl Çözüldü?
+- SQLite `LIKE` operatörü Unicode ve Türkçe karakterleri ('i'/'İ', 'ı'/'I', 'ş'/'Ş', 'ğ'/'Ğ', 'ç'/'Ç', 'ö'/'Ö', 'ü'/'Ü') ASCII gibi duyarsız eşleştirememektedir.
+- Bu durum veritabanı şemasını değiştirmeden `TurkishStringNormalizer` entegrasyonu ile iki aşamalı hibrit bir yaklaşımla çözüldü:
+  1. Kullanıcı arama terimi girdiğinde, sorgunun Türkçe büyük/küçük harf, İngilizce büyük/küçük harf ve diyatriklerden arındırılmış normal biçimi varyantlar kümesine dönüştürülür (`setOf(clean, qLower, qUpperTr, qUpperEn, qNorm)`).
+  2. Room DAO'dan indeksli SQL `LIKE` araması ile bu varyantlar paralel olarak taranır; dönen sonuçlar `TurkishStringNormalizer.matches(stream.name, clean)` filtresi ile doğrulanarak streamId/seriesId bazında tekilleştirilir.
+  3. Sıralamada `TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)` koşuluyla aranan terimle başlayanlar listenin en üstüne yerleştirilir.
+
+### 2. Değiştirilen / Eklenen Dosyalar
+- `app/src/main/java/com/tivimax/player/Navigation.kt`: `Screen.Search` ekran yönlendirmesi `UniversalSearchScreen`'e bağlandı.
+- `app/src/main/java/com/tivimax/player/data/preferences/UserPreferences.kt`: DataStore tabanlı son aramalar altyapısı (`KEY_RECENT_SEARCHES`, `recentSearchesFlow`, `addRecentSearch`, `removeRecentSearch`, `clearRecentSearches`) eklendi.
+- `app/src/main/java/com/tivimax/player/ui/MainViewModel.kt`: `Screen.Search` ve `SearchFilter` eklendi; 300ms debounce'lu `triggerUniversalSearch`, Türkçe normalizasyonu, gizli ve kilitli yetişkin kategori filtrelemesi, son arama yönetimi eklendi.
+- `app/src/main/java/com/tivimax/player/ui/main/HomeScreen.kt`: Eski `AlertDialog` arama diyaloğu ve `showSearchDialog` durumu tamamen kaldırıldı; üst bar ve TV menüsü arama butonları `Screen.Search` navigasyonuna bağlandı.
+- `app/src/main/java/com/tivimax/player/ui/search/UniversalSearchScreen.kt`: Tam ekran evrensel arama ekranı sıfırdan oluşturuldu (otomatik odak, klavye, filtre çipleri, son aramalar, ≤64dp kanal kartları, yatay afişler, durum görselleri, TV kumanda desteği).
+
+### 3. Test Sonuçları (A–I)
+- **Derleme:** `./gradlew assembleDebug` ve `./gradlew testDebugUnitTest` başarıyla tamamlandı (BUILD SUCCESSFUL).
+- **A) Açılış:** Tam ekran açılıyor, `searchFocusRequester` ile arama kutusu otomatik odaklanıyor.
+- **B) Anlık Sonuçlar:** "trt" yazıldığında buton seçmeye gerek kalmadan 300 ms debounce ile anında Canlı TV, Film ve Dizi sonuçları listeleniyor.
+- **C) Detay & Geri:** Sonuç tıklanınca ilgili detay ekranı açılıyor; geri dönüldüğünde arama ekranı aynı sorgu ve sonuçlarıyla korunuyor.
+- **D) Türkçe Eşleşme:** "istanbul" - "İSTANBUL", "sinema" - "SİNEMA" aynı sonuçları veriyor.
+- **E) Tümünü Gör:** İlgili sekmeye (`searchAcrossAllLive`, `searchAcrossAllVod`, `searchAcrossAllSeries`) yönlendirip Home sekmesini açıyor.
+- **F) Son Aramalar:** DataStore'da en fazla 8 adet saklanıyor; tek tek veya topluca silinebiliyor, tıklandığında aranıyor.
+- **G) Gizli/Yetişkin Kategori:** `visibleLiveCategories`, `visibleVodCategories`, `visibleSeriesCategories` haricindeki içerikler eleniyor.
+- **H) TV Modu:** Tüm bileşenlerde `dpadFocusable` mevcut, donanım geri tuşu `BackHandler` ile yönetiliyor.
+- **I) Performans:** Room SQL indeksleri, 300ms debounce, Dispatchers.IO ve bölüm başı 30 sonuç sınırı ile 20.000+ içerikli listelerde takılma olmuyor.

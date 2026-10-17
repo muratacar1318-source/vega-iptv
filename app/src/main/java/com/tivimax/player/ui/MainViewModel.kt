@@ -21,7 +21,9 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.Locale
 import java.util.concurrent.TimeUnit
+import com.tivimax.player.ui.live.modern.TurkishStringNormalizer
 import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.OrientationManager
 import com.tivimax.player.util.detectRecommendedDeviceMode
@@ -47,6 +49,14 @@ sealed class Screen {
     ) : Screen()
     data class VodDetail(val vodStream: VodStream) : Screen()
     data class SeriesDetail(val seriesStream: SeriesStream) : Screen()
+    object Search : Screen()
+}
+
+enum class SearchFilter(val title: String) {
+    ALL("Tümü"),
+    LIVE("Canlı TV"),
+    MOVIES("Filmler"),
+    SERIES("Diziler")
 }
 
 enum class SyncStepStatus {
@@ -245,6 +255,141 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Genel Arama Durumu (Tüm kategoriler/bölümler arası arama aktarımı)
     val globalSearchQuery = MutableStateFlow("")
+
+    // ============================================================================
+    // EVRENSEL ARAMA (UNIVERSAL SEARCH)
+    // ============================================================================
+
+    val universalSearchQuery = MutableStateFlow("")
+    val universalSearchFilter = MutableStateFlow(SearchFilter.ALL)
+    val isUniversalSearching = MutableStateFlow(false)
+    val universalLiveResults = MutableStateFlow<List<LiveStream>>(emptyList())
+    val universalVodResults = MutableStateFlow<List<VodStream>>(emptyList())
+    val universalSeriesResults = MutableStateFlow<List<SeriesStream>>(emptyList())
+
+    val recentSearches: StateFlow<List<String>> = preferences.recentSearchesFlow.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    private var universalSearchJob: Job? = null
+
+    fun setUniversalSearchQuery(query: String) {
+        universalSearchQuery.value = query
+        triggerUniversalSearch(query)
+    }
+
+    fun setUniversalSearchFilter(filter: SearchFilter) {
+        universalSearchFilter.value = filter
+    }
+
+    fun saveRecentSearch(query: String) {
+        val clean = query.trim()
+        if (clean.length >= 2) {
+            viewModelScope.launch {
+                preferences.addRecentSearch(clean)
+            }
+        }
+    }
+
+    fun removeRecentSearch(query: String) {
+        viewModelScope.launch {
+            preferences.removeRecentSearch(query)
+        }
+    }
+
+    fun clearRecentSearches() {
+        viewModelScope.launch {
+            preferences.clearRecentSearches()
+        }
+    }
+
+    private fun triggerUniversalSearch(query: String) {
+        universalSearchJob?.cancel()
+        val clean = query.trim()
+        if (clean.length < 2) {
+            universalLiveResults.value = emptyList()
+            universalVodResults.value = emptyList()
+            universalSeriesResults.value = emptyList()
+            isUniversalSearching.value = false
+            return
+        }
+
+        universalSearchJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(300) // 300ms debounce
+            isUniversalSearching.value = true
+
+            val qLower = clean.lowercase(Locale.ROOT)
+            val qUpperTr = clean.uppercase(Locale.forLanguageTag("tr-TR"))
+            val qUpperEn = clean.uppercase(Locale.ENGLISH)
+            val qNorm = TurkishStringNormalizer.normalize(clean)
+            val variants = setOf(clean, qLower, qUpperTr, qUpperEn, qNorm).filter { it.length >= 2 }
+
+            val allowedLiveCats = visibleLiveCategories.value.map { it.categoryId }.toSet()
+            val allowedVodCats = visibleVodCategories.value.map { it.categoryId }.toSet()
+            val allowedSeriesCats = visibleSeriesCategories.value.map { it.categoryId }.toSet()
+
+            // 1. Canlı TV
+            val liveMap = mutableMapOf<Int, LiveStream>()
+            for (v in variants) {
+                try {
+                    val list = repository.searchLiveStreamsFlow(v).first()
+                    for (stream in list) {
+                        if (stream.categoryId in allowedLiveCats && TurkishStringNormalizer.matches(stream.name, clean)) {
+                            liveMap[stream.streamId] = stream
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+            val sortedLive = liveMap.values.sortedWith(
+                compareByDescending<LiveStream> {
+                    TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
+                }.thenBy { it.name }
+            ).take(30)
+
+            // 2. Filmler (VOD)
+            val vodMap = mutableMapOf<Int, VodStream>()
+            for (v in variants) {
+                try {
+                    val list = repository.searchVodStreamsFlow(v).first()
+                    for (stream in list) {
+                        if (stream.categoryId in allowedVodCats && TurkishStringNormalizer.matches(stream.name, clean)) {
+                            vodMap[stream.streamId] = stream
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+            val sortedVod = vodMap.values.sortedWith(
+                compareByDescending<VodStream> {
+                    TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
+                }.thenBy { it.name }
+            ).take(30)
+
+            // 3. Diziler
+            val seriesMap = mutableMapOf<Int, SeriesStream>()
+            for (v in variants) {
+                try {
+                    val list = repository.searchSeriesStreamsFlow(v).first()
+                    for (stream in list) {
+                        if (stream.categoryId in allowedSeriesCats && TurkishStringNormalizer.matches(stream.name, clean)) {
+                            seriesMap[stream.seriesId] = stream
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+            val sortedSeries = seriesMap.values.sortedWith(
+                compareByDescending<SeriesStream> {
+                    TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
+                }.thenBy { it.name }
+            ).take(30)
+
+            universalLiveResults.value = sortedLive
+            universalVodResults.value = sortedVod
+            universalSeriesResults.value = sortedSeries
+            isUniversalSearching.value = false
+        }
+    }
 
     // Mini-Player Canlı Önizleme (TiviMate Tarzı Dikey Önizleme)
     val activePreviewChannel = MutableStateFlow<LiveStream?>(null)
