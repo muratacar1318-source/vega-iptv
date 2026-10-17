@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LiveTv
@@ -29,8 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import java.text.SimpleDateFormat
@@ -87,16 +87,16 @@ fun TvEpgGridScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .background(VegaColors.Background)
             .padding(12.dp)
     ) {
         // ==========================================
         // 1. ÜST HEADER: SAAT & ODAKLANILAN PROGRAM DETAY BANNER'I
         // ==========================================
         Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = TiviCardDark),
-            border = BorderStroke(1.dp, TiviCardBorder),
+            shape = VegaShapes.Medium,
+            colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+            border = BorderStroke(1.dp, VegaColors.Border),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(110.dp)
@@ -122,7 +122,7 @@ fun TvEpgGridScreen(
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .size(48.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(VegaShapes.Small)
                                 .background(Color.Black),
                             placeholderIcon = Icons.Default.Tv
                         )
@@ -131,21 +131,21 @@ fun TvEpgGridScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = "${currentChannel.num}. ${currentChannel.name}",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = VegaText.BodyProminent,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 if (currentEpg != null) {
                                     Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = OpusCyan.copy(alpha = 0.2f),
-                                        border = BorderStroke(0.5.dp, OpusCyan)
+                                        shape = VegaShapes.Small,
+                                        color = VegaColors.Accent.copy(alpha = 0.18f),
+                                        border = BorderStroke(1.dp, VegaColors.Accent)
                                     ) {
                                         Text(
                                             text = currentEpg.getFormattedTime(),
-                                            color = OpusCyan,
-                                            fontSize = 10.5.sp,
+                                            color = VegaColors.Accent,
+                                            fontSize = VegaText.Caption,
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
@@ -156,9 +156,9 @@ fun TvEpgGridScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             Text(
-                                text = currentEpg?.getDecodedTitle() ?: currentChannel.currentProgram ?: "Canlı Yayın",
-                                color = Color.White,
-                                fontSize = 13.sp,
+                                text = currentEpg?.getDecodedTitle() ?: currentChannel.currentProgram ?: "Canlı yayın",
+                                color = VegaColors.TextPrimary,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -168,8 +168,8 @@ fun TvEpgGridScreen(
 
                             Text(
                                 text = currentEpg?.getDecodedDescription()?.takeIf { it.isNotBlank() } ?: "Bu yayın için EPG rehber detayı sunucudan iletilmedi.",
-                                color = TiviTextSecondary,
-                                fontSize = 11.sp,
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Caption,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -190,20 +190,20 @@ fun TvEpgGridScreen(
                         modifier = Modifier
                             .size(36.dp)
                             .dpadFocusable(
-                                shape = CircleShape,
-                                focusedBorderColor = OpusCyan,
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = VegaColors.Accent,
                                 onClick = onBack
                             )
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = VegaColors.TextPrimary)
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Schedule, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Schedule, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = currentTimeText,
-                            color = Color.White,
+                            color = VegaColors.TextPrimary,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
@@ -218,9 +218,9 @@ fun TvEpgGridScreen(
         // 2. TİVİMATE SAAT ÇİZELGESİ BAŞLIK SATIRI (TIME HEADER ROW)
         // ==========================================
         Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = TiviSurface,
-            border = BorderStroke(0.5.dp, TiviCardBorder),
+            shape = VegaShapes.Small,
+            color = VegaColors.Surface,
+            border = BorderStroke(1.dp, VegaColors.Border),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -231,9 +231,9 @@ fun TvEpgGridScreen(
             ) {
                 // SOL KANAL BAŞLIĞI
                 Text(
-                    text = "KANALLAR",
-                    color = OpusCyan,
-                    fontSize = 11.sp,
+                    text = "Kanallar",
+                    color = VegaColors.Accent,
+                    fontSize = VegaText.Caption,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.sp,
                     modifier = Modifier
@@ -249,8 +249,8 @@ fun TvEpgGridScreen(
                     timeSlots.forEach { slot ->
                         Text(
                             text = slot,
-                            color = TiviTextSecondary,
-                            fontSize = 12.sp,
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Caption,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.width(110.dp)
                         )
@@ -266,7 +266,7 @@ fun TvEpgGridScreen(
         // ==========================================
         if (channels.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = OpusCyan, modifier = Modifier.size(36.dp), strokeWidth = 2.5.dp)
+                CircularProgressIndicator(color = VegaColors.Accent, modifier = Modifier.size(36.dp), strokeWidth = 2.5.dp)
             }
         } else {
             LazyColumn(
@@ -280,9 +280,9 @@ fun TvEpgGridScreen(
                     val epg = epgSummaryMap[channel.streamId]
 
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = TiviCardDark,
-                        border = BorderStroke(0.5.dp, TiviCardBorder),
+                        shape = VegaShapes.Small,
+                        color = VegaColors.Card,
+                        border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -296,10 +296,10 @@ fun TvEpgGridScreen(
                                 modifier = Modifier
                                     .width(200.dp)
                                     .fillMaxHeight()
-                                    .background(TiviSurface)
+                                    .background(VegaColors.Surface)
                                     .dpadFocusable(
-                                        focusedBorderColor = OpusCyan,
-                                        shape = RoundedCornerShape(8.dp),
+                                        focusedBorderColor = VegaColors.Accent,
+                                        shape = VegaShapes.Small,
                                         onClick = { onSelectChannel(channel) }
                                     )
                                     .padding(horizontal = 8.dp),
@@ -307,8 +307,8 @@ fun TvEpgGridScreen(
                             ) {
                                 Text(
                                     text = "${channel.num}",
-                                    color = OpusCyan,
-                                    fontSize = 11.sp,
+                                    color = VegaColors.Accent,
+                                    fontSize = VegaText.Caption,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.width(22.dp)
                                 )
@@ -319,7 +319,7 @@ fun TvEpgGridScreen(
                                     contentScale = ContentScale.Fit,
                                     modifier = Modifier
                                         .size(26.dp)
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .clip(VegaShapes.Small)
                                         .background(Color.Black),
                                     placeholderIcon = Icons.Default.Tv
                                 )
@@ -328,8 +328,8 @@ fun TvEpgGridScreen(
 
                                 Text(
                                     text = channel.name,
-                                    color = Color.White,
-                                    fontSize = 12.sp,
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = VegaText.Secondary,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -351,7 +351,7 @@ fun TvEpgGridScreen(
                                 if (!channelPrograms.isNullOrEmpty()) {
                                     val filteredPrograms = channelPrograms.filter {
                                         it.stopTimestamp == 0L || it.stopTimestamp > nowSec - 900
-                                    }.ifEmpty { channelPrograms }
+                                     }.ifEmpty { channelPrograms }
 
                                     items(filteredPrograms, key = { prog -> "${channel.streamId}_${prog.startTimestamp}_${prog.title.hashCode()}" }) { prog ->
                                         val isCurrent = prog.nowPlaying == 1 || (prog.startTimestamp > 0 && prog.stopTimestamp > 0 && nowSec in prog.startTimestamp..prog.stopTimestamp)
@@ -361,18 +361,18 @@ fun TvEpgGridScreen(
                                         val timeText = prog.getFormattedTime()
 
                                         Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = if (isCurrent) OpusCyan.copy(alpha = 0.15f) else TiviSurfaceVariant,
+                                            shape = VegaShapes.Small,
+                                            color = if (isCurrent) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
                                             border = BorderStroke(
-                                                if (isCurrent) 1.dp else 0.5.dp,
-                                                if (isCurrent) OpusCyan.copy(alpha = 0.6f) else TiviCardBorder
+                                                1.dp,
+                                                if (isCurrent) VegaColors.Accent.copy(alpha = 0.6f) else VegaColors.Border
                                             ),
                                             modifier = Modifier
                                                 .width(blockWidth)
                                                 .fillMaxHeight(0.85f)
                                                 .dpadFocusable(
-                                                    focusedBorderColor = OpusCyan,
-                                                    shape = RoundedCornerShape(6.dp),
+                                                    focusedBorderColor = VegaColors.Accent,
+                                                    shape = VegaShapes.Small,
                                                     onFocusStateChange = { focused ->
                                                         if (focused) {
                                                             focusedProgram = Pair(channel, prog)
@@ -391,42 +391,42 @@ fun TvEpgGridScreen(
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
                                                         text = programTitle,
-                                                        color = Color.White,
-                                                        fontSize = 11.5.sp,
+                                                        color = VegaColors.TextPrimary,
+                                                        fontSize = VegaText.Caption,
                                                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
                                                     Text(
                                                         text = timeText,
-                                                        color = if (isCurrent) OpusCyan else TiviTextSecondary,
-                                                        fontSize = 9.5.sp,
+                                                        color = if (isCurrent) VegaColors.Accent else VegaColors.TextSecondary,
+                                                        fontSize = VegaText.Caption,
                                                         fontWeight = FontWeight.SemiBold
                                                     )
                                                 }
                                                 if (isCurrent) {
-                                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(14.dp))
+                                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(14.dp))
                                                 }
                                             }
                                         }
                                     }
                                 } else {
                                     item {
-                                        val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın Programı"
-                                        val timeText = epg?.getFormattedTime() ?: "Şu An Oynatılıyor"
+                                        val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı yayın programı"
+                                        val timeText = epg?.getFormattedTime() ?: "Şu an oynatılıyor"
                                         val durationMinutes = epg?.getDurationMinutes() ?: 60
                                         val blockWidth = (durationMinutes * 3.66f).dp.coerceIn(120.dp, 400.dp)
 
                                         Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = OpusCyan.copy(alpha = 0.15f),
-                                            border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
+                                            shape = VegaShapes.Small,
+                                            color = VegaColors.Accent.copy(alpha = 0.18f),
+                                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.6f)),
                                             modifier = Modifier
                                                 .width(blockWidth)
                                                 .fillMaxHeight(0.85f)
                                                 .dpadFocusable(
-                                                    focusedBorderColor = OpusCyan,
-                                                    shape = RoundedCornerShape(6.dp),
+                                                    focusedBorderColor = VegaColors.Accent,
+                                                    shape = VegaShapes.Small,
                                                     onFocusStateChange = { focused ->
                                                         if (focused) {
                                                             focusedProgram = Pair(channel, epg)
@@ -445,20 +445,20 @@ fun TvEpgGridScreen(
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
                                                         text = programTitle,
-                                                        color = Color.White,
-                                                        fontSize = 11.5.sp,
+                                                        color = VegaColors.TextPrimary,
+                                                        fontSize = VegaText.Caption,
                                                         fontWeight = FontWeight.Bold,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
                                                     Text(
                                                         text = timeText,
-                                                        color = OpusCyan,
-                                                        fontSize = 9.5.sp,
+                                                        color = VegaColors.Accent,
+                                                        fontSize = VegaText.Caption,
                                                         fontWeight = FontWeight.SemiBold
                                                     )
                                                 }
-                                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(14.dp))
+                                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(14.dp))
                                             }
                                         }
                                     }
@@ -466,15 +466,15 @@ fun TvEpgGridScreen(
                                     if (!channel.nextProgram.isNullOrBlank()) {
                                         item {
                                             Surface(
-                                                shape = RoundedCornerShape(6.dp),
-                                                color = TiviSurfaceVariant,
-                                                border = BorderStroke(0.5.dp, TiviCardBorder),
+                                                shape = VegaShapes.Small,
+                                                color = VegaColors.SurfaceVariant,
+                                                border = BorderStroke(1.dp, VegaColors.Border),
                                                 modifier = Modifier
                                                     .width(200.dp)
                                                     .fillMaxHeight(0.85f)
                                                     .dpadFocusable(
-                                                        focusedBorderColor = OpusCyan,
-                                                        shape = RoundedCornerShape(6.dp),
+                                                        focusedBorderColor = VegaColors.Accent,
+                                                        shape = VegaShapes.Small,
                                                         onClick = { onSelectChannel(channel) }
                                                     )
                                             ) {
@@ -486,8 +486,8 @@ fun TvEpgGridScreen(
                                                 ) {
                                                     Text(
                                                         text = channel.nextProgram,
-                                                        color = TiviTextSecondary,
-                                                        fontSize = 11.sp,
+                                                        color = VegaColors.TextSecondary,
+                                                        fontSize = VegaText.Caption,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )

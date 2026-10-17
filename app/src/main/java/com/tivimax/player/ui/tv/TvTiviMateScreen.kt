@@ -38,9 +38,11 @@ import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.player.AspectRatioMode
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import kotlinx.coroutines.delay
@@ -162,7 +164,7 @@ fun TvTiviMateScreen(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(TiviBackground)
+                    .background(VegaColors.Background)
             ) {
             // ==========================================
             // 1. SOL SÜTUN: COLLAPSIBLE NAV RAIL & KATEGORİLER (230.dp)
@@ -171,7 +173,7 @@ fun TvTiviMateScreen(
                 modifier = Modifier
                     .width(230.dp)
                     .fillMaxHeight(),
-                color = TiviSurface,
+                color = VegaColors.Surface,
                 tonalElevation = 2.dp
             ) {
                 Column(
@@ -189,19 +191,18 @@ fun TvTiviMateScreen(
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Brush.linearGradient(listOf(OpusCyan, TiviPrimary))),
+                                .clip(VegaShapes.Small)
+                                .background(VegaColors.Accent),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Tv, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Tv, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(16.dp))
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "CANLI TV REHBERİ",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp
+                            text = "Canlı TV",
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.Secondary,
+                            fontWeight = FontWeight.Bold
                         )
                     }
 
@@ -214,14 +215,14 @@ fun TvTiviMateScreen(
 
                     // Favoriler
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isFavSelected) TiviGold.copy(alpha = 0.2f) else Color.Transparent,
+                        shape = VegaShapes.Small,
+                        color = if (isFavSelected) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(defaultCategoryFocus)
                             .dpadFocusable(
-                                focusedBorderColor = TiviGold,
-                                shape = RoundedCornerShape(8.dp),
+                                focusedBorderColor = VegaColors.Accent,
+                                shape = VegaShapes.Small,
                                 onClick = { viewModel.selectedLiveCategory.value = "favorites" }
                             )
                     ) {
@@ -229,17 +230,17 @@ fun TvTiviMateScreen(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "Favori Kanallar",
-                                color = if (isFavSelected) TiviGold else Color.White,
-                                fontSize = 13.sp,
+                                color = if (isFavSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f)
                             )
                             if (favoriteIds.isNotEmpty()) {
-                                Text("${favoriteIds.size}", color = TiviGold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("${favoriteIds.size}", color = VegaColors.TextMuted, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -248,13 +249,13 @@ fun TvTiviMateScreen(
 
                     // Son İzlenenler
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isRecentSelected) OpusCyan.copy(alpha = 0.18f) else Color.Transparent,
+                        shape = VegaShapes.Small,
+                        color = if (isRecentSelected) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
                         modifier = Modifier
                             .fillMaxWidth()
                             .dpadFocusable(
-                                focusedBorderColor = OpusCyan,
-                                shape = RoundedCornerShape(8.dp),
+                                focusedBorderColor = VegaColors.Accent,
+                                shape = VegaShapes.Small,
                                 onClick = { viewModel.selectedLiveCategory.value = "recents" }
                             )
                     ) {
@@ -262,19 +263,19 @@ fun TvTiviMateScreen(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.History, contentDescription = null, tint = if (isRecentSelected) OpusCyan else TiviTextSecondary, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.History, contentDescription = null, tint = if (isRecentSelected) VegaColors.Accent else VegaColors.TextSecondary, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "Son İzlenenler",
-                                color = if (isRecentSelected) OpusCyan else Color.White,
-                                fontSize = 13.sp,
+                                color = if (isRecentSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f)
                             )
                         }
                     }
 
-                    HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 0.5.dp, modifier = Modifier.padding(vertical = 6.dp))
+                    HorizontalDivider(color = VegaColors.Border, thickness = 1.dp, modifier = Modifier.padding(vertical = 6.dp))
 
                     // Dinamik Kategoriler
                     LazyColumn(
@@ -287,13 +288,13 @@ fun TvTiviMateScreen(
                             val isSelected = category.categoryId == selectedCategory
 
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) OpusCyan.copy(alpha = 0.18f) else Color.Transparent,
+                                shape = VegaShapes.Small,
+                                color = if (isSelected) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .dpadFocusable(
-                                        focusedBorderColor = OpusCyan,
-                                        shape = RoundedCornerShape(8.dp),
+                                        focusedBorderColor = VegaColors.Accent,
+                                        shape = VegaShapes.Small,
                                         onClick = { viewModel.loadLiveStreams(category.categoryId) }
                                     )
                             ) {
@@ -304,21 +305,21 @@ fun TvTiviMateScreen(
                                     Icon(
                                         imageVector = Icons.Default.LiveTv,
                                         contentDescription = null,
-                                        tint = if (isSelected) OpusCyan else TiviTextSecondary,
+                                        tint = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
                                         modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
                                         text = category.categoryName,
-                                        color = if (isSelected) OpusCyan else Color.White,
-                                        fontSize = 13.sp,
+                                        color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                        fontSize = VegaText.Secondary,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.weight(1f)
                                     )
                                     if (category.itemCount > 0) {
-                                        Text("${category.itemCount}", color = TiviTextMuted, fontSize = 9.5.sp)
+                                        Text("${category.itemCount}", color = VegaColors.TextMuted, fontSize = VegaText.Caption)
                                     }
                                 }
                             }
@@ -327,7 +328,7 @@ fun TvTiviMateScreen(
                 }
             }
 
-            VerticalDivider(color = TiviCardBorder.copy(alpha = 0.6f), thickness = 1.dp)
+            VerticalDivider(color = VegaColors.Border, thickness = 1.dp)
 
             // ==========================================
             // 2. ORTA SÜTUN: TEMİZ VE HIZLI KANAL LİSTESİ (260.dp)
@@ -336,7 +337,7 @@ fun TvTiviMateScreen(
                 modifier = Modifier
                     .width(260.dp)
                     .fillMaxHeight(),
-                color = TiviBackground
+                color = VegaColors.Background
             ) {
                 Column(
                     modifier = Modifier
@@ -351,19 +352,18 @@ fun TvTiviMateScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "KANALLAR (${displayedChannels.size})",
-                            color = TiviTextMuted,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                            text = "Kanallar (${displayedChannels.size})",
+                            color = VegaColors.TextMuted,
+                            fontSize = VegaText.Caption,
+                            fontWeight = FontWeight.Bold
                         )
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = OpusCyan.copy(alpha = 0.15f),
-                            border = BorderStroke(0.5.dp, OpusCyan),
+                            shape = VegaShapes.Small,
+                            color = VegaColors.Accent.copy(alpha = 0.18f),
+                            border = BorderStroke(1.dp, VegaColors.Accent),
                             modifier = Modifier.dpadFocusable(
-                                shape = RoundedCornerShape(6.dp),
-                                focusedBorderColor = OpusCyan,
+                                shape = VegaShapes.Small,
+                                focusedBorderColor = VegaColors.Accent,
                                 onClick = { showEpgGrid = true }
                             )
                         ) {
@@ -374,29 +374,29 @@ fun TvTiviMateScreen(
                                 Icon(
                                     imageVector = Icons.Default.Schedule,
                                     contentDescription = null,
-                                    tint = OpusCyan,
+                                    tint = VegaColors.Accent,
                                     modifier = Modifier.size(11.dp)
                                 )
                                 Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "Rehber",
-                                    color = OpusCyan,
-                                    fontSize = 10.sp,
+                                    color = VegaColors.Accent,
+                                    fontSize = VegaText.Caption,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                     }
 
-                    HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 0.5.dp, modifier = Modifier.padding(bottom = 6.dp))
+                    HorizontalDivider(color = VegaColors.Border, thickness = 1.dp, modifier = Modifier.padding(bottom = 6.dp))
 
                     if (isLoading) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = OpusCyan, modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
+                            CircularProgressIndicator(color = VegaColors.Accent, modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
                         }
                     } else if (displayedChannels.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Kanal bulunamadı", color = TiviTextMuted, fontSize = 12.sp)
+                            Text("Kanal bulunamadı", color = VegaColors.TextMuted, fontSize = VegaText.Secondary)
                         }
                     } else {
                         LazyColumn(
@@ -414,15 +414,15 @@ fun TvTiviMateScreen(
                                 val progress = epg?.getProgressFraction()
 
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (isCurrentPreview) OpusCyan.copy(alpha = 0.18f) else TiviCardDark,
-                                    border = if (isCurrentPreview) BorderStroke(1.dp, OpusCyan) else BorderStroke(0.5.dp, TiviCardBorder),
+                                    shape = VegaShapes.Small,
+                                    color = if (isCurrentPreview) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.Card,
+                                    border = if (isCurrentPreview) BorderStroke(1.dp, VegaColors.Accent) else BorderStroke(1.dp, VegaColors.Border),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(52.dp)
                                         .dpadFocusable(
-                                            focusedBorderColor = OpusCyan,
-                                            shape = RoundedCornerShape(8.dp),
+                                            focusedBorderColor = VegaColors.Accent,
+                                            shape = VegaShapes.Small,
                                             onClick = {
                                                 if (isCurrentPreview) {
                                                     // 2. OK Tıklaması: Tam Ekrana Genişlet (Zero Rebuffering)
@@ -442,8 +442,8 @@ fun TvTiviMateScreen(
                                     ) {
                                         Text(
                                             text = "${channel.num}",
-                                            color = if (isCurrentPreview) OpusCyan else TiviTextSecondary,
-                                            fontSize = 11.sp,
+                                            color = if (isCurrentPreview) VegaColors.Accent else VegaColors.TextSecondary,
+                                            fontSize = VegaText.Caption,
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.width(26.dp)
                                         )
@@ -454,8 +454,8 @@ fun TvTiviMateScreen(
                                             contentScale = ContentScale.Fit,
                                             modifier = Modifier
                                                 .size(28.dp)
-                                                .clip(RoundedCornerShape(5.dp))
-                                                .background(Color.Black),
+                                                .clip(VegaShapes.Small)
+                                                .background(VegaColors.Background),
                                             placeholderIcon = Icons.Default.Tv
                                         )
 
@@ -464,8 +464,8 @@ fun TvTiviMateScreen(
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = channel.name,
-                                                color = if (isCurrentPreview) OpusCyan else Color.White,
-                                                fontSize = 12.5.sp,
+                                                color = if (isCurrentPreview) VegaColors.Accent else VegaColors.TextPrimary,
+                                                fontSize = VegaText.Secondary,
                                                 fontWeight = FontWeight.Bold,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
@@ -473,8 +473,8 @@ fun TvTiviMateScreen(
                                             if (!currentProgram.isNullOrBlank()) {
                                                 Text(
                                                     text = currentProgram,
-                                                    color = TiviTextSecondary,
-                                                    fontSize = 10.sp,
+                                                    color = VegaColors.TextSecondary,
+                                                    fontSize = VegaText.Caption,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
@@ -482,12 +482,12 @@ fun TvTiviMateScreen(
                                                     Spacer(modifier = Modifier.height(2.dp))
                                                     LinearProgressIndicator(
                                                         progress = { progress },
-                                                        color = OpusCyan,
-                                                        trackColor = Color.White.copy(alpha = 0.15f),
+                                                        color = VegaColors.Accent,
+                                                        trackColor = VegaColors.Border,
                                                         modifier = Modifier
                                                             .fillMaxWidth()
                                                             .height(2.dp)
-                                                            .clip(RoundedCornerShape(1.dp))
+                                                            .clip(VegaShapes.Small)
                                                     )
                                                 }
                                             }
@@ -500,7 +500,7 @@ fun TvTiviMateScreen(
                 }
             }
 
-            VerticalDivider(color = TiviCardBorder.copy(alpha = 0.6f), thickness = 1.dp)
+            VerticalDivider(color = VegaColors.Border, thickness = 1.dp)
 
             // ==========================================
             // 3. SAĞ PANEL: MİNİ PLAYER ÖNİZLEME & EPG DETAYI
@@ -514,15 +514,15 @@ fun TvTiviMateScreen(
             ) {
                 // 16:9 CANLI MİNİ PLAYER ÖNİZLEME KUTUSU (SHARED EXOPLAYER INSTANCE)
                 Card(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = VegaShapes.Medium,
                     colors = CardDefaults.cardColors(containerColor = Color.Black),
-                    border = BorderStroke(1.5.dp, OpusCyan.copy(alpha = 0.8f)),
+                    border = BorderStroke(1.5.dp, VegaColors.Accent.copy(alpha = 0.8f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
                         .dpadFocusable(
-                            shape = RoundedCornerShape(14.dp),
-                            focusedBorderColor = Color.White,
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.Accent,
                             onClick = {
                                 if (activePreviewChannel != null) {
                                     isFullScreenPlayer = true
@@ -569,17 +569,17 @@ fun TvTiviMateScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(TiviAccentLive)
+                                    .clip(VegaShapes.Small)
+                                    .background(VegaColors.Live)
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Text("CANLI ÖNİZLEME", color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("Canlı önizleme", color = VegaColors.OnAccent, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                             }
 
                             Text(
-                                text = "▶ Tam Ekran Yap (OK)",
-                                color = OpusCyan,
-                                fontSize = 10.sp,
+                                text = "▶ Tam ekran yap (OK)",
+                                color = VegaColors.Accent,
+                                fontSize = VegaText.Caption,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -589,9 +589,9 @@ fun TvTiviMateScreen(
                 // AKTİF KANAL & EPG DETAY KARTI
                 activePreviewChannel?.let { channel ->
                     Card(
-                        shape = RoundedCornerShape(14.dp),
-                        colors = CardDefaults.cardColors(containerColor = TiviCardDark),
-                        border = BorderStroke(1.dp, TiviCardBorder),
+                        shape = VegaShapes.Medium,
+                        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+                        border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
@@ -609,39 +609,39 @@ fun TvTiviMateScreen(
                                     contentScale = ContentScale.Fit,
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color.Black),
+                                        .clip(VegaShapes.Small)
+                                        .background(VegaColors.Background),
                                     placeholderIcon = Icons.Default.Tv
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(channel.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                    Text(channel.name, color = VegaColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = VegaText.BodyProminent)
                                     val currentEpg = epgSummaryMap[channel.streamId]
                                     Text(
-                                        text = currentEpg?.getFormattedTime() ?: "Canlı Yayın",
-                                        color = OpusCyan,
-                                        fontSize = 11.5.sp,
+                                        text = currentEpg?.getFormattedTime() ?: "Canlı yayın",
+                                        color = VegaColors.Accent,
+                                        fontSize = VegaText.Caption,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
                             }
 
-                            HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+                            HorizontalDivider(color = VegaColors.Border, thickness = 1.dp)
 
                             // Program Detay Özeti
                             val activeEpg = epgSummaryMap[channel.streamId]
                             Text(
                                 text = activeEpg?.getDecodedTitle() ?: channel.currentProgram ?: "Bu kanal için program yayın bilgisi iletilmedi.",
-                                color = Color.White,
-                                fontSize = 13.5.sp,
+                                color = VegaColors.TextPrimary,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.Bold
                             )
 
                             val decodedDesc = activeEpg?.getDecodedDescription()
                             Text(
                                 text = if (!decodedDesc.isNullOrBlank()) decodedDesc else "Detaylı akış özet bilgisi sunucu tarafından iletilmedi.",
-                                color = TiviTextSecondary,
-                                fontSize = 11.5.sp,
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Caption,
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,
                                 lineHeight = 16.sp
@@ -649,8 +649,8 @@ fun TvTiviMateScreen(
 
                             // SIRADAKİ PROGRAMLAR (TİVİMATE EPG AKIŞI)
                             if (currentEpgList.size > 1) {
-                                HorizontalDivider(color = TiviCardBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
-                                Text("SIRADAKİ PROGRAMLAR", color = OpusCyan, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.8.sp)
+                                HorizontalDivider(color = VegaColors.Border, thickness = 1.dp)
+                                Text("Sıradaki programlar", color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     currentEpgList.drop(1).take(3).forEach { prog ->
                                         Row(
@@ -660,8 +660,8 @@ fun TvTiviMateScreen(
                                         ) {
                                             Text(
                                                 text = prog.getDecodedTitle(),
-                                                color = Color.White,
-                                                fontSize = 11.sp,
+                                                color = VegaColors.TextPrimary,
+                                                fontSize = VegaText.Caption,
                                                 fontWeight = FontWeight.Medium,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
@@ -670,8 +670,8 @@ fun TvTiviMateScreen(
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
                                                 text = prog.getFormattedTime(),
-                                                color = TiviTextMuted,
-                                                fontSize = 9.5.sp
+                                                color = VegaColors.TextMuted,
+                                                fontSize = VegaText.Caption
                                             )
                                         }
                                     }
@@ -686,17 +686,17 @@ fun TvTiviMateScreen(
             // NUMERIC ZAPPER (KUMANDA NUMARATÖR) OVERLAY
             if (isZapperActive && zapperNumber.isNotBlank()) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = OpusCyan,
-                    border = BorderStroke(1.5.dp, Color.White),
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.Accent,
+                    border = BorderStroke(1.5.dp, VegaColors.OnAccent),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(top = 16.dp, end = 16.dp)
                 ) {
                     Text(
                         text = "[ $zapperNumber ] ${zapperMatchedChannel?.name ?: ""}",
-                        color = Color.Black,
-                        fontSize = 20.sp,
+                        color = VegaColors.OnAccent,
+                        fontSize = VegaText.ScreenTitle,
                         fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )

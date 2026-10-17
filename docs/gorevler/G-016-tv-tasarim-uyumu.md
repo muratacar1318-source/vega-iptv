@@ -44,4 +44,35 @@ güncelleme sistemi, imza, CI. `ui/design/*` ve `theme/*` dosyalarını değişt
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - `ui/tv/TvNavigationRail.kt`:
+    - Sabit renkler (`Color(0xFF0F172A)`, `Color(0xFF1E293B)`, `OpusCyan`, vb.) `VegaColors.Background`, `VegaColors.Surface`, `VegaColors.Accent`, `VegaColors.Border` ve `VegaColors.Text*` ile değiştirildi.
+    - Şekiller `VegaShapes.Small` ve `VegaShapes.Pill` ile değiştirildi.
+    - Tipografi `VegaText.Secondary` ve `VegaText.Caption` ile güncellendi.
+  - `ui/tv/TvEpgGridScreen.kt`:
+    - Sabit lacivert ve koyu arka planlar (`Color(0xFF0A0E14)`, `Color(0xFF10141D)`, `Color(0xFF161F2E)`, `Color(0xFF1E2638)`) `VegaColors.Background`, `VegaColors.Surface`, `VegaColors.Card`, `VegaColors.Border` ile değiştirildi.
+    - Canlı rozeti `VegaColors.Live`, vurgu renkleri `VegaColors.Accent` yapıldı.
+    - Köşe yuvarlaklıkları `VegaShapes.Small` ve `VegaShapes.Medium` ile hizalandı.
+    - Odak çerçeveleri `VegaColors.Accent` yapıldı.
+    - Başlıklar ve metinler ("KANALLAR" -> "Kanallar", "Canlı yayın", vb.) büyük harflerden arındırıldı, `VegaText` tokenları uygulandı.
+  - `ui/tv/TvPlayerOverlay.kt`:
+    - Yarı saydam paneller `VegaColors.OverlayPanel`, pill butonları `VegaColors.OverlayPill`, kenarlıklar `VegaColors.Border`, kart arka planları `VegaColors.SurfaceVariant` ile güncellendi.
+    - Buffering indikatörü, vurgulu metinler ve odak kenarlıkları `VegaColors.Accent` yapıldı.
+    - `TechBadge` bileşeni `VegaShapes.Small`, `VegaColors.Accent` ve `VegaColors.Border` ile güncellendi.
+    - Başlık ve metinler düzeltildi ("TIVIMATE YARI SAYDAM REHBER" -> "Rehber", "SES & ALTYAZI AYARLARI" -> "Ses ve altyazı ayarları", "Buffer" -> "Tampon", vb.).
+  - `ui/tv/TvTiviMateScreen.kt`:
+    - Kategori sütunu, kanal listesi ve sağ panel (mini player / EPG kartı) `VegaColors` (`Background`, `Surface`, `Card`, `Border`, `Accent`, `Live`), `VegaShapes` (`Small`, `Medium`) ve `VegaText` (`ScreenTitle`, `Secondary`, `Caption`) ile uyarlandı.
+    - Numaratör Zapper overlay'i `VegaColors.Accent`, `VegaColors.OnAccent`, `VegaShapes.Medium` ile uyarlandı.
+    - Başlıklar sadeleştirildi ("CANLI TV REHBERİ" -> "Canlı TV", "SIRADAKİ PROGRAMLAR" -> "Sıradaki programlar", "CANLI ÖNİZLEME" -> "Canlı önizleme").
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvNavigationRail.kt`
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvEpgGridScreen.kt`
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt`
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvTiviMateScreen.kt`
+  - `docs/gorevler/G-016-tv-tasarim-uyumu.md`
+  - `YAPILACAKLAR.md`
+- **Test ve doğrulama:**
+  - `./gradlew compileDebugKotlin` çalıştırıldı: BUILD SUCCESSFUL (48s).
+  - Görsel ve D-Pad kumanda davranışı fiziksel TV/emülatörde test edilemedi (derleme seviyesinde doğrulandı, APK üretilmedi).
+- **Karşılaşılan sorunlar / Notlar:**
+  - Kapsam dışındaki hiçbir dosyaya dokunulmadı. İş mantığı, oynatma ve `FocusRequester` hiyerarşisi korundu.
