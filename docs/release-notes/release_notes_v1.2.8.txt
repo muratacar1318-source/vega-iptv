@@ -1,0 +1,16 @@
+# Vega IPTV v1.2.8 (Build 50) - Dikey Mod Çökme Düzeltmesi (Duplicate Key), Güncelleme Erteleme (Snooze) & "Daha Sonra" Butonu
+
+### 📱 Dikey Mod (Mobil & Tablet) Kararlılık Düzeltmeleri:
+1. **Filmler ve Diziler Sekmesi Çökme Hatası Giderildi:**
+   - Dikey modda varsayılan `PORTRAIT_CAT_NAV_CHIPS` (Yatay Çipler) kullanılırken `MediaCategoryNavigationBar` içindeki statik "Tümü" çipi (`key = "media_cat_all"`) ile listedeki sentetik `"all"` kategorisi arasındaki LazyRow anahtar çakışması (`IllegalArgumentException: Key was already used`) tamamen çözüldü.
+   - `VodScreen` ve `VegaMediaCatalogScreen` bileşenlerinde kategoriler `filter { it.categoryId != "all" }.distinctBy { it.categoryId }` filtresiyle güvenceye alındı.
+   - Toplam film ve dizi sayısının ikiye katlanarak hesaplanması düzeltildi, net ve doğru toplam sayaç gösterildi.
+   - `CategorySidebar` sol panelde "Tüm Filmler" ve "Tüm Diziler" sabit öğesi eklenerek TV ve yatay modda da listenin en başında düzgün gösterilmesi sağlandı.
+   - `CategoryChipsRow`, `LiveTvWideScreenLayout` ve `CategorySelectorBottomSheet` bileşenlerinde mükerrer kategori ID'lerine karşı koruma eklendi.
+
+### 🚀 Güncelleme Yönetimi & Kullanıcı Deneyimi:
+1. **Belirgin "Daha Sonra" Butonu:**
+   - Açılıştaki otomatik güncelleme diyaloğuna net hatlı, ikonlu ve Android TV kumanda D-Pad odağına tam duyarlı bir **"Daha Sonra"** butonu eklendi.
+2. **24 Saatlik Güncelleme Erteleme (Snooze):**
+   - Kullanıcı güncellemeyi ertelediğinde veya diyaloğu kapattığında sürüm 24 saat boyunca ertelenir. Uygulama açılışlarında kullanıcıyı rahatsız eden popup tekrarları engellendi.
+   - Kullanıcı dilediği zaman **Ayarlar > Destek ve İletişim > "Güncellemeleri Kontrol Et"** butonuyla güncellemeyi manuel olarak kontrol edip kurabilir.
