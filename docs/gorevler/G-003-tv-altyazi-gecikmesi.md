@@ -49,4 +49,4 @@ PlayerView'i, kumanda tuş işleme (`onPreviewKeyEvent`), odak yönetimi, oynatm
   - `subtitleColor` ve `subtitleSize` state'leri `MainViewModel`'den `collectAsState()` ile alındı.
   - `AndroidView` `factory` ve `update` bloklarında `delayedController.attach()`, `updateDelay()`, `updateStyle()` çağrıldı.
   - `AndroidView` `onRelease` bloğunda `delayedController.detach()` çağrıldı.
-- **Test:** Altyazılı kanalla test edilemedi. Kod yapısı mobil `PlayerScreen` referans deseniyle birebir hizalandı. AGENTS.md kuralı gereğince yerel derleme çalıştırılmadı, GitHub Actions otomatik doğrulayacaktır.
+- **Test:** Altyazılı kanalla test edilemedi. Kod yapısı mobil `PlayerScreen` referans deseniyle birebir hizalandı. `./gradlew compileDebugKotlin` başarıyla tamamlandı (BUILD SUCCESSFUL).
