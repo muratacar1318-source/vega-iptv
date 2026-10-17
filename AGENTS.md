@@ -1,5 +1,7 @@
 # Vega IPTV — Geliştirme Kuralları
 ## Çalışma düzeni
+- Her görevden önce kullanıcıya görevi, önerilen düşünme seviyesini ve modeli bildir; kullanıcı "onay"
+  yazmadan hiçbir değişiklik yapma (ayrıntı: YAPILACAKLAR.md, adım 3).
 - İş listesi YAPILACAKLAR.md'dedir. "Yapılacakları kontrol et ve uygula" denince oradaki
   "Agent için çalışma talimatı" bölümünü harfiyen uygula. Görev tarifleri docs/gorevler/ altındadır.
 - YAPILACAKLAR.md'ye kendi başına yeni görev EKLEME ve mevcut görevlerin tarifini DEĞİŞTİRME;
