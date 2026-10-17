@@ -69,6 +69,27 @@ class OrientationManager(private val activity: Activity) {
     // Telefon modunda oynatıcı içindeyken kullanıcının elle dikey moda geçmesini sağlayan kilit durumu
     private var isPhonePlayerLockedPortrait: Boolean = false
 
+    @Volatile
+    private var immersiveWanted: Boolean = false
+
+    private val hideBarsRunnable = Runnable {
+        if (!immersiveWanted) return@Runnable
+        try {
+            val window = activity.window ?: return@Runnable
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        } catch (_: Exception) {}
+    }
+
+    private val hideBarsDelayedRunnable = Runnable {
+        if (!immersiveWanted) return@Runnable
+        try {
+            val window = activity.window ?: return@Runnable
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        } catch (_: Exception) {}
+    }
+
     /**
      * Kullanıcının telefon modundayken video oynatıcıda dikey / yatay yön kilidini değiştirmesini sağlar.
      * @return Yeni durum: true ise dikey kilitli, false ise otomatik sensör yatay
@@ -140,11 +161,15 @@ class OrientationManager(private val activity: Activity) {
      * Sistem çubuklarını gizler veya gösterir, çentik/cutout alanını tam ekrana dahil eder.
      */
     fun setImmersiveMode(enable: Boolean) {
+        immersiveWanted = enable
         try {
             val window = activity.window ?: return
             val decorView = window.decorView
             val insetsController = WindowCompat.getInsetsController(window, decorView)
             if (enable) {
+                decorView.removeCallbacks(hideBarsRunnable)
+                decorView.removeCallbacks(hideBarsDelayedRunnable)
+
                 insetsController.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
@@ -157,18 +182,12 @@ class OrientationManager(private val activity: Activity) {
                 }
 
                 // HyperOS / MIUI ve bazı cihazlarda yön değişimi sırasında çubukların geri gelmesini engellemek için
-                // decorView.post ile bir sonraki karede ve 300 ms sonra tekrar tetikle
-                decorView.post {
-                    try {
-                        insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                    } catch (_: Exception) {}
-                }
-                decorView.postDelayed({
-                    try {
-                        insetsController.hide(WindowInsetsCompat.Type.systemBars())
-                    } catch (_: Exception) {}
-                }, 300L)
+                // decorView.post ile bir sonraki karede ve 300 ms sonra tekrar tetikle (sadece immersiveWanted == true ise)
+                decorView.post(hideBarsRunnable)
+                decorView.postDelayed(hideBarsDelayedRunnable, 300L)
             } else {
+                decorView.removeCallbacks(hideBarsRunnable)
+                decorView.removeCallbacks(hideBarsDelayedRunnable)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
         } catch (_: Exception) {}

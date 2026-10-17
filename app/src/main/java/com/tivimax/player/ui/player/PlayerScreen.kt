@@ -368,13 +368,17 @@ fun PlayerScreen(
 
     // Yön değişimi (portrait <-> landscape) tamamlandığında immersive modunu yeniden uygula
     LaunchedEffect(configuration.orientation) {
-        orientationManager?.setImmersiveMode(true)
+        if (viewModel.currentScreen.value is Screen.Player || viewModel.isVideoFullscreen.value) {
+            orientationManager?.setImmersiveMode(true)
+        }
     }
 
     // Oynatıcı kontrolleri otomatik gizlendiğinde (HUD auto-hide) immersive modunu yeniden uygula
     LaunchedEffect(showControls, showBottomInfoCard) {
         if (!showControls && !showBottomInfoCard) {
-            orientationManager?.setImmersiveMode(true)
+            if (viewModel.currentScreen.value is Screen.Player || viewModel.isVideoFullscreen.value) {
+                orientationManager?.setImmersiveMode(true)
+            }
         }
     }
 
@@ -385,7 +389,9 @@ fun PlayerScreen(
             showCategoryManagementDialog
     LaunchedEffect(anyOverlayOpen) {
         if (!anyOverlayOpen) {
-            orientationManager?.setImmersiveMode(true)
+            if (viewModel.currentScreen.value is Screen.Player || viewModel.isVideoFullscreen.value) {
+                orientationManager?.setImmersiveMode(true)
+            }
         }
     }
 

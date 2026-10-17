@@ -143,3 +143,29 @@ Başka hiçbir şeyi değiştirme.
 - **A)**, **C)**, **D)** hâlâ geçerli olmalı.
 
 Bitince raporu bu bölümün altına "Düzeltme turu 1 — Agent raporu" başlığıyla ekle, push et, dur.
+
+---
+
+### Düzeltme turu 1 — Agent raporu
+
+#### 1. Yapılan Değişiklikler
+- **`OrientationManager.kt`:**
+  - `@Volatile private var immersiveWanted: Boolean = false` eklendi.
+  - `hideBarsRunnable` ve `hideBarsDelayedRunnable` alan olarak tanımlandı. İçlerinde `if (!immersiveWanted) return@Runnable` kontrolü yer alıyor.
+  - `setImmersiveMode(enable)` en başta `immersiveWanted = enable` ataması yapıyor.
+  - `enable == true` olduğunda önce bekleyen callback'ler temizleniyor (`decorView.removeCallbacks`), ardından sistem çubukları gizlenip `post` ve `postDelayed(300L)` ile bu runnable'lar çalıştırılıyor.
+  - `enable == false` olduğunda bekleyen tüm gizleme callback'leri `decorView.removeCallbacks` ile anında iptal ediliyor ve `insetsController.show(...)` çağrılıyor.
+- **`PlayerScreen.kt`:**
+  - `LaunchedEffect(configuration.orientation)`, `LaunchedEffect(showControls, showBottomInfoCard)` ve `LaunchedEffect(anyOverlayOpen)` bloklarının her birinde `setImmersiveMode(true)` çağrısı `if (viewModel.currentScreen.value is Screen.Player || viewModel.isVideoFullscreen.value)` koşuluna bağlandı.
+
+#### 2. Test ve Mantık Doğrulaması (Cihaz bağlı olmadığından adım adım analiz)
+- **G (Film aç → geri dön → 1 sn bekle → liste ekranında durum çubuğu görünür kalmalı):**
+  1. Kullanıcı filmden geri döndüğünde `MainViewModel.navigateBack()` çağrılır; `_currentScreen` Home/VodDetail'e geçer ve `isVideoFullscreen` `false` olur.
+  2. `applyOrientation` tetiklenir ve `setImmersiveMode(false)` çağrılır.
+  3. `immersiveWanted = false` olur, kuyrukta bekleyen tüm 300 ms'lik `hideBarsDelayedRunnable` çağrıları `decorView.removeCallbacks` ile anında iptal edilir ve sistem çubukları gösterilir (`show`).
+  4. Ekran dikey moda geçerken `Crossfade` sırasında `PlayerScreen` henüz tamamen unmount edilmemiş olsa ve `configuration.orientation` değişse bile, `LaunchedEffect` içindeki `viewModel.currentScreen.value is Screen.Player || viewModel.isVideoFullscreen.value` kontrolü `false` vereceği için `setImmersiveMode(true)` kesinlikle çalışmaz.
+  5. Böylece liste ekranında durum çubuğunun (saat, pil) kaybolması riski tamamen ortadan kalkmıştır.
+- **A, C, D Senaryoları:**
+  - Oynatıcı açıkken `currentScreen is Screen.Player` ve `isVideoFullscreen = true` olduğundan tüm yön değişimi, HUD gizlenmesi ve diyalog kapanışı tetikleyicileri eksiksiz çalışmayı sürdürür.
+- **Derleme Doğrulaması:**
+  - `./gradlew assembleDebug` hatasız tamamlandı (`BUILD SUCCESSFUL in 36s`).
