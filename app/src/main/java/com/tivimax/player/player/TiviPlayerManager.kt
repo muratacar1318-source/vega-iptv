@@ -753,8 +753,17 @@ class TiviPlayerManager(private val context: Context) {
         }
         
         // OS Entegrasyonu: PiP modu ve kilit ekranı oynatma kontrolleri için MediaSession
-        if (mediaSession == null) {
-            mediaSession = MediaSession.Builder(context, player).build()
+        val session = mediaSession
+        if (session == null) {
+            try {
+                mediaSession = MediaSession.Builder(context, player)
+                    .setId("vega_${System.identityHashCode(this)}_${SystemClock.elapsedRealtime()}")
+                    .build()
+            } catch (e: Exception) {
+                Log.w("VegaIPTV", "MediaSession kurulamadı; oynatma devam ediyor", e)
+            }
+        } else if (session.player !== player) {
+            session.player = player   // yeni ExoPlayer'a bağla (kapatılmış oynatıcıda kalmasın)
         }
 
         return player
@@ -836,7 +845,7 @@ class TiviPlayerManager(private val context: Context) {
             startPositionUpdates()
         } catch (e: Throwable) {
             android.util.Log.e("VegaIPTV", "Player error during start", e)
-            _errorMessage.value = "Yayın başlatılamadı: ${e.localizedMessage ?: "Bilinmeyen hata"}"
+            _errorMessage.value = "Yayın başlatılamadı. Lütfen tekrar dene."
         }
     }
 
@@ -1346,6 +1355,8 @@ class TiviPlayerManager(private val context: Context) {
         stopPositionUpdates()
         currentPlayingUrl = null
         playerLoadControlIsLive = null
+        mediaSession?.release()
+        mediaSession = null
         exoPlayer?.let {
             it.stop()
             it.clearMediaItems()
