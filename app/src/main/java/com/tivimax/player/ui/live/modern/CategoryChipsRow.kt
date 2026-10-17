@@ -113,7 +113,9 @@ fun CategoryChipsRow(
 
             // 3. İçerik Kategorileri (Haber, Belgesel, Sinema...)
             items(
-                items = categories.filter { it.categoryId != "all" && it.categoryId != "favorites" },
+                items = categories
+                    .filter { it.categoryId != "all" && it.categoryId != "favorites" }
+                    .distinctBy { it.categoryId },
                 key = { "chip_${it.categoryId}" }
             ) { category ->
                 val isSelected = selectedCategory == category.categoryId

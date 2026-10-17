@@ -52,13 +52,18 @@ fun MediaCategoryNavigationBar(
     onOpenAllCategories: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val safeCategories = remember(categories) {
+        categories
+            .filter { it.id != "all" }
+            .distinctBy { it.id }
+    }
     val listState = rememberLazyListState()
 
     LaunchedEffect(selectedCategoryId) {
         if (selectedCategoryId == "all" || selectedCategoryId.isEmpty()) {
             listState.animateScrollToItem(0)
         } else {
-            val index = categories.indexOfFirst { it.id == selectedCategoryId }
+            val index = safeCategories.indexOfFirst { it.id == selectedCategoryId }
             if (index >= 0) {
                 listState.animateScrollToItem(index + 1)
             }
@@ -85,7 +90,7 @@ fun MediaCategoryNavigationBar(
         }
 
         // 2. Kategori Çipleri
-        items(categories, key = { "media_cat_${it.id}" }) { cat ->
+        items(safeCategories, key = { "media_cat_${it.id}" }) { cat ->
             val isSelected = cat.id == selectedCategoryId
             MediaChipItem(
                 title = cat.name,
@@ -310,13 +315,18 @@ fun MediaCategoryBottomSheet(
     onCategorySelected: (String) -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val safeCategories = remember(categories) {
+        categories
+            .filter { it.id != "all" }
+            .distinctBy { it.id }
+    }
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredCategories = remember(categories, searchQuery) {
+    val filteredCategories = remember(safeCategories, searchQuery) {
         if (searchQuery.isBlank()) {
-            categories
+            safeCategories
         } else {
-            categories.filter {
+            safeCategories.filter {
                 it.name.contains(searchQuery, ignoreCase = true)
             }
         }
@@ -356,7 +366,7 @@ fun MediaCategoryBottomSheet(
                     )
                 }
                 Text(
-                    text = "${categories.size} Kategori",
+                    text = "${safeCategories.size} Kategori",
                     color = TiviTextSecondary,
                     fontSize = 12.sp
                 )

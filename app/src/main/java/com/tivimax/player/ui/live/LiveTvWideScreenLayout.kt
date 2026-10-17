@@ -313,7 +313,12 @@ fun LiveTvWideScreenLayout(
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    items(filteredCategories.filter { it.categoryId != "all" }, key = { it.categoryId }) { category ->
+                    items(
+                        items = filteredCategories
+                            .filter { it.categoryId != "all" }
+                            .distinctBy { it.categoryId },
+                        key = { it.categoryId }
+                    ) { category ->
                         val isSelected = category.categoryId == selectedCategory
                         CategoryItem(
                             name = category.categoryName,

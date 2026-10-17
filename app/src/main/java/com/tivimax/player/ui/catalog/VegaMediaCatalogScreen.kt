@@ -50,23 +50,38 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
 
     var showCategorySheet by remember { mutableStateOf(false) }
 
-    val totalSeriesCount = remember(categories) { categories.sumOf { it.itemCount } }
-    val selectedCategoryItem = remember(categories, selectedCategory) {
-        categories.firstOrNull { it.categoryId == selectedCategory }
+    val totalSeriesCount = remember(categories) {
+        categories.firstOrNull { it.categoryId == "all" }?.itemCount
+            ?: categories.filter { it.categoryId != "all" }.sumOf { it.itemCount }
     }
-    val selectedCategoryName = selectedCategoryItem?.categoryName ?: "Tüm Diziler"
-    val selectedCategoryCount = selectedCategoryItem?.itemCount ?: totalSeriesCount
+    val selectedCategoryItem = remember(categories, selectedCategory) {
+        if (selectedCategory == "all" || selectedCategory.isEmpty()) null
+        else categories.firstOrNull { it.categoryId == selectedCategory }
+    }
+    val selectedCategoryName = if (selectedCategory == "all" || selectedCategory.isEmpty()) {
+        "Tüm Diziler"
+    } else {
+        selectedCategoryItem?.categoryName ?: "Tüm Diziler"
+    }
+    val selectedCategoryCount = if (selectedCategory == "all" || selectedCategory.isEmpty()) {
+        totalSeriesCount
+    } else {
+        selectedCategoryItem?.itemCount ?: totalSeriesCount
+    }
 
     val uiCategories = remember(categories) {
-        categories.map {
-            CategoryUiItem(
-                id = it.categoryId,
-                name = it.categoryName,
-                count = it.itemCount,
-                icon = Icons.Default.Folder,
-                iconTint = Color(0xFF7C4DFF)
-            )
-        }
+        categories
+            .filter { it.categoryId != "all" }
+            .distinctBy { it.categoryId }
+            .map {
+                CategoryUiItem(
+                    id = it.categoryId,
+                    name = it.categoryName,
+                    count = it.itemCount,
+                    icon = Icons.Default.Folder,
+                    iconTint = Color(0xFF7C4DFF)
+                )
+            }
     }
 
     if (showCategorySheet) {
@@ -92,7 +107,9 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                 categories = uiCategories,
                 selectedCategoryId = selectedCategory,
                 onCategorySelected = { viewModel.loadSeriesStreams(it) },
-                title = "KATEGORİLER"
+                title = "KATEGORİLER",
+                totalCount = totalSeriesCount,
+                allLabel = "Tüm Diziler"
             )
 
             Box(

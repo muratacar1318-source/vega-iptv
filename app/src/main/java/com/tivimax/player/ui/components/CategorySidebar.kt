@@ -14,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,9 +38,21 @@ fun CategorySidebar(
     selectedCategoryId: String,
     onCategorySelected: (String) -> Unit,
     title: String = "KATEGORİLER",
+    totalCount: Int = 0,
+    allLabel: String = "Tümü",
     onFilterClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val safeCategories = remember(categories) {
+        categories
+            .filter { it.id != "all" }
+            .distinctBy { it.id }
+    }
+    val effectiveTotalCount = remember(categories, totalCount, safeCategories) {
+        if (totalCount > 0) totalCount
+        else categories.firstOrNull { it.id == "all" }?.count ?: safeCategories.sumOf { it.count }
+    }
+
     Column(
         modifier = modifier
             .fillMaxHeight()
@@ -91,7 +104,19 @@ fun CategorySidebar(
             contentPadding = PaddingValues(bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            items(categories, key = { it.id }) { cat ->
+            item(key = "sidebar_cat_all") {
+                val isSelected = selectedCategoryId == "all" || selectedCategoryId.isEmpty()
+                CategoryItem(
+                    name = allLabel,
+                    count = effectiveTotalCount,
+                    icon = Icons.Default.Folder,
+                    iconTint = Color(0xFF00E5FF),
+                    isSelected = isSelected,
+                    onClick = { onCategorySelected("all") }
+                )
+            }
+
+            items(safeCategories, key = { "sidebar_cat_${it.id}" }) { cat ->
                 val isSelected = cat.id == selectedCategoryId
                 CategoryItem(
                     name = cat.name,

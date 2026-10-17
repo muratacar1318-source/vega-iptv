@@ -73,23 +73,38 @@ fun VodScreen(viewModel: MainViewModel) {
     val configuration = LocalConfiguration.current
     val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
 
-    val totalVodCount = remember(categories) { categories.sumOf { it.itemCount } }
-    val selectedCategoryItem = remember(categories, selectedCategory) {
-        categories.firstOrNull { it.categoryId == selectedCategory }
+    val totalVodCount = remember(categories) {
+        categories.firstOrNull { it.categoryId == "all" }?.itemCount
+            ?: categories.filter { it.categoryId != "all" }.sumOf { it.itemCount }
     }
-    val selectedCategoryName = selectedCategoryItem?.categoryName ?: "Tüm Filmler"
-    val selectedCategoryCount = selectedCategoryItem?.itemCount ?: totalVodCount
+    val selectedCategoryItem = remember(categories, selectedCategory) {
+        if (selectedCategory == "all" || selectedCategory.isEmpty()) null
+        else categories.firstOrNull { it.categoryId == selectedCategory }
+    }
+    val selectedCategoryName = if (selectedCategory == "all" || selectedCategory.isEmpty()) {
+        "Tüm Filmler"
+    } else {
+        selectedCategoryItem?.categoryName ?: "Tüm Filmler"
+    }
+    val selectedCategoryCount = if (selectedCategory == "all" || selectedCategory.isEmpty()) {
+        totalVodCount
+    } else {
+        selectedCategoryItem?.itemCount ?: totalVodCount
+    }
 
     val uiCategories = remember(categories) {
-        categories.map {
-            com.tivimax.player.ui.components.CategoryUiItem(
-                id = it.categoryId,
-                name = it.categoryName,
-                count = it.itemCount,
-                icon = Icons.Default.Movie,
-                iconTint = Color(0xFF7C4DFF)
-            )
-        }
+        categories
+            .filter { it.categoryId != "all" }
+            .distinctBy { it.categoryId }
+            .map {
+                com.tivimax.player.ui.components.CategoryUiItem(
+                    id = it.categoryId,
+                    name = it.categoryName,
+                    count = it.itemCount,
+                    icon = Icons.Default.Movie,
+                    iconTint = Color(0xFF7C4DFF)
+                )
+            }
     }
 
     if (showCategorySheet) {
@@ -124,6 +139,8 @@ fun VodScreen(viewModel: MainViewModel) {
                 selectedCategoryId = selectedCategory,
                 onCategorySelected = { viewModel.loadVodStreams(it) },
                 title = "TÜRLER",
+                totalCount = totalVodCount,
+                allLabel = "Tüm Filmler",
                 onFilterClick = { showCategoryDialog = true }
             )
 

@@ -142,7 +142,10 @@ fun CategorySelectorBottomSheet(
                     .heightIn(max = 420.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(filteredCategories, key = { it.categoryId }) { category ->
+                items(
+                    items = filteredCategories.distinctBy { it.categoryId },
+                    key = { it.categoryId }
+                ) { category ->
                     val isSelected = category.categoryId == selectedCategory
 
                     Surface(

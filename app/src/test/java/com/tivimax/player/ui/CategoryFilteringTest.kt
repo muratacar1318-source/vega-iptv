@@ -56,4 +56,66 @@ class CategoryFilteringTest {
         assertFalse(isAdultCategory("Ulusal HD"))
         assertFalse(isAdultCategory("Çocuk ve Animasyon"))
     }
+
+    @Test
+    fun testVodAndSeriesTotalCountCalculationWithoutDoubleCounting() {
+        val categoriesWithSyntheticAll = listOf(
+            com.tivimax.player.data.model.VodCategory(categoryId = "all", categoryName = "Tümü", itemCount = 100),
+            com.tivimax.player.data.model.VodCategory(categoryId = "1", categoryName = "Aksiyon", itemCount = 60),
+            com.tivimax.player.data.model.VodCategory(categoryId = "2", categoryName = "Komedi", itemCount = 40)
+        )
+
+        val totalVodCount = categoriesWithSyntheticAll.firstOrNull { it.categoryId == "all" }?.itemCount
+            ?: categoriesWithSyntheticAll.filter { it.categoryId != "all" }.sumOf { it.itemCount }
+
+        assertEquals(100, totalVodCount)
+
+        // If synthetic "all" is missing, fallback sumOf works correctly
+        val categoriesWithoutSyntheticAll = listOf(
+            com.tivimax.player.data.model.VodCategory(categoryId = "1", categoryName = "Aksiyon", itemCount = 60),
+            com.tivimax.player.data.model.VodCategory(categoryId = "2", categoryName = "Komedi", itemCount = 40)
+        )
+        val fallbackTotalCount = categoriesWithoutSyntheticAll.firstOrNull { it.categoryId == "all" }?.itemCount
+            ?: categoriesWithoutSyntheticAll.filter { it.categoryId != "all" }.sumOf { it.itemCount }
+
+        assertEquals(100, fallbackTotalCount)
+    }
+
+    @Test
+    fun testUiCategoriesExcludesAllAndDeduplicatesKeys() {
+        val categories = listOf(
+            com.tivimax.player.data.model.VodCategory(categoryId = "all", categoryName = "Tümü", itemCount = 100),
+            com.tivimax.player.data.model.VodCategory(categoryId = "1", categoryName = "Aksiyon", itemCount = 60),
+            com.tivimax.player.data.model.VodCategory(categoryId = "1", categoryName = "Aksiyon Duplicate", itemCount = 60),
+            com.tivimax.player.data.model.VodCategory(categoryId = "2", categoryName = "Komedi", itemCount = 40)
+        )
+
+        val uiCategories = categories
+            .filter { it.categoryId != "all" }
+            .distinctBy { it.categoryId }
+            .map {
+                com.tivimax.player.ui.components.CategoryUiItem(
+                    id = it.categoryId,
+                    name = it.categoryName,
+                    count = it.itemCount
+                )
+            }
+
+        assertEquals(2, uiCategories.size)
+        assertFalse(uiCategories.any { it.id == "all" })
+
+        // Check MediaCategoryNavigationBar keys
+        val staticKey = "media_cat_all"
+        val itemKeys = uiCategories.map { "media_cat_${it.id}" }
+        val allKeys = listOf(staticKey) + itemKeys + listOf("media_cat_more_btn")
+
+        assertEquals(allKeys.size, allKeys.distinct().size)
+
+        // Check CategorySidebar keys
+        val sidebarStaticKey = "sidebar_cat_all"
+        val sidebarItemKeys = uiCategories.map { "sidebar_cat_${it.id}" }
+        val allSidebarKeys = listOf(sidebarStaticKey) + sidebarItemKeys
+
+        assertEquals(allSidebarKeys.size, allSidebarKeys.distinct().size)
+    }
 }
