@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| — | _(Bekleyen görev yok)_ | | |
+| G-012 | ["Hesap ve Liste" ekranını detaylandır (gerçek abonelik bilgileri, içerik özeti, güvenli çıkış)](docs/gorevler/G-012-hesap-ekrani-detay.md) | 🟠 | ⏳ Bekliyor |
 
 ---
 
