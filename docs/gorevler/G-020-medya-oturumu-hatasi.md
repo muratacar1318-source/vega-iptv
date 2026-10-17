@@ -79,6 +79,9 @@ parça seçimi, PiP davranışı, güncelleme sistemi, imza, CI.
 - Uygulamayı aç → canlı kanal aç: hatasız açılıyor.
 - Oynatıcıdan çık → başka kanal/film aç: hatasız.
 - **Geri tuşuyla uygulamadan tamamen çık → tekrar aç → içerik aç: hatasız** (asıl hata buydu).
+- Aynısını 3 kez art arda yap (çık-gir-içerik aç): her seferinde hatasız.
+- Not: Kullanıcı "uygulama verilerini silince düzeldi" dedi — veri silmek uygulamayı tamamen kapattığı için sızan
+  oturum da gidiyordu; sorun verilerle ilgili değil. Veri silmeden, sadece çık-gir ile test et.
 - Film oynarken ana ekrana dön (PiP açıksa küçük pencere çalışıyor), kilit ekranında oynatma kontrolleri görünüyor.
 - Uçak modunda içerik aç → "Yayın başlatılamadı. Lütfen tekrar dene." (İngilizce metin yok).
 - Yerelde sadece `./gradlew compileDebugKotlin` çalıştır; APK üretme. Test edemediğini "test edilemedi" yaz.
