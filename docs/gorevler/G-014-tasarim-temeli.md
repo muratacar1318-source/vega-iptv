@@ -59,4 +59,23 @@ madde 3'teki "vurgu üstü metin rengi" değişikliği yapılır.
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılanlar:**
+  1. `app/src/main/java/com/tivimax/player/ui/design/VegaDesign.kt` oluşturuldu:
+     - `VegaColors`: `docs/TASARIM-KURALLARI.md` ile birebir uyumlu dinamik getter'lar (`Accent`, `Danger`, `Live`, `Gold`, `Success`, `Background`, `Surface`, `SurfaceVariant`, `Card`, `Border`, `TextPrimary`, `TextSecondary`, `TextMuted`, `OverlayPanel`, `OverlayPill`, `Scrim`, `OnAccent = Color.Black`).
+     - `VegaShapes`: 3 seviye + hap (`Small = 8.dp`, `Medium = 12.dp`, `Large = 16.dp`, `Pill = CircleShape`).
+     - `VegaSizes`: `ButtonHeight = 44.dp`, `ButtonHeightTv = 48.dp`, `MinTouch = 44.dp`, `IconButton = 44.dp`.
+     - `VegaText`: 6 yazı boyutu sabiti (22, 17, 15, 14, 13, 11 sp).
+  2. `app/src/main/java/com/tivimax/player/ui/design/VegaComponents.kt` oluşturuldu:
+     - `VegaButton`: 4 varyant (`PRIMARY`, `SECONDARY`, `DANGER`, `TEXT`), `LocalIsTvDevice.current` ile TV'de 48dp / telefonda 44dp, `Medium` (12dp) köşe, `dpadFocusable` desteği.
+     - `VegaIconButton`: 44dp dokunma alanı, 20dp ikon, `Pill` şekli, `onOverlay` (video üstü yarı saydam zemin) parametresi, `dpadFocusable`.
+     - `VegaChoiceChip`: Seçili/seçili değil stilleri (%18 Accent arka plan, Accent çerçeve ve yazı), `Small` (8dp) köşe, min 44dp yükseklik, `dpadFocusable`.
+     - `VegaSwitchRow`: Başlık, açıklama ve Accent renkli Material3 Switch, TV kumandasıyla satıra basıldığında durum değiştirme (`dpadFocusable`).
+     - `VegaSectionCard`: `Card` + `Large` (16dp) köşe + 1dp `Border` + 16dp iç dolgu.
+     - `@Preview` bileşen önizlemesi eklendi.
+  3. Tek vurgu rengi birleştirildi:
+     - `app/src/main/java/com/tivimax/player/theme/Color.kt` ve `Theme.kt` dosyalarında `TiviPrimary`, `TiviPrimaryDark` ve `TiviSecondary`, tüm temalarda (Ocean, Forest, Violet, Midnight) ilgili temanın cyan/vurgu rengine eşitlendi. `DarkColorScheme.onPrimary` `Color.Black` yapıldı.
+     - `TiviPrimary` zemin dolgusuyla beyaz metin kullanılan yerler (`CategoryManagementDialog.kt`, `LoginScreen.kt`, `PlayerScreen.kt`) `VegaColors.OnAccent` (siyah) olarak güncellendi.
+- **Test durumu:**
+  - `ui/design` tokenları ve bileşenleri oluşturuldu ve `@Preview` eklendi.
+  - Vurgu rengi ve vurgu üstü metin renkleri statik kod analizi ve diff kontrolleriyle doğrulandı.
+  - APK/cihaz çalıştırması kural gereği yapılmadı (derleme ve test CI tarafından otomatik doğrulanacak).

@@ -28,9 +28,9 @@ var TiviSurfaceVariant = Color(0xFF161D28)  // Yarı Vurgulu Yüzey
 var TiviCard = Color(0xFF0F141C)            // Standart Kart Rengi
 var TiviCardBorder = Color(0xFF1E2638)      // İnce Zarif Kart Çerçevesi
 
-var TiviPrimary = Color(0xFF6366F1)         // İndigo / Elektrik Mavisi Vurgu
-var TiviPrimaryDark = Color(0xFF4F46E5)     // Koyu İndigo
-var TiviSecondary = Color(0xFF6366F1)       // Standart İndigo Vurgu
+var TiviPrimary = Color(0xFF00E5FF)         // Tek Vurgu Rengi (Opus IPTV Neon Camgöbeği)
+var TiviPrimaryDark = Color(0xFF00E5FF)     // Koyu Vurgu
+var TiviSecondary = Color(0xFF00E5FF)       // Standart Vurgu
 var TiviAccentLive = Color(0xFFFF2A55)      // Canlı Yayın Kırmızısı
 var OpusCyan = Color(0xFF00E5FF)            // Opus IPTV Neon Camgöbeği
 var OpusPurple = Color(0xFF8B5CF6)          // Opus IPTV Neon Mor
@@ -45,7 +45,7 @@ val TiviGlassmorphism = Color(0x990F141C)
 
 object AppThemes {
     // 1. MIDNIGHT (Mevcut Orijinal OLED Tema)
-    val MidnightPrimary = Color(0xFF6366F1)
+    val MidnightPrimary = Color(0xFF00E5FF)
     val MidnightCyan = Color(0xFF00E5FF)
     val MidnightBackground = Color(0xFF000000)
     val MidnightSurface = Color(0xFF0F141C)
