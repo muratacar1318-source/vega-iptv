@@ -65,10 +65,11 @@ class MainActivity : ComponentActivity() {
             val deviceMode by viewModel.deviceMode.collectAsState()
             val currentScreen by viewModel.currentScreen.collectAsState()
             val inPip by viewModel.isInPipMode.collectAsState()
+            val isVideoFullscreen by viewModel.isVideoFullscreen.collectAsState()
 
             // Merkezi Yön ve Tam Ekran Yönetimi
-            LaunchedEffect(deviceMode, currentScreen, inPip) {
-                orientationManager.applyOrientation(deviceMode, currentScreen, inPip)
+            LaunchedEffect(deviceMode, currentScreen, inPip, isVideoFullscreen) {
+                orientationManager.applyOrientation(deviceMode, currentScreen, inPip, isVideoFullscreen)
             }
 
             val isTv = deviceMode == DeviceMode.TV
@@ -98,8 +99,33 @@ class MainActivity : ComponentActivity() {
                 orientationManager.applyOrientation(
                     viewModel.deviceMode.value,
                     viewModel.currentScreen.value,
-                    false
+                    false,
+                    viewModel.isVideoFullscreen.value
                 )
+            }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && ::viewModel.isInitialized && ::orientationManager.isInitialized) {
+            val isPlayer = viewModel.currentScreen.value is Screen.Player
+            val isFullscreen = isPlayer || viewModel.isVideoFullscreen.value
+            val isTv = viewModel.deviceMode.value == DeviceMode.TV
+            if (isFullscreen || isTv) {
+                orientationManager.setImmersiveMode(true)
+            }
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (::viewModel.isInitialized && ::orientationManager.isInitialized) {
+            val isPlayer = viewModel.currentScreen.value is Screen.Player
+            val isFullscreen = isPlayer || viewModel.isVideoFullscreen.value
+            val isTv = viewModel.deviceMode.value == DeviceMode.TV
+            if (isFullscreen || isTv) {
+                orientationManager.setImmersiveMode(true)
             }
         }
     }
@@ -166,7 +192,8 @@ class MainActivity : ComponentActivity() {
             orientationManager.applyOrientation(
                 viewModel.deviceMode.value,
                 viewModel.currentScreen.value,
-                viewModel.isInPipMode.value
+                viewModel.isInPipMode.value,
+                viewModel.isVideoFullscreen.value
             )
         }
         if (::viewModel.isInitialized && wasPlayingBeforeStop) {

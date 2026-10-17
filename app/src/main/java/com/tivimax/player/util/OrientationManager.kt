@@ -69,6 +69,27 @@ class OrientationManager(private val activity: Activity) {
     // Telefon modunda oynatıcı içindeyken kullanıcının elle dikey moda geçmesini sağlayan kilit durumu
     private var isPhonePlayerLockedPortrait: Boolean = false
 
+    @Volatile
+    private var immersiveWanted: Boolean = false
+
+    private val hideBarsRunnable = Runnable {
+        if (!immersiveWanted) return@Runnable
+        try {
+            val window = activity.window ?: return@Runnable
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        } catch (_: Exception) {}
+    }
+
+    private val hideBarsDelayedRunnable = Runnable {
+        if (!immersiveWanted) return@Runnable
+        try {
+            val window = activity.window ?: return@Runnable
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.hide(WindowInsetsCompat.Type.systemBars())
+        } catch (_: Exception) {}
+    }
+
     /**
      * Kullanıcının telefon modundayken video oynatıcıda dikey / yatay yön kilidini değiştirmesini sağlar.
      * @return Yeni durum: true ise dikey kilitli, false ise otomatik sensör yatay
@@ -85,11 +106,17 @@ class OrientationManager(private val activity: Activity) {
     /**
      * Ekran geçişlerinde, mod değişikliklerinde veya PiP durumlarında merkezi yönlendirmeyi uygular.
      */
-    fun applyOrientation(mode: DeviceMode, currentScreen: Screen, inPip: Boolean = false) {
+    fun applyOrientation(
+        mode: DeviceMode,
+        currentScreen: Screen,
+        inPip: Boolean = false,
+        isVideoFullscreen: Boolean = false
+    ) {
         // PiP modundayken yön zorlaması yapılmaz
         if (inPip) return
 
         val isPlayerScreen = currentScreen is Screen.Player
+        val isFullscreen = isPlayerScreen || isVideoFullscreen
 
         when (mode) {
             DeviceMode.PHONE -> {
@@ -100,19 +127,18 @@ class OrientationManager(private val activity: Activity) {
                     } else {
                         setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                     }
-                    setImmersiveMode(true)
                 } else {
-                    // Oynatıcıdan çıkıldı: Kesinlikle dikey moda dön ve sistem çubuklarını geri getir
+                    // Oynatıcıdan çıkıldı: Kesinlikle dikey moda dön
                     isPhonePlayerLockedPortrait = false
                     setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
-                    setImmersiveMode(false)
                 }
+                setImmersiveMode(isFullscreen)
             }
 
             DeviceMode.TABLET -> {
                 // Tablette yön serbest (FULL_SENSOR): Sistem otomatik döndürmesine saygılı 360° rotasyon
                 setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR)
-                setImmersiveMode(isPlayerScreen)
+                setImmersiveMode(isFullscreen)
             }
 
             DeviceMode.TV -> {
@@ -135,19 +161,33 @@ class OrientationManager(private val activity: Activity) {
      * Sistem çubuklarını gizler veya gösterir, çentik/cutout alanını tam ekrana dahil eder.
      */
     fun setImmersiveMode(enable: Boolean) {
+        immersiveWanted = enable
         try {
             val window = activity.window ?: return
-            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            val decorView = window.decorView
+            val insetsController = WindowCompat.getInsetsController(window, decorView)
             if (enable) {
+                decorView.removeCallbacks(hideBarsRunnable)
+                decorView.removeCallbacks(hideBarsDelayedRunnable)
+
                 insetsController.systemBarsBehavior =
                     WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    window.attributes.layoutInDisplayCutoutMode =
-                        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    window.attributes = window.attributes.apply {
+                        layoutInDisplayCutoutMode =
+                            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    }
                 }
+
+                // HyperOS / MIUI ve bazı cihazlarda yön değişimi sırasında çubukların geri gelmesini engellemek için
+                // decorView.post ile bir sonraki karede ve 300 ms sonra tekrar tetikle (sadece immersiveWanted == true ise)
+                decorView.post(hideBarsRunnable)
+                decorView.postDelayed(hideBarsDelayedRunnable, 300L)
             } else {
+                decorView.removeCallbacks(hideBarsRunnable)
+                decorView.removeCallbacks(hideBarsDelayedRunnable)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
         } catch (_: Exception) {}
