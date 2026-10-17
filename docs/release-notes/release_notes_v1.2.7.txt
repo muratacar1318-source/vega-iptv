@@ -24,8 +24,24 @@
 2. **Tam Ekran Zapping Stale Stream ID Hatası:**
    - Peş peşe zapping sırasında eski kanal ID'sinin takılı kalması düzeltildi, dinamik `activeChannel` referansı bağlandı.
 
+### 📱 Mobil & Tablet Dikey Kategori Navigasyonu ve Sayfa Optimizasyonları:
+1. **Esnek Dikey Kategori Gezinme Düzeni (Film & Dizi):**
+   - Kullanıcının isteğine göre tek dokunuşla ve Ayarlar'dan değiştirilebilen 3 farklı kategori gezinme stili:
+     - **Yatay Çipler (Tam Ekran):** Ekran genişliğinin %100'ü poster ızgarasına ayrılır, üstte otomatik kayan kategori çipleri ve sayaç rozetleri yer alır.
+     - **Klasik Sol Panel:** Solda sabit kategori sütunu ve sağda posterler (özellikle tablet/yatay kullanım için).
+     - **Kompakt Açılır Menü:** Tek satırlık minimal başlık ve arama filtreli BottomSheet.
+   - Film ve Dizi ekranlarının üst barına anlık hızlı geçiş butonu (`CategoryNavStyleToggleButton`) eklendi.
+2. **Dikey Ekran Sıkışması ve Oran Düzeltmesi:**
+   - Telefondaki %31'lik sabit kategori sütununun posterleri ~75dp'ye sıkıştırması sorunu giderildi; poster kart genişlikleri ve metin okunabilirliği ferahlatıldı.
+3. **Alt Bar Örtüşme Koruması (Bottom Navigation Padding):**
+   - Film, Dizi, Canlı TV ve Favoriler ekranlarında alt gezinme çubuğunun son sıradaki içerikleri kapatmaması için `96dp` alt dolgu standardı uygulandı.
+4. **Ayarlar Entegrasyonu:**
+   - `SettingsScreen` > `Görünüm ve Altyazı` sekmesine D-Pad ve dokunmatik uyumlu "Dikey Kategori Gezinme Düzeni" seçenekleri eklendi.
+
 ### 🛠️ Altyapı & Derleme:
 1. **Dinamik Keystore İmzası:**
    - `keystore.properties` yapılandırması eklendi; release anahtarı varsa otomatik kullanılır, yoksa debug anahtarına güvenli fallback yapılır.
 2. **Sürüm Güncellemesi:**
    - Sürüm `v1.2.7` (versionCode `49`) olarak güncellendi.
+   - R8 optimizasyonlu küçültülmüş ve optimize edilmiş release APK üretildi (`app-release.apk`, 16.49 MB).
+
