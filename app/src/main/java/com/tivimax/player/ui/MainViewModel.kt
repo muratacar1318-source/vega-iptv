@@ -1905,7 +1905,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun runSpeedTest() {
         viewModelScope.launch {
             isTestingSpeed.value = true
-            speedTestResult.value = "Sunucuya bağlanılıyor..."
+            speedTestResult.value = "Ölçülüyor…"
 
             withContext(Dispatchers.IO) {
                 try {
@@ -1919,9 +1919,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val resp = client.newCall(req).execute()
                     val ping = System.currentTimeMillis() - startTime
 
-                    speedTestResult.value = "Ping: ${ping}ms | Sunucu Yanıtı: ${resp.code} (Hızlı ve Erişilebilir)"
+                    val quality = when {
+                        ping < 150 -> "Bağlantı iyi (gecikme $ping ms)"
+                        ping < 400 -> "Bağlantı orta (gecikme $ping ms)"
+                        else -> "Bağlantı yavaş (gecikme $ping ms)"
+                    }
+                    speedTestResult.value = quality
                 } catch (e: Exception) {
-                    speedTestResult.value = "Hız testi hatası: ${e.localizedMessage}"
+                    android.util.Log.w("MainViewModel", "Speed test failed", e)
+                    speedTestResult.value = "Bağlantı kurulamadı. İnternetini kontrol et."
                 } finally {
                     isTestingSpeed.value = false
                 }

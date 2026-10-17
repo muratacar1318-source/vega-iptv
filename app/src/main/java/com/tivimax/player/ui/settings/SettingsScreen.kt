@@ -3,7 +3,6 @@ package com.tivimax.player.ui.settings
 import android.content.Context
 import android.content.res.Configuration
 import android.widget.Toast
-import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -46,19 +45,15 @@ import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.CategoryManagementDialog
 import com.tivimax.player.ui.components.dpadFocusable
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 import com.tivimax.player.util.DeviceMode
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
 
 enum class SettingsSection(val title: String, val icon: ImageVector, val subtitle: String) {
-    ACCOUNT("Hesap ve Liste", Icons.Default.AccountCircle, "Sunucu, hesap ve liste güncelleme"),
-    PLAYER("Oynatıcı ve Kodek", Icons.Default.Tune, "Video çözücü, tampon (buffer) & PiP"),
-    APPEARANCE("Görünüm ve Altyazı", Icons.Default.Subtitles, "Altyazı boyutu, rengi & kategoriler"),
-    DEVICE_MODE("Cihaz Modu", Icons.Default.Tv, "Telefon, Tablet ve TV çalışma düzeni"),
-    PARENTAL("Ebeveyn Kontrolü", Icons.Default.Security, "+18 içerik kilidi & PIN kodu & HTTPS"),
-    BACKUP_APP("Yedekleme ve Uygulama", Icons.Default.Backup, "Yedekle, önbellek, hız testi & sürüm")
+    ACCOUNT("Hesabım", Icons.Default.AccountCircle, "Abonelik bilgileri ve içerik listesi"),
+    PLAYER("Oynatıcı", Icons.Default.Tune, "Ses ve altyazı dili, görüntü ve akıcılık"),
+    APPEARANCE("Görünüm", Icons.Default.Subtitles, "Tema, kanal listesi ve altyazı görünümü"),
+    DEVICE_MODE("Cihaz Türü", Icons.Default.Tv, "Telefon, tablet veya TV düzeni"),
+    PARENTAL("Ebeveyn Kilidi", Icons.Default.Security, "Yetişkin içerikleri şifreyle kilitle"),
+    BACKUP_APP("Güncelleme ve Bakım", Icons.Default.Backup, "Güncellemeler, bağlantı testi ve sürüm bilgisi")
 }
 
 @Composable
@@ -67,11 +62,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val speedTestResult by viewModel.speedTestResult.collectAsState()
     val isTestingSpeed by viewModel.isTestingSpeed.collectAsState()
 
-    val streamFormat by viewModel.preferences.streamFormatFlow.collectAsState(initial = "TS")
-    val fastZapping by viewModel.preferences.fastZappingFlow.collectAsState(initial = true)
     val defaultAspectRatio by viewModel.preferences.aspectRatioFlow.collectAsState(initial = "FIT")
     val serverUrl by viewModel.preferences.serverUrlFlow.collectAsState(initial = AppConfig.DEFAULT_SERVER_URL)
-    val autoSyncLive by viewModel.autoSyncLive.collectAsState()
     val autoPipEnabled by viewModel.autoPipEnabled.collectAsState()
     val vodBufferSeconds by viewModel.vodBufferSeconds.collectAsState()
     val liveBufferSeconds by viewModel.liveBufferSeconds.collectAsState()
@@ -117,7 +109,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     ) {
                         Icon(imageVector = Icons.Default.Settings, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(22.dp))
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text(text = "AYARLAR", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                        Text(text = "Ayarlar", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -189,11 +181,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         decoderMode = decoderMode,
                         defaultAspectRatio = defaultAspectRatio,
                         autoPipEnabled = autoPipEnabled,
-                        streamFormat = streamFormat,
                         liveBufferSeconds = liveBufferSeconds,
                         vodBufferSeconds = vodBufferSeconds,
-                        fastZapping = fastZapping,
-                        autoSyncLive = autoSyncLive,
                         serverUrl = serverUrl,
                         subtitleSize = subtitleSize,
                         subtitleColor = subtitleColor,
@@ -233,7 +222,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     ) {
                         Icon(imageVector = Icons.Default.Settings, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(24.dp))
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text(text = "AYARLAR", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                        Text(text = "Ayarlar", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                     }
 
                     SettingsSection.values().forEach { section ->
@@ -361,11 +350,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             decoderMode = decoderMode,
                             defaultAspectRatio = defaultAspectRatio,
                             autoPipEnabled = autoPipEnabled,
-                            streamFormat = streamFormat,
                             liveBufferSeconds = liveBufferSeconds,
                             vodBufferSeconds = vodBufferSeconds,
-                            fastZapping = fastZapping,
-                            autoSyncLive = autoSyncLive,
                             serverUrl = serverUrl,
                             subtitleSize = subtitleSize,
                             subtitleColor = subtitleColor,
@@ -397,11 +383,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
         AlertDialog(
             onDismissRequest = { showPinDialog = false },
             containerColor = TiviSurface,
-            title = { Text("Yeni PIN Kodu Belirle", color = TiviTextPrimary, fontWeight = FontWeight.Bold) },
+            title = { Text("Yeni şifre", color = TiviTextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     Text(
-                        text = "Yetişkin kategorileri korumak için 4 haneli yeni PIN kodunuzu girin:",
+                        text = "4 haneli yeni şifreyi gir.",
                         color = TiviTextSecondary,
                         fontSize = 13.sp
                     )
@@ -409,7 +395,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     OutlinedTextField(
                         value = newPinInput,
                         onValueChange = { if (it.length <= 4) newPinInput = it },
-                        placeholder = { Text("Örn: 1234") },
+                        placeholder = { Text("••••") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -428,7 +414,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         if (newPinInput.length == 4) {
                             scope.launch {
                                 viewModel.preferences.setParentalPin(newPinInput)
-                                pinSuccessMessage = "PIN kodu başarıyla güncellendi."
+                                pinSuccessMessage = "Şifre güncellendi."
                                 showPinDialog = false
                                 newPinInput = ""
                             }
@@ -466,11 +452,8 @@ private fun RenderSelectedSection(
     decoderMode: String,
     defaultAspectRatio: String,
     autoPipEnabled: Boolean,
-    streamFormat: String,
     liveBufferSeconds: Int,
     vodBufferSeconds: Int,
-    fastZapping: Boolean,
-    autoSyncLive: Boolean,
     serverUrl: String,
     subtitleSize: String,
     subtitleColor: String,
@@ -513,10 +496,9 @@ private fun RenderSelectedSection(
         }
 
         // ==========================================
-        // 2. OYNATICI VE KODEK
+        // 2. OYNATICI
         // ==========================================
         SettingsSection.PLAYER -> {
-            val playerEngine by viewModel.playerEngine.collectAsState()
             val defaultAudioLang by viewModel.defaultAudioLang.collectAsState()
             val defaultSubtitleLang by viewModel.defaultSubtitleLang.collectAsState()
 
@@ -526,66 +508,10 @@ private fun RenderSelectedSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    // OYNATICI MOTORU SEÇİMİ (ExoPlayer / LibVLC / Harici)
-                    Text(text = "Oynatıcı Motoru (Player Engine)", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    // Tercih Edilen Ses Dili
+                    Text(text = "Tercih edilen ses dili", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = when (playerEngine) {
-                            "VLC" -> "LibVLC Motoru aktif (Gelişmiş codec desteği ve bozuk yayın uyumluluğu)"
-                            "EXTERNAL_VLC" -> "Harici Oynatıcı aktif (Videolar cihazdaki VLC/MX Player uygulamasında açılır)"
-                            else -> "ExoPlayer + FFmpeg aktif (Anında kanal zapping ve düşük gecikme)"
-                        },
-                        color = TiviTextSecondary,
-                        fontSize = 11.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                    ) {
-                        listOf(
-                            "EXOPLAYER" to "ExoPlayer (Media3)",
-                            "VLC" to "VLC (LibVLC)",
-                            "EXTERNAL_VLC" to "Harici VLC"
-                        ).forEach { (engine, label) ->
-                            val isSelected = playerEngine == engine
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
-                                border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
-                                modifier = Modifier
-                                    .dpadFocusable(
-                                        focusedBorderColor = OpusCyan,
-                                        shape = RoundedCornerShape(10.dp),
-                                        onClick = {
-                                            scope.launch { viewModel.preferences.setPlayerEngine(engine) }
-                                            Toast.makeText(context, "Oynatıcı motoru: $label", Toast.LENGTH_SHORT).show()
-                                        }
-                                    )
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                    fontSize = 11.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
-
-                    // VARSAYILAN SES DİLİ SEÇİMİ
-                    Text(text = "Varsayılan Ses Dili", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Çok dilli yayınlarda öncelikli tercih edilecek ses dili", color = TiviTextSecondary, fontSize = 11.sp)
+                    Text(text = "Birden fazla dili olan yayınlarda önce bu dil açılır.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -600,7 +526,7 @@ private fun RenderSelectedSection(
                                     shape = RoundedCornerShape(10.dp),
                                     onClick = {
                                         scope.launch { viewModel.preferences.setDefaultAudioLang(langCode) }
-                                        Toast.makeText(context, "Varsayılan Ses: $label", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Tercih edilen ses dili: $label", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             ) {
@@ -617,10 +543,10 @@ private fun RenderSelectedSection(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // VARSAYILAN ALTYAZI DİLİ SEÇİMİ
-                    Text(text = "Varsayılan Altyazı Dili", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    // Tercih Edilen Altyazı Dili
+                    Text(text = "Tercih edilen altyazı dili", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Gömülü altyazılarda öncelikli otomatik açılacak altyazı dili", color = TiviTextSecondary, fontSize = 11.sp)
+                    Text(text = "Altyazısı olan içeriklerde kendiliğinden açılacak dil.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -635,7 +561,7 @@ private fun RenderSelectedSection(
                                     shape = RoundedCornerShape(10.dp),
                                     onClick = {
                                         scope.launch { viewModel.preferences.setDefaultSubtitleLang(langCode) }
-                                        Toast.makeText(context, "Varsayılan Altyazı: $label", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Tercih edilen altyazı dili: $label", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             ) {
@@ -652,18 +578,18 @@ private fun RenderSelectedSection(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    Text(text = "Video Çözücü (Decoder)", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    // Görüntü İşleme
+                    Text(text = "Görüntü işleme", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (decoderMode == "HARDWARE") "Donanım hızlandırma aktif (GPU gücü kullanılır, akıcı oynatım)"
-                        else "Yazılım çözücü aktif (Eski cihazlarda ve özel kodeklerde donmayı önler)",
+                        text = "Görüntü takılıyor, renkler bozuk ya da ekran siyah kalıyorsa 'Uyumlu'yu dene.",
                         color = TiviTextSecondary,
                         fontSize = 11.sp
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                        listOf("HARDWARE" to "Donanım (GPU) [Önerilen]", "SOFTWARE" to "Yazılım (CPU)").forEach { (mode, label) ->
+                        listOf("HARDWARE" to "Hızlı (önerilen)", "SOFTWARE" to "Uyumlu").forEach { (mode, label) ->
                             val isSelected = decoderMode == mode
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
@@ -676,7 +602,8 @@ private fun RenderSelectedSection(
                                         shape = RoundedCornerShape(10.dp),
                                         onClick = {
                                             viewModel.setDecoderMode(mode)
-                                            Toast.makeText(context, if (mode == "HARDWARE") "Donanım hızlandırma (GPU) seçildi" else "Yazılım çözücü seçildi", Toast.LENGTH_SHORT).show()
+                                            val toastVal = if (mode == "HARDWARE") "Hızlı" else "Uyumlu"
+                                            Toast.makeText(context, "Görüntü işleme: $toastVal", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                             ) {
@@ -685,7 +612,8 @@ private fun RenderSelectedSection(
                                     color = if (isSelected) OpusCyan else TiviTextSecondary,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp)
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -693,13 +621,17 @@ private fun RenderSelectedSection(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // Canlı TV Tampon Süresi
-                    Text(text = "Canlı TV Tampon Süresi (Buffer)", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    // Canlı Yayın Ön Yükleme
+                    Text(text = "Canlı yayın ön yükleme", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Zayıf internette takılmayı önlemek için tampon süresini artırın.", color = TiviTextSecondary, fontSize = 11.sp)
+                    Text(text = "İnternetin zayıfsa artır: kanal biraz geç açılır ama daha az takılır.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        listOf(2 to "2s (Düşük Gecikme)", 5 to "5s (Önerilen)", 10 to "10s (Kararlı)").forEach { (secs, label) ->
+                        listOf(
+                            2 to "2 sn (hızlı açılış)",
+                            5 to "5 sn (önerilen)",
+                            10 to "10 sn (en az takılma)"
+                        ).forEach { (secs, label) ->
                             val isSelected = liveBufferSeconds == secs
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
@@ -712,7 +644,7 @@ private fun RenderSelectedSection(
                                         shape = RoundedCornerShape(10.dp),
                                         onClick = {
                                             viewModel.setLiveBufferSeconds(secs)
-                                            Toast.makeText(context, "Canlı tampon: $secs sn", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Canlı yayın ön yükleme: $secs sn", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                             ) {
@@ -721,7 +653,8 @@ private fun RenderSelectedSection(
                                     color = if (isSelected) OpusCyan else TiviTextSecondary,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -729,10 +662,10 @@ private fun RenderSelectedSection(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // Film & Dizi Tampon Süresi
-                    Text(text = "Film & Dizi Tamponu (VOD Buffer)", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    // Film ve Dizi Ön Yükleme
+                    Text(text = "Film ve dizi ön yükleme", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "İleri/Geri sararken takılmaması için önbellek: ${vodBufferSeconds}s", color = OpusCyan, fontSize = 11.sp)
+                    Text(text = "Takılma oluyorsa artır.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         items(listOf(30, 60, 90, 120, 180)) { secs ->
@@ -746,12 +679,12 @@ private fun RenderSelectedSection(
                                     shape = RoundedCornerShape(10.dp),
                                     onClick = {
                                         viewModel.setVodBufferSeconds(secs)
-                                        Toast.makeText(context, "VOD tampon: $secs sn", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Film ve dizi ön yükleme: $secs sn", Toast.LENGTH_SHORT).show()
                                     }
                                 )
                             ) {
                                 Text(
-                                    text = if (secs == 60) "60s (Önerilen)" else "${secs}s",
+                                    text = if (secs == 60) "60 sn (önerilen)" else "$secs sn",
                                     color = if (isSelected) OpusCyan else TiviTextSecondary,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
@@ -763,15 +696,19 @@ private fun RenderSelectedSection(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // Otomatik PiP & Hızlı Zapping
+                    // Küçük Pencerede Devam Et (PiP)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Arka Planda Küçük Pencere (PiP)", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            Text(text = if (autoPipEnabled) "Uygulama arka plana atıldığında otomatik küçük pencereye geçer" else "PiP özelliği kapalı", color = TiviTextSecondary, fontSize = 11.sp)
+                            Text(text = "Küçük pencerede devam et", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = if (autoPipEnabled) "Uygulamadan çıkınca video köşede küçük pencerede oynamaya devam eder." else "Kapalı.",
+                                color = TiviTextSecondary,
+                                fontSize = 11.sp
+                            )
                         }
                         Switch(
                             checked = autoPipEnabled,
@@ -780,32 +717,15 @@ private fun RenderSelectedSection(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Hızlı Kanal Açılışı", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            Text(text = if (fastZapping) "0.8s ultra hızlı kanal geçişi aktif" else "Standart tamponlama aktif", color = TiviTextSecondary, fontSize = 11.sp)
-                        }
-                        Switch(
-                            checked = fastZapping,
-                            onCheckedChange = { checked -> scope.launch { viewModel.preferences.setFastZapping(checked) } },
-                            colors = SwitchDefaults.colors(checkedThumbColor = OpusCyan, checkedTrackColor = OpusCyan.copy(alpha = 0.35f))
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Ekran Oranı
-                    Text(text = "Varsayılan Ekran Oranı", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    Text(text = "Oynatıcı açıldığında videonun ekrana nasıl sığdırılacağını belirler", color = TiviTextSecondary, fontSize = 11.sp)
+                    // Görüntü Boyutu
+                    Text(text = "Görüntü boyutu", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = "Video ekrana nasıl sığdırılsın.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        listOf("FIT" to "Fit (Orijinal)", "FILL" to "Doldur", "ZOOM" to "Yakınlaştır", "16:9" to "16:9").forEach { (mode, label) ->
+                        listOf("FIT" to "Orijinal", "FILL" to "Doldur", "ZOOM" to "Yakınlaştır", "16:9" to "16:9").forEach { (mode, label) ->
                             val isSelected = defaultAspectRatio == mode
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
@@ -826,6 +746,7 @@ private fun RenderSelectedSection(
                                                     else -> AspectRatioMode.FIT
                                                 }
                                                 viewModel.playerManager.setAspectRatio(enumMode)
+                                                Toast.makeText(context, "Görüntü boyutu: $label", Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     )
@@ -835,7 +756,8 @@ private fun RenderSelectedSection(
                                     color = if (isSelected) OpusCyan else TiviTextSecondary,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 7.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 7.dp),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -845,7 +767,7 @@ private fun RenderSelectedSection(
         }
 
         // ==========================================
-        // 3. GÖRÜNÜM VE ALTYAZI
+        // 3. GÖRÜNÜM
         // ==========================================
         SettingsSection.APPEARANCE -> {
             Card(
@@ -854,23 +776,23 @@ private fun RenderSelectedSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    // Canlı TV Düzeni Seçimi (Raf Düzeni vs Klasik Düzen)
+                    // Canlı TV Görünümü
                     val liveLayoutMode by viewModel.liveLayoutMode.collectAsState()
-                    Text(text = "Canlı TV Düzeni", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Canlı yayın ekranının görünüm ve gezinme düzeni", color = TiviTextSecondary, fontSize = 11.sp)
+                    Text(text = "Canlı TV görünümü", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Canlı yayın ekranının görünüm düzeni.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // 1. Raf Düzeni (Netflix Tarzı)
+                        // 1. Raflar
                         val isShelfSelected = liveLayoutMode == UserPreferences.LIVE_LAYOUT_SHELF
                         Surface(
                             onClick = {
                                 scope.launch {
                                     viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_SHELF)
-                                    Toast.makeText(context, "Canlı TV düzeni: Raf Düzeni seçildi", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Canlı TV görünümü: Raflar", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
@@ -884,7 +806,7 @@ private fun RenderSelectedSection(
                                     onClick = {
                                         scope.launch {
                                             viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_SHELF)
-                                            Toast.makeText(context, "Canlı TV düzeni: Raf Düzeni seçildi", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Canlı TV görünümü: Raflar", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 )
@@ -906,7 +828,7 @@ private fun RenderSelectedSection(
                                         onClick = {
                                             scope.launch {
                                                 viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_SHELF)
-                                                Toast.makeText(context, "Canlı TV düzeni: Raf Düzeni seçildi", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Canlı TV görünümü: Raflar", Toast.LENGTH_SHORT).show()
                                             }
                                         },
                                         colors = RadioButtonDefaults.colors(selectedColor = OpusCyan)
@@ -914,14 +836,14 @@ private fun RenderSelectedSection(
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Raf Düzeni",
+                                    text = "Raflar",
                                     color = if (isShelfSelected) Color.White else TiviTextPrimary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Kanalları kategorilere göre yatay raflarda göster (Netflix tarzı)",
+                                    text = "Kanallar kategorilere göre yan yana kaydırılan satırlarda",
                                     color = if (isShelfSelected) OpusCyan.copy(alpha = 0.9f) else TiviTextSecondary,
                                     fontSize = 10.5.sp,
                                     lineHeight = 14.sp
@@ -929,13 +851,13 @@ private fun RenderSelectedSection(
                             }
                         }
 
-                        // 2. Klasik Düzen
+                        // 2. Liste
                         val isClassicSelected = liveLayoutMode == UserPreferences.LIVE_LAYOUT_CLASSIC
                         Surface(
                             onClick = {
                                 scope.launch {
                                     viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_CLASSIC)
-                                    Toast.makeText(context, "Canlı TV düzeni: Klasik Düzen seçildi", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Canlı TV görünümü: Liste", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
@@ -949,7 +871,7 @@ private fun RenderSelectedSection(
                                     onClick = {
                                         scope.launch {
                                             viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_CLASSIC)
-                                            Toast.makeText(context, "Canlı TV düzeni: Klasik Düzen seçildi", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Canlı TV görünümü: Liste", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 )
@@ -971,7 +893,7 @@ private fun RenderSelectedSection(
                                         onClick = {
                                             scope.launch {
                                                 viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_CLASSIC)
-                                                Toast.makeText(context, "Canlı TV düzeni: Klasik Düzen seçildi", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Canlı TV görünümü: Liste", Toast.LENGTH_SHORT).show()
                                             }
                                         },
                                         colors = RadioButtonDefaults.colors(selectedColor = OpusCyan)
@@ -979,14 +901,14 @@ private fun RenderSelectedSection(
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Klasik Düzen",
+                                    text = "Liste",
                                     color = if (isClassicSelected) Color.White else TiviTextPrimary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Kategori çipleri ve kompakt kanal listesi",
+                                    text = "Kategoriler üstte, kanallar altta liste halinde",
                                     color = if (isClassicSelected) OpusCyan.copy(alpha = 0.9f) else TiviTextSecondary,
                                     fontSize = 10.5.sp,
                                     lineHeight = 14.sp
@@ -997,12 +919,12 @@ private fun RenderSelectedSection(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // Dikey Kategori Navigasyon Stili (Film & Dizi)
+                    // Film ve Dizi Kategorileri (Telefon)
                     val portraitNavStyle by viewModel.portraitCategoryNavStyle.collectAsState()
-                    Text(text = "Dikey Kategori Gezinme Düzeni", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Film ve dizi kategorileri (telefon)", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Dikey (telefon/tablet) modda Film ve Dizi ekranlarında kategori gezinme biçimini belirleyin.",
+                        text = "Telefonda film ve dizi kategorilerinin nasıl gösterileceği.",
                         color = TiviTextSecondary,
                         fontSize = 11.sp
                     )
@@ -1013,15 +935,15 @@ private fun RenderSelectedSection(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         listOf(
-                            Triple(UserPreferences.PORTRAIT_CAT_NAV_CHIPS, "Yatay Çipler", "Geniş afiş ızgarası, üstte kayan çipler"),
-                            Triple(UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR, "Sol Panel", "Klasik bölünmüş ekran ve dikey liste"),
-                            Triple(UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN, "Kompakt Menü", "Minimal başlık ve açılır menü")
+                            Triple(UserPreferences.PORTRAIT_CAT_NAV_CHIPS, "Üstte kaydırmalı", "Kategoriler üstte, afişler altta"),
+                            Triple(UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR, "Yan panel", "Kategoriler solda liste halinde"),
+                            Triple(UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN, "Açılır menü", "Kategoriler tek bir menüde, ekranda daha çok yer kalır")
                         ).forEach { (style, label, desc) ->
                             val isSelected = portraitNavStyle == style
                             Surface(
                                 onClick = {
                                     viewModel.setPortraitCategoryNavStyle(style)
-                                    Toast.makeText(context, "Kategori Düzeni: $label", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Kategori görünümü: $label", Toast.LENGTH_SHORT).show()
                                 },
                                 shape = RoundedCornerShape(12.dp),
                                 color = if (isSelected) OpusCyan.copy(alpha = 0.16f) else TiviSurfaceVariant,
@@ -1033,7 +955,7 @@ private fun RenderSelectedSection(
                                         shape = RoundedCornerShape(12.dp),
                                         onClick = {
                                             viewModel.setPortraitCategoryNavStyle(style)
-                                            Toast.makeText(context, "Kategori Düzeni: $label", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Kategori görünümü: $label", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                             ) {
@@ -1057,7 +979,7 @@ private fun RenderSelectedSection(
                                             selected = isSelected,
                                             onClick = {
                                                 viewModel.setPortraitCategoryNavStyle(style)
-                                                Toast.makeText(context, "Kategori Düzeni: $label", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Kategori görünümü: $label", Toast.LENGTH_SHORT).show()
                                             },
                                             colors = RadioButtonDefaults.colors(selectedColor = OpusCyan),
                                             modifier = Modifier.size(20.dp)
@@ -1088,8 +1010,9 @@ private fun RenderSelectedSection(
 
                     // Tema Seçimi
                     val appTheme by viewModel.appTheme.collectAsState()
-                    Text(text = "Uygulama Teması", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Arayüz renk paletini kişiselleştirin", color = TiviTextSecondary, fontSize = 11.sp)
+                    Text(text = "Renk teması", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "Uygulamanın renklerini seç.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
@@ -1113,36 +1036,51 @@ private fun RenderSelectedSection(
                                     .dpadFocusable(
                                         focusedBorderColor = OpusCyan,
                                         shape = RoundedCornerShape(10.dp),
-                                        onClick = { scope.launch { viewModel.preferences.setAppTheme(key) } }
+                                        onClick = {
+                                            scope.launch { viewModel.preferences.setAppTheme(key) }
+                                            Toast.makeText(context, "Renk teması: $label", Toast.LENGTH_SHORT).show()
+                                        }
                                     )
                             ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                    fontSize = 11.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    softWrap = false,
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                                    textAlign = TextAlign.Center
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clickable {
+                                            scope.launch { viewModel.preferences.setAppTheme(key) }
+                                            Toast.makeText(context, "Renk teması: $label", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 9.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) OpusCyan else TiviTextSecondary,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    Text(text = "Altyazı Boyutu", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Desteklenen filmlerde altyazıların görünüm punto boyutu", color = TiviTextSecondary, fontSize = 11.sp)
+                    // Altyazı Boyutu
+                    Text(text = "Altyazı boyutu", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "Tüm içeriklerde altyazıların büyüklüğü.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    val currentSpInt = when (subtitleSize) {
-                        "KUCUK" -> 14
-                        "ORTA" -> 18
-                        "BUYUK" -> 22
-                        "COK_BUYUK" -> 26
-                        else -> subtitleSize.toIntOrNull() ?: 18
+                    val currentNorm = when (subtitleSize) {
+                        "KUCUK" -> "14"
+                        "ORTA" -> "18"
+                        "BUYUK" -> "22"
+                        "COK_BUYUK" -> "26"
+                        else -> subtitleSize
                     }
+                    val previewSp = currentNorm.toFloatOrNull() ?: 18f
 
                     Card(
                         shape = RoundedCornerShape(12.dp),
@@ -1150,100 +1088,75 @@ private fun RenderSelectedSection(
                         border = BorderStroke(1.dp, TiviCardBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(vertical = 14.dp, horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                            Text(
+                                text = "Örnek altyazı",
+                                color = when (subtitleColor) {
+                                    "SARI" -> Color(0xFFFFD700)
+                                    "YESIL" -> Color(0xFF00E676)
+                                    "MAVI" -> Color(0xFF40C4FF)
+                                    else -> Color.White
+                                },
+                                fontSize = (previewSp * 0.85f).sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val sizeOptions = listOf(
+                        "14" to "Küçük (14)",
+                        "18" to "Orta (18)",
+                        "22" to "Büyük (22)",
+                        "26" to "Çok büyük (26)"
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        sizeOptions.forEach { (sizeVal, label) ->
+                            val isSelected = currentNorm == sizeVal
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
+                                border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .dpadFocusable(
+                                        focusedBorderColor = OpusCyan,
+                                        shape = RoundedCornerShape(10.dp),
+                                        onClick = {
+                                            viewModel.setSubtitleSize(sizeVal)
+                                            Toast.makeText(context, "Altyazı boyutu: $label", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
                             ) {
-                                // "-" BUTONU (KÜÇÜLT)
-                                Surface(
-                                    onClick = {
-                                        val newSp = (currentSpInt - 2).coerceAtLeast(12)
-                                        scope.launch { viewModel.preferences.setSubtitleSize(newSp.toString()) }
-                                    },
-                                    enabled = currentSpInt > 12,
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (currentSpInt > 12) TiviCard else TiviCardBorder,
-                                    border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
+                                Box(
                                     modifier = Modifier
-                                        .size(44.dp)
-                                        .dpadFocusable(
-                                            focusedBorderColor = OpusCyan,
-                                            shape = RoundedCornerShape(10.dp),
-                                            onClick = {
-                                                val newSp = (currentSpInt - 2).coerceAtLeast(12)
-                                                scope.launch { viewModel.preferences.setSubtitleSize(newSp.toString()) }
-                                            }
-                                        )
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.setSubtitleSize(sizeVal)
+                                            Toast.makeText(context, "Altyazı boyutu: $label", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Remove,
-                                            contentDescription = "Küçült",
-                                            tint = if (currentSpInt > 12) OpusCyan else TiviTextMuted,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
-
-                                // ORTA: PUNTO GOSTERGECI & CANLI ÖNİZLEME
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = "$currentSpInt SP Punto",
-                                        color = OpusCyan,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.ExtraBold
+                                        text = label,
+                                        color = if (isSelected) OpusCyan else TiviTextSecondary,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "Örnek Altyazı Metni",
-                                        color = when (subtitleColor) {
-                                            "SARI" -> Color(0xFFFFD700)
-                                            "YESIL" -> Color(0xFF00E676)
-                                            "MAVI" -> Color(0xFF40C4FF)
-                                            else -> Color.White
-                                        },
-                                        fontSize = (currentSpInt * 0.8f).sp,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                }
-
-                                // "+" BUTONU (BÜYÜT)
-                                Surface(
-                                    onClick = {
-                                        val newSp = (currentSpInt + 2).coerceAtMost(36)
-                                        scope.launch { viewModel.preferences.setSubtitleSize(newSp.toString()) }
-                                    },
-                                    enabled = currentSpInt < 36,
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (currentSpInt < 36) TiviCard else TiviCardBorder,
-                                    border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .dpadFocusable(
-                                            focusedBorderColor = OpusCyan,
-                                            shape = RoundedCornerShape(10.dp),
-                                            onClick = {
-                                                val newSp = (currentSpInt + 2).coerceAtMost(36)
-                                                scope.launch { viewModel.preferences.setSubtitleSize(newSp.toString()) }
-                                            }
-                                        )
-                                ) {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = "Büyüt",
-                                            tint = if (currentSpInt < 36) OpusCyan else TiviTextMuted,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -1252,8 +1165,9 @@ private fun RenderSelectedSection(
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
                     // Altyazı Rengi
-                    Text(text = "Altyazı Metin Rengi", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Desteklenen filmlerde altyazıların görünüm rengi", color = TiviTextSecondary, fontSize = 11.sp)
+                    Text(text = "Altyazı rengi", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(text = "Altyazıların ekrandaki rengi.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1273,147 +1187,44 @@ private fun RenderSelectedSection(
                                     .dpadFocusable(
                                         focusedBorderColor = OpusCyan,
                                         shape = RoundedCornerShape(10.dp),
-                                        onClick = { scope.launch { viewModel.preferences.setSubtitleColor(key) } }
+                                        onClick = {
+                                            scope.launch { viewModel.preferences.setSubtitleColor(key) }
+                                            Toast.makeText(context, "Altyazı rengi: $label", Toast.LENGTH_SHORT).show()
+                                        }
                                     )
                             ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
-
-                    // Altyazı Gecikmesi (0..5000 ms, 100 ms adımlı)
-                    val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
-                    val delaySeconds = subtitleDelayMs / 1000f
-                    val formattedDelay = String.format(Locale.getDefault(), "+%.1f sn", delaySeconds)
-
-                    Text(text = "Altyazı Gecikmesi", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Altyazıların ses ile senkronize olması için genel gecikme süresi (0 - 5.0 sn)", color = TiviTextSecondary, fontSize = 11.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = TiviSurfaceVariant),
-                        border = BorderStroke(1.dp, TiviCardBorder),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                // "-" Butonu
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (subtitleDelayMs > 0L) TiviCard else TiviCardBorder,
-                                    border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
+                                Box(
                                     modifier = Modifier
-                                        .size(44.dp)
-                                        .dpadFocusable(
-                                            focusedBorderColor = OpusCyan,
-                                            shape = RoundedCornerShape(10.dp),
-                                            onClick = {
-                                                viewModel.setSubtitleDelayMs(subtitleDelayMs - 100L)
-                                            }
-                                        )
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            scope.launch { viewModel.preferences.setSubtitleColor(key) }
+                                            Toast.makeText(context, "Altyazı rengi: $label", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Remove,
-                                            contentDescription = "Gecikmeyi Azalt",
-                                            tint = if (subtitleDelayMs > 0L) OpusCyan else TiviTextMuted,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
-
-                                // Orta: Değer Göstergesi ve Sıfırla
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        text = "$formattedDelay (${subtitleDelayMs} ms)",
-                                        color = OpusCyan,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.ExtraBold
+                                        text = label,
+                                        color = if (isSelected) OpusCyan else TiviTextSecondary,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1
                                     )
-                                    if (subtitleDelayMs > 0L) {
-                                        Text(
-                                            text = "Sıfırla",
-                                            color = TiviGold,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier
-                                                .padding(top = 2.dp)
-                                                .clickable { viewModel.setSubtitleDelayMs(0L) }
-                                        )
-                                    }
-                                }
-
-                                // "+" Butonu
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (subtitleDelayMs < 5000L) TiviCard else TiviCardBorder,
-                                    border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .dpadFocusable(
-                                            focusedBorderColor = OpusCyan,
-                                            shape = RoundedCornerShape(10.dp),
-                                            onClick = {
-                                                viewModel.setSubtitleDelayMs(subtitleDelayMs + 100L)
-                                            }
-                                        )
-                                ) {
-                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = "Gecikmeyi Artır",
-                                            tint = if (subtitleDelayMs < 5000L) OpusCyan else TiviTextMuted,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
                                 }
                             }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Slider(
-                                value = subtitleDelayMs.toFloat(),
-                                onValueChange = { newVal ->
-                                    val rounded = (Math.round(newVal / 100f) * 100L).coerceIn(0L, 5000L)
-                                    viewModel.setSubtitleDelayMs(rounded)
-                                },
-                                valueRange = 0f..5000f,
-                                steps = 49,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = OpusCyan,
-                                    activeTrackColor = OpusCyan
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
                         }
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // Kategori Gizleme / Düzenleme Yönetimi
-                    Text(text = "Kategori Gizleme & Sıralama Yönetimi", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    // Kategorileri Düzenle
+                    Text(text = "Kategorileri düzenle", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Canlı TV, Film ve Dizi kategorilerinden istemediklerinizi gizleyin veya sık izlediklerinizi en üste sabitleyin.",
+                        text = "İstemediğin kategorileri gizle, sık izlediklerini en üste al.",
                         color = TiviTextSecondary,
-                        fontSize = 12.sp
+                        fontSize = 11.sp
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -1432,54 +1243,14 @@ private fun RenderSelectedSection(
                     ) {
                         Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Kategorileri Düzenle / Gizle", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-                    HorizontalDivider(color = TiviCardBorder)
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Cihaz Modu
-                    val currentDeviceMode by viewModel.deviceMode.collectAsState()
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text(text = "Cihaz Modu", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Mevcut: ${currentDeviceMode.badgeText}",
-                                color = OpusCyan,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = currentDeviceMode.description,
-                                color = TiviTextSecondary,
-                                fontSize = 11.sp
-                            )
-                        }
-                        Button(
-                            onClick = onOpenDeviceModeDialog,
-                            colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.dpadFocusable(
-                                focusedBorderColor = Color.White,
-                                shape = RoundedCornerShape(10.dp),
-                                onClick = onOpenDeviceModeDialog
-                            )
-                        ) {
-                            Text("Değiştir", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
+                        Text(text = "Kategorileri düzenle", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
         }
 
         // ==========================================
-        // 4. CİHAZ MODU VE EKRAN YÖNÜ
+        // 4. CİHAZ TÜRÜ
         // ==========================================
         SettingsSection.DEVICE_MODE -> {
             val activeDeviceMode by viewModel.deviceMode.collectAsState()
@@ -1503,8 +1274,8 @@ private fun RenderSelectedSection(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text(text = "Cihaz Modu ve Yön Yönetimi", color = TiviTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            Text(text = "Arayüzü ve ekran yönünü cihazınıza göre özelleştirin", color = TiviTextSecondary, fontSize = 11.sp)
+                            Text(text = "Cihaz türü", color = TiviTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Uygulamanın düzenini cihazına göre ayarla.", color = TiviTextSecondary, fontSize = 11.sp)
                         }
                     }
 
@@ -1523,7 +1294,7 @@ private fun RenderSelectedSection(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Aktif Seçim: ${activeDeviceMode.badgeText}",
+                                    text = "Şu an: ${activeDeviceMode.badgeText}",
                                     color = OpusCyan,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.ExtraBold
@@ -1541,9 +1312,9 @@ private fun RenderSelectedSection(
                                 contentColor = Color.Black
                             ) {
                                 Text(
-                                    text = "AKTİF",
+                                    text = "Aktif",
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
+                                    fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
@@ -1553,7 +1324,7 @@ private fun RenderSelectedSection(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Kullanmak İstediğiniz Cihaz Düzenini Seçin:",
+                        text = "Bir düzen seç:",
                         color = TiviTextPrimary,
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold
@@ -1578,7 +1349,7 @@ private fun RenderSelectedSection(
                             Surface(
                                 onClick = {
                                     viewModel.setDeviceMode(mode)
-                                    Toast.makeText(context, "Cihaz modu güncellendi: ${mode.badgeText}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Cihaz türü: ${mode.badgeText}", Toast.LENGTH_SHORT).show()
                                 },
                                 shape = RoundedCornerShape(14.dp),
                                 color = if (isSelected) OpusCyan.copy(alpha = 0.14f) else TiviSurfaceVariant,
@@ -1590,7 +1361,7 @@ private fun RenderSelectedSection(
                                         focusedBorderColor = OpusCyan,
                                         onClick = {
                                             viewModel.setDeviceMode(mode)
-                                            Toast.makeText(context, "Cihaz modu güncellendi: ${mode.badgeText}", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Cihaz türü: ${mode.badgeText}", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                             ) {
@@ -1655,11 +1426,11 @@ private fun RenderSelectedSection(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = TiviCardBorder)
 
-                    // Cihaz Seçimini Sıfırla (İlk Açılış Sihirbazını Yeniden Tetikleme)
-                    Text(text = "Cihaz Seçimini Sıfırla", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    // İlk Kurulum Ekranını Tekrar Göster
+                    Text(text = "İlk kurulum ekranını tekrar göster", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Uygulama açılışındaki 'Cihazını Seç' ekranını tekrar görüntülemek ve cihaz tespitini baştan çalıştırmak için sıfırlayabilirsiniz.",
+                        text = "Uygulama bir sonraki açılışta cihaz türünü yeniden sorar.",
                         color = TiviTextSecondary,
                         fontSize = 11.sp
                     )
@@ -1668,7 +1439,7 @@ private fun RenderSelectedSection(
                     OutlinedButton(
                         onClick = {
                             viewModel.resetDeviceMode()
-                            Toast.makeText(context, "Cihaz seçimi sıfırlandı. İlk kurulum ekranına yönlendiriliyorsunuz...", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "İlk kurulum ekranı sıfırlandı.", Toast.LENGTH_SHORT).show()
                         },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TiviAccentLive),
                         border = BorderStroke(1.2.dp, TiviAccentLive.copy(alpha = 0.7f)),
@@ -1681,20 +1452,20 @@ private fun RenderSelectedSection(
                                 shape = RoundedCornerShape(12.dp),
                                 onClick = {
                                     viewModel.resetDeviceMode()
-                                    Toast.makeText(context, "Cihaz seçimi sıfırlandı. İlk kurulum ekranına yönlendiriliyorsunuz...", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "İlk kurulum ekranı sıfırlandı.", Toast.LENGTH_SHORT).show()
                                 }
                             )
                     ) {
                         Icon(imageVector = Icons.Default.RestartAlt, contentDescription = null, tint = TiviAccentLive, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Cihaz Seçimini Sıfırla ve İlk Kuruluma Git", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(text = "Sıfırla", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
         }
 
         // ==========================================
-        // 4. EBEVEYN KONTROLÜ
+        // 5. EBEVEYN KİLİDİ
         // ==========================================
         SettingsSection.PARENTAL -> {
             Card(
@@ -1715,8 +1486,8 @@ private fun RenderSelectedSection(
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text(text = "Ebeveyn Kilidi (+18 Koruma)", color = TiviTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Text(text = "+18 yetişkin kanallar ve içerikler 4 haneli PIN ile kilitlenir", color = TiviTextSecondary, fontSize = 11.sp)
+                            Text(text = "Ebeveyn kilidi", color = TiviTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Yetişkin kategorilerini açmak için 4 haneli şifre istenir.", color = TiviTextSecondary, fontSize = 11.sp)
                         }
                     }
 
@@ -1742,38 +1513,11 @@ private fun RenderSelectedSection(
                         Icon(imageVector = Icons.Default.Password, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "4 Haneli Ebeveyn PIN Kodunu Değiştir",
+                            text = "Şifreyi değiştir",
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.5.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
-
-                    // Güvenli Bağlantı (HTTPS)
-                    val isHttps = serverUrl.startsWith("https://", ignoreCase = true)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Güvenli Bağlantı (HTTPS)", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            Text(text = if (isHttps) "Şifreli HTTPS bağlantısı aktif" else "Standart HTTP bağlantısı aktif", color = if (isHttps) TiviGreen else TiviGold, fontSize = 11.sp)
-                        }
-                        Switch(
-                            checked = isHttps,
-                            onCheckedChange = { checked ->
-                                val newUrl = if (checked) AppConfig.SERVER_URL_HTTPS else AppConfig.SERVER_URL_HTTP
-                                scope.launch {
-                                    viewModel.preferences.setServerUrl(newUrl)
-                                    viewModel.repository.serverUrl = newUrl
-                                    Toast.makeText(context, "Bağlantı güncellendi: $newUrl", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = SwitchDefaults.colors(checkedThumbColor = TiviGreen, checkedTrackColor = TiviGreen.copy(alpha = 0.35f))
                         )
                     }
                 }
@@ -1781,7 +1525,7 @@ private fun RenderSelectedSection(
         }
 
         // ==========================================
-        // 5. YEDEKLEME VE UYGULAMA
+        // 6. GÜNCELLEME VE BAKIM
         // ==========================================
         SettingsSection.BACKUP_APP -> {
             Card(
@@ -1790,89 +1534,40 @@ private fun RenderSelectedSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    Text(text = "Ayarları Yedekle ve Geri Yükle", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Tüm arabellek, çözücü ve görünüm ayarlarınızı cihazınıza yedekleyin.", color = TiviTextSecondary, fontSize = 11.sp)
-                    Spacer(modifier = Modifier.height(10.dp))
+                    // 1. Güncellemeleri Kontrol Et
+                    val isCheckingUpdate by viewModel.autoUpdateManager.isChecking.collectAsState()
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(
-                            onClick = {
-                                try {
-                                    val backupFile = File(context.filesDir, "vega_settings_backup.json")
-                                    val json = JSONObject().apply {
-                                        put("timestamp", System.currentTimeMillis())
-                                        put("version", "1.0.0")
-                                    }
-                                    backupFile.writeText(json.toString())
-                                    Toast.makeText(context, "Ayarlar ve tercihler başarıyla yedeklendi.", Toast.LENGTH_SHORT).show()
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Yedekleme hatası: ${e.message}", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .dpadFocusable(
-                                    focusedBorderColor = Color.White,
-                                    shape = RoundedCornerShape(10.dp),
-                                    onClick = {
-                                        val backupFile = File(context.filesDir, "vega_settings_backup.json")
-                                        val json = JSONObject().apply {
-                                            put("timestamp", System.currentTimeMillis())
-                                            put("version", "1.0.0")
-                                        }
-                                        backupFile.writeText(json.toString())
-                                        Toast.makeText(context, "Ayarlar ve tercihler başarıyla yedeklendi.", Toast.LENGTH_SHORT).show()
-                                    }
-                                )
-                        ) {
-                            Icon(imageVector = Icons.Default.Save, contentDescription = null, tint = Color.Black, modifier = Modifier.size(17.dp))
+                    Button(
+                        onClick = { viewModel.checkForUpdates(isManual = true) },
+                        enabled = !isCheckingUpdate,
+                        colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .dpadFocusable(
+                                focusedBorderColor = Color.White,
+                                shape = RoundedCornerShape(10.dp),
+                                onClick = { viewModel.checkForUpdates(isManual = true) }
+                            )
+                    ) {
+                        if (isCheckingUpdate) {
+                            CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Yedekle", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                val backupFile = File(context.filesDir, "vega_settings_backup.json")
-                                if (backupFile.exists()) {
-                                    Toast.makeText(context, "Yedeklenen ayarlar başarıyla geri yüklendi.", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Kayıtlı yedek bulunamadı. Önce yedekleme yapınız.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, TiviCardBorder),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .dpadFocusable(
-                                    focusedBorderColor = OpusCyan,
-                                    shape = RoundedCornerShape(10.dp),
-                                    onClick = {
-                                        val backupFile = File(context.filesDir, "vega_settings_backup.json")
-                                        if (backupFile.exists()) {
-                                            Toast.makeText(context, "Yedeklenen ayarlar başarıyla geri yüklendi.", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Kayıtlı yedek bulunamadı. Önce yedekleme yapınız.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                )
-                        ) {
-                            Icon(imageVector = Icons.Default.Restore, contentDescription = null, tint = TiviTextPrimary, modifier = Modifier.size(17.dp))
+                            Text(text = "Kontrol ediliyor…", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                        } else {
+                            Icon(imageVector = Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(17.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Geri Yükle", color = TiviTextPrimary, fontSize = 12.sp)
+                            Text(text = "Güncellemeleri kontrol et", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // Sunucu Hız & Ping Testi
-                    Text(text = "Sunucu Hız ve Ping Testi", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    // 2. Bağlantı Testi
+                    Text(text = "Bağlantı testi", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Yayın donması durumunda sunucu bağlantı hızınızı ve gecikmenizi test edin.", color = TiviTextSecondary, fontSize = 11.sp)
+                    Text(text = "Yayınlar takılıyorsa bağlantını kontrol et.", color = TiviTextSecondary, fontSize = 11.sp)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     speedTestResult?.let { result ->
@@ -1904,26 +1599,67 @@ private fun RenderSelectedSection(
                         if (isTestingSpeed) {
                             CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Ölçülüyor...", fontSize = 12.sp)
+                            Text(text = "Ölçülüyor…", fontSize = 12.sp)
                         } else {
                             Icon(imageVector = Icons.Default.NetworkCheck, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Hız ve Ping Testini Başlat", fontSize = 12.sp)
+                            Text(text = "Testi başlat", fontSize = 12.sp)
                         }
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // Uygulama Önbelleğini Temizle
+                    // 3. Şifreli Bağlantı
+                    val isHttps = serverUrl.startsWith("https://", ignoreCase = true)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(text = "Şifreli bağlantı", color = TiviTextPrimary, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Açıkken bağlantın şifrelenir. Yayınlar açılmazsa kapatmayı dene.",
+                                color = TiviTextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Switch(
+                            checked = isHttps,
+                            onCheckedChange = { checked ->
+                                val newUrl = if (checked) AppConfig.SERVER_URL_HTTPS else AppConfig.SERVER_URL_HTTP
+                                scope.launch {
+                                    viewModel.preferences.setServerUrl(newUrl)
+                                    viewModel.repository.serverUrl = newUrl
+                                    Toast.makeText(context, "Bağlantı ayarı değiştirildi", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = SwitchDefaults.colors(checkedThumbColor = TiviGreen, checkedTrackColor = TiviGreen.copy(alpha = 0.35f))
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                    // 4. Önbelleği Temizle
+                    Text(text = "Önbelleği temizle", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Kanal logoları ve resimler yeniden yüklenir. Listelerin silinmez.",
+                        color = TiviTextSecondary,
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     OutlinedButton(
                         onClick = {
                             try {
                                 context.cacheDir.deleteRecursively()
                                 coil.Coil.imageLoader(context).diskCache?.clear()
                                 coil.Coil.imageLoader(context).memoryCache?.clear()
-                                Toast.makeText(context, "Görsel ve kanal önbelleği temizlendi.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Önbellek temizlendi", Toast.LENGTH_SHORT).show()
                             } catch (_: Exception) {
-                                Toast.makeText(context, "Önbellek temizlendi.", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Önbellek temizlendi", Toast.LENGTH_SHORT).show()
                             }
                         },
                         shape = RoundedCornerShape(10.dp),
@@ -1939,66 +1675,25 @@ private fun RenderSelectedSection(
                                         context.cacheDir.deleteRecursively()
                                         coil.Coil.imageLoader(context).diskCache?.clear()
                                         coil.Coil.imageLoader(context).memoryCache?.clear()
-                                        Toast.makeText(context, "Görsel ve kanal önbelleği temizlendi.", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Önbellek temizlendi", Toast.LENGTH_SHORT).show()
                                     } catch (_: Exception) {
-                                        Toast.makeText(context, "Önbellek temizlendi.", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Önbellek temizlendi", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             )
                     ) {
                         Icon(imageVector = Icons.Default.CleaningServices, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Uygulama Önbelleğini Temizle", color = TiviTextPrimary, fontSize = 12.sp)
+                        Text(text = "Önbelleği temizle", color = TiviTextPrimary, fontSize = 12.sp)
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // Otomatik Güncelleme Kontrolü (Madde 9)
-                    val isCheckingUpdate by viewModel.autoUpdateManager.isChecking.collectAsState()
-
-                    Button(
-                        onClick = { viewModel.checkForUpdates(isManual = true) },
-                        enabled = !isCheckingUpdate,
-                        colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(42.dp)
-                            .dpadFocusable(
-                                focusedBorderColor = Color.White,
-                                shape = RoundedCornerShape(10.dp),
-                                onClick = { viewModel.checkForUpdates(isManual = true) }
-                            )
-                    ) {
-                        if (isCheckingUpdate) {
-                            CircularProgressIndicator(color = Color.Black, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Kontrol Ediliyor...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        } else {
-                            Icon(imageVector = Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Güncellemeleri Kontrol Et", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Sürüm ve Destek
-                    Text(text = "Destek ve İletişim", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Uygulama Sürümü:", color = TiviTextSecondary, fontSize = 12.sp)
-                        Text(text = "${AppConfig.APP_NAME} v${com.tivimax.player.BuildConfig.VERSION_NAME} Pro", color = TiviTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
+                    // 5. Hakkında
+                    Text(text = "Hakkında", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "Telegram Desteği:", color = TiviTextSecondary, fontSize = 12.sp)
-                        Text(text = AppConfig.SUPPORT_TELEGRAM, color = OpusCyan, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = "WhatsApp Desteği:", color = TiviTextSecondary, fontSize = 12.sp)
-                        Text(text = AppConfig.SUPPORT_WHATSAPP, color = TiviGreen, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(text = "Sürüm: ${AppConfig.APP_NAME} ${com.tivimax.player.BuildConfig.VERSION_NAME}", color = TiviTextSecondary, fontSize = 12.sp)
                     }
                 }
             }
@@ -2032,7 +1727,7 @@ fun DeviceModeSelectionDialog(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Cihaz Modunu Değiştir",
+                    text = "Cihaz türünü değiştir",
                     color = TiviTextPrimary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
@@ -2045,7 +1740,7 @@ fun DeviceModeSelectionDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Kullanım senaryonuza göre arayüzü ve ekran yönünü anında uyarlayın:",
+                    text = "Uygulamayı hangi cihazda kullanıyorsun?",
                     color = TiviTextSecondary,
                     fontSize = 12.5.sp
                 )
@@ -2124,7 +1819,7 @@ fun DeviceModeSelectionDialog(
                         .fillMaxWidth()
                         .clickable {
                             viewModel.resetDeviceMode()
-                            Toast.makeText(context, "Cihaz seçimi sıfırlandı", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "İlk kurulum ekranı sıfırlandı.", Toast.LENGTH_SHORT).show()
                             onDismiss()
                         }
                         .padding(vertical = 4.dp),
@@ -2139,7 +1834,7 @@ fun DeviceModeSelectionDialog(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Cihaz seçimini sıfırla (İlk açılış sihirbazı)",
+                        text = "İlk kurulum ekranını tekrar göster",
                         color = TiviAccentLive,
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.SemiBold
@@ -2151,7 +1846,7 @@ fun DeviceModeSelectionDialog(
             Button(
                 onClick = {
                     viewModel.setDeviceMode(selectedMode)
-                    Toast.makeText(context, "Cihaz modu güncellendi: ${selectedMode.badgeText}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Cihaz türü: ${selectedMode.badgeText}", Toast.LENGTH_SHORT).show()
                     onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
