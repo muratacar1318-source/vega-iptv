@@ -330,8 +330,8 @@ fun TvPlayerOverlay(
         ) {
             val epg = epgSummaryMap[activeChannel.streamId]
             val currentTitle = epg?.getDecodedTitle() ?: activeChannel.currentProgram ?: "Canlı Yayın"
-            val timeString = if (epg?.start != null && epg.end != null) "${epg.start} - ${epg.end}" else ""
-            val progress = epg?.getProgressFraction() ?: 0.5f
+            val timeString = epg?.getFormattedTime() ?: if (epg?.start != null && epg.end != null) "${epg.start} - ${epg.end}" else ""
+            val progress = epg?.getProgressFraction()
             val nextTitle = activeChannel.nextProgram ?: epg?.getDecodedDescription() ?: ""
 
             Surface(
@@ -410,17 +410,18 @@ fun TvPlayerOverlay(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                color = OpusCyan,
-                                trackColor = Color.White.copy(alpha = 0.15f),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(1.5.dp))
-                            )
+                            if (progress != null) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                LinearProgressIndicator(
+                                    progress = { progress },
+                                    color = OpusCyan,
+                                    trackColor = Color.White.copy(alpha = 0.15f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(3.dp)
+                                        .clip(RoundedCornerShape(1.5.dp))
+                                )
+                            }
 
                             if (nextTitle.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(3.dp))

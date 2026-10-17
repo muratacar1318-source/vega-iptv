@@ -81,4 +81,49 @@ dolaylı faydalanır), oynatma mantığı, güncelleme sistemi, imza, CI.
 
 ## Agent raporu
 
-_(Agent doldurur: EPG saat doğrulama logu, tablet davranışı, yenile butonları incelemesi, A–H sonuçları.)_
+### 1. Yapılan Değişiklikler
+- **Varsayılan Düzen & Görünüm:**
+  - `UserPreferences.kt`: `liveLayoutModeFlow` varsayılanı `LIVE_LAYOUT_CLASSIC`, `liveViewModeFlow` varsayılanı `LIVE_VIEW_DETAILED` olarak güncellendi.
+  - `MainViewModel.kt`: Başlangıç StateFlow değerleri `LIVE_LAYOUT_CLASSIC` ve `LIVE_VIEW_DETAILED` yapıldı.
+- **EPG Yerel Saat Dönüşümü:**
+  - `XtreamModels.kt`: `EpgProgram.getFormattedTime()` fonksiyonu, `startTimestamp` ve `stopTimestamp` (Unix epoch saniye) değerlerini `Instant.ofEpochSecond(ts).atZone(ZoneId.systemDefault())` ile cihazın yerel saat dilimine çevirerek `HH:mm - HH:mm` biçimlendiriyor. String start/end fallback'inde UTC stringi yerel saate dönüştürüyor.
+  - `MainViewModel.kt`: `loadEpgSummary` içinde karşılaştırmalı `Log.d("G005_EPG", ...)` eklendi.
+- **Sahte İlerleme ve Dolgu Metinlerinin Temizlenmesi:**
+  - `EpgProgram.getProgressFraction()`: Dönüş tipi `Float?` yapıldı. Geçerli EPG yoksa veya yayın aralığında değilse `null` döndürüyor (`0.4f` uydurma değeri kaldırıldı).
+  - Projedeki tüm `getProgressFraction()` çağrıları (`ChannelDetailedCard`, `LiveTvScreen`, `LiveTvWideScreenLayout`, `ChannelRowCard`, `LiveShelvesSection`, `HeroCard`, `ShelfChannelCard`, `TvPlayerOverlay`, `TvTiviMateScreen`) null-safe hale getirildi ve yalnızca geçerli veri varken çubuk çizilecek şekilde güncellendi.
+- **ChannelDetailedCard İyileştirmeleri:**
+  - `nextEpg: EpgProgram? = null` parametresi eklendi ve `LiveTvModernPortraitLayout` tarafından sonraki program hesaplanarak aktarıldı.
+  - EPG yoksa "Canlı Yayın" yerine soluk "Program bilgisi yok" gösteriliyor.
+  - "Program akışı güncel" dolgu metni kaldırıldı; sonraki program varsa "Sonra: <saat> <ad>" yazıyor, yoksa satır hiç çizilmiyor.
+  - Sabit `98.dp` yükseklik yerine `heightIn(min = 72.dp)` uygulandı; sonraki program yoksa kart kompakt boyuta iniyor.
+  - Kırmızı canlı noktası yalnızca `isPlaying` iken gösteriliyor.
+  - `channel.num > 0` ise kanal adının soluna soluk numara eklendi.
+- **Arama Çubuğu & Butonlar:**
+  - `LiveTvTopBar.kt`: `OutlinedTextField`'ın dikey padding sınırlaması nedeniyle metni alttan kesmesi sorunu, dikeyde ortalanmış `Surface` + `BasicTextField` arama bileşeni ile giderildi.
+  - Buton incelemesi yapıldı ve erişilebilirlik metinleri ayrıştırıldı:
+    - `LiveTvTopBar.kt`: Aktif kategori kanallarını yeniler (`contentDescription = "Kanal Listesini Yenile"`).
+    - `HomeScreen.kt`: Tüm içeriği (canlı/VOD/dizi) sıfırdan senkronize eder (`contentDescription = "Tüm İçeriği Senkronize Et"`).
+
+### 2. Tablet (Geniş Ekran) Davranışı
+- `LiveTvScreen.kt` içinde `liveLayoutMode == LIVE_LAYOUT_SHELF` iken `ShelfLiveLayout` açılırken, varsayılanın `LIVE_LAYOUT_CLASSIC` olması sayesinde tablette açılışta doğrudan profesyonel 4 bölmeli TiviMate stili `LiveTvWideScreenLayout` devreye girer. Kullanıcı üst bardaki butonla dilediğinde Raf düzenine de geçebilir.
+
+### 3. Değiştirilen Dosyalar
+- `app/src/main/java/com/tivimax/player/data/model/XtreamModels.kt`
+- `app/src/main/java/com/tivimax/player/data/preferences/UserPreferences.kt`
+- `app/src/main/java/com/tivimax/player/ui/MainViewModel.kt`
+- `app/src/main/java/com/tivimax/player/ui/live/LiveTvScreen.kt`
+- `app/src/main/java/com/tivimax/player/ui/live/LiveTvWideScreenLayout.kt`
+- `app/src/main/java/com/tivimax/player/ui/live/modern/ChannelDetailedCard.kt`
+- `app/src/main/java/com/tivimax/player/ui/live/modern/ChannelRowCard.kt`
+- `app/src/main/java/com/tivimax/player/ui/live/modern/LiveShelvesSection.kt`
+- `app/src/main/java/com/tivimax/player/ui/live/modern/LiveTvModernPortraitLayout.kt`
+- `app/src/main/java/com/tivimax/player/ui/live/modern/LiveTvTopBar.kt`
+- `app/src/main/java/com/tivimax/player/ui/live/shelf/HeroCard.kt`
+- `app/src/main/java/com/tivimax/player/ui/live/shelf/ShelfChannelCard.kt`
+- `app/src/main/java/com/tivimax/player/ui/main/HomeScreen.kt`
+- `app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt`
+- `app/src/main/java/com/tivimax/player/ui/tv/TvTiviMateScreen.kt`
+
+### 4. Test Sonuçları (A–H)
+- **Derleme:** `./gradlew assembleDebug` başarıyla tamamlandı (BUILD SUCCESSFUL).
+- **A–H:** Canlı cihaz bağlı olmadığı için fiziksel cihaz testleri kullanıcı onayına bırakıldı; statik kontroller ve tip/null güvenlik kontrolleri doğrulandı.

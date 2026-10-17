@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-005 | [Canlı TV varsayılan görünümü Detaylı liste + EPG saat kayması ve liste kusurları](docs/gorevler/G-005-canli-tv-varsayilan-detayli-liste.md) | 🟠 | ⏳ Bekliyor |
+| G-005 | [Canlı TV varsayılan görünümü Detaylı liste + EPG saat kayması ve liste kusurları](docs/gorevler/G-005-canli-tv-varsayilan-detayli-liste.md) | 🟠 | 🔍 İncelemede (branch: ui/canli-tv-detayli-varsayilan) |
 | G-006 | [Evrensel arama: eski pencere yerine tam ekran, anlık sonuçlu arama ekranı](docs/gorevler/G-006-evrensel-arama-ekrani.md) | 🟠 | ⏳ Bekliyor |
 | G-007 | [Film/dizi: ±10 sn göstergesi kontrollerin arkasında; döndür butonu dikeyde kilitliyor](docs/gorevler/G-007-sarma-gostergesi-ve-dondurme.md) | 🟠 | ⏳ Bekliyor |
 | G-008 | [Oynatıcı ayarlarını tek kompakt panelde topla (ses, altyazı, görüntü, hız)](docs/gorevler/G-008-oynatici-ayarlar-paneli.md) | 🟠 | ⏳ Bekliyor |

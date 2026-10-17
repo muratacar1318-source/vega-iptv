@@ -83,6 +83,7 @@ fun LiveTvModernPortraitLayout(
     modifier: Modifier = Modifier
 ) {
     val currentViewMode by viewModel.liveViewMode.collectAsState()
+    val epgProgramsMap by viewModel.epgProgramsMap.collectAsState()
     val currentScreen by viewModel.currentScreen.collectAsState()
     val isPlayerScreen = currentScreen is Screen.Player
 
@@ -410,10 +411,27 @@ fun LiveTvModernPortraitLayout(
                                 val isFavorite = favoriteIds.contains(channel.streamId.toString())
                                 val isCurrentPlaying = activePreviewChannel?.streamId == channel.streamId &&
                                         (isMiniPlayerActive || viewModel.playerManager.player?.isPlaying == true)
+                                val currentEpg = epgSummaryMap[channel.streamId]
+                                val channelPrograms = epgProgramsMap[channel.streamId]
+                                val nextEpg = remember(channelPrograms, currentEpg) {
+                                    if (channelPrograms != null && currentEpg != null) {
+                                        val idx = channelPrograms.indexOfFirst { it.id == currentEpg.id }
+                                        if (idx >= 0 && idx + 1 < channelPrograms.size) {
+                                            channelPrograms[idx + 1]
+                                        } else {
+                                            val nowSec = System.currentTimeMillis() / 1000L
+                                            val threshold = if (currentEpg.stopTimestamp > 0) currentEpg.stopTimestamp else nowSec
+                                            channelPrograms.firstOrNull { it.startTimestamp >= threshold }
+                                        }
+                                    } else {
+                                        null
+                                    }
+                                }
 
                                 ChannelDetailedCard(
                                     channel = channel,
-                                    epg = epgSummaryMap[channel.streamId],
+                                    epg = currentEpg,
+                                    nextEpg = nextEpg,
                                     isFavorite = isFavorite,
                                     isPlaying = isCurrentPlaying,
                                     onChannelClick = { viewModel.playLiveChannel(channel) },

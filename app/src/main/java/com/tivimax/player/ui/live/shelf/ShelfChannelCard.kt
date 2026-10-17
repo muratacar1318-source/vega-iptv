@@ -76,7 +76,7 @@ fun ShelfChannelCard(
         epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın"
     }
     val progress = remember(epg, tick) {
-        epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else 0.45f)
+        epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else null)
     }
 
     Box(
@@ -232,16 +232,18 @@ fun ShelfChannelCard(
                     )
                 }
 
-                // En Altta İnce EPG İlerleme Çubuğu (2.5dp)
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(2.5.dp),
-                    color = OpusCyan,
-                    trackColor = Color.White.copy(alpha = 0.1f)
-                )
+                // En Altta İnce EPG İlerleme Çubuğu (2.5dp) - yalnızca EPG varsa
+                if (progress != null) {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(2.5.dp),
+                        color = OpusCyan,
+                        trackColor = Color.White.copy(alpha = 0.1f)
+                    )
+                }
             }
         }
 

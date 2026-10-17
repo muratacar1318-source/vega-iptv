@@ -113,12 +113,12 @@ class UserPreferences(private val context: Context) {
         val KEY_DEVICE_MODE = stringPreferencesKey("device_mode")
         val KEY_DEVICE_MODE_SET = booleanPreferencesKey("device_mode_set")
 
-        // Canlı TV Düzeni ("SHELF" = Raf Düzeni [Varsayılan], "CLASSIC" = Klasik Düzen)
+        // Canlı TV Düzeni ("SHELF" = Raf Düzeni, "CLASSIC" = Klasik Düzen [Varsayılan])
         val KEY_LIVE_LAYOUT_MODE = stringPreferencesKey("live_layout_mode")
         const val LIVE_LAYOUT_SHELF = "SHELF"
         const val LIVE_LAYOUT_CLASSIC = "CLASSIC"
 
-        // Canlı TV Liste Görünüm Modu ("COMPACT" = Kompakt Liste [Varsayılan], "GRID" = Izgara, "DETAILED" = Detaylı)
+        // Canlı TV Liste Görünüm Modu ("COMPACT" = Kompakt Liste, "GRID" = Izgara, "DETAILED" = Detaylı [Varsayılan])
         val KEY_LIVE_VIEW_MODE = stringPreferencesKey("live_view_mode")
         const val LIVE_VIEW_COMPACT = "COMPACT"
         const val LIVE_VIEW_GRID = "GRID"
@@ -479,7 +479,7 @@ class UserPreferences(private val context: Context) {
     }
 
     val liveLayoutModeFlow: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_LIVE_LAYOUT_MODE] ?: LIVE_LAYOUT_SHELF
+        prefs[KEY_LIVE_LAYOUT_MODE] ?: LIVE_LAYOUT_CLASSIC
     }
 
     suspend fun setLiveLayoutMode(mode: String) {
@@ -489,7 +489,7 @@ class UserPreferences(private val context: Context) {
     }
 
     val liveViewModeFlow: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_LIVE_VIEW_MODE] ?: LIVE_VIEW_COMPACT
+        prefs[KEY_LIVE_VIEW_MODE] ?: LIVE_VIEW_DETAILED
     }
 
     suspend fun setLiveViewMode(mode: String) {

@@ -411,7 +411,7 @@ fun TvTiviMateScreen(
                                 val isCurrentPreview = activePreviewChannel?.streamId == channel.streamId
                                 val epg = epgSummaryMap[channel.streamId]
                                 val currentProgram = epg?.getDecodedTitle() ?: channel.currentProgram
-                                val progress = epg?.getProgressFraction() ?: 0f
+                                val progress = epg?.getProgressFraction()
 
                                 Surface(
                                     shape = RoundedCornerShape(8.dp),
@@ -478,16 +478,18 @@ fun TvTiviMateScreen(
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                LinearProgressIndicator(
-                                                    progress = { progress },
-                                                    color = OpusCyan,
-                                                    trackColor = Color.White.copy(alpha = 0.15f),
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(2.dp)
-                                                        .clip(RoundedCornerShape(1.dp))
-                                                )
+                                                if (progress != null) {
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    LinearProgressIndicator(
+                                                        progress = { progress },
+                                                        color = OpusCyan,
+                                                        trackColor = Color.White.copy(alpha = 0.15f),
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(2.dp)
+                                                            .clip(RoundedCornerShape(1.dp))
+                                                    )
+                                                }
                                             }
                                         }
                                     }
