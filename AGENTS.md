@@ -31,3 +31,4 @@
     link, "GitHub" kelimesi ve "Full Changelog" satırı İÇERMEZ.
   * En fazla 6 madde, her madde tek satır.
 - Teknik ayrıntılar istenirse docs/release-notes/ altına ayrı dosya olarak yazılır.
+- Arayüze dokunan her işte `docs/TASARIM-KURALLARI.md`'ye uy (renk, köşe, buton, odak, yazı, dil). Sabit `Color(0x…)` yazma; `ui/design` tokenlarını kullan.
