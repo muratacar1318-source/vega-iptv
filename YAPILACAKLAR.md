@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-015 | [Oynatıcı ekranlarını tasarım kurallarına uydur](docs/gorevler/G-015-oynatici-tasarim-uyumu.md) | 🟢 | 🔍 İncelemede (branch: ui/oynatici-tasarim-uyumu) |
 | G-016 | [TV ekranlarını tasarım kurallarına uydur](docs/gorevler/G-016-tv-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 | G-017 | [Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu](docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 | G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
@@ -65,6 +64,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-012 | Hesap ekranı: gerçek abonelik bilgileri, içerik özeti, çıkış onayı — PR #18 | 18 Ekim |
 | G-013 | Ayarlar sadeleştirildi: işlevsiz ayarlar kaldırıldı, kategori ve metinler anlaşılır — PR #19 | 18 Ekim |
 | G-014 | Tasarım temeli: tek vurgu rengi, renk/şekil tokenları, ortak bileşenler — PR #20 | 18 Ekim |
+| G-015 | Oynatıcı ekranları tasarım kurallarına uyduruldu — PR #21 | 18 Ekim |
 
 ---
 
