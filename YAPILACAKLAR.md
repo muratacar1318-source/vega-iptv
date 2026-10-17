@@ -41,6 +41,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
 | G-012 | ["Hesap ve Liste" ekranını detaylandır (gerçek abonelik bilgileri, içerik özeti, güvenli çıkış)](docs/gorevler/G-012-hesap-ekrani-detay.md) | 🟠 | ⏳ Bekliyor |
+| G-013 | [Ayarları sadeleştir: işe yaramayanları kaldır, isim ve açıklamaları anlaşılır yap](docs/gorevler/G-013-ayarlar-sadelestirme.md) | 🟠 | ⏳ Bekliyor (G-012'den sonra) |
 
 ---
 
@@ -72,8 +73,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 ## ⏸️ Ertelenenler
 
-- **Harici oynatıcı (VLC/MX Player):** Ayarlar'daki "VLC (LibVLC)" ve "Harici VLC" seçenekleri şu an
-  hiçbir işe yaramıyor. Dağıtımdan önce ya çalışır hale getirilmeli ya da kaldırılmalı.
 - **Güncelleyicide indirme doğrulaması** (eksik inen APK'yı kurmadan önce yakalama).
 - **Samsung Tizen / LG webOS sürümü.**
 - **Dizi detayında "Oynat" butonu** kaldığın bölümü değil, seçili sezonun ilk bölümünü açıyor.
