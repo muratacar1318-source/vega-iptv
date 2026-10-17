@@ -120,3 +120,43 @@ Her senaryoda `VideoTarget` logunu rapora ekle.
 ### 4. Test Sonuçları (A–G)
 - `./gradlew assembleDebug` derlemesi başarılı oldu (BUILD SUCCESSFUL).
 - Ortamda bağlı fiziksel Android cihaz veya emülatör bulunmadığından (`adb devices` boş) cihaz üstü A–G test adımları atlandı (görev dosyasındaki "Cihaz bağlı değilse testleri atla ve raporda belirt" kuralı gereği).
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 17 Ekim)
+
+**Durum:** `fix/canli-ilk-acilis-siyah-ekran` branch'indeki iş büyük ölçüde doğru (tek sahipli yüzey, `switchTargetView`,
+öncelik kuralı, önizlemeleri Player ekranında compose etmeme, 350 ms yeniden talep). Main'e alınmadı; aşağıdaki hata düzeltilmeli.
+
+**AYNI BRANCH'te devam et** (`git checkout fix/canli-ilk-acilis-siyah-ekran && git pull`). Yeni branch AÇMA.
+
+### Hata: Tam ekrandan çıkınca önizleme/mini oynatıcı siyah kalıyor (Test C ve TV)
+
+Senaryo (telefon): Canlı TV → kanal → tam ekran → geri.
+1. Geri basınca Home yeniden compose ediliyor; önizleme PlayerView'i `factory` içinde
+   `attachView(isPrimary = false)` çağırıyor.
+2. O anda tam ekran `VideoPlayerSurface` (Crossfade nedeniyle) hâlâ sahip ve `isPrimary = true` → önizlemenin talebi **reddediliyor**.
+3. Ardından tam ekran görünüm `onRelease` → `detachView` → yüzey temizleniyor, sahip = null.
+4. Önizlemenin `update` bloğu hiçbir state okumadığı için **tekrar çalışmıyor** → önizleme bir daha yüzey istemiyor → **siyah**.
+
+Aynısı TV'de: `TvTiviMateScreen` içinde `TvPlayerOverlay` (primary) kapanıp önizleme yeniden oluşturulduğunda.
+
+### Yapılacak düzeltme (`TiviPlayerManager`)
+- Reddedilen önizleme görünümünü hatırla: `private var pendingSecondaryView: WeakReference<PlayerView>?`
+  (`attachView` bir `isPrimary = false` talebini reddettiğinde buraya yaz).
+- `detachView` içinde, ayrılan görünüm **primary sahip** ise ve `pendingSecondaryView` hâlâ geçerliyse
+  (`view.isAttachedToWindow == true`), yüzeyi hemen ona ver: `attachView(pending, isPrimary = false)`.
+  Ardından `pendingSecondaryView = null`.
+- Bir önizleme görünümü `detachView` ile ayrılırken pending ise, pending'i temizle.
+- `release()` içinde pending'i de temizle.
+- `VideoTarget` loguna "pending önizlemeye devredildi" satırı ekle.
+
+Başka hiçbir şeyi değiştirme.
+
+### Test (cihaz/emülatör yoksa derle ve mantığı raporda adım adım açıkla)
+- **C)** Canlı TV → kanal → tam ekran → geri → mini oynatıcı/önizleme görüntülü olmalı.
+- **G)** TV: kanal → tam ekran (`TvPlayerOverlay`) → geri → önizleme görüntülü olmalı.
+- **A)** ve **B)** hâlâ çalışmalı.
+
+Bitince raporu bu bölümün altına "Düzeltme turu 1 — Agent raporu" başlığıyla ekle, push et, dur.
+>>>>>>> main
