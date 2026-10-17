@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-015 | [Oynatıcı ekranlarını tasarım kurallarına uydur](docs/gorevler/G-015-oynatici-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
+| G-015 | [Oynatıcı ekranlarını tasarım kurallarına uydur](docs/gorevler/G-015-oynatici-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor — **Düzeltme turu 1** (aynı branch'te devam; derleme hatası) |
 | G-016 | [TV ekranlarını tasarım kurallarına uydur](docs/gorevler/G-016-tv-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 | G-017 | [Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu](docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 | G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
