@@ -3,6 +3,7 @@ package com.tivimax.player.data.update
 import android.content.Context
 import android.content.Intent
 import android.os.Environment
+import android.util.Log
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.tivimax.player.BuildConfig
@@ -100,7 +101,7 @@ class AutoUpdateManager(private val context: Context) {
                 val json = JSONObject(responseBody)
 
                 val tagName = json.optString("tag_name", "")
-                val releaseNotes = json.optString("body", "Yeni özellikler ve hata düzeltmeleri içerir.")
+                val releaseNotes = sanitizeReleaseNotes(json.optString("body", "Yeni özellikler ve hata düzeltmeleri içerir."))
                 val assets = json.optJSONArray("assets")
 
                 var apkDownloadUrl: String? = null
@@ -144,9 +145,10 @@ class AutoUpdateManager(private val context: Context) {
                     }
                 }
             } catch (e: Exception) {
+                Log.w("AutoUpdate", "Update check failed", e)
                 if (isManual) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Güncelleme hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Güncelleme kontrol edilemedi. İnternet bağlantınızı kontrol edin.", Toast.LENGTH_SHORT).show()
                     }
                 }
             } finally {
@@ -209,10 +211,11 @@ class AutoUpdateManager(private val context: Context) {
                     installApk(apkFile)
                 }
             } catch (e: Exception) {
-                _errorMessage.value = e.localizedMessage ?: "İndirme sırasında hata oluştu"
+                Log.w("AutoUpdate", "Update download failed", e)
+                _errorMessage.value = "İndirme sırasında hata oluştu"
                 _downloadProgress.value = null
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Güncelleme indirilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Güncelleme indirilemedi. Lütfen daha sonra tekrar deneyin.", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -233,7 +236,8 @@ class AutoUpdateManager(private val context: Context) {
 
             context.startActivity(installIntent)
         } catch (e: Exception) {
-            Toast.makeText(context, "Yükleyici başlatılamadı: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            Log.w("AutoUpdate", "Installer launch failed", e)
+            Toast.makeText(context, "Yükleyici başlatılamadı.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -250,6 +254,25 @@ class AutoUpdateManager(private val context: Context) {
                 dismissUpdate()
                 Toast.makeText(context, "Güncelleme $hours saat ertelendi", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun sanitizeReleaseNotes(notes: String): String {
+        val sanitized = notes.lines()
+            .filterNot { line ->
+                val lower = line.lowercase()
+                lower.contains("github") ||
+                    lower.contains("http://") ||
+                    lower.contains("https://") ||
+                    lower.contains("full changelog")
+            }
+            .joinToString("\n")
+            .trim()
+
+        return if (sanitized.isBlank()) {
+            "Performans iyileştirmeleri ve hata düzeltmeleri."
+        } else {
+            sanitized
         }
     }
 }
