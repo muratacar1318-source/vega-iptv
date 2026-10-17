@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-010 | [Ayarlar paneli eksikleri: uyku zamanlayıcısı, TV kumanda odağı, dokunma alanları](docs/gorevler/G-010-ayarlar-paneli-eksikler.md) | 🟠 | ⏳ Bekliyor |
+| G-010 | [Ayarlar paneli boş görünüyor (ACİL) + uyku zamanlayıcısı, TV kumanda odağı, dokunma alanları](docs/gorevler/G-010-ayarlar-paneli-eksikler.md) | 🔴 | ⏳ Bekliyor |
 | G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor |
 | G-003 | [TV canlı yayın oynatıcısında altyazı gecikmesi ayarı çalışmıyor](docs/gorevler/G-003-tv-altyazi-gecikmesi.md) | 🟢 | ⏳ Bekliyor |
 | G-009 | [Önizleme yüzey devri: görünüm pencereye eklenince devret (TV kenar durumu)](docs/gorevler/G-009-yuzey-devri-ekleme-bekle.md) | 🟢 | ⏳ Bekliyor |
