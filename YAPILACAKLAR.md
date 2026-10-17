@@ -36,6 +36,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-004 | [Canlı TV'de kanal ilk açıldığında siyah ekran, kanal değişince düzeliyor](docs/gorevler/G-004-canli-ilk-acilis-siyah-ekran.md) | 🔴 | ⏳ Bekliyor |
 | G-001 | [Tam ekranda durum ve gezinme çubukları gizlenmiyor](docs/gorevler/G-001-tam-ekran-immersive.md) | 🔴 | ⏳ Bekliyor |
 | G-005 | [Canlı TV varsayılan görünümü Detaylı liste + EPG saat kayması ve liste kusurları](docs/gorevler/G-005-canli-tv-varsayilan-detayli-liste.md) | 🟠 | ⏳ Bekliyor |
+| G-006 | [Evrensel arama: eski pencere yerine tam ekran, anlık sonuçlu arama ekranı](docs/gorevler/G-006-evrensel-arama-ekrani.md) | 🟠 | ⏳ Bekliyor |
 | G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor |
 | G-003 | [TV canlı yayın oynatıcısında altyazı gecikmesi ayarı çalışmıyor](docs/gorevler/G-003-tv-altyazi-gecikmesi.md) | 🟢 | ⏳ Bekliyor |
 
