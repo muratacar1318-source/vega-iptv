@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 fun ChannelDetailedCard(
     channel: LiveStream,
     epg: EpgProgram? = null,
+    nextEpg: EpgProgram? = null,
     isFavorite: Boolean,
     isPlaying: Boolean,
     onChannelClick: () -> Unit,
@@ -59,22 +60,41 @@ fun ChannelDetailedCard(
         }
     }
 
-    val currentTitle = remember(epg, minuteTick) {
-        epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın"
+    val rawTitle = remember(epg, minuteTick) {
+        val t = epg?.getDecodedTitle() ?: channel.currentProgram
+        if (!t.isNullOrBlank() && t != "Canlı Yayın") t else null
     }
 
     val progress = remember(epg, minuteTick) {
-        epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else 0.45f)
+        epg?.getProgressFraction() ?: if (channel.programProgress > 0f) channel.programProgress else null
     }
 
     val currentTimeSpan = remember(epg, minuteTick) {
         epg?.getFormattedTime() ?: (if (channel.programStart != null) "${channel.programStart} - ${channel.programEnd}" else "")
     }
 
+    val nextProgramText = remember(nextEpg, channel.nextProgram) {
+        if (nextEpg != null) {
+            val timeStr = if (nextEpg.startTimestamp > 0) {
+                val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                sdf.format(java.util.Date(nextEpg.startTimestamp * 1000L))
+            } else if (!nextEpg.start.isNullOrBlank() && nextEpg.start.length >= 16) {
+                nextEpg.start.substring(11, 16)
+            } else ""
+
+            val title = nextEpg.getDecodedTitle()
+            if (title.isNotBlank() && title != "Canlı Yayın") {
+                if (timeStr.isNotBlank()) "Sonra: $timeStr $title" else "Sonra: $title"
+            } else null
+        } else if (!channel.nextProgram.isNullOrBlank()) {
+            "Sonra: ${channel.nextProgram}"
+        } else null
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(98.dp)
+            .heightIn(min = 72.dp)
             .dpadFocusable(
                 focusedBorderColor = OpusCyan,
                 shape = RoundedCornerShape(12.dp),
@@ -88,7 +108,9 @@ fun ChannelDetailedCard(
             )
     ) {
         Card(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 72.dp),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
                 containerColor = if (isPlaying) OpusCyan.copy(alpha = 0.12f) else TiviCard
@@ -100,7 +122,7 @@ fun ChannelDetailedCard(
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -126,13 +148,15 @@ fun ChannelDetailedCard(
                         )
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .offset(x = (-2).dp, y = (-2).dp)
-                            .size(8.dp)
-                            .background(Color(0xFFFF1744), CircleShape)
-                    )
+                    if (isPlaying) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .offset(x = (-2).dp, y = (-2).dp)
+                                .size(8.dp)
+                                .background(Color(0xFFFF1744), CircleShape)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -142,8 +166,17 @@ fun ChannelDetailedCard(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.Center
                 ) {
-                    // 1. Satır: Kanal Adı & Equalizer
+                    // 1. Satır: Kanal No & Kanal Adı & Equalizer
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (channel.num > 0) {
+                            Text(
+                                text = "${channel.num}",
+                                color = TiviTextMuted,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                        }
                         Text(
                             text = channel.name,
                             color = if (isPlaying) OpusCyan else Color.White,
@@ -169,16 +202,28 @@ fun ChannelDetailedCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "Şimdi: $currentTitle",
-                            color = TiviTextSecondary,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (currentTimeSpan.isNotBlank()) {
+                        if (rawTitle != null) {
+                            Text(
+                                text = "Şimdi: $rawTitle",
+                                color = TiviTextSecondary,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        } else {
+                            Text(
+                                text = "Program bilgisi yok",
+                                color = TiviTextMuted,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Normal,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (currentTimeSpan.isNotBlank() && rawTitle != null) {
                             Text(
                                 text = currentTimeSpan,
                                 color = TiviTextMuted,
@@ -188,29 +233,31 @@ fun ChannelDetailedCard(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // İlerleme Çubuğu
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.5.dp)
-                            .clip(RoundedCornerShape(1.dp)),
-                        color = OpusCyan,
-                        trackColor = Color.White.copy(alpha = 0.1f)
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
+                    // İlerleme Çubuğu (varsa)
+                    if (progress != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.5.dp)
+                                .clip(RoundedCornerShape(1.dp)),
+                            color = OpusCyan,
+                            trackColor = Color.White.copy(alpha = 0.1f)
+                        )
+                    }
 
                     // 3. Satır: Sıradaki Program (varsa)
-                    Text(
-                        text = if (!channel.nextProgram.isNullOrBlank()) "Sıradaki: ${channel.nextProgram}" else "Program akışı güncel",
-                        color = TiviTextMuted,
-                        fontSize = 10.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (nextProgramText != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = nextProgramText,
+                            color = TiviTextMuted,
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 // Favori Yıldızı

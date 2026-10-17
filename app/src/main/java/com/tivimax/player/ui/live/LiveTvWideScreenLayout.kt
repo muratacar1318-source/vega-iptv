@@ -476,7 +476,7 @@ fun LiveTvWideScreenLayout(
                             val isFavorite = favoriteIds.contains(channel.streamId.toString())
                             val epg = epgSummaryMap[channel.streamId]
                             val currentProgram = epg?.getDecodedTitle() ?: channel.currentProgram
-                            val progress = epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else 0f)
+                            val progress = epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else null)
                             val badges = extractQualityBadges(channel.name)
 
                             // TİVİMATE ÇİFT TIKLAMA DAVRANIŞI:
@@ -574,7 +574,7 @@ fun LiveTvWideScreenLayout(
                                                 overflow = TextOverflow.Ellipsis
                                             )
 
-                                            if (progress > 0f) {
+                                            if (progress != null && progress > 0f) {
                                                 Spacer(modifier = Modifier.height(2.dp))
                                                 LinearProgressIndicator(
                                                     progress = { progress },
@@ -782,7 +782,7 @@ fun LiveTvWideScreenLayout(
                     val epg = epgSummaryMap[channel.streamId]
                     val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Akış Programı"
                     val programTime = epg?.getFormattedTime() ?: "Canlı Yayın"
-                    val progress = epg?.getProgressFraction() ?: 0.5f
+                    val progress = epg?.getProgressFraction()
                     val description = epg?.getDecodedDescription()
 
                     Column(
@@ -813,17 +813,18 @@ fun LiveTvWideScreenLayout(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(1.5.dp)),
-                            color = OpusCyan,
-                            trackColor = Color.White.copy(alpha = 0.1f)
-                        )
+                        if (progress != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(1.5.dp)),
+                                color = OpusCyan,
+                                trackColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        }
 
                         if (!description.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(6.dp))

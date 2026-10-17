@@ -74,7 +74,7 @@ fun ChannelRowCard(
     }
 
     val progress = remember(epg, minuteTick) {
-        epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else 0.45f)
+        epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else null)
     }
 
     val timeAndRemaining = remember(epg, minuteTick) {
@@ -238,15 +238,17 @@ fun ChannelRowCard(
                 }
 
                 // ALT KENAR: İnce EPG İlerleme Çubuğu (2.5dp)
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(2.5.dp),
-                    color = OpusCyan,
-                    trackColor = Color.White.copy(alpha = 0.08f)
-                )
+                if (progress != null) {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(2.5.dp),
+                        color = OpusCyan,
+                        trackColor = Color.White.copy(alpha = 0.08f)
+                    )
+                }
             }
         }
 

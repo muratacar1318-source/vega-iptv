@@ -811,7 +811,7 @@ private fun HomeTopBar(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Yenile",
+                            contentDescription = "Tüm İçeriği Senkronize Et",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )

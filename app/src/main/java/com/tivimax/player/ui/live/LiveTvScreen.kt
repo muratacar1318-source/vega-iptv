@@ -372,18 +372,19 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                         fontWeight = FontWeight.ExtraBold
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
                     val progress = program.getProgressFraction()
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        color = OpusCyan,
-                        trackColor = Color.White.copy(alpha = 0.15f),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                    )
+                    if (progress != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            color = OpusCyan,
+                            trackColor = Color.White.copy(alpha = 0.15f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -933,7 +934,7 @@ fun EpgChannelCard(
 
     val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın"
     val programTime = epg?.getFormattedTime() ?: (if (channel.programStart != null) "${channel.programStart} - ${channel.programEnd}" else "Canlı Yayın")
-    val progress = epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else 0.45f)
+    val progress = epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else null)
     val badges = extractQualityBadges(channel.name)
 
     Card(
@@ -1017,19 +1018,21 @@ fun EpgChannelCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            if (progress != null) {
+                Spacer(modifier = Modifier.height(6.dp))
 
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(1.5.dp)),
-                color = if (isPlaying) OpusCyan else TiviPrimary,
-                trackColor = Color.White.copy(alpha = 0.1f)
-            )
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(1.5.dp)),
+                    color = if (isPlaying) OpusCyan else TiviPrimary,
+                    trackColor = Color.White.copy(alpha = 0.1f)
+                )
 
-            Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+            }
         }
     }
 }
@@ -1151,15 +1154,18 @@ fun EpgTimelineRow(
                             )
                         }
 
-                        LinearProgressIndicator(
-                            progress = { epg.getProgressFraction() },
-                            color = OpusCyan,
-                            trackColor = Color.White.copy(alpha = 0.12f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .clip(RoundedCornerShape(1.5.dp))
-                        )
+                        val progFraction = epg.getProgressFraction()
+                        if (progFraction != null) {
+                            LinearProgressIndicator(
+                                progress = { progFraction },
+                                color = OpusCyan,
+                                trackColor = Color.White.copy(alpha = 0.12f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(1.5.dp))
+                            )
+                        }
 
                         val desc = epg.getDecodedDescription()
                         Text(

@@ -1,7 +1,9 @@
 package com.tivimax.player.ui.live.modern
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -13,7 +15,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,28 +54,59 @@ fun LiveTvTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Arama Alanı (Kanal veya Program Ara)
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = {
-                    Text(
-                        text = "Kanal veya program ara...",
-                        color = TiviTextMuted,
-                        fontSize = 12.5.sp
-                    )
-                },
-                leadingIcon = {
+            // Arama Alanı (Kanal veya Program Ara) - Metin kırpılmasını önleyen BasicTextField tabanlı arama kutusu
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = TiviCard,
+                border = BorderStroke(1.dp, TiviCardBorder),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(42.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Ara",
                         tint = OpusCyan,
                         modifier = Modifier.size(18.dp)
                     )
-                },
-                trailingIcon = {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = "Kanal veya program ara...",
+                                color = TiviTextMuted,
+                                fontSize = 12.5.sp,
+                                maxLines = 1
+                            )
+                        }
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = onSearchQueryChange,
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                color = Color.White,
+                                fontSize = 12.5.sp
+                            ),
+                            cursorBrush = SolidColor(OpusCyan),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchQueryChange("") }) {
+                        IconButton(
+                            onClick = { onSearchQueryChange("") },
+                            modifier = Modifier.size(24.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Clear,
                                 contentDescription = "Temizle",
@@ -80,23 +115,8 @@ fun LiveTvTopBar(
                             )
                         }
                     }
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = TiviCard,
-                    unfocusedContainerColor = TiviCard,
-                    focusedBorderColor = OpusCyan,
-                    unfocusedBorderColor = TiviCardBorder,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(46.dp)
-            )
+                }
+            }
 
             // Sağ Taraf Eylemleri: Yenile, Görünüm Modu, Sıralama, Raf Düzenine Geç
             Row(
@@ -160,7 +180,7 @@ fun LiveTvTopBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
-                        contentDescription = "Yenile",
+                        contentDescription = "Kanal Listesini Yenile",
                         tint = TiviTextSecondary,
                         modifier = Modifier.size(19.dp)
                     )

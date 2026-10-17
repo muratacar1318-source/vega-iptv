@@ -122,7 +122,7 @@ private fun ShelfBlock(
                 val isPlaying = currentPlayingId == channel.streamId
                 val epg = epgSummaryMap[channel.streamId]
                 val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın"
-                val progress = epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else 0.45f)
+                val progress = epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else null)
 
                 Card(
                     shape = RoundedCornerShape(12.dp),
@@ -212,16 +212,18 @@ private fun ShelfBlock(
                             }
                         }
 
-                        // Alt İnce İlerleme Çubuğu
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .height(2.5.dp),
-                            color = OpusCyan,
-                            trackColor = Color.White.copy(alpha = 0.1f)
-                        )
+                        // Alt İnce İlerleme Çubuğu (yalnızca geçerli EPG ilerlemesi varsa)
+                        if (progress != null) {
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .height(2.5.dp),
+                                color = OpusCyan,
+                                trackColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        }
                     }
                 }
             }

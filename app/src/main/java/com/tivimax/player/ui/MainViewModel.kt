@@ -268,9 +268,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val zapperMatchedChannel = MutableStateFlow<LiveStream?>(null)
     private var zapperJob: Job? = null
 
-    // Canlı TV Düzen Modu ("SHELF" = Raf Düzeni [Varsayılan], "CLASSIC" = Klasik Düzen)
+    // Canlı TV Düzen Modu ("SHELF" = Raf Düzeni, "CLASSIC" = Klasik Düzen [Varsayılan])
     val liveLayoutMode: StateFlow<String> = preferences.liveLayoutModeFlow
-        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences.LIVE_LAYOUT_SHELF)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences.LIVE_LAYOUT_CLASSIC)
 
     fun setLiveLayoutMode(mode: String) {
         viewModelScope.launch {
@@ -293,9 +293,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadLiveCategories()
     }
 
-    // Canlı TV Liste Görünüm Modu ("COMPACT" = Kompakt Liste, "GRID" = Izgara, "DETAILED" = Detaylı)
+    // Canlı TV Liste Görünüm Modu ("COMPACT" = Kompakt Liste, "GRID" = Izgara, "DETAILED" = Detaylı [Varsayılan])
     val liveViewMode: StateFlow<String> = preferences.liveViewModeFlow
-        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences.LIVE_VIEW_COMPACT)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences.LIVE_VIEW_DETAILED)
 
     fun setLiveViewMode(mode: String) {
         viewModelScope.launch {
@@ -478,6 +478,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     withContext(Dispatchers.Main) {
                         epgSummaryMap.value = epgSummaryMap.value + (streamId to currentProgram)
                         epgProgramsMap.value = epgProgramsMap.value + (streamId to list)
+                        if (BuildConfig.DEBUG) {
+                            Log.d("G005_EPG", "EPG parsed: streamId=$streamId, title='${currentProgram.getDecodedTitle()}', rawStart='${currentProgram.start}', startTimestamp=${currentProgram.startTimestamp}, getFormattedTime='${currentProgram.getFormattedTime()}', LiveTimeFormatter='${com.tivimax.player.ui.player.components.LiveTimeFormatter.formatTimeRange(currentProgram)}'")
+                        }
                     }
                 }
             }

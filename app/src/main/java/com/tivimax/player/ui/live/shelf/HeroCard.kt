@@ -66,7 +66,7 @@ fun HeroCard(
     }
 
     val progress = remember(epg, tick) {
-        epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else 0.45f)
+        epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else null)
     }
 
     val timeText = remember(epg, tick) {
@@ -259,17 +259,18 @@ fun HeroCard(
 
                 // Alt Kısım: İlerleme Çubuğu ve Büyük "İzle" Butonu
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(2.dp)),
-                        color = OpusCyan,
-                        trackColor = Color.White.copy(alpha = 0.15f)
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
+                    if (progress != null) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = OpusCyan,
+                            trackColor = Color.White.copy(alpha = 0.15f)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
