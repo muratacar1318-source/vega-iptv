@@ -147,4 +147,34 @@ Hesap bölümü içeriği (G-012'nin işi), `UserPreferences` anahtarları, oyna
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+### Yapılan Değişiklikler
+1. **Kaldırılanlar (UI'dan)**:
+   - Altyazı Gecikmesi ayarı Görünüm sekmesinden kaldırıldı (oynatıcı içi panelde korundu).
+   - Oynatıcı Motoru (ExoPlayer/VLC) seçimi kaldırıldı.
+   - Hızlı Kanal Açılışı (`fastZapping`) anahtarı kaldırıldı.
+   - Ayarları Yedekle / Geri Yükle kartı ve dosya mantığı kaldırıldı.
+   - Telegram ve WhatsApp destek satırları kaldırıldı.
+   - Sürüm bilgisindeki "Pro" eki kaldırıldı ("Sürüm: Vega IPTV 1.3.1").
+   - Görünüm sekmesindeki mükerrer "Cihaz Modu — Değiştir" satırı kaldırıldı.
+   - Arka arkaya olan çift `HorizontalDivider` temizlendi.
+   - Kullanılmayan importlar (`JSONObject`, `Locale`, `java.util.*`) ve state'ler (`fastZapping`, `autoSyncLive`, `streamFormat`) `SettingsScreen` ve `RenderSelectedSection` üzerinden temizlendi.
+
+2. **Kategori İsimleri ve Alt Başlıkları (`SettingsSection`)**:
+   - `ACCOUNT` -> **Hesabım** / "Abonelik bilgileri ve içerik listesi"
+   - `PLAYER` -> **Oynatıcı** / "Ses ve altyazı dili, görüntü ve akıcılık"
+   - `APPEARANCE` -> **Görünüm** / "Tema, kanal listesi ve altyazı görünümü"
+   - `DEVICE_MODE` -> **Cihaz Türü** / "Telefon, tablet veya TV düzeni"
+   - `PARENTAL` -> **Ebeveyn Kilidi** / "Yetişkin içerikleri şifreyle kilitle"
+   - `BACKUP_APP` -> **Güncelleme ve Bakım** / "Güncellemeler, bağlantı testi ve sürüm bilgisi"
+
+3. **Ayar Metinleri ve Sadeleştirme**:
+   - **Oynatıcı**: Tercih edilen ses dili, Tercih edilen altyazı dili, Görüntü işleme (Hızlı (önerilen) / Uyumlu), Canlı yayın ön yükleme (2 sn (hızlı açılış) / 5 sn (önerilen) / 10 sn (en az takılma)), Film ve dizi ön yükleme, Küçük pencerede devam et, Görüntü boyutu (Orijinal, Doldur, Yakınlaştır, 16:9).
+   - **Görünüm**: Canlı TV görünümü (Raflar / Liste), Film ve dizi kategorileri (telefon) (Üstte kaydırmalı / Yan panel / Açılır menü), Renk teması, Altyazı boyutu (Küçük (14) / Orta (18) / Büyük (22) / Çok büyük (26) 4 seçenek, canlı "Örnek altyazı" kutusu, SP Punto kaldırıldı), Altyazı rengi, Kategorileri düzenle.
+   - **Cihaz Türü**: "Cihaz türü", "Şu an: X", "Bir düzen seç:", "İlk kurulum ekranını tekrar göster", buton "Sıfırla". Cihaz seçim diyaloğunda metinler sadeleştirildi.
+   - **Ebeveyn Kilidi**: "Ebeveyn kilidi", "Şifreyi değiştir", PIN diyaloğu ("Yeni şifre", placeholder "••••"). Güvenli bağlantı anahtarı buradan Güncelleme ve Bakım bölümüne taşındı.
+   - **Güncelleme ve Bakım**: Sıralama düzenlendi (Güncellemeleri kontrol et -> Bağlantı testi -> Şifreli bağlantı -> Önbelleği temizle -> Hakkında). `runSpeedTest()` sonuç metinleri sadeleştirildi (<150ms iyi, <400ms orta, yavaş; hata durumunda sunucu adresi ve e.localizedMessage gizlendi; genel Türkçe mesaj verildi). Şifreli bağlantı anahtarında Toast'tan sunucu URL'si kaldırıldı ("Bağlantı ayarı değiştirildi").
+
+### Test ve Doğrulama
+- `.\gradlew compileDebugKotlin`: Başarılı.
+- `.\gradlew testDebugUnitTest`: Başarılı (28 actionable task, tüm testler geçti).
+- Manuel UI ve TV kumanda akışları headless ortamda simüle edilemedi (test edilemedi). APK üretilmedi.
