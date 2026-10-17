@@ -6,6 +6,7 @@ import android.os.Build
 import android.util.Log
 import com.tivimax.player.BuildConfig
 import androidx.annotation.OptIn
+import androidx.core.view.doOnAttach
 import androidx.media3.ui.PlayerView
 import java.lang.ref.WeakReference
 import androidx.media3.common.C
@@ -300,11 +301,26 @@ class TiviPlayerManager(private val context: Context) {
             if (wasPrimary) {
                 val pending = pendingSecondaryView?.get()
                 pendingSecondaryView = null
-                if (pending != null && pending.isAttachedToWindow) {
-                    if (BuildConfig.DEBUG) {
-                        Log.d("VideoTarget", "[+${timingOffsetMs()}ms] detachView: pending önizlemeye devredildi (pending=$pending)")
+                if (pending != null) {
+                    if (pending.isAttachedToWindow) {
+                        if (BuildConfig.DEBUG) {
+                            Log.d("VideoTarget", "[+${timingOffsetMs()}ms] detachView: pending önizlemeye devredildi (pending=$pending)")
+                        }
+                        attachView(pending, isPrimary = false, tag = "pending-handover")
+                    } else {
+                        pending.doOnAttach {
+                            if (isCurrentOwnerPrimary && activePlayerView?.get() != null) {
+                                if (BuildConfig.DEBUG) {
+                                    Log.d("VideoTarget", "[+${timingOffsetMs()}ms] detachView: pending pencereye eklendi ancak aktif sahip primary, devredilmedi (pending=$it)")
+                                }
+                                return@doOnAttach
+                            }
+                            if (BuildConfig.DEBUG) {
+                                Log.d("VideoTarget", "[+${timingOffsetMs()}ms] detachView: pending pencereye eklenince devredildi (pending=$it)")
+                            }
+                            attachView(it as PlayerView, isPrimary = false, tag = "pending-handover-onAttach")
+                        }
                     }
-                    attachView(pending, isPrimary = false, tag = "pending-handover")
                 }
             }
         } else {

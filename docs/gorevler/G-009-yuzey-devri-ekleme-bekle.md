@@ -31,4 +31,8 @@ sadece `pending.isAttachedToWindow == true` ise yapılıyor. TV'de `TvTiviMateSc
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Değişiklik:** `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt` içindeki `detachView` metodunda:
+  - `pending` görünüm pencereye henüz eklenmemişse (`isAttachedToWindow == false`) `pending.doOnAttach` ile pencereye bağlandığı anda tek seferlik devir mantığı eklendi.
+  - Bu esnada araya başka bir primary görünüm girdiyse (`isCurrentOwnerPrimary && activePlayerView?.get() != null`) devir iptal edildi.
+  - Pencereye eklenince devir gerçekleştiğinde `"pending pencereye eklenince devredildi"` debug logu eklendi ve `tag = "pending-handover-onAttach"` ile `attachView` çağrıldı.
+- **Test:** `./gradlew compileDebugKotlin` başarıyla tamamlandı (BUILD SUCCESSFUL). TV ve telefon önizleme devir yolları statik olarak doğrulandı.

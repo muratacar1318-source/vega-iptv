@@ -41,7 +41,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
 | G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor — **Düzeltme turu 1** (aynı branch'te devam; derleme hatası) |
-| G-009 | [Önizleme yüzey devri: görünüm pencereye eklenince devret (TV kenar durumu)](docs/gorevler/G-009-yuzey-devri-ekleme-bekle.md) | 🟢 | ⏳ Bekliyor |
+| G-009 | [Önizleme yüzey devri: görünüm pencereye eklenince devret (TV kenar durumu)](docs/gorevler/G-009-yuzey-devri-ekleme-bekle.md) | 🟢 | 🔍 İncelemede (branch: fix/yuzey-devri-ekleme-bekle) |
 
 ---
 
