@@ -29,6 +29,8 @@ data class UpdateInfo(
 
 class AutoUpdateManager(private val context: Context) {
 
+    private val preferences = com.tivimax.player.data.preferences.UserPreferences(context)
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -121,6 +123,11 @@ class AutoUpdateManager(private val context: Context) {
                 val currentVersion = BuildConfig.VERSION_NAME
 
                 if (apkDownloadUrl != null && isNewerVersion(tagName, currentVersion)) {
+                    if (!isManual && preferences.isUpdateSnoozed(tagName)) {
+                        // Kullanıcı bu sürümü erteledi; otomatik açılışta rahatsız etme
+                        return@launch
+                    }
+
                     val info = UpdateInfo(
                         tagName = tagName,
                         releaseNotes = releaseNotes,
@@ -234,5 +241,15 @@ class AutoUpdateManager(private val context: Context) {
         _updateInfo.value = null
         _downloadProgress.value = null
         _errorMessage.value = null
+    }
+
+    fun snoozeUpdate(info: UpdateInfo, hours: Int = 24, scope: CoroutineScope) {
+        scope.launch(Dispatchers.IO) {
+            preferences.snoozeUpdate(info.tagName, hours)
+            withContext(Dispatchers.Main) {
+                dismissUpdate()
+                Toast.makeText(context, "Güncelleme $hours saat ertelendi", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }

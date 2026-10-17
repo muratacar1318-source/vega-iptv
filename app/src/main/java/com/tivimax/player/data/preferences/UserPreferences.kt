@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -127,6 +128,10 @@ class UserPreferences(private val context: Context) {
         const val PORTRAIT_CAT_NAV_CHIPS = "CHIPS"
         const val PORTRAIT_CAT_NAV_SIDEBAR = "SIDEBAR"
         const val PORTRAIT_CAT_NAV_DROPDOWN = "DROPDOWN"
+
+        // Güncellemeyi Erteleme (Snooze)
+        val KEY_SNOOZED_UPDATE_TAG = stringPreferencesKey("snoozed_update_tag")
+        val KEY_SNOOZE_UPDATE_UNTIL = longPreferencesKey("snooze_update_until")
     }
 
     val usernameFlow: Flow<String> = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
@@ -491,6 +496,29 @@ class UserPreferences(private val context: Context) {
     suspend fun setPortraitCategoryNavStyle(style: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_PORTRAIT_CATEGORY_NAV_STYLE] = style
+        }
+    }
+
+    suspend fun snoozeUpdate(tagName: String, durationHours: Int = 24) {
+        val until = System.currentTimeMillis() + (durationHours * 60 * 60 * 1000L)
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SNOOZED_UPDATE_TAG] = tagName
+            prefs[KEY_SNOOZE_UPDATE_UNTIL] = until
+        }
+    }
+
+    suspend fun isUpdateSnoozed(tagName: String): Boolean {
+        val prefs = context.dataStore.data.first()
+        val snoozedTag = prefs[KEY_SNOOZED_UPDATE_TAG]
+        val until = prefs[KEY_SNOOZE_UPDATE_UNTIL] ?: 0L
+        val now = System.currentTimeMillis()
+        return (snoozedTag == tagName && now < until)
+    }
+
+    suspend fun clearUpdateSnooze() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(KEY_SNOOZED_UPDATE_TAG)
+            prefs.remove(KEY_SNOOZE_UPDATE_UNTIL)
         }
     }
 }

@@ -462,7 +462,7 @@ fun HomeScreen(viewModel: MainViewModel) {
         }
 
         AlertDialog(
-            onDismissRequest = { viewModel.dismissUpdate() },
+            onDismissRequest = { viewModel.snoozeUpdate(info, hours = 24) },
             containerColor = TiviSurface,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -484,7 +484,7 @@ fun HomeScreen(viewModel: MainViewModel) {
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Vega IPTV'nin en son sürümü yayınlandı:",
+                        text = "Vega IPTV'nin en son sürümü yayınlandı. Şimdi güncelleyebilir veya daha sonra güncellemek üzere erteleyebilirsiniz:",
                         color = TiviTextSecondary,
                         fontSize = 13.sp
                     )
@@ -562,21 +562,41 @@ fun HomeScreen(viewModel: MainViewModel) {
                                 onClick = { viewModel.downloadAndInstallUpdate(info) }
                             )
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(text = "Şimdi İndir ve Kur", fontWeight = FontWeight.Bold)
                     }
                 }
             },
             dismissButton = {
                 if (downloadProgress == null) {
-                    TextButton(
-                        onClick = { viewModel.dismissUpdate() },
+                    OutlinedButton(
+                        onClick = { viewModel.snoozeUpdate(info, hours = 24) },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White.copy(alpha = 0.08f),
+                            contentColor = Color.White
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.dpadFocusable(
                             shape = RoundedCornerShape(10.dp),
                             focusedBorderColor = OpusCyan,
-                            onClick = { viewModel.dismissUpdate() }
+                            onClick = { viewModel.snoozeUpdate(info, hours = 24) }
                         )
                     ) {
-                        Text(text = "Daha Sonra", color = TiviTextSecondary)
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Daha Sonra", fontWeight = FontWeight.SemiBold, color = Color.White)
                     }
                 }
             }

@@ -593,6 +593,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         autoUpdateManager.dismissUpdate()
     }
 
+    fun snoozeUpdate(info: com.tivimax.player.data.update.UpdateInfo, hours: Int = 24) {
+        autoUpdateManager.snoozeUpdate(info, hours, viewModelScope)
+    }
+
     fun saveWatchProgress(streamId: Int, positionMs: Long, durationMs: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             preferences.saveWatchProgress(streamId, positionMs, durationMs)
