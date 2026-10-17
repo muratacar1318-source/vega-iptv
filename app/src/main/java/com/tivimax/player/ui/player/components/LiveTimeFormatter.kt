@@ -58,8 +58,9 @@ object LiveTimeFormatter {
 
     /**
      * Programın yayınlanma ilerleme oranını 0.0f ile 1.0f arasında döner.
+     * EPG yoksa veya zaman aralığı geçersizse null döner.
      */
-    fun calculateProgress(epg: EpgProgram?, fallbackProgress: Float = 0.45f): Float {
+    fun calculateProgress(epg: EpgProgram?, fallbackProgress: Float? = null): Float? {
         if (epg == null) return fallbackProgress
         val nowMs = System.currentTimeMillis()
         val startMs = getStartTimeMs(epg)
