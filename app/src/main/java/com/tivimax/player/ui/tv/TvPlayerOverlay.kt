@@ -49,8 +49,10 @@ import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.DelayedSubtitleController
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.player.components.PlayerPillButton
@@ -301,7 +303,7 @@ fun TvPlayerOverlay(
         // BUFFET / YÜKLENİYOR
         if (isBuffering) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = OpusCyan, strokeWidth = 3.dp, modifier = Modifier.size(54.dp))
+                CircularProgressIndicator(color = VegaColors.Accent, strokeWidth = 3.dp, modifier = Modifier.size(54.dp))
             }
         }
 
@@ -314,14 +316,14 @@ fun TvPlayerOverlay(
         ) {
             // SAAT
             Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = Color(0xD910141D),
-                border = BorderStroke(1.dp, Color(0xFF1E2638))
+                shape = VegaShapes.Medium,
+                color = VegaColors.OverlayPanel,
+                border = BorderStroke(1.dp, VegaColors.Border)
             ) {
                 Text(
                     text = clockText,
-                    color = Color.White,
-                    fontSize = 14.sp,
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.Body,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
@@ -331,13 +333,13 @@ fun TvPlayerOverlay(
             if (isZapperActive && zapperNumber.isNotBlank()) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = OpusCyan,
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.Accent,
                     border = BorderStroke(1.5.dp, Color.White)
                 ) {
                     Text(
                         text = "[ $zapperNumber ] ${zapperMatchedChannel?.name ?: ""}".trim(),
-                        color = Color.Black,
+                        color = VegaColors.OnAccent,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -346,7 +348,7 @@ fun TvPlayerOverlay(
             }
         }
 
-        // 3. TIVIMATE ALT BİLGİ KARTI (BOTTOM INFO CARD - D910141D)
+        // 3. TIVIMATE ALT BİLGİ KARTI (BOTTOM INFO CARD)
         AnimatedVisibility(
             visible = showInfoCard,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -357,15 +359,15 @@ fun TvPlayerOverlay(
                 .padding(start = 20.dp, end = 20.dp, bottom = 18.dp)
         ) {
             val epg = epgSummaryMap[activeChannel.streamId]
-            val currentTitle = epg?.getDecodedTitle() ?: activeChannel.currentProgram ?: "Canlı Yayın"
+            val currentTitle = epg?.getDecodedTitle() ?: activeChannel.currentProgram ?: "Canlı yayın"
             val timeString = epg?.getFormattedTime() ?: if (epg?.start != null && epg.end != null) "${epg.start} - ${epg.end}" else ""
             val progress = epg?.getProgressFraction()
             val nextTitle = activeChannel.nextProgram ?: epg?.getDecodedDescription() ?: ""
 
             Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = Color(0xD910141D),
-                border = BorderStroke(1.dp, Color(0xFF1E2638))
+                shape = VegaShapes.Large,
+                color = VegaColors.OverlayPanel,
+                border = BorderStroke(1.dp, VegaColors.Border)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -376,7 +378,7 @@ fun TvPlayerOverlay(
                         if (activeChannel.num > 0) {
                             Text(
                                 text = "${activeChannel.num}",
-                                color = OpusCyan,
+                                color = VegaColors.Accent,
                                 fontSize = 32.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 modifier = Modifier.padding(end = 14.dp)
@@ -389,7 +391,7 @@ fun TvPlayerOverlay(
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .size(52.dp)
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(VegaShapes.Medium)
                                 .background(Color.Black),
                             placeholderIcon = Icons.Default.Tv
                         )
@@ -405,8 +407,8 @@ fun TvPlayerOverlay(
                             ) {
                                 Text(
                                     text = activeChannel.name,
-                                    color = Color.White,
-                                    fontSize = 17.sp,
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = VegaText.SectionTitle,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -421,7 +423,7 @@ fun TvPlayerOverlay(
                                         TechBadge(text = streamDiagnostics.frameRateBadge)
                                     }
                                     if (streamDiagnostics.bufferHealthSecs.isNotBlank()) {
-                                        TechBadge(text = "Buffer: ${streamDiagnostics.bufferHealthSecs}")
+                                        TechBadge(text = "Tampon: ${streamDiagnostics.bufferHealthSecs}")
                                     }
                                 }
                             }
@@ -431,8 +433,8 @@ fun TvPlayerOverlay(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = currentTitle,
-                                    color = Color.White,
-                                    fontSize = 14.sp,
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = VegaText.Body,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -440,7 +442,7 @@ fun TvPlayerOverlay(
                                 )
                                 if (timeString.isNotBlank()) {
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("($timeString)", color = TiviTextSecondary, fontSize = 12.sp)
+                                    Text("($timeString)", color = VegaColors.TextSecondary, fontSize = VegaText.Secondary)
                                 }
                             }
 
@@ -448,12 +450,12 @@ fun TvPlayerOverlay(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 LinearProgressIndicator(
                                     progress = { progress },
-                                    color = OpusCyan,
-                                    trackColor = Color.White.copy(alpha = 0.15f),
+                                    color = VegaColors.Accent,
+                                    trackColor = VegaColors.Border,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(3.dp)
-                                        .clip(RoundedCornerShape(1.5.dp))
+                                        .clip(VegaShapes.Small)
                                 )
                             }
 
@@ -461,8 +463,8 @@ fun TvPlayerOverlay(
                                 Spacer(modifier = Modifier.height(3.dp))
                                 Text(
                                     text = "Sonraki: $nextTitle",
-                                    color = TiviTextSecondary,
-                                    fontSize = 11.5.sp,
+                                    color = VegaColors.TextSecondary,
+                                    fontSize = VegaText.Caption,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -477,12 +479,12 @@ fun TvPlayerOverlay(
                         exit = shrinkVertically() + fadeOut()
                     ) {
                         Column(modifier = Modifier.padding(top = 12.dp)) {
-                            HorizontalDivider(color = TiviCardBorder, thickness = 0.5.dp)
+                            HorizontalDivider(color = VegaColors.Border, thickness = 1.dp)
 
                             // KATMAN A: SON İZLENEN KANAL ŞERİDİ
                             if (recentChannels.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("Son İzlenen Kanallar", color = TiviGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text("Son izlenen kanallar", color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.height(4.dp))
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -490,12 +492,12 @@ fun TvPlayerOverlay(
                                 ) {
                                     items(recentChannels.take(10), key = { "rec_${it.streamId}" }) { rec ->
                                         Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = TiviCardDark,
-                                            border = BorderStroke(1.dp, TiviCardBorder),
+                                            shape = VegaShapes.Small,
+                                            color = VegaColors.Card,
+                                            border = BorderStroke(1.dp, VegaColors.Border),
                                             modifier = Modifier.dpadFocusable(
-                                                focusedBorderColor = TiviGold,
-                                                shape = RoundedCornerShape(8.dp),
+                                                focusedBorderColor = VegaColors.Accent,
+                                                shape = VegaShapes.Small,
                                                 onClick = { viewModel.playLiveChannel(rec) }
                                             )
                                         ) {
@@ -507,10 +509,10 @@ fun TvPlayerOverlay(
                                                     model = rec.streamIcon,
                                                     contentDescription = rec.name,
                                                     contentScale = ContentScale.Fit,
-                                                    modifier = Modifier.size(20.dp).clip(RoundedCornerShape(3.dp))
+                                                    modifier = Modifier.size(20.dp).clip(VegaShapes.Small)
                                                 )
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Text(rec.name, color = Color.White, fontSize = 11.sp, maxLines = 1)
+                                                Text(rec.name, color = VegaColors.TextPrimary, fontSize = VegaText.Caption, maxLines = 1)
                                             }
                                         }
                                     }
@@ -526,7 +528,7 @@ fun TvPlayerOverlay(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 PlayerPillButton(
-                                    text = "Ses & Altyazı",
+                                    text = "Ses ve altyazı",
                                     icon = Icons.Default.Subtitles,
                                     onClick = { showTrackSheet = true },
                                     isPortrait = false,
@@ -545,16 +547,16 @@ fun TvPlayerOverlay(
                                     isPortrait = false
                                 )
                                 PlayerPillButton(
-                                    text = if (isFavorite) "Favorilerde" else "Favoriye Ekle",
+                                    text = if (isFavorite) "Favorilerde" else "Favoriye ekle",
                                     icon = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                                     onClick = { viewModel.toggleFavoriteLive(activeChannel.streamId.toString()) },
                                     isActive = isFavorite,
-                                    activeColor = TiviGold,
+                                    activeColor = VegaColors.Gold,
                                     isPortrait = false
                                 )
                                 if (onOpenEpgGrid != null) {
                                     PlayerPillButton(
-                                        text = "Program Rehberi",
+                                        text = "Program rehberi",
                                         icon = Icons.Default.Schedule,
                                         onClick = onOpenEpgGrid,
                                         isPortrait = false
@@ -578,11 +580,11 @@ fun TvPlayerOverlay(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(420.dp),
-                color = Color(0xE60A0E14),
-                border = BorderStroke(1.dp, Color(0xFF1E2638))
+                color = VegaColors.OverlayPanel,
+                border = BorderStroke(1.dp, VegaColors.Border)
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text("TIVIMATE YARI SAYDAM REHBER", color = OpusCyan, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Rehber", color = VegaColors.Accent, fontSize = VegaText.Secondary, fontWeight = FontWeight.ExtraBold)
                     Spacer(modifier = Modifier.height(10.dp))
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -591,13 +593,13 @@ fun TvPlayerOverlay(
                         items(allStreams, key = { "guide_${it.streamId}" }) { st ->
                             val isSel = st.streamId == activeChannel.streamId
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSel) OpusCyan.copy(alpha = 0.2f) else Color.Transparent,
+                                shape = VegaShapes.Small,
+                                color = if (isSel) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .dpadFocusable(
-                                        focusedBorderColor = OpusCyan,
-                                        shape = RoundedCornerShape(8.dp),
+                                        focusedBorderColor = VegaColors.Accent,
+                                        shape = VegaShapes.Small,
                                         onClick = { viewModel.playLiveChannel(st) }
                                     )
                             ) {
@@ -605,8 +607,8 @@ fun TvPlayerOverlay(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("${st.num}", color = OpusCyan, fontSize = 11.sp, modifier = Modifier.width(24.dp))
-                                    Text(st.name, color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                    Text("${st.num}", color = VegaColors.Accent, fontSize = VegaText.Caption, modifier = Modifier.width(24.dp))
+                                    Text(st.name, color = VegaColors.TextPrimary, fontSize = VegaText.Secondary, fontWeight = FontWeight.Bold, maxLines = 1)
                                 }
                             }
                         }
@@ -626,8 +628,8 @@ fun TvPlayerOverlay(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(420.dp),
-                color = Color(0xE60A0E14),
-                border = BorderStroke(1.dp, Color(0xFF1E2638))
+                color = VegaColors.OverlayPanel,
+                border = BorderStroke(1.dp, VegaColors.Border)
             ) {
                 Column(
                     modifier = Modifier
@@ -640,9 +642,9 @@ fun TvPlayerOverlay(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "SES & ALTYAZI AYARLARI",
-                            color = OpusCyan,
-                            fontSize = 13.sp,
+                            text = "Ses ve altyazı ayarları",
+                            color = VegaColors.Accent,
+                            fontSize = VegaText.Secondary,
                             fontWeight = FontWeight.ExtraBold
                         )
                         IconButton(
@@ -652,7 +654,7 @@ fun TvPlayerOverlay(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Kapat",
-                                tint = Color.White.copy(alpha = 0.7f),
+                                tint = VegaColors.TextSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -667,9 +669,9 @@ fun TvPlayerOverlay(
                         // 1. SES DİLİ
                         item {
                             Text(
-                                text = "Ses Dili",
-                                color = TiviPrimary,
-                                fontSize = 12.sp,
+                                text = "Ses dili",
+                                color = VegaColors.Accent,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -678,20 +680,20 @@ fun TvPlayerOverlay(
                             item {
                                 Text(
                                     text = "Ek ses parçası bulunamadı",
-                                    color = TiviTextSecondary,
-                                    fontSize = 11.sp
+                                    color = VegaColors.TextSecondary,
+                                    fontSize = VegaText.Caption
                                 )
                             }
                         } else {
                             items(audioTracks) { track ->
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (track.isSelected) TiviPrimary.copy(alpha = 0.2f) else Color.Transparent,
+                                    shape = VegaShapes.Small,
+                                    color = if (track.isSelected) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .dpadFocusable(
-                                            focusedBorderColor = TiviPrimary,
-                                            shape = RoundedCornerShape(8.dp),
+                                            focusedBorderColor = VegaColors.Accent,
+                                            shape = VegaShapes.Small,
                                             onClick = { playerManager.selectTrack(track, C.TRACK_TYPE_AUDIO) }
                                         )
                                 ) {
@@ -701,14 +703,14 @@ fun TvPlayerOverlay(
                                     ) {
                                         Text(
                                             text = if (track.isSelected) "●" else "○",
-                                            color = if (track.isSelected) TiviPrimary else TiviTextSecondary,
-                                            fontSize = 12.sp
+                                            color = if (track.isSelected) VegaColors.Accent else VegaColors.TextSecondary,
+                                            fontSize = VegaText.Secondary
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = track.name,
-                                            color = if (track.isSelected) TiviPrimary else Color.White,
-                                            fontSize = 12.sp,
+                                            color = if (track.isSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                            fontSize = VegaText.Secondary,
                                             fontWeight = if (track.isSelected) FontWeight.Bold else FontWeight.Normal
                                         )
                                     }
@@ -718,7 +720,7 @@ fun TvPlayerOverlay(
 
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
-                            HorizontalDivider(color = Color(0xFF1E2638))
+                            HorizontalDivider(color = VegaColors.Border)
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
@@ -726,8 +728,8 @@ fun TvPlayerOverlay(
                         item {
                             Text(
                                 text = "Altyazı",
-                                color = TiviGold,
-                                fontSize = 12.sp,
+                                color = VegaColors.Accent,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -735,13 +737,13 @@ fun TvPlayerOverlay(
                         // Altyazı Kapalı Seçeneği
                         item {
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (!anySubSelected) TiviGold.copy(alpha = 0.2f) else Color.Transparent,
+                                shape = VegaShapes.Small,
+                                color = if (!anySubSelected) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .dpadFocusable(
-                                        focusedBorderColor = TiviGold,
-                                        shape = RoundedCornerShape(8.dp),
+                                        focusedBorderColor = VegaColors.Accent,
+                                        shape = VegaShapes.Small,
                                         onClick = { playerManager.disableSubtitles() }
                                     )
                             ) {
@@ -751,14 +753,14 @@ fun TvPlayerOverlay(
                                 ) {
                                     Text(
                                         text = if (!anySubSelected) "●" else "○",
-                                        color = if (!anySubSelected) TiviGold else TiviTextSecondary,
-                                        fontSize = 12.sp
+                                        color = if (!anySubSelected) VegaColors.Accent else VegaColors.TextSecondary,
+                                        fontSize = VegaText.Secondary
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Altyazı Kapalı",
-                                        color = if (!anySubSelected) TiviGold else Color.White,
-                                        fontSize = 12.sp,
+                                        text = "Kapalı",
+                                        color = if (!anySubSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                        fontSize = VegaText.Secondary,
                                         fontWeight = if (!anySubSelected) FontWeight.Bold else FontWeight.Normal
                                     )
                                 }
@@ -767,13 +769,13 @@ fun TvPlayerOverlay(
 
                         items(subtitleTracks) { track ->
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (track.isSelected) TiviGold.copy(alpha = 0.2f) else Color.Transparent,
+                                shape = VegaShapes.Small,
+                                color = if (track.isSelected) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .dpadFocusable(
-                                        focusedBorderColor = TiviGold,
-                                        shape = RoundedCornerShape(8.dp),
+                                        focusedBorderColor = VegaColors.Accent,
+                                        shape = VegaShapes.Small,
                                         onClick = { playerManager.selectTrack(track, C.TRACK_TYPE_TEXT) }
                                     )
                             ) {
@@ -783,14 +785,14 @@ fun TvPlayerOverlay(
                                 ) {
                                     Text(
                                         text = if (track.isSelected) "●" else "○",
-                                        color = if (track.isSelected) TiviGold else TiviTextSecondary,
-                                        fontSize = 12.sp
+                                        color = if (track.isSelected) VegaColors.Accent else VegaColors.TextSecondary,
+                                        fontSize = VegaText.Secondary
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = track.name,
-                                        color = if (track.isSelected) TiviGold else Color.White,
-                                        fontSize = 12.sp,
+                                        color = if (track.isSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                        fontSize = VegaText.Secondary,
                                         fontWeight = if (track.isSelected) FontWeight.Bold else FontWeight.Normal
                                     )
                                 }
@@ -800,15 +802,15 @@ fun TvPlayerOverlay(
                         // 3. ALTYAZI GECİKMESİ
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
-                            HorizontalDivider(color = Color(0xFF1E2638))
+                            HorizontalDivider(color = VegaColors.Border)
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
                         item {
                             Text(
-                                text = "Altyazı Gecikmesi",
-                                color = if (anySubSelected) OpusCyan else TiviTextMuted,
-                                fontSize = 12.sp,
+                                text = "Altyazı gecikmesi",
+                                color = if (anySubSelected) VegaColors.Accent else VegaColors.TextMuted,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -816,9 +818,9 @@ fun TvPlayerOverlay(
                         if (!anySubSelected) {
                             item {
                                 Text(
-                                    text = "Gecikme ayarı için önce bir altyazı seçin.",
-                                    color = TiviTextMuted,
-                                    fontSize = 11.sp
+                                    text = "Gecikme ayarı için önce bir altyazı seç.",
+                                    color = VegaColors.TextMuted,
+                                    fontSize = VegaText.Caption
                                 )
                             }
                         } else {
@@ -834,14 +836,14 @@ fun TvPlayerOverlay(
                                 ) {
                                     // [-] butonu
                                     Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color(0xFF161F2E),
-                                        border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.4f)),
+                                        shape = VegaShapes.Small,
+                                        color = VegaColors.SurfaceVariant,
+                                        border = BorderStroke(1.dp, VegaColors.Border),
                                         modifier = Modifier
                                             .weight(1f)
                                             .dpadFocusable(
-                                                focusedBorderColor = OpusCyan,
-                                                shape = RoundedCornerShape(8.dp),
+                                                focusedBorderColor = VegaColors.Accent,
+                                                shape = VegaShapes.Small,
                                                 onClick = {
                                                     viewModel.setSubtitleDelayMs(subtitleDelayMs - 100L)
                                                 }
@@ -851,15 +853,15 @@ fun TvPlayerOverlay(
                                             modifier = Modifier.padding(vertical = 8.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("-100 ms", color = OpusCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text("-100 ms", color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                                         }
                                     }
 
                                     // Değer göstergesi
                                     Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = OpusCyan.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.dp, OpusCyan),
+                                        shape = VegaShapes.Small,
+                                        color = VegaColors.Accent.copy(alpha = 0.18f),
+                                        border = BorderStroke(1.dp, VegaColors.Accent),
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Box(
@@ -868,8 +870,8 @@ fun TvPlayerOverlay(
                                         ) {
                                             Text(
                                                 text = formattedDelay,
-                                                color = Color.White,
-                                                fontSize = 12.sp,
+                                                color = VegaColors.TextPrimary,
+                                                fontSize = VegaText.Secondary,
                                                 fontWeight = FontWeight.ExtraBold
                                             )
                                         }
@@ -877,14 +879,14 @@ fun TvPlayerOverlay(
 
                                     // [+] butonu
                                     Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color(0xFF161F2E),
-                                        border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.4f)),
+                                        shape = VegaShapes.Small,
+                                        color = VegaColors.SurfaceVariant,
+                                        border = BorderStroke(1.dp, VegaColors.Border),
                                         modifier = Modifier
                                             .weight(1f)
                                             .dpadFocusable(
-                                                focusedBorderColor = OpusCyan,
-                                                shape = RoundedCornerShape(8.dp),
+                                                focusedBorderColor = VegaColors.Accent,
+                                                shape = VegaShapes.Small,
                                                 onClick = {
                                                     viewModel.setSubtitleDelayMs(subtitleDelayMs + 100L)
                                                 }
@@ -894,20 +896,20 @@ fun TvPlayerOverlay(
                                             modifier = Modifier.padding(vertical = 8.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("+100 ms", color = OpusCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text("+100 ms", color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                                         }
                                     }
 
                                     // Sıfırla
                                     Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = Color(0xFF161F2E),
-                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                                        shape = VegaShapes.Small,
+                                        color = VegaColors.SurfaceVariant,
+                                        border = BorderStroke(1.dp, VegaColors.Border),
                                         modifier = Modifier
                                             .weight(1f)
                                             .dpadFocusable(
-                                                focusedBorderColor = TiviGold,
-                                                shape = RoundedCornerShape(8.dp),
+                                                focusedBorderColor = VegaColors.Accent,
+                                                shape = VegaShapes.Small,
                                                 onClick = {
                                                     viewModel.setSubtitleDelayMs(0L)
                                                 }
@@ -917,7 +919,7 @@ fun TvPlayerOverlay(
                                             modifier = Modifier.padding(vertical = 8.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("Sıfırla", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            Text("Sıfırla", color = VegaColors.TextPrimary, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
@@ -933,14 +935,14 @@ fun TvPlayerOverlay(
 @Composable
 private fun TechBadge(text: String, isHighlight: Boolean = false) {
     Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = if (isHighlight) OpusCyan.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.1f),
-        border = BorderStroke(0.5.dp, if (isHighlight) OpusCyan else Color.White.copy(alpha = 0.2f))
+        shape = VegaShapes.Small,
+        color = if (isHighlight) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
+        border = BorderStroke(1.dp, if (isHighlight) VegaColors.Accent else VegaColors.Border)
     ) {
         Text(
             text = text,
-            color = if (isHighlight) OpusCyan else Color.White,
-            fontSize = 9.5.sp,
+            color = if (isHighlight) VegaColors.Accent else VegaColors.TextPrimary,
+            fontSize = VegaText.Caption,
             fontWeight = FontWeight.ExtraBold,
             modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
         )

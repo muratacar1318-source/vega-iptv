@@ -25,7 +25,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -34,12 +33,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tivimax.player.theme.OpusCyan
-import com.tivimax.player.theme.TiviPrimary
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.main.HomeTab
-
-private val TvRailBackground = Color(0xFF0B0C1A)
-private val TvRailMuted = Color(0xFF8E92AA)
 
 /**
  * ANDROID TV SOL MENÜ (10-FOOT UI)
@@ -71,8 +68,8 @@ fun TvNavigationRail(
         modifier = modifier
             .width(92.dp)
             .fillMaxHeight(),
-        color = TvRailBackground,
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
+        color = VegaColors.Surface,
+        border = BorderStroke(1.dp, VegaColors.Border)
     ) {
         Column(
             modifier = Modifier
@@ -87,11 +84,11 @@ fun TvNavigationRail(
             Box(
                 modifier = Modifier
                     .size(34.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Brush.linearGradient(listOf(OpusCyan, TiviPrimary))),
+                    .clip(VegaShapes.Medium)
+                    .background(VegaColors.Accent),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Tv, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Tv, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(18.dp))
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -134,8 +131,8 @@ fun TvNavigationRail(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "$activeCons/$maxCons",
-                    color = Color(0xFF00E676),
-                    fontSize = 11.sp,
+                    color = VegaColors.Success,
+                    fontSize = VegaText.Caption,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -153,12 +150,12 @@ private fun TvRailItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val shape = RoundedCornerShape(14.dp)
+    val shape = VegaShapes.Medium
 
     val background = when {
-        isFocused -> Brush.verticalGradient(listOf(OpusCyan.copy(alpha = 0.30f), TiviPrimary.copy(alpha = 0.18f)))
-        isSelected -> Brush.verticalGradient(listOf(TiviPrimary.copy(alpha = 0.28f), TiviPrimary.copy(alpha = 0.08f)))
-        else -> Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+        isFocused -> VegaColors.Accent.copy(alpha = 0.25f)
+        isSelected -> VegaColors.Accent.copy(alpha = 0.15f)
+        else -> Color.Transparent
     }
 
     Box(
@@ -171,7 +168,7 @@ private fun TvRailItem(
             }
             .clip(shape)
             .background(background)
-            .then(if (isFocused) Modifier.border(2.dp, OpusCyan, shape) else Modifier)
+            .then(if (isFocused) Modifier.border(2.dp, VegaColors.Accent, shape) else Modifier)
             // Tek odak hedefi: kumanda ile tek basışta seçilir
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
@@ -183,7 +180,7 @@ private fun TvRailItem(
                     .width(3.dp)
                     .height(30.dp)
                     .background(
-                        brush = Brush.verticalGradient(listOf(OpusCyan, TiviPrimary)),
+                        color = VegaColors.Accent,
                         shape = RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp)
                     )
             )
@@ -193,18 +190,18 @@ private fun TvRailItem(
                 imageVector = icon,
                 contentDescription = label,
                 tint = when {
-                    isFocused -> Color.White
-                    isSelected -> OpusCyan
-                    else -> TvRailMuted
+                    isFocused -> VegaColors.TextPrimary
+                    isSelected -> VegaColors.Accent
+                    else -> VegaColors.TextSecondary
                 },
                 modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = label,
-                fontSize = 11.sp,
+                fontSize = VegaText.Caption,
                 fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected || isFocused) Color.White else TvRailMuted,
+                color = if (isSelected || isFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center
