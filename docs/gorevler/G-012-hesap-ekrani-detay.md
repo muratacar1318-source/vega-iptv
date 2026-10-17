@@ -116,4 +116,52 @@ güncelleme sistemi (`AutoUpdateManager`), imza, CI. Sunucu adresini hiçbir yer
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+### Yapılanlar
+1. **Saf Biçimlendirici ve Hesaplayıcı (`AccountInfoFormatter.kt`):**
+   - Kullanıcı adı avatar harfi (Türkçe uyumlu büyük harf).
+   - Durum rozeti (`accountStatus`): Aktif (yeşil), Süresi doldu (kırmızı), Askıya alındı (kırmızı), Bilinmiyor (gri), diğer durumlar (gri).
+   - Abonelik bitiş tarihi (`formatExpDate`): Türkçe ay adı ("12 Mart 2027" / "Süresiz").
+   - Kalan süre (`formatRemainingDays`): "N gün kaldı", 30 günden az amber, 7 günden az kırmızı, geçmişse "Süresi doldu" kırmızı, 1 günden az kaldıysa "Bugün sona eriyor" kırmızı.
+   - Abonelik ilerleme çubuğu (`calculateSubscriptionProgress`): `createdAt` → `expDate` aralığındaki oran (0f..1f).
+   - Üyelik başlangıç tarihi (`formatCreatedAt`): "3 Ocak 2026" veya null.
+   - İçerik sayıları (`formatContentCount`): Room toplamları için Türkçe binlik ayraçlı ("12.345") veya null için "—".
+   - Son senkronizasyon (`formatLastSync`): "17 Ekim 2026, 23:56 · 2 saat önce" göreli süre ile veya "Henüz yapılmadı".
+2. **Önbellek ve Tercihler (`UserPreferences.kt`):**
+   - `KEY_STATUS`, `KEY_IS_TRIAL`, `KEY_CREATED_AT` anahtarları ve ilgili flow'lar eklendi.
+   - `saveAuth(...)` fonksiyonuna varsayılan parametreler (`status`, `isTrial`, `createdAt`) eklendi, geriye dönük uyumluluk korundu.
+3. **ViewModel Entegrasyonu (`MainViewModel.kt`):**
+   - `checkUserLoginAndNavigate()` içindeki sabit `status = "Active"` kaldırıldı; önbellekteki kaydedilmiş değerler (`status`, `isTrial`, `createdAt`) yüklendi ve `saveAuth(...)` çağrısında güncellendi.
+   - `login(...)` içinde sunucudan gelen `status`, `isTrial`, `createdAt` değerleri kaydedildi.
+   - `loadAccountContentCounts()` ile Room veritabanından Canlı Kanal, VOD Film ve Dizi sayıları `accountContentCounts: StateFlow<Triple<Int, Int, Int>?>` olarak sağlandı; ekran açılışında ve senkronizasyon bitişinde güncellendi.
+   - `refreshAccountInfo(silent, onResult)` eklendi; ekran açılışında 5 dakikada en fazla 1 kez sessizce çalıştırılır, manuel tıklandığında kimlik doğrulaması yaparak `userInfo` ve önbelleği günceller, kullanıcıya Toast mesajı döner. `accountRefreshing: StateFlow<Boolean>` eklendi.
+4. **Hesap ve Liste Arayüzü (`SettingsAccountSection.kt`):**
+   - Profil Kartı: Kullanıcı ilk harfi avatarı, kullanıcı adı, gerçek durum rozeti, deneme hesabı için "Deneme" rozeti ve sağ üstte 44dp dokunma alanına sahip "Hesap bilgilerini yenile" butonu.
+   - Abonelik Kartı: Bitiş tarihi, kalan süre, ince (4dp) ilerleme çubuğu ve üyelik başlangıcı.
+   - Bağlantı Kartı: Aynı anda izleme hakkı ("N cihaz" veya "—"), şu an kullanımda ("X", değer yoksa satır gizli; sahte 0/1 değerleri kaldırıldı).
+   - İçerik Özeti Kartı: Canlı kanal, Film, Dizi için 3 eşit kutucuk; binlik ayraçlı format.
+   - Senkronizasyon Kartı: "Son güncelleme: [tarih] · [göreli zaman]" ve "Şimdi Senkronize Et" butonu.
+   - Güvenli Çıkış Kartı & Onay Diyaloğu: "Çıkış Yap" butonu basıldığında "Çıkış yapılsın mı?" başlıklı onay diyaloğu açılır. Odak kumanda için varsayılan olarak "Vazgeç" butonundadır. "Çıkış Yap" onaylandığında mevcut `logout()` çalışır.
+   - Yerleşim: Mobil/dar ekranlarda tek sütun kartlar (12dp aralıklı `TiviCard`), geniş ekran ve TV'lerde (≥ 840dp) sol ve sağ iki sütunlu dengeli yerleşim. Tüm etkileşimli alanlar kumanda odaklı (`dpadFocusable`) ve ≥ 44dp.
+5. **Birim Testleri (`AccountInfoFormatterTest.kt`):**
+   - `testFormatRemainingDays_Suresiz`: null, boş, "0", "null" -> null.
+   - `testFormatRemainingDays_GecersizMetin`: "abc", "-123", "invalid_date" -> null.
+   - `testFormatRemainingDays_Gecmis`: geçmiş zaman -> "Süresi doldu", RED.
+   - `testFormatRemainingDays_0Gun_BugunSonaEriyor`: 0 gün (< 1 gün) -> "Bugün sona eriyor", RED.
+   - `testFormatRemainingDays_6Gun`: 6 gün -> "6 gün kaldı", RED.
+   - `testFormatRemainingDays_29Gun`: 29 gün -> "29 gün kaldı", AMBER.
+   - `testFormatRemainingDays_200Gun`: 200 gün -> "200 gün kaldı", GREEN.
+   - `testFormatExpDate`, `testAccountStatus`, `testSubscriptionProgress`, `testFormatCreatedAt`, `testFormatContentCount`, `testFormatLastSync`, `testGetUserAvatarLetter`.
+   - Tüm birim testleri (`./gradlew testDebugUnitTest`) başarıyla geçti (BUILD SUCCESSFUL).
+
+### Değiştirilen Dosyalar
+- `app/src/main/java/com/tivimax/player/ui/settings/AccountInfoFormatter.kt` (yeni)
+- `app/src/test/java/com/tivimax/player/ui/settings/AccountInfoFormatterTest.kt` (yeni)
+- `app/src/main/java/com/tivimax/player/data/preferences/UserPreferences.kt`
+- `app/src/main/java/com/tivimax/player/ui/MainViewModel.kt`
+- `app/src/main/java/com/tivimax/player/ui/settings/SettingsAccountSection.kt`
+- `app/src/main/java/com/tivimax/player/ui/settings/SettingsScreen.kt`
+
+### Test Sonuçları
+- Birim testleri (`./gradlew testDebugUnitTest --tests "com.tivimax.player.ui.settings.AccountInfoFormatterTest"`): Geçti (11 test, 0 hata).
+- Proje genel testleri (`./gradlew testDebugUnitTest`): 28 task, BUILD SUCCESSFUL.
+- UI akışı: Kod incelemesi ve Compose yerleşimi doğrulandı. Cihaz üzerinde manuel tıklama testi agent ortamında test edilemedi.

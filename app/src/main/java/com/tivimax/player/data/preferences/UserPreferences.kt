@@ -41,6 +41,9 @@ class UserPreferences(private val context: Context) {
         val KEY_EXP_DATE = stringPreferencesKey("exp_date")
         val KEY_MAX_CONNECTIONS = stringPreferencesKey("max_connections")
         val KEY_ACTIVE_CONNECTIONS = stringPreferencesKey("active_connections")
+        val KEY_STATUS = stringPreferencesKey("status")
+        val KEY_IS_TRIAL = stringPreferencesKey("is_trial")
+        val KEY_CREATED_AT = stringPreferencesKey("created_at")
 
         // Favoriler
         val KEY_FAVORITE_LIVE = stringSetPreferencesKey("fav_live")
@@ -155,6 +158,9 @@ class UserPreferences(private val context: Context) {
     val expDateFlow: Flow<String> = context.dataStore.data.map { it[KEY_EXP_DATE] ?: "" }
     val maxConnectionsFlow: Flow<String> = context.dataStore.data.map { it[KEY_MAX_CONNECTIONS] ?: "1" }
     val activeConnectionsFlow: Flow<String> = context.dataStore.data.map { it[KEY_ACTIVE_CONNECTIONS] ?: "1" }
+    val statusFlow: Flow<String> = context.dataStore.data.map { it[KEY_STATUS] ?: "" }
+    val isTrialFlow: Flow<String> = context.dataStore.data.map { it[KEY_IS_TRIAL] ?: "" }
+    val createdAtFlow: Flow<String> = context.dataStore.data.map { it[KEY_CREATED_AT] ?: "" }
 
     val favoriteLiveFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_FAVORITE_LIVE] ?: emptySet() }
     val favoriteVodFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_FAVORITE_VOD] ?: emptySet() }
@@ -246,7 +252,10 @@ class UserPreferences(private val context: Context) {
         serverUrl: String = AppConfig.DEFAULT_SERVER_URL,
         expDate: String = "",
         maxCons: String = "1",
-        activeCons: String = "1"
+        activeCons: String = "1",
+        status: String = "",
+        isTrial: String = "",
+        createdAt: String = ""
     ) {
         context.dataStore.edit { prefs ->
             prefs[KEY_USERNAME] = username
@@ -256,6 +265,9 @@ class UserPreferences(private val context: Context) {
             prefs[KEY_EXP_DATE] = expDate
             prefs[KEY_MAX_CONNECTIONS] = maxCons
             prefs[KEY_ACTIVE_CONNECTIONS] = activeCons
+            prefs[KEY_STATUS] = status
+            prefs[KEY_IS_TRIAL] = isTrial
+            prefs[KEY_CREATED_AT] = createdAt
         }
     }
 

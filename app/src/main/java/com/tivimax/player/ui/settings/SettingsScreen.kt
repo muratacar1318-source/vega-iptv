@@ -489,12 +489,25 @@ private fun RenderSelectedSection(
         // 1. HESAP VE OYNATMA LİSTESİ
         // ==========================================
         SettingsSection.ACCOUNT -> {
+            val contentCounts by viewModel.accountContentCounts.collectAsState()
+            val isRefreshing by viewModel.accountRefreshing.collectAsState()
+
+            LaunchedEffect(Unit) {
+                viewModel.loadAccountContentCounts()
+                viewModel.refreshAccountInfo(silent = true)
+            }
+
             SettingsAccountSection(
                 userInfo = userInfo,
                 lastSync = lastSync,
-                autoSyncLive = autoSyncLive,
+                contentCounts = contentCounts,
+                isRefreshing = isRefreshing,
+                onRefreshClick = {
+                    viewModel.refreshAccountInfo(silent = false) { _, msg ->
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    }
+                },
                 onSyncClick = { viewModel.openPlaylistSync() },
-                onAutoSyncChange = { viewModel.setAutoSyncLive(it) },
                 onLogoutClick = { viewModel.logout() }
             )
         }

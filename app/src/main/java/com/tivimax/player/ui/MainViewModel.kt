@@ -565,6 +565,99 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Uygulama Tema Ayarı
     val appTheme = preferences.appThemeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "MIDNIGHT")
 
+    // Hesap ve Liste Bilgileri & İçerik Sayıları
+    private val _accountContentCounts = MutableStateFlow<Triple<Int, Int, Int>?>(null)
+    val accountContentCounts: StateFlow<Triple<Int, Int, Int>?> = _accountContentCounts.asStateFlow()
+
+    private val _accountRefreshing = MutableStateFlow(false)
+    val accountRefreshing: StateFlow<Boolean> = _accountRefreshing.asStateFlow()
+
+    private var lastAccountRefreshTimeMs: Long = 0L
+
+    fun loadAccountContentCounts() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val liveCount = repository.database?.liveDao()?.getTotalStreamCount() ?: 0
+            val vodCount = repository.database?.vodDao()?.getTotalStreamCount() ?: 0
+            val seriesCount = repository.database?.seriesDao()?.getTotalStreamCount() ?: 0
+            _accountContentCounts.value = Triple(liveCount, vodCount, seriesCount)
+        }
+    }
+
+    fun refreshAccountInfo(
+        silent: Boolean = false,
+        onResult: ((success: Boolean, message: String) -> Unit)? = null
+    ) {
+        val now = System.currentTimeMillis()
+        if (silent && (now - lastAccountRefreshTimeMs) < 5 * 60 * 1000L) {
+            return
+        }
+
+        viewModelScope.launch {
+            _accountRefreshing.value = true
+            try {
+                val user = preferences.usernameFlow.first()
+                val pass = preferences.passwordFlow.first()
+                val server = preferences.serverUrlFlow.first()
+                val effectiveServer = if (server.isBlank() || server.contains("my-iptv-server")) {
+                    AppConfig.DEFAULT_SERVER_URL
+                } else {
+                    server
+                }
+
+                if (user.isBlank() || pass.isBlank()) {
+                    _accountRefreshing.value = false
+                    if (!silent) {
+                        onResult?.invoke(false, "Bilgiler alınamadı, bağlantınızı kontrol edin")
+                    }
+                    return@launch
+                }
+
+                val result = repository.authenticate(effectiveServer, user, pass)
+                result.fold(
+                    onSuccess = { authResp ->
+                        lastAccountRefreshTimeMs = System.currentTimeMillis()
+                        val uInfo = authResp.userInfo
+                        if (uInfo != null) {
+                            userInfo.value = uInfo
+                            val currentExp = preferences.expDateFlow.first()
+                            val currentMax = preferences.maxConnectionsFlow.first()
+                            val currentActive = preferences.activeConnectionsFlow.first()
+                            val currentStatus = preferences.statusFlow.first()
+                            val currentTrial = preferences.isTrialFlow.first()
+                            val currentCreated = preferences.createdAtFlow.first()
+
+                            preferences.saveAuth(
+                                username = user,
+                                password = pass,
+                                serverUrl = effectiveServer,
+                                expDate = uInfo.expDate ?: currentExp,
+                                maxCons = uInfo.maxConnections ?: currentMax,
+                                activeCons = uInfo.activeCons ?: currentActive,
+                                status = uInfo.status ?: currentStatus,
+                                isTrial = uInfo.isTrial ?: currentTrial,
+                                createdAt = uInfo.createdAt ?: currentCreated
+                            )
+                        }
+                        if (!silent) {
+                            onResult?.invoke(true, "Hesap bilgileri güncellendi")
+                        }
+                    },
+                    onFailure = {
+                        if (!silent) {
+                            onResult?.invoke(false, "Bilgiler alınamadı, bağlantınızı kontrol edin")
+                        }
+                    }
+                )
+            } catch (_: Exception) {
+                if (!silent) {
+                    onResult?.invoke(false, "Bilgiler alınamadı, bağlantınızı kontrol edin")
+                }
+            } finally {
+                _accountRefreshing.value = false
+            }
+        }
+    }
+
     // Canlı TV Kanal Listesi Kısa EPG Önbelleği (Kanal Kartlarında Anlık Program & İlerleme)
     val epgSummaryMap = MutableStateFlow<Map<Int, EpgProgram>>(emptyMap())
     val epgProgramsMap = MutableStateFlow<Map<Int, List<EpgProgram>>>(emptyMap())
@@ -837,6 +930,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val expDate = preferences.expDateFlow.first()
             val maxCons = preferences.maxConnectionsFlow.first()
             val activeCons = preferences.activeConnectionsFlow.first()
+            val status = preferences.statusFlow.first()
+            val isTrial = preferences.isTrialFlow.first()
+            val createdAt = preferences.createdAtFlow.first()
 
             val effectiveServer = if (server.isBlank() || server.contains("my-iptv-server")) {
                 AppConfig.DEFAULT_SERVER_URL
@@ -847,8 +943,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (loggedIn && user.isNotBlank() && pass.isNotBlank()) {
                 userInfo.value = XtreamUserInfo(
                     username = user,
-                    status = "Active",
+                    status = status,
                     expDate = expDate,
+                    isTrial = isTrial,
+                    createdAt = createdAt,
                     maxConnections = maxCons,
                     activeCons = activeCons,
                     auth = 1
@@ -874,7 +972,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         serverUrl = effectiveServer,
                         expDate = authResp.userInfo?.expDate ?: expDate,
                         maxCons = authResp.userInfo?.maxConnections ?: maxCons,
-                        activeCons = authResp.userInfo?.activeCons ?: activeCons
+                        activeCons = authResp.userInfo?.activeCons ?: activeCons,
+                        status = authResp.userInfo?.status ?: status,
+                        isTrial = authResp.userInfo?.isTrial ?: isTrial,
+                        createdAt = authResp.userInfo?.createdAt ?: createdAt
                     )
                 }
             } else {
@@ -907,7 +1008,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         serverUrl = cleanServer,
                         expDate = authResp.userInfo?.expDate ?: "",
                         maxCons = authResp.userInfo?.maxConnections ?: "1",
-                        activeCons = authResp.userInfo?.activeCons ?: "1"
+                        activeCons = authResp.userInfo?.activeCons ?: "1",
+                        status = authResp.userInfo?.status ?: "",
+                        isTrial = authResp.userInfo?.isTrial ?: "",
+                        createdAt = authResp.userInfo?.createdAt ?: ""
                     )
 
                     val isSynced = preferences.isPlaylistSyncedFlow.first()
@@ -1143,6 +1247,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadVodStreams("all")
         loadSeriesCategories()
         loadSeriesStreams("all")
+        loadAccountContentCounts()
         checkAndAutoStartLastChannel()
     }
 
