@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.catalog
 
+import androidx.activity.compose.BackHandler
+import com.tivimax.player.util.LocalIsTvDevice
 import android.content.res.Configuration
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -82,6 +84,21 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                     iconTint = Color(0xFF7C4DFF)
                 )
             }
+    }
+
+    val isTvDevice = LocalIsTvDevice.current
+    val searchQuery by viewModel.seriesSearchQuery.collectAsState()
+    val hasActiveCategory = selectedCategory != "all" && selectedCategory.isNotEmpty()
+    val hasSearch = searchQuery.isNotBlank()
+
+    BackHandler(
+        enabled = !isTvDevice && (showCategorySheet || hasSearch || hasActiveCategory)
+    ) {
+        when {
+            showCategorySheet -> showCategorySheet = false
+            hasSearch -> viewModel.setSeriesSearchQuery("")
+            hasActiveCategory -> viewModel.loadSeriesStreams("all")
+        }
     }
 
     if (showCategorySheet) {

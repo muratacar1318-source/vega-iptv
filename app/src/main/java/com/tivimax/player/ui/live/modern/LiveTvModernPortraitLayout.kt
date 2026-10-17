@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.live.modern
 
+import androidx.activity.compose.BackHandler
+import com.tivimax.player.util.LocalIsTvDevice
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
@@ -83,6 +85,21 @@ fun LiveTvModernPortraitLayout(
 
     var showSortSheet by remember { mutableStateOf(false) }
     var showCategorySheet by remember { mutableStateOf(false) }
+
+    val isTvDevice = LocalIsTvDevice.current
+    val hasActiveCategory = selectedCategory != "all" && selectedCategory.isNotEmpty()
+    val hasSearch = searchQuery.isNotBlank()
+
+    BackHandler(
+        enabled = !isTvDevice && (showSortSheet || showCategorySheet || hasSearch || hasActiveCategory)
+    ) {
+        when {
+            showSortSheet -> showSortSheet = false
+            showCategorySheet -> showCategorySheet = false
+            hasSearch -> onSearchQueryChange("")
+            hasActiveCategory -> viewModel.loadLiveStreams("all")
+        }
+    }
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()

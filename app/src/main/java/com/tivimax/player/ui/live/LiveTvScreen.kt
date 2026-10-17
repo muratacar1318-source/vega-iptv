@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.live
 
+import androidx.activity.compose.BackHandler
+import com.tivimax.player.util.LocalIsTvDevice
 import android.content.res.Configuration
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -121,6 +123,21 @@ fun LiveTvScreen(viewModel: MainViewModel) {
 
     val configuration = LocalConfiguration.current
     val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
+
+    val isTvDevice = LocalIsTvDevice.current
+    val hasActiveCategory = selectedCategory != "all" && selectedCategory.isNotEmpty()
+    val hasSearch = searchQuery.isNotBlank()
+
+    BackHandler(
+        enabled = !isTvDevice && isWideScreen && (hasSearch || hasActiveCategory)
+    ) {
+        if (hasSearch) {
+            searchQuery = ""
+            viewModel.setLiveSearchQuery("")
+        } else if (hasActiveCategory) {
+            viewModel.loadLiveStreams("all")
+        }
+    }
 
     // Geniş ekranda ilk açılışta ilk kanalı otomatik önizlemeye al
     LaunchedEffect(isWideScreen, channels) {

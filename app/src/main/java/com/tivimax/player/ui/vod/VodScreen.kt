@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.vod
 
+import androidx.activity.compose.BackHandler
+import com.tivimax.player.util.LocalIsTvDevice
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -105,6 +107,20 @@ fun VodScreen(viewModel: MainViewModel) {
                     iconTint = Color(0xFF7C4DFF)
                 )
             }
+    }
+
+    val isTvDevice = LocalIsTvDevice.current
+    val hasActiveCategory = selectedCategory != "all" && selectedCategory.isNotEmpty()
+    val hasSearch = searchQuery.isNotBlank()
+
+    BackHandler(
+        enabled = !isTvDevice && (showCategorySheet || hasSearch || hasActiveCategory)
+    ) {
+        when {
+            showCategorySheet -> showCategorySheet = false
+            hasSearch -> viewModel.setVodSearchQuery("")
+            hasActiveCategory -> viewModel.loadVodStreams("all")
+        }
     }
 
     if (showCategorySheet) {

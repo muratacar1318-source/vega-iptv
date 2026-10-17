@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.favorites
 
+import androidx.activity.compose.BackHandler
+import com.tivimax.player.util.LocalIsTvDevice
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +33,11 @@ import com.tivimax.player.ui.components.dpadFocusable
 fun FavoritesScreen(viewModel: MainViewModel) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Tümü", "Canlı TV", "Filmler & Diziler")
+
+    val isTvDevice = LocalIsTvDevice.current
+    BackHandler(enabled = !isTvDevice && selectedTab != 0) {
+        selectedTab = 0
+    }
 
     val favChannels by viewModel.favoriteLiveStreams.collectAsState()
     val favMovies by viewModel.favoriteVodStreams.collectAsState()

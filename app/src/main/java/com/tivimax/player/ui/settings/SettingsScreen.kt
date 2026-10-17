@@ -3,6 +3,7 @@ package com.tivimax.player.ui.settings
 import android.content.Context
 import android.content.res.Configuration
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -211,6 +212,10 @@ fun SettingsScreen(viewModel: MainViewModel) {
             // DİKEY MOD (TELEFON / TABLET DİKEY) - DİKEY MENÜ & HER SEKMEYE ÖZEL SAYFA
             // ==========================================
             var activeSubPage by remember { mutableStateOf<SettingsSection?>(null) }
+
+            BackHandler(enabled = activeSubPage != null) {
+                activeSubPage = null
+            }
 
             if (activeSubPage == null) {
                 // DİKEY AYARLAR KATEGORİ LİSTESİ
