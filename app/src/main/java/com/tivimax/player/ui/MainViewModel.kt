@@ -25,6 +25,11 @@ import java.util.concurrent.TimeUnit
 import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.OrientationManager
 import com.tivimax.player.util.detectRecommendedDeviceMode
+import android.os.SystemClock
+import android.util.Log
+import com.tivimax.player.BuildConfig
+
+private const val TAG_TIMING = "VodTiming"
 
 sealed class Screen {
     object Splash : Screen()
@@ -1287,13 +1292,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun previewChannel(channel: LiveStream) {
+        val t0 = SystemClock.elapsedRealtime()
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG_TIMING, "[+0ms] MainViewModel.previewChannel: Başladı. streamId=${channel.streamId}, name='${channel.name}'")
+        }
         val preferHls = streamFormat.value == "HLS"
         val urls = if (!channel.directSource.isNullOrBlank()) {
             listOf(channel.directSource)
         } else {
             repository.buildLiveStreamUrls(channel.streamId, preferHls)
         }
-        playerManager.playWithFallbacks(urls, isLive = true)
+        if (BuildConfig.DEBUG) {
+            val elapsed = SystemClock.elapsedRealtime() - t0
+            Log.d(TAG_TIMING, "[+${elapsed}ms] MainViewModel.previewChannel: URL hazırlandı (${urls.size} adet). playWithFallbacks çağrılıyor.")
+        }
+        playerManager.playWithFallbacks(urls, isLive = true, t0Ms = t0)
         activePreviewChannel.value = channel
         isMiniPlayerActive.value = true
         recordRecentChannel(channel)
@@ -1368,6 +1381,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playLiveChannel(channel: LiveStream) {
+        val t0 = SystemClock.elapsedRealtime()
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG_TIMING, "[+0ms] MainViewModel.playLiveChannel: Başladı. streamId=${channel.streamId}, name='${channel.name}'")
+        }
         val currentChannel = activePreviewChannel.value
         if (currentChannel != null && currentChannel.streamId != channel.streamId) {
             lastPlayedLiveChannel.value = currentChannel
@@ -1384,7 +1401,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             repository.buildLiveStreamUrls(channel.streamId, preferHls)
         }
-        playerManager.playWithFallbacks(urls, isLive = true)
+        if (BuildConfig.DEBUG) {
+            val elapsed = SystemClock.elapsedRealtime() - t0
+            Log.d(TAG_TIMING, "[+${elapsed}ms] MainViewModel.playLiveChannel: URL hazırlandı (${urls.size} adet). playWithFallbacks çağrılıyor.")
+        }
+        playerManager.playWithFallbacks(urls, isLive = true, t0Ms = t0)
         loadEpgForChannel(channel.streamId)
         
         if (deviceMode.value != com.tivimax.player.util.DeviceMode.TV) {
@@ -1460,6 +1481,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playVod(vod: VodStream, resume: Boolean = false) {
+        val t0 = SystemClock.elapsedRealtime()
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG_TIMING, "[+0ms] MainViewModel.playVod: Başladı. streamId=${vod.streamId}, name='${vod.name}', ext='${vod.containerExtension}', resume=$resume")
+        }
         isMiniPlayerActive.value = false
         activePreviewChannel.value = null
         currentPlayingEpisode.value = null
@@ -1470,13 +1495,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val progress = preferences.getWatchProgress(vod.streamId)
                 startPos = progress?.positionMs ?: 0L
             }
+            if (BuildConfig.DEBUG) {
+                val elapsed = SystemClock.elapsedRealtime() - t0
+                Log.d(TAG_TIMING, "[+${elapsed}ms] MainViewModel.playVod: DataStore okuma tamamlandı. startPositionMs=$startPos. playWithFallbacks çağrılıyor.")
+            }
             val urls = when (vod.streamId) {
                 101 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
                 102 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4")
                 103 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4")
                 else -> repository.buildVodStreamUrls(vod.streamId, vod.containerExtension)
             }
-            playerManager.playWithFallbacks(urls, isLive = false, startPositionMs = startPos)
+            playerManager.playWithFallbacks(urls, isLive = false, startPositionMs = startPos, t0Ms = t0)
             navigateTo(
                 Screen.Player(
                     streamUrl = urls.firstOrNull() ?: "",
@@ -1490,6 +1519,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playSeriesEpisode(episode: SeriesEpisode, seriesTitle: String, resume: Boolean = true) {
+        val t0 = SystemClock.elapsedRealtime()
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG_TIMING, "[+0ms] MainViewModel.playSeriesEpisode: Başladı. series='$seriesTitle', episodeId=${episode.id}, S${episode.season}E${episode.episodeNum}, title='${episode.title}', ext='${episode.containerExtension}', resume=$resume")
+        }
         isMiniPlayerActive.value = false
         activePreviewChannel.value = null
         currentPlayingEpisode.value = Pair(episode, seriesTitle)
@@ -1501,8 +1534,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val progress = preferences.getWatchProgress(epId)
                 startPos = progress?.positionMs ?: 0L
             }
+            if (BuildConfig.DEBUG) {
+                val elapsed = SystemClock.elapsedRealtime() - t0
+                Log.d(TAG_TIMING, "[+${elapsed}ms] MainViewModel.playSeriesEpisode: DataStore okuma tamamlandı. startPositionMs=$startPos. playWithFallbacks çağrılıyor.")
+            }
             val urls = repository.buildSeriesStreamUrls(episode.id, episode.containerExtension)
-            playerManager.playWithFallbacks(urls, isLive = false, startPositionMs = startPos)
+            playerManager.playWithFallbacks(urls, isLive = false, startPositionMs = startPos, t0Ms = t0)
             navigateTo(
                 Screen.Player(
                     streamUrl = urls.firstOrNull() ?: "",
