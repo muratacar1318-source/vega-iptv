@@ -490,7 +490,7 @@ class UserPreferences(private val context: Context) {
     }
 
     val portraitCategoryNavStyleFlow: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_PORTRAIT_CATEGORY_NAV_STYLE] ?: PORTRAIT_CAT_NAV_CHIPS
+        prefs[KEY_PORTRAIT_CATEGORY_NAV_STYLE] ?: PORTRAIT_CAT_NAV_DROPDOWN
     }
 
     suspend fun setPortraitCategoryNavStyle(style: String) {
