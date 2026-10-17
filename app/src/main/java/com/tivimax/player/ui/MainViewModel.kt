@@ -272,7 +272,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Dikey Kategori Navigasyon Modu ("CHIPS" = Yatay Çipler & Tam Genişlik, "SIDEBAR" = Klasik Sol Panel, "DROPDOWN" = Kompakt Menü)
     val portraitCategoryNavStyle: StateFlow<String> = preferences.portraitCategoryNavStyleFlow
-        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences.PORTRAIT_CAT_NAV_CHIPS)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN)
 
     fun setPortraitCategoryNavStyle(style: String) {
         viewModelScope.launch {
