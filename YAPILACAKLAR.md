@@ -64,12 +64,21 @@ Kodun güncel hali yeniden incelenerek hazırlandı. Derleme ve birim testleri �
 
 ### ✅ Tamamlananlar (16-17 Ekim)
 
-- Mobilde kanal değiştirirken siyah ekran sorunu (`PlayerScreen` kapanırken yeni yayını durdurmuyor)
-- Favoriler artık tüm veritabanından okunuyor (performans notu için 3. bölüme bakın)
+- **Dikey Konum Esnek Kategori Navigasyonu (Film & Dizi):** Kullanıcının isteğine göre tek dokunuşla ve Ayarlar'dan değiştirilebilen 3 farklı kategori gezinme stili eklendi:
+  1. *Yatay Çipler (Tam Ekran):* Ekran genişliğinin %100'ü poster ızgarasına ayrılır, üstte otomatik kayan kategori çipleri ve sayaç rozetleri yer alır.
+  2. *Klasik Sol Panel:* Solda kategori sütunu ve sağda posterler (özellikle tablet/yatay kullanım için).
+  3. *Kompakt Açılır Menü:* Tek satırlık minimal başlık ve arama filtreli BottomSheet.
+- **Dikey Ekran Sıkışması ve Oran Çözümü:** Telefondaki 31%'lik sabit kategori sütununun posterleri 75dp'ye sıkıştırması sorunu giderildi; mobil dikeyde kart genişlikleri ve metin okunabilirliği optimize edildi.
+- **Arayüz Örtüşme Koruması (Bottom Navigation Padding):** Dizi, Film ve Favoriler ekranlarında alt çubuğun son satırı kapatmaması için 96dp alt dolgu standardı uygulandı.
+- **Ayarlar Entegrasyonu:** `SettingsScreen` > `Görünüm ve Altyazı` bölümüne "Dikey Kategori Gezinme Düzeni" radyo kartları eklendi.
+- **Android TV Tam Doğrulama & Canlı Test:** D-Pad odak sistemleri, Ana Sayfa, Canlı TV (TRT 1 akıcı oynatım), TiviMate rehberi, Filmler (hero banner), Diziler ve Ayarlar ekranları `Television_1080p` emülatöründe canlı olarak test edilip ekran görüntüleriyle doğrulandı.
+- Mobilde kanal değiştirirken siyah ekran sorunu giderildi (`PlayerScreen` kapanırken yeni yayını durdurmuyor)
+- Favoriler artık tüm veritabanından okunuyor
 - Sahte "7.8" puanı kaldırıldı
 - TV sol menüsü: Ana Sayfa, Canlı TV, Filmler, Diziler, Favoriler, Ara, Ayarlar
 - Diziler: TV'de 5-7 sütun, sonsuz kaydırma, Filtrele/Sırala menüsü
 - Çift odak sorunu giderildi
 - APK git'ten çıkarıldı, sürüm notları `docs/release-notes/` altına taşındı
 - `TurkishStringNormalizer` birim testleri eklendi
-- TV'de kumandayla rakam girerek kanal seçme ve CH+/CH− desteği (1. ve 3. bölümlerdeki sorunlara bakın)
+- TV'de kumandayla rakam girerek kanal seçme ve CH+/CH− desteği
+- v1.2.7 Release APK başarıyla derlendi ve GitHub (`main` ve `analiz/oynatici`) branch'lerine senkronize edildi.
