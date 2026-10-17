@@ -85,3 +85,38 @@ Cihaz bağlı değilse testleri atla ve raporda belirt.
 ## Agent raporu
 
 _(Agent doldurur: bulunan tam ekran yolları, değiştirilen dosyalar, A–H sonuçları, sorunlar.)_
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 17 Ekim)
+
+**Durum:** `fix/tam-ekran-immersive` branch'indeki yaklaşım doğru (merkezi `isVideoFullscreen`, `onWindowFocusChanged`,
+yön değişimi/overlay kapanışı/HUD gizlenince yeniden uygulama, `post` + 300 ms tekrar). Main'e alınmadı; aşağıdaki
+yarış durumu düzeltilmeli. **AYNI BRANCH'te devam et**, yeni branch AÇMA.
+
+### Hata: Oynatıcıdan çıkınca liste ekranında durum çubuğu kaybolabilir
+
+1. `OrientationManager.setImmersiveMode(true)` içindeki `decorView.post { hide }` ve `postDelayed(300) { hide }`
+   **iptal edilmiyor**. Kullanıcı oynatıcıdan çıkarken `setImmersiveMode(false)` (`show`) çağrılsa bile, daha önce
+   kuyruğa girmiş gecikmeli `hide` ondan SONRA çalışıp Home ekranında çubukları gizleyebilir.
+2. `PlayerScreen` içindeki `LaunchedEffect(configuration.orientation)`, `LaunchedEffect(showControls, showBottomInfoCard)` ve
+   `LaunchedEffect(anyOverlayOpen)` koşulsuz `setImmersiveMode(true)` çağırıyor. Çıkışta `Crossfade` sırasında PlayerScreen
+   hâlâ compose ediliyor ve telefon yataydan dikeye dönüyor → `configuration.orientation` değişiyor → Home'a geçilmişken
+   `setImmersiveMode(true)` çalışıyor.
+
+### Yapılacak düzeltme
+- `OrientationManager`'a `@Volatile private var immersiveWanted = false` ekle. `setImmersiveMode(enable)` en başta
+  `immersiveWanted = enable` yapsın. `post` ve `postDelayed` içindeki `hide` çağrıları **sadece `immersiveWanted == true` ise** çalışsın.
+  Ayrıca `enable == false` olduğunda bekleyen runnable'ları `decorView.removeCallbacks(...)` ile iptal et
+  (runnable'ları alan olarak tut).
+- `PlayerScreen`'deki üç `LaunchedEffect`'te `setImmersiveMode(true)` çağırmadan önce şunu kontrol et:
+  `viewModel.currentScreen.value is Screen.Player || viewModel.isVideoFullscreen.value`. Değilse hiçbir şey yapma.
+- `MainActivity.onConfigurationChanged` ve `onWindowFocusChanged` zaten koşullu — dokunma.
+
+Başka hiçbir şeyi değiştirme.
+
+### Test (cihaz yoksa derle ve mantığı adım adım açıkla)
+- **G)** Film aç → geri dön (telefon yataydan dikeye döner) → 1 sn bekle → liste ekranında durum çubuğu (saat, pil) GÖRÜNMELİ.
+- **A)**, **C)**, **D)** hâlâ geçerli olmalı.
+
+Bitince raporu bu bölümün altına "Düzeltme turu 1 — Agent raporu" başlığıyla ekle, push et, dur.
