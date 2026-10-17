@@ -28,8 +28,6 @@ import androidx.media3.session.MediaSession
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import android.os.SystemClock
-import android.util.Log
-import com.tivimax.player.BuildConfig
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.LoadEventInfo
 import androidx.media3.exoplayer.source.MediaLoadData

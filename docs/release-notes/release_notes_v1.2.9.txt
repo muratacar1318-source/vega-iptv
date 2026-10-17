@@ -1,0 +1,35 @@
+# Vega IPTV v1.2.9 (Build 51) - VOD Hızlı Açılış, Altyazı Gecikmesi & Akıllı Navigasyon
+
+### ⚡ VOD (Film ve Dizi) Oynatma Performansı & Hızlı Başlangıç:
+1. **Akıllı ve Emniyetli Ön Isıtma (`VodPrewarmer`):**
+   - Kullanıcı detay ekranında 1.5 saniye kaldığında video dosyasının ilk 64 KB'ı (moov atomu / senkronizasyon baytları) arka planda tek bağlantı limitine tam uyumlu olarak önceden ısıtılır.
+   - Kullanıcı oynata bastığında veya ekrandan ayrıldığında ön ısıtma anında kesilerek çift bağlantı oluşması engellenir.
+   - 60 saniyelik URL cooldown ve art arda oluşabilecek HTTP 403/429/509 bağlantı hatalarına karşı otomatik **Circuit Breaker** (kalıcı emniyet sigortası) entegre edildi.
+2. **Senk Kare ile Anında Devam Etme:**
+   - Kaldığı yerden devam eden filmler ve diziler için `SeekParameters.PREVIOUS_SYNC` kullanılarak gereksiz ara kare kod çözme süresi ortadan kaldırıldı; ilk kare çok daha hızlı çizilir.
+3. **Optimize Edilmiş Başlangıç Tamponu:**
+   - VOD için ilk oynatma tampon süresi 2.5 saniyeden 1.5 saniyeye düşürüldü.
+4. **Tek Bağlantı Fallback Koruması:**
+   - İlk URL'de olası bağlantı limiti çakışmasında (HTTP 403, 429, 509) 1.5 sn beklenip tek seferlik yeniden deneme yapılır; ardından alternatif formatlara geçilir.
+
+### 🎬 Altyazı Gecikmesi ve Senkronizasyon Ayarı:
+1. **Çalışan Altyazı Gecikmesi (`DelayedSubtitleController`):**
+   - Video içinde gömülü olan veya harici gelen altyazılar için 0 ile 5.000 ms aralığında (100 ms adımlarla) gecikme ayarlama özelliği eklendi.
+   - Duvar saati yerine oynatıcı pozisyonuna bağlı çalışan kuyruk mekanizmasıyla duraklatma, ileri-geri sarma ve hız değişimlerinde senkronizasyon bozulmaz.
+2. **Arayüz Entegrasyonu:**
+   - Mobil/tablet `PlayerScreen` üzerinde işlevsiz olan ses senkronizasyon kaydırıcısı kaldırılarak yerine tam çalışan Altyazı Gecikmesi paneli yerleştirildi.
+   - Android TV kumandasına tam uyumlu `TvPlayerOverlay` altyazı menüsüne [-100 ms], [+100 ms] ve [Sıfırla] butonları eklendi.
+   - Ayarlar > Görünüm ve Altyazı bölümüne kalıcı varsayılan altyazı gecikmesi ayarı eklendi.
+
+### 📱 Geri Tuşu Akıllı Navigasyon (Mobil & Tablet):
+1. **Kademeli Geri Tuşu Önceliği:**
+   - Açık dialog, bottom sheet, menü veya arama paneli varsa kapatılır.
+   - Alt sayfa veya kategori içi görünüm açıksa bir üst seviyeye dönülür.
+   - Sekmeler arası gezinimde Ana Ekrana (Dashboard) dönülür.
+   - Yalnızca en üst düzey Ana Ekranda iken "Çıkmak için tekrar geri basın" uyarısı verilir.
+
+### 🧭 Kullanıcı Arayüzü & Güncelleme İyileştirmeleri:
+1. **Film & Dizi Dikey Mod Kompakt Menü Varsayılanı:**
+   - Telefondaki dikey modda ekran alanını maksimum kullandıran "Kompakt Menü" varsayılan kategori navigasyon stili yapıldı.
+2. **Sadeleştirilmiş Güncelleme Bildirimleri:**
+   - Güncelleme butonları ve hata mesajlarından harici kaynak/alan adı metinleri temizlenerek sade ve profesyonel kullanıcı bildirimleri sağlandı.

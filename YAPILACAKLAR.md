@@ -1,6 +1,6 @@
 # Vega IPTV — Yapılacaklar Listesi
 
-_Son güncelleme: 17 Ekim 2026 · Sürüm: v1.2.8 (versionCode 50) · Dal: `main`_
+_Son güncelleme: 17 Ekim 2026 · Sürüm: v1.2.9 (versionCode 51) · Dal: `main`_
 
 Kodun güncel hali yeniden incelenerek hazırlandı. Derleme ve birim testleri şu an başarılı (`./gradlew assembleRelease testDebugUnitTest`).
 
@@ -64,6 +64,13 @@ Kodun güncel hali yeniden incelenerek hazırlandı. Derleme ve birim testleri �
 
 ### ✅ Tamamlananlar (16-17 Ekim)
 
+- **v1.2.9 (Build 51) Güncellemeleri:**
+  - **VOD (Film & Dizi) Hızlı Açılış & Emniyetli Ön Isıtma (`VodPrewarmer`):** Detay ekranında 1.5 sn kalan kullanıcılar için video başlığı arka planda tek bağlantı emniyetli olarak ısıtılır. `SeekParameters.PREVIOUS_SYNC` ile kaldığı yerden hızlı devam etme, 1.5s LoadControl başlangıç tamponu ve Circuit Breaker koruması eklendi.
+  - **Çalışan Altyazı Gecikmesi (`DelayedSubtitleController`):** Gömülü/harici altyazılar için oynatıcı pozisyonuna bağlı 0..5000 ms aralığında gecikme ayarı eklendi. Mobil `PlayerScreen` ve TV kumandasına tam uyumlu `TvPlayerOverlay` entegrasyonu tamamlandı.
+  - **Geri Tuşu Akıllı Navigasyon:** Telefonda/tablette geri tuşu açık dialog/menüyü kapatır, sekme içi alt sayfadan bir üste çıkar, sekmeler arası ana ekrana döner; sadece ana ekranda çıkış uyarısı verir.
+  - **Kompakt Menü Varsayılanı:** Dikey Film/Dizi katalog navigasyonunda varsayılan düzen Kompakt Menü (Dropdown/BottomSheet) olarak ayarlandı.
+  - **Sade Güncelleme Bildirimleri:** Güncelleme diyaloğu ve hata mesajlarında GitHub / URL adresleri gizlendi.
+  - **GitHub Release v1.2.9:** R8 optimizasyonlu release APK (`app-release.apk`) derlendi, GitHub Releases üzerinde yayınlandı.
 - **v1.2.8 (Build 50) Güncellemeleri:**
   - **Dikey Mod (Telefon) Filmler ve Diziler Çökme Düzeltmesi:** `MediaCategoryNavigationBar` içindeki statik "Tümü" çipi (`key = "media_cat_all"`) ile listedeki sentetik `"all"` kategorisi arasındaki LazyRow anahtar çakışması (`IllegalArgumentException: Key was already used`) çözüldü.
   - **Mükerrer ve İki Katına Çıkan Sayaç Düzeltildi:** Film ve dizi toplam sayaçlarının iki katı çıkması düzeltildi; kategoriler `filter { it.categoryId != "all" }.distinctBy { it.categoryId }` filtresiyle korunarak güvene alındı.
