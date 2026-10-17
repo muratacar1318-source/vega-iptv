@@ -23,6 +23,12 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.MediaSession
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
+import android.os.SystemClock
+import android.util.Log
+import com.tivimax.player.BuildConfig
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.source.LoadEventInfo
+import androidx.media3.exoplayer.source.MediaLoadData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -65,6 +71,131 @@ data class StreamDiagnostics(
 
 @OptIn(UnstableApi::class)
 class TiviPlayerManager(private val context: Context) {
+
+    companion object {
+        private const val TAG_TIMING = "VodTiming"
+
+        fun maskUrl(url: String): String {
+            if (url.isBlank()) return url
+            var masked = url
+            // Basic auth in authority: http://user:pass@host:port/
+            masked = masked.replace(Regex("""(https?://)[^:/@]+:[^@]+@"""), "$1***:***@")
+            // Xtream path format: http://host:port/(live|movie|series)/username/password/...
+            masked = masked.replace(Regex("""(https?://[^/]+/(?:live|movie|series)/)[^/]+/[^/]+(/.*)?"""), "$1***/***$2")
+            // Query parameters: user, username, pass, password, token
+            masked = masked.replace(Regex("""(?i)(username|password|user|pass|token)=([^&]+)"""), "$1=***")
+            return masked
+        }
+
+        fun getDataTypeName(dataType: Int): String = when (dataType) {
+            C.DATA_TYPE_UNKNOWN -> "UNKNOWN"
+            C.DATA_TYPE_MEDIA -> "MEDIA"
+            C.DATA_TYPE_MEDIA_INITIALIZATION -> "INIT"
+            C.DATA_TYPE_DRM -> "DRM"
+            C.DATA_TYPE_MANIFEST -> "MANIFEST"
+            C.DATA_TYPE_TIME_SYNCHRONIZATION -> "TIME_SYNC"
+            C.DATA_TYPE_AD -> "AD"
+            else -> "DATA_TYPE_$dataType"
+        }
+    }
+
+    private var playerLoadControlIsLive: Boolean? = null
+    @Volatile
+    private var playStartElapsedMs: Long = 0L
+
+    private fun timingOffsetMs(): Long {
+        val start = playStartElapsedMs
+        return if (start == 0L) 0L else (SystemClock.elapsedRealtime() - start)
+    }
+
+    private val timingAnalyticsListener by lazy {
+        object : AnalyticsListener {
+            override fun onLoadStarted(
+                eventTime: AnalyticsListener.EventTime,
+                loadEventInfo: LoadEventInfo,
+                mediaLoadData: MediaLoadData
+            ) {
+                if (BuildConfig.DEBUG) {
+                    val reqHost = loadEventInfo.dataSpec.uri.host ?: loadEventInfo.dataSpec.uri.authority ?: "unknown"
+                    val path = loadEventInfo.uri.path ?: loadEventInfo.dataSpec.uri.path ?: ""
+                    val ext = path.substringBefore('?').substringAfterLast('.', "")
+                    val extStr = if (ext.isNotEmpty()) ".$ext" else ""
+                    Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onLoadStarted: dataType=${getDataTypeName(mediaLoadData.dataType)}, host=$reqHost$extStr")
+                }
+            }
+
+            override fun onLoadCompleted(
+                eventTime: AnalyticsListener.EventTime,
+                loadEventInfo: LoadEventInfo,
+                mediaLoadData: MediaLoadData
+            ) {
+                if (BuildConfig.DEBUG) {
+                    val reqHost = loadEventInfo.dataSpec.uri.host ?: loadEventInfo.dataSpec.uri.authority ?: "unknown"
+                    val loadedHost = loadEventInfo.uri.host ?: loadEventInfo.uri.authority ?: reqHost
+                    val path = loadEventInfo.uri.path ?: loadEventInfo.dataSpec.uri.path ?: ""
+                    val ext = path.substringBefore('?').substringAfterLast('.', "")
+                    val extStr = if (ext.isNotEmpty()) ".$ext" else ""
+                    val redirectInfo = if (loadedHost != reqHost) " [REDIRECT: $reqHost -> $loadedHost]" else ""
+                    Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onLoadCompleted: dataType=${getDataTypeName(mediaLoadData.dataType)}, duration=${loadEventInfo.loadDurationMs}ms, bytes=${loadEventInfo.bytesLoaded}, host=$loadedHost$extStr$redirectInfo")
+                }
+            }
+
+            override fun onLoadError(
+                eventTime: AnalyticsListener.EventTime,
+                loadEventInfo: LoadEventInfo,
+                mediaLoadData: MediaLoadData,
+                error: java.io.IOException,
+                wasCanceled: Boolean
+            ) {
+                if (BuildConfig.DEBUG) {
+                    val host = loadEventInfo.uri.host ?: "unknown"
+                    val path = loadEventInfo.uri.path ?: ""
+                    val ext = path.substringBefore('?').substringAfterLast('.', "")
+                    val extStr = if (ext.isNotEmpty()) ".$ext" else ""
+                    Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onLoadError: dataType=${getDataTypeName(mediaLoadData.dataType)}, host=$host$extStr, error=${error.message}, canceled=$wasCanceled")
+                }
+            }
+
+            override fun onPlaybackStateChanged(
+                eventTime: AnalyticsListener.EventTime,
+                state: Int
+            ) {
+                if (BuildConfig.DEBUG) {
+                    when (state) {
+                        Player.STATE_BUFFERING -> Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onPlaybackStateChanged: BUFFERING")
+                        Player.STATE_READY -> Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onPlaybackStateChanged: READY")
+                        Player.STATE_ENDED -> Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onPlaybackStateChanged: ENDED")
+                        Player.STATE_IDLE -> Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onPlaybackStateChanged: IDLE")
+                    }
+                }
+            }
+
+            override fun onRenderedFirstFrame(
+                eventTime: AnalyticsListener.EventTime,
+                output: Any,
+                renderTimeMs: Long
+            ) {
+                if (BuildConfig.DEBUG) {
+                    val totalMs = timingOffsetMs()
+                    Log.d(TAG_TIMING, "[+${totalMs}ms] ★★★ onRenderedFirstFrame: İLK KARE ÇİZİLDİ! (Toplam açılış süresi: ${totalMs}ms, renderTime: ${renderTimeMs}ms) ★★★")
+                }
+            }
+
+            override fun onPlayerError(
+                eventTime: AnalyticsListener.EventTime,
+                error: PlaybackException
+            ) {
+                if (BuildConfig.DEBUG) {
+                    val nextFallback = if (fallbackAttempt + 1 < fallbackUrls.size) {
+                        "Fallback denenecek: index=${fallbackAttempt + 1}/${fallbackUrls.size}"
+                    } else {
+                        "Başka fallback kalmadı (${fallbackAttempt + 1}/${fallbackUrls.size})"
+                    }
+                    Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onPlayerError: [${error.errorCodeName}] (${error.errorCode}) ${error.message}. $nextFallback")
+                }
+            }
+        }
+    }
 
     private var exoPlayer: ExoPlayer? = null
     val player: ExoPlayer? get() = exoPlayer
@@ -269,7 +400,23 @@ class TiviPlayerManager(private val context: Context) {
     private var isReconnecting = false
 
     fun initializePlayer(isLive: Boolean = isLiveStream): ExoPlayer {
-        if (exoPlayer != null) return exoPlayer!!
+        if (exoPlayer != null) {
+            if (BuildConfig.DEBUG) {
+                val createdWithLive = playerLoadControlIsLive
+                val warning = if (createdWithLive != null && createdWithLive != isLive) {
+                    " -> DİKKAT: Player createdWithLive=$createdWithLive ile oluşturulmuş, şu an istenen isLive=$isLive! (LoadControl: ${if (createdWithLive) "CANLI" else "VOD"})"
+                } else {
+                    " (LoadControl: ${if (createdWithLive == true) "CANLI" else "VOD"})"
+                }
+                Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] initializePlayer: Mevcut player tekrar kullanılıyor (reused=true, createdWithLive=$createdWithLive, requestedIsLive=$isLive)$warning")
+            }
+            return exoPlayer!!
+        }
+
+        playerLoadControlIsLive = isLive
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] initializePlayer: Yeni player oluşturuldu (createdWithLive=$isLive, requestedIsLive=$isLive, LoadControl=${if (isLive) "CANLI" else "VOD"})")
+        }
 
         val renderersFactory = DefaultRenderersFactory(context).apply {
             setEnableDecoderFallback(true)
@@ -289,6 +436,8 @@ class TiviPlayerManager(private val context: Context) {
             .setLoadControl(createLoadControl(isLive))
             .setAudioAttributes(audioAttributes, true)
             .build()
+
+        player.addAnalyticsListener(timingAnalyticsListener)
 
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -404,6 +553,9 @@ class TiviPlayerManager(private val context: Context) {
                     val currentPos = exoPlayer?.currentPosition ?: 0L
                     fallbackAttempt++
                     val nextUrl = fallbackUrls[fallbackAttempt]
+                    if (BuildConfig.DEBUG) {
+                        Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] Fallback geçişi yapılıyor -> deneme=$fallbackAttempt/${fallbackUrls.size}")
+                    }
                     playInternal(nextUrl, isLive = isLiveStream, startPositionMs = currentPos)
                     return
                 }
@@ -441,7 +593,12 @@ class TiviPlayerManager(private val context: Context) {
     private var fallbackUrls = mutableListOf<String>()
     private var fallbackAttempt = 0
 
-    fun playWithFallbacks(urls: List<String>, isLive: Boolean = false, startPositionMs: Long = 0L) {
+    fun playWithFallbacks(urls: List<String>, isLive: Boolean = false, startPositionMs: Long = 0L, t0Ms: Long = 0L) {
+        playStartElapsedMs = if (t0Ms > 0L) t0Ms else SystemClock.elapsedRealtime()
+        if (BuildConfig.DEBUG) {
+            val masked = urls.map { maskUrl(it) }
+            Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] playWithFallbacks: isLive=$isLive, urlCount=${urls.size}, startPositionMs=$startPositionMs, urls=$masked")
+        }
         this.fallbackUrls = urls.toMutableList()
         this.fallbackAttempt = 0
         this.isLiveStream = isLive
@@ -459,7 +616,16 @@ class TiviPlayerManager(private val context: Context) {
         if (url.isBlank()) return
 
         if (url == currentPlayingUrl && exoPlayer != null && exoPlayer?.playbackState != Player.STATE_IDLE) {
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] playInternal: Aynı URL zaten oynatılıyor, çağrı atlandı.")
+            }
             return
+        }
+
+        if (BuildConfig.DEBUG) {
+            val ext = url.substringBefore('?').substringAfterLast('.', "")
+            val extStr = if (ext.isNotEmpty()) ".$ext" else "no_ext"
+            Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] playInternal: Fallback[$fallbackAttempt/${fallbackUrls.size}], uzantı=$extStr, url=${maskUrl(url)}")
         }
 
         this.currentUrl = url
@@ -519,6 +685,9 @@ class TiviPlayerManager(private val context: Context) {
             val nextUrl = fallbackUrls[fallbackAttempt]
             _errorMessage.value = null
             val currentPos = exoPlayer?.currentPosition ?: 0L
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] retryNextFallback: fallbackAttempt=$fallbackAttempt/${fallbackUrls.size}")
+            }
             playInternal(nextUrl, isLive = isLiveStream, startPositionMs = currentPos)
         }
     }
@@ -977,6 +1146,7 @@ class TiviPlayerManager(private val context: Context) {
         cancelSleepTimer()
         stopPositionUpdates()
         currentPlayingUrl = null
+        playerLoadControlIsLive = null
         exoPlayer?.let {
             it.stop()
             it.clearMediaItems()
