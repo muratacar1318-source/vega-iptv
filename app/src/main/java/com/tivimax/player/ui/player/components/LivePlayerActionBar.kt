@@ -31,8 +31,10 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tivimax.player.theme.OpusCyan
-import com.tivimax.player.theme.TiviGold
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaSizes
+import com.tivimax.player.ui.design.VegaText
 
 /**
  * Canlı TV Tam Ekran Oynatıcısı Alt Aksiyon Çubuğu (Kompakt İkon Düzeni).
@@ -69,9 +71,9 @@ fun LivePlayerActionBar(
         LiveActionButtonItem(
             icon = Icons.AutoMirrored.Filled.FormatListBulleted,
             tooltip = "Rehber",
-            contentDescription = "Yayın Rehberini Aç",
+            contentDescription = "Yayın rehberini aç",
             isActive = isGuideActive,
-            activeColor = OpusCyan,
+            activeColor = VegaColors.Accent,
             onClick = onOpenGuide,
             focusRequester = firstButtonFocusRequester
         )
@@ -80,17 +82,17 @@ fun LivePlayerActionBar(
         val prevTooltip = if (!previousChannelName.isNullOrBlank()) {
             "Önceki: $previousChannelName"
         } else {
-            "Önceki Kanal"
+            "Önceki kanal"
         }
 
         LiveActionButtonItem(
             icon = Icons.Default.Replay,
             tooltip = prevTooltip,
-            contentDescription = "Önceki Kanala Geri Dön",
+            contentDescription = "Önceki kanala geri dön",
             enabled = hasPreviousChannel,
             isActive = hasPreviousChannel,
-            activeColor = TiviGold,
-            defaultColor = if (hasPreviousChannel) TiviGold else Color(0xFF64748B).copy(alpha = 0.4f),
+            activeColor = VegaColors.Gold,
+            defaultColor = if (hasPreviousChannel) VegaColors.Gold else VegaColors.TextMuted.copy(alpha = 0.4f),
             onClick = {
                 if (hasPreviousChannel) {
                     onZapRecall()
@@ -101,26 +103,26 @@ fun LivePlayerActionBar(
         // 3. SON KANALLAR
         LiveActionButtonItem(
             icon = Icons.Default.History,
-            tooltip = "Son Kanallar",
-            contentDescription = "Son İzlenen Kanalları Göster",
+            tooltip = "Son kanallar",
+            contentDescription = "Son izlenen kanalları göster",
             isActive = isRecentActive,
-            activeColor = OpusCyan,
+            activeColor = VegaColors.Accent,
             onClick = onToggleRecentChannels
         )
 
         // 4. SES & ALTYAZI
         LiveActionButtonItem(
             icon = Icons.Default.Subtitles,
-            tooltip = "Ses & Altyazı",
-            contentDescription = "Ses ve Altyazı Parçalarını Seç",
+            tooltip = "Ses ve altyazı",
+            contentDescription = "Ses ve altyazı parçalarını seç",
             onClick = onOpenAudioSubtitles
         )
 
         // 5. DAHA FAZLA (⋯)
         LiveActionButtonItem(
             icon = Icons.Default.MoreHoriz,
-            tooltip = "Daha Fazla",
-            contentDescription = "Diğer Oynatıcı Seçeneklerini Aç",
+            tooltip = "Daha fazla",
+            contentDescription = "Diğer oynatıcı seçeneklerini aç",
             onClick = onOpenMore
         )
     }
@@ -136,8 +138,8 @@ private fun LiveActionButtonItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isActive: Boolean = false,
-    activeColor: Color = OpusCyan,
-    defaultColor: Color = Color(0xFFE2E8F0),
+    activeColor: Color = VegaColors.Accent,
+    defaultColor: Color = VegaColors.TextPrimary,
     focusRequester: FocusRequester? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -162,7 +164,7 @@ private fun LiveActionButtonItem(
     val tintColor by animateColorAsState(
         targetValue = when {
             !enabled -> defaultColor.copy(alpha = 0.35f)
-            isFocused -> OpusCyan
+            isFocused -> VegaColors.Accent
             isActive -> activeColor
             else -> defaultColor
         },
@@ -173,7 +175,7 @@ private fun LiveActionButtonItem(
         positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
         tooltip = {
             PlainTooltip {
-                Text(text = tooltip, fontSize = 12.sp)
+                Text(text = tooltip, fontSize = VegaText.Caption)
             }
         },
         state = rememberTooltipState()
@@ -187,12 +189,12 @@ private fun LiveActionButtonItem(
                 }
             },
             enabled = enabled,
-            shape = RoundedCornerShape(10.dp),
-            color = if (isFocused) OpusCyan.copy(alpha = 0.22f) else Color.Transparent,
-            border = if (isFocused) BorderStroke(1.5.dp, OpusCyan) else null,
+            shape = VegaShapes.Medium,
+            color = if (isFocused) VegaColors.Accent.copy(alpha = 0.22f) else Color.Transparent,
+            border = if (isFocused) BorderStroke(2.dp, VegaColors.Accent) else null,
             interactionSource = interactionSource,
             modifier = modifier
-                .size(44.dp)
+                .size(VegaSizes.IconButton)
                 .scale(scale)
                 .onFocusChanged { state ->
                     isFocused = state.isFocused

@@ -29,15 +29,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaSizes
+import com.tivimax.player.ui.design.VegaText
 
 // ============================================================================
 // VEGA MODERN MOBILE VIDEO PLAYER UI (DARK MODE, FROSTED GLASS & NEON ACCENTS)
 // ============================================================================
 
-val NeonPurple = Color(0xFFA855F7)
-val NeonPink = Color(0xFFEC4899)
-val FrostedGlassBackground = Color(0x730A0C16)
-val FrostedGlassBorder = Color(0x1FFFFFFF)
+val NeonPurple: Color get() = VegaColors.Accent
+val NeonPink: Color get() = VegaColors.Accent
+val FrostedGlassBackground: Color get() = VegaColors.OverlayPill
+val FrostedGlassBorder: Color get() = VegaColors.Border
 
 /**
  * Root Responsive Player Screen supporting both Portrait and Landscape layouts.
@@ -69,7 +73,7 @@ fun VegaModernMobilePlayerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF07080D))
+            .background(VegaColors.Background)
     ) {
         if (isLandscape) {
             // ================================================================
@@ -108,7 +112,7 @@ fun VegaModernMobilePlayerScreen(
                     ) {
                         Surface(
                             onClick = { isLocked = false },
-                            shape = RoundedCornerShape(50),
+                            shape = VegaShapes.Pill,
                             color = FrostedGlassBackground,
                             border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.5f))
                         ) {
@@ -119,14 +123,14 @@ fun VegaModernMobilePlayerScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Lock,
-                                    contentDescription = "Kilidi Aç",
+                                    contentDescription = "Kilidi aç",
                                     tint = NeonPink,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Text(
-                                    text = "Ekran Kilidini Aç",
-                                    color = Color.White,
-                                    fontSize = 13.sp,
+                                    text = "Ekran kilidini aç",
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = VegaText.Secondary,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -357,7 +361,7 @@ fun VegaPlayerControlsOverlay(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = if (isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                            contentDescription = "Ekran Kilidi",
+                            contentDescription = "Ekran kilidi",
                             tint = if (isLocked) NeonPink else Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.size(18.dp)
                         )
@@ -385,7 +389,7 @@ fun VegaPlayerControlsOverlay(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.Replay10,
-                        contentDescription = "10s Geri",
+                        contentDescription = "10 sn geri",
                         tint = Color.White.copy(alpha = 0.85f),
                         modifier = Modifier.size(24.dp)
                     )
@@ -437,7 +441,7 @@ fun VegaPlayerControlsOverlay(
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.Forward10,
-                        contentDescription = "10s İleri",
+                        contentDescription = "10 sn ileri",
                         tint = Color.White.copy(alpha = 0.85f),
                         modifier = Modifier.size(24.dp)
                     )
@@ -462,8 +466,8 @@ fun VegaPlayerControlsOverlay(
             ) {
                 Text(
                     text = formatDuration(currentTimeMs),
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontSize = 11.5.sp,
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.Caption,
                     fontWeight = FontWeight.Medium
                 )
 
@@ -475,16 +479,16 @@ fun VegaPlayerControlsOverlay(
                     },
                     modifier = Modifier.weight(1f),
                     colors = SliderDefaults.colors(
-                        thumbColor = Color.White,
-                        activeTrackColor = NeonPink,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.18f)
+                        thumbColor = VegaColors.Accent,
+                        activeTrackColor = VegaColors.Accent,
+                        inactiveTrackColor = VegaColors.SurfaceVariant
                     )
                 )
 
                 Text(
                     text = formatDuration(totalDurationMs),
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 11.5.sp,
+                    color = VegaColors.TextSecondary,
+                    fontSize = VegaText.Caption,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -500,7 +504,7 @@ fun VegaPlayerControlsOverlay(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
+                        .clip(VegaShapes.Pill)
                         .background(Color.White.copy(alpha = 0.06f))
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
@@ -513,7 +517,7 @@ fun VegaPlayerControlsOverlay(
                     Text(
                         text = "S1 : Bölüm 1",
                         color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 11.sp,
+                        fontSize = VegaText.Caption,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -527,7 +531,7 @@ fun VegaPlayerControlsOverlay(
                     IconButton(onClick = onNextEpisode, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
-                            contentDescription = "Sonraki Bölüm",
+                            contentDescription = "Sonraki bölüm",
                             tint = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.size(20.dp)
                         )
@@ -537,7 +541,7 @@ fun VegaPlayerControlsOverlay(
                     IconButton(onClick = onEpisodesClick, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.List,
-                            contentDescription = "Bölüm Listesi",
+                            contentDescription = "Bölüm listesi",
                             tint = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.size(20.dp)
                         )
@@ -547,7 +551,7 @@ fun VegaPlayerControlsOverlay(
                     IconButton(onClick = onSettingsClick, modifier = Modifier.size(32.dp)) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Oynatıcı Ayarları",
+                            contentDescription = "Oynatıcı ayarları",
                             tint = Color.White.copy(alpha = 0.85f),
                             modifier = Modifier.size(20.dp)
                         )
@@ -568,12 +572,12 @@ fun VegaPlayerPortraitMenuArea(
     modifier: Modifier = Modifier
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Bölümler (16)", "Detay & Konu", "Ses & Altyazı")
+    val tabs = listOf("Bölümler (16)", "Detay ve konu", "Ses ve altyazı")
 
     Column(
         modifier = modifier
-            .background(Color(0xFF090A12))
-            .padding(14.dp)
+            .background(VegaColors.Background)
+            .padding(VegaSizes.SpacingMd)
     ) {
         // Header title & IMDb
         Row(
@@ -584,54 +588,54 @@ fun VegaPlayerPortraitMenuArea(
             Column {
                 Text(
                     text = title.substringBefore("-").trim(),
-                    color = Color.White,
-                    fontSize = 15.sp,
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.HeadlineSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "Sezon 1 • 2026 • Romantik, Dram",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 11.5.sp
+                    color = VegaColors.TextSecondary,
+                    fontSize = VegaText.Caption
                 )
             }
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(NeonPink.copy(alpha = 0.15f))
-                    .border(1.dp, NeonPink.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                    .clip(VegaShapes.Small)
+                    .background(VegaColors.Gold.copy(alpha = 0.15f))
+                    .border(1.dp, VegaColors.Gold.copy(alpha = 0.3f), VegaShapes.Small)
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
                 Text(
                     text = "IMDb 8.9",
-                    color = NeonPink,
-                    fontSize = 10.5.sp,
+                    color = VegaColors.Gold,
+                    fontSize = VegaText.Caption,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(VegaSizes.SpacingSm))
 
         // Tabs Row
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(VegaSizes.SpacingXs)
         ) {
             tabs.forEachIndexed { index, tabName ->
                 val isSelected = selectedTab == index
                 Surface(
                     onClick = { selectedTab = index },
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.04f),
+                    shape = VegaShapes.Small,
+                    color = if (isSelected) VegaColors.SurfaceVariant else VegaColors.Surface,
                     border = BorderStroke(
                         1.dp,
-                        if (isSelected) NeonPink.copy(alpha = 0.6f) else Color.Transparent
+                        if (isSelected) VegaColors.Accent else VegaColors.Border
                     )
                 ) {
                     Text(
                         text = tabName,
-                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
-                        fontSize = 12.sp,
+                        color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                        fontSize = VegaText.BodySmall,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
                     )
@@ -639,7 +643,7 @@ fun VegaPlayerPortraitMenuArea(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(VegaSizes.SpacingSm))
 
         // Tab Content
         when (selectedTab) {
@@ -647,14 +651,14 @@ fun VegaPlayerPortraitMenuArea(
                 // Episodes List
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(VegaSizes.SpacingXs)
                 ) {
                     item {
                         // Episode 1 (Active)
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = NeonPurple.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, NeonPink.copy(alpha = 0.4f)),
+                            shape = VegaShapes.Medium,
+                            color = VegaColors.Accent.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.5f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -665,28 +669,28 @@ fun VegaPlayerPortraitMenuArea(
                                 Box(
                                     modifier = Modifier
                                         .size(width = 80.dp, height = 48.dp)
-                                        .clip(RoundedCornerShape(8.dp))
+                                        .clip(VegaShapes.Small)
                                         .background(Color.Black.copy(alpha = 0.6f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("S1 • B1", color = NeonPink, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text("S1 • B1", color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("1. Karşılaşma", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
-                                        Text("İzleniyor", color = NeonPink, fontSize = 10.5.sp, fontWeight = FontWeight.Medium)
+                                        Text("1. Karşılaşma", color = VegaColors.TextPrimary, fontSize = VegaText.BodyMedium, fontWeight = FontWeight.Bold)
+                                        Text("İzleniyor", color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Medium)
                                     }
                                     Text(
                                         "Yağmurlu bir gecede yolları kesişen iki yabancı...",
-                                        color = Color.White.copy(alpha = 0.6f),
-                                        fontSize = 11.sp,
+                                        color = VegaColors.TextSecondary,
+                                        fontSize = VegaText.Caption,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Text("45 dk", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                                    Text("45 dk", color = VegaColors.TextSecondary, fontSize = VegaText.Caption)
                                 }
                             }
                         }
@@ -696,9 +700,9 @@ fun VegaPlayerPortraitMenuArea(
                         // Episode 2
                         Surface(
                             onClick = onNextEpisode,
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color.White.copy(alpha = 0.04f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                            shape = VegaShapes.Medium,
+                            color = VegaColors.Surface,
+                            border = BorderStroke(1.dp, VegaColors.Border),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -709,28 +713,28 @@ fun VegaPlayerPortraitMenuArea(
                                 Box(
                                     modifier = Modifier
                                         .size(width = 80.dp, height = 48.dp)
-                                        .clip(RoundedCornerShape(8.dp))
+                                        .clip(VegaShapes.Small)
                                         .background(Color.Black.copy(alpha = 0.4f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("S1 • B2", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    Text("S1 • B2", color = VegaColors.TextSecondary, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("2. Beklenmedik Misafir", color = Color.White.copy(alpha = 0.85f), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
-                                        Text("Sıradaki", color = Color.White.copy(alpha = 0.4f), fontSize = 10.5.sp)
+                                        Text("2. Beklenmedik Misafir", color = VegaColors.TextPrimary, fontSize = VegaText.BodyMedium, fontWeight = FontWeight.SemiBold)
+                                        Text("Sıradaki", color = VegaColors.TextSecondary, fontSize = VegaText.Caption)
                                     }
                                     Text(
                                         "Geçmişin gölgeleri aralanırken verilen ilk sözler...",
-                                        color = Color.White.copy(alpha = 0.5f),
-                                        fontSize = 11.sp,
+                                        color = VegaColors.TextSecondary,
+                                        fontSize = VegaText.Caption,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Text("48 dk", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                                    Text("48 dk", color = VegaColors.TextSecondary, fontSize = VegaText.Caption)
                                 }
                             }
                         }
@@ -741,55 +745,55 @@ fun VegaPlayerPortraitMenuArea(
                 // Details
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "Konu Özeti",
-                        color = NeonPink,
-                        fontSize = 12.sp,
+                        text = "Konu özeti",
+                        color = VegaColors.Accent,
+                        fontSize = VegaText.BodySmall,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "Yolları beklenmedik bir anda kesişen iki farklı dünyanın insanı, imkansız gibi görünen bir bağ kurar. Ancak geçmişin çözülmemiş gizemleri ve çevrelerindeki engeller, aşklarını büyük bir sınavdan geçirecektir.",
-                        color = Color.White.copy(alpha = 0.75f),
-                        fontSize = 12.sp,
+                        color = VegaColors.TextPrimary,
+                        fontSize = VegaText.BodySmall,
                         lineHeight = 18.sp
                     )
                 }
             }
             2 -> {
                 // Audio & Subtitles
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(text = "Seslendirme (Dublaj)", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(VegaSizes.SpacingSm)) {
+                    Text(text = "Seslendirme (Dublaj)", color = VegaColors.TextPrimary, fontSize = VegaText.BodyMedium, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(VegaSizes.SpacingXs)) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = NeonPurple.copy(alpha = 0.2f),
-                            border = BorderStroke(1.dp, NeonPurple)
+                            shape = VegaShapes.Small,
+                            color = VegaColors.Accent.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, VegaColors.Accent)
                         ) {
-                            Text("Türkçe (Orijinal)", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                            Text("Türkçe (Orijinal)", color = VegaColors.TextPrimary, fontSize = VegaText.Caption, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
                         }
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color.White.copy(alpha = 0.05f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                            shape = VegaShapes.Small,
+                            color = VegaColors.SurfaceVariant,
+                            border = BorderStroke(1.dp, VegaColors.Border)
                         ) {
-                            Text("İngilizce", color = Color.White.copy(alpha = 0.6f), fontSize = 11.5.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                            Text("İngilizce", color = VegaColors.TextSecondary, fontSize = VegaText.Caption, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
                         }
                     }
 
-                    Text(text = "Altyazı", color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "Altyazı", color = VegaColors.TextPrimary, fontSize = VegaText.BodyMedium, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(VegaSizes.SpacingXs)) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = NeonPurple.copy(alpha = 0.2f),
-                            border = BorderStroke(1.dp, NeonPurple)
+                            shape = VegaShapes.Small,
+                            color = VegaColors.Accent.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, VegaColors.Accent)
                         ) {
-                            Text("Türkçe", color = Color.White, fontSize = 11.5.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                            Text("Türkçe", color = VegaColors.TextPrimary, fontSize = VegaText.Caption, fontWeight = FontWeight.Medium, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
                         }
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color.White.copy(alpha = 0.05f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                            shape = VegaShapes.Small,
+                            color = VegaColors.SurfaceVariant,
+                            border = BorderStroke(1.dp, VegaColors.Border)
                         ) {
-                            Text("Kapalı", color = Color.White.copy(alpha = 0.6f), fontSize = 11.5.sp, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                            Text("Kapalı", color = VegaColors.TextSecondary, fontSize = VegaText.Caption, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
                         }
                     }
                 }

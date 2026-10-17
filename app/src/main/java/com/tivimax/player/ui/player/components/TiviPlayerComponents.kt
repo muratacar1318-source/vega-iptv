@@ -54,6 +54,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaSizes
+import com.tivimax.player.ui.design.VegaText
 import kotlinx.coroutines.delay
 
 // ============================================================================
@@ -109,10 +113,10 @@ fun TiviOverlayGuide(
                     .clickable(enabled = false) {} // Tıklamayı arka plana geçirme
                     .border(
                         1.dp,
-                        Color(0xFF1E2638).copy(alpha = 0.7f),
+                        VegaColors.Border,
                         RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
                     ),
-                color = Color(0xD10A0E14), // %82 Opaklıkta TiviMate Buzlu Cam
+                color = VegaColors.OverlayPanel,
                 shape = RoundedCornerShape(topEnd = 16.dp, bottomEnd = 16.dp)
             ) {
                 Row(
@@ -125,8 +129,8 @@ fun TiviOverlayGuide(
                         modifier = Modifier
                             .width(200.dp)
                             .fillMaxHeight()
-                            .background(Color(0x66080C12))
-                            .border(width = 0.5.dp, color = Color(0xFF1E2638).copy(alpha = 0.5f))
+                            .background(VegaColors.Background.copy(alpha = 0.6f))
+                            .border(width = 0.5.dp, color = VegaColors.Border)
                             .padding(horizontal = 8.dp, vertical = 12.dp)
                     ) {
                         Row(
@@ -138,13 +142,13 @@ fun TiviOverlayGuide(
                         ) {
                             Text(
                                 text = "REHBER",
-                                color = OpusCyan,
-                                fontSize = 13.sp,
+                                color = VegaColors.Accent,
+                                fontSize = VegaText.BodySmall,
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 1.sp
                             )
                             IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Kapat", tint = Color(0xFF94A3B8))
+                                Icon(Icons.Default.Close, contentDescription = "Kapat", tint = VegaColors.TextSecondary)
                             }
                         }
 
@@ -161,7 +165,7 @@ fun TiviOverlayGuide(
                                     icon = Icons.Default.Star,
                                     count = favoriteIds.size,
                                     isSelected = selectedCategoryKey == "favorites",
-                                    iconTint = Color(0xFFFFB300),
+                                    iconTint = VegaColors.Gold,
                                     onClick = { selectedCategoryKey = "favorites" }
                                 )
                             }
@@ -171,7 +175,7 @@ fun TiviOverlayGuide(
                                     icon = Icons.Default.History,
                                     count = recentChannels.size,
                                     isSelected = selectedCategoryKey == "recents",
-                                    iconTint = OpusCyan,
+                                    iconTint = VegaColors.Accent,
                                     onClick = { selectedCategoryKey = "recents" }
                                 )
                             }
@@ -181,7 +185,7 @@ fun TiviOverlayGuide(
                                     icon = Icons.Default.Tv,
                                     count = allLiveStreams.size,
                                     isSelected = selectedCategoryKey == "all",
-                                    iconTint = TiviPrimary,
+                                    iconTint = VegaColors.Accent,
                                     onClick = { selectedCategoryKey = "all" }
                                 )
                             }
@@ -189,7 +193,7 @@ fun TiviOverlayGuide(
                             item {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(vertical = 6.dp),
-                                    color = Color(0xFF1E2638)
+                                    color = VegaColors.Border
                                 )
                             }
 
@@ -200,7 +204,7 @@ fun TiviOverlayGuide(
                                     icon = null,
                                     count = cat.itemCount,
                                     isSelected = selectedCategoryKey == cat.categoryId,
-                                    iconTint = Color.White,
+                                    iconTint = VegaColors.TextPrimary,
                                     onClick = { selectedCategoryKey = cat.categoryId }
                                 )
                             }
@@ -218,18 +222,18 @@ fun TiviOverlayGuide(
                         OutlinedTextField(
                             value = channelSearchQuery,
                             onValueChange = { channelSearchQuery = it },
-                            placeholder = { Text("Kanal ara...", fontSize = 12.sp, color = Color(0xFF64748B)) },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(18.dp)) },
+                            placeholder = { Text("Kanal ara...", fontSize = VegaText.Caption, color = VegaColors.TextMuted) },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(18.dp)) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = OpusCyan,
-                                unfocusedBorderColor = Color(0xFF1E2638),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedContainerColor = Color(0xFF0F141C),
-                                unfocusedContainerColor = Color(0xFF0F141C)
+                                focusedBorderColor = VegaColors.Accent,
+                                unfocusedBorderColor = VegaColors.Border,
+                                focusedTextColor = VegaColors.TextPrimary,
+                                unfocusedTextColor = VegaColors.TextPrimary,
+                                focusedContainerColor = VegaColors.SurfaceVariant,
+                                unfocusedContainerColor = VegaColors.SurfaceVariant
                             ),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = VegaShapes.Medium,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(44.dp)
@@ -307,22 +311,22 @@ private fun GuideCategoryItem(
         modifier = modifier
             .fillMaxWidth()
             .dpadFocusable(
-                focusedBorderColor = OpusCyan,
-                shape = RoundedCornerShape(8.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Small,
                 scale = 1.02f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )
-            .clip(RoundedCornerShape(8.dp))
+            .clip(VegaShapes.Small)
             .background(
-                if (isFocused) OpusCyan.copy(alpha = 0.25f)
-                else if (isSelected) TiviPrimary.copy(alpha = 0.25f)
+                if (isFocused) VegaColors.Accent.copy(alpha = 0.25f)
+                else if (isSelected) VegaColors.Accent.copy(alpha = 0.15f)
                 else Color.Transparent
             )
             .border(
                 width = if (isFocused) 2.dp else if (isSelected) 1.dp else 0.dp,
-                color = if (isFocused) OpusCyan else if (isSelected) OpusCyan.copy(alpha = 0.6f) else Color.Transparent,
-                shape = RoundedCornerShape(8.dp)
+                color = if (isFocused) VegaColors.Accent else if (isSelected) VegaColors.Accent.copy(alpha = 0.6f) else Color.Transparent,
+                shape = VegaShapes.Small
             )
     ) {
         Row(
@@ -336,12 +340,12 @@ private fun GuideCategoryItem(
                 modifier = Modifier.weight(1f)
             ) {
                 if (icon != null) {
-                    Icon(imageVector = icon, contentDescription = null, tint = if (isFocused) OpusCyan else iconTint, modifier = Modifier.size(16.dp))
+                    Icon(imageVector = icon, contentDescription = null, tint = if (isFocused) VegaColors.Accent else iconTint, modifier = Modifier.size(16.dp))
                 }
                 Text(
                     text = title,
-                    color = if (isFocused || isSelected) Color.White else Color(0xFFCBD5E1),
-                    fontSize = 12.sp,
+                    color = if (isFocused || isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                    fontSize = VegaText.BodySmall,
                     fontWeight = if (isFocused || isSelected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -350,8 +354,8 @@ private fun GuideCategoryItem(
             if (count > 0) {
                 Text(
                     text = "$count",
-                    color = if (isFocused || isSelected) OpusCyan else Color(0xFF64748B),
-                    fontSize = 10.sp,
+                    color = if (isFocused || isSelected) VegaColors.Accent else VegaColors.TextMuted,
+                    fontSize = VegaText.Caption,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -373,22 +377,22 @@ private fun GuideChannelItem(
         modifier = modifier
             .fillMaxWidth()
             .dpadFocusable(
-                focusedBorderColor = OpusCyan,
-                shape = RoundedCornerShape(10.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Medium,
                 scale = 1.02f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )
-            .clip(RoundedCornerShape(10.dp))
+            .clip(VegaShapes.Medium)
             .background(
-                if (isFocused) OpusCyan.copy(alpha = 0.25f)
-                else if (isPlaying) Color(0x3300E5FF)
-                else Color(0x331E2638)
+                if (isFocused) VegaColors.Accent.copy(alpha = 0.25f)
+                else if (isPlaying) VegaColors.Accent.copy(alpha = 0.18f)
+                else Color.Transparent
             )
             .border(
                 width = if (isFocused) 2.dp else if (isPlaying) 1.dp else 0.5.dp,
-                color = if (isFocused) OpusCyan else if (isPlaying) OpusCyan.copy(alpha = 0.8f) else Color(0x22FFFFFF),
-                shape = RoundedCornerShape(10.dp)
+                color = if (isFocused) VegaColors.Accent else if (isPlaying) VegaColors.Accent.copy(alpha = 0.8f) else VegaColors.Border,
+                shape = VegaShapes.Medium
             )
     ) {
         Row(
@@ -398,8 +402,8 @@ private fun GuideChannelItem(
             // Kanal Numarası
             Text(
                 text = if (channel.num > 0) "${channel.num}" else "•",
-                color = if (isFocused || isPlaying) OpusCyan else Color(0xFF94A3B8),
-                fontSize = 12.sp,
+                color = if (isFocused || isPlaying) VegaColors.Accent else VegaColors.TextSecondary,
+                fontSize = VegaText.BodySmall,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.width(28.dp)
             )
@@ -408,8 +412,8 @@ private fun GuideChannelItem(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF161D28)),
+                    .clip(VegaShapes.Small)
+                    .background(VegaColors.SurfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 if (!channel.streamIcon.isNullOrBlank()) {
@@ -420,7 +424,7 @@ private fun GuideChannelItem(
                         modifier = Modifier.fillMaxSize().padding(4.dp)
                     )
                 } else {
-                    Icon(Icons.Default.Tv, contentDescription = null, tint = Color(0xFF475569), modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Tv, contentDescription = null, tint = VegaColors.TextMuted, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -430,8 +434,8 @@ private fun GuideChannelItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = channel.name,
-                    color = Color.White,
-                    fontSize = 13.sp,
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.BodyMedium,
                     fontWeight = if (isFocused || isPlaying) FontWeight.Bold else FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -440,8 +444,8 @@ private fun GuideChannelItem(
                 val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram.decodeBase64IfNeeded().ifBlank { "Yayın Akışı Mevcut Değil" }
                 Text(
                     text = programTitle,
-                    color = if (isFocused || isPlaying) OpusCyan.copy(alpha = 0.9f) else Color(0xFF94A3B8),
-                    fontSize = 11.sp,
+                    color = if (isFocused || isPlaying) VegaColors.Accent.copy(alpha = 0.9f) else VegaColors.TextSecondary,
+                    fontSize = VegaText.Caption,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -457,8 +461,8 @@ private fun GuideChannelItem(
                             .fillMaxWidth()
                             .height(2.5.dp)
                             .clip(RoundedCornerShape(2.dp)),
-                        color = if (isFocused || isPlaying) OpusCyan else TiviPrimary,
-                        trackColor = Color(0xFF1E2638)
+                        color = if (isFocused || isPlaying) VegaColors.Accent else VegaColors.Accent.copy(alpha = 0.7f),
+                        trackColor = VegaColors.SurfaceVariant
                     )
                 }
             }
@@ -469,7 +473,7 @@ private fun GuideChannelItem(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(OpusCyan)
+                        .background(VegaColors.Accent)
                 )
             }
         }
@@ -530,9 +534,9 @@ fun TiviBottomInfoCard(
                         vertical = if (isPortrait) 4.dp else 8.dp
                     )
                     .then(cardDragModifier),
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xD90A0E17), // %85 saydam koyu buzlu cam paneli
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2638).copy(alpha = 0.85f))
+                shape = VegaShapes.Large,
+                color = VegaColors.OverlayPanel,
+                border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border)
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -573,7 +577,7 @@ fun TiviBottomInfoCard(
                                 if (channel.num > 0) {
                                     Text(
                                         text = "${channel.num}",
-                                        color = OpusCyan,
+                                        color = VegaColors.Accent,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.ExtraBold
                                     )
@@ -583,8 +587,8 @@ fun TiviBottomInfoCard(
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(0xFF161D28)),
+                                        .clip(VegaShapes.Small)
+                                        .background(VegaColors.SurfaceVariant),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (!channel.streamIcon.isNullOrBlank()) {
@@ -598,7 +602,7 @@ fun TiviBottomInfoCard(
                                         Icon(
                                             imageVector = Icons.Default.Tv,
                                             contentDescription = null,
-                                            tint = Color(0xFF64748B),
+                                            tint = VegaColors.TextMuted,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -606,14 +610,14 @@ fun TiviBottomInfoCard(
 
                                 // Kanal Adı 15sp bold · Program Adı 13sp (tek satır, ellipsis)
                                 val titleText = buildAnnotatedString {
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)) {
+                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = VegaText.HeadlineSmall, color = VegaColors.TextPrimary)) {
                                         append(channel.name)
                                     }
                                     if (currentTitle.isNotBlank()) {
-                                        withStyle(SpanStyle(color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)) {
+                                        withStyle(SpanStyle(color = VegaColors.TextSecondary, fontSize = VegaText.BodySmall)) {
                                             append(" · ")
                                         }
-                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = 13.sp, color = Color(0xFFF1F5F9))) {
+                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = VegaText.BodySmall, color = VegaColors.TextPrimary)) {
                                             append(currentTitle)
                                         }
                                     }
@@ -628,8 +632,8 @@ fun TiviBottomInfoCard(
                                 if (timeRange.isNotBlank()) {
                                     Text(
                                         text = timeRange,
-                                        color = OpusCyan.copy(alpha = 0.9f),
-                                        fontSize = 11.sp,
+                                        color = VegaColors.Accent.copy(alpha = 0.9f),
+                                        fontSize = VegaText.Caption,
                                         fontWeight = FontWeight.Medium,
                                         maxLines = 1
                                     )
@@ -651,8 +655,8 @@ fun TiviBottomInfoCard(
                             ) {
                                 Icon(
                                     imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                    contentDescription = "Favorilere Ekle/Çıkar",
-                                    tint = if (isFavorite) TiviGold else Color(0xFF64748B),
+                                    contentDescription = "Favorilere ekle veya çıkar",
+                                    tint = if (isFavorite) VegaColors.Gold else VegaColors.TextMuted,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -664,8 +668,8 @@ fun TiviBottomInfoCard(
                             ) {
                                 Icon(
                                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                    contentDescription = if (isExpanded) "Detayları Kapat" else "Detayları Göster",
-                                    tint = Color(0xFF94A3B8),
+                                    contentDescription = if (isExpanded) "Detayları kapat" else "Detayları göster",
+                                    tint = VegaColors.TextSecondary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -680,8 +684,8 @@ fun TiviBottomInfoCard(
                                     .fillMaxWidth()
                                     .height(2.dp)
                                     .clip(RoundedCornerShape(1.dp)),
-                                color = OpusCyan,
-                                trackColor = Color(0xFF1E2638)
+                                color = VegaColors.Accent,
+                                trackColor = VegaColors.Border
                             )
                         }
                     } else {
@@ -702,7 +706,7 @@ fun TiviBottomInfoCard(
                                 if (channel.num > 0) {
                                     Text(
                                         text = "${channel.num}",
-                                        color = OpusCyan,
+                                        color = VegaColors.Accent,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.ExtraBold
                                     )
@@ -712,8 +716,8 @@ fun TiviBottomInfoCard(
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(0xFF161D28)),
+                                        .clip(VegaShapes.Small)
+                                        .background(VegaColors.SurfaceVariant),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (!channel.streamIcon.isNullOrBlank()) {
@@ -727,7 +731,7 @@ fun TiviBottomInfoCard(
                                         Icon(
                                             imageVector = Icons.Default.Tv,
                                             contentDescription = null,
-                                            tint = Color(0xFF64748B),
+                                            tint = VegaColors.TextMuted,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -735,14 +739,14 @@ fun TiviBottomInfoCard(
 
                                 // Kanal Adı 15sp bold · Program Adı 13sp (tek satır, ellipsis)
                                 val titleText = buildAnnotatedString {
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)) {
+                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = VegaText.HeadlineSmall, color = VegaColors.TextPrimary)) {
                                         append(channel.name)
                                     }
                                     if (currentTitle.isNotBlank()) {
-                                        withStyle(SpanStyle(color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)) {
+                                        withStyle(SpanStyle(color = VegaColors.TextSecondary, fontSize = VegaText.BodySmall)) {
                                             append(" · ")
                                         }
-                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = 13.sp, color = Color(0xFFF1F5F9))) {
+                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = VegaText.BodySmall, color = VegaColors.TextPrimary)) {
                                             append(currentTitle)
                                         }
                                     }
@@ -762,8 +766,8 @@ fun TiviBottomInfoCard(
                             ) {
                                 Icon(
                                     imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                    contentDescription = "Favorilere Ekle/Çıkar",
-                                    tint = if (isFavorite) TiviGold else Color(0xFF64748B),
+                                    contentDescription = "Favorilere ekle veya çıkar",
+                                    tint = if (isFavorite) VegaColors.Gold else VegaColors.TextMuted,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -775,8 +779,8 @@ fun TiviBottomInfoCard(
                             ) {
                                 Icon(
                                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                    contentDescription = if (isExpanded) "Detayları Kapat" else "Detayları Göster",
-                                    tint = Color(0xFF94A3B8),
+                                    contentDescription = if (isExpanded) "Detayları kapat" else "Detayları göster",
+                                    tint = VegaColors.TextSecondary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -791,8 +795,8 @@ fun TiviBottomInfoCard(
                                     .fillMaxWidth()
                                     .height(2.dp)
                                     .clip(RoundedCornerShape(1.dp)),
-                                color = OpusCyan,
-                                trackColor = Color(0xFF1E2638)
+                                color = VegaColors.Accent,
+                                trackColor = VegaColors.Border
                             )
                         }
 
@@ -826,8 +830,8 @@ fun TiviBottomInfoCard(
                                     if (timeRange.isNotBlank()) {
                                         Text(
                                             text = timeRange,
-                                            color = OpusCyan,
-                                            fontSize = 11.5.sp,
+                                            color = VegaColors.Accent,
+                                            fontSize = VegaText.Caption,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                     } else {
@@ -836,13 +840,13 @@ fun TiviBottomInfoCard(
 
                                     if (qualityBadge != null) {
                                         Surface(
-                                            shape = RoundedCornerShape(4.dp),
-                                            color = Color(0x331E293B),
-                                            border = androidx.compose.foundation.BorderStroke(0.6.dp, Color(0x4464748B))
+                                            shape = VegaShapes.Small,
+                                            color = VegaColors.SurfaceVariant,
+                                            border = androidx.compose.foundation.BorderStroke(0.6.dp, VegaColors.Border)
                                         ) {
                                             Text(
                                                 text = qualityBadge,
-                                                color = Color(0xFF94A3B8),
+                                                color = VegaColors.TextSecondary,
                                                 fontSize = 9.5.sp,
                                                 fontWeight = FontWeight.Medium,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -858,8 +862,8 @@ fun TiviBottomInfoCard(
                             if (!desc.isNullOrBlank()) {
                                 Text(
                                     text = desc,
-                                    color = Color(0xFFCBD5E1),
-                                    fontSize = 11.5.sp,
+                                    color = VegaColors.TextSecondary,
+                                    fontSize = VegaText.Caption,
                                     lineHeight = 16.sp,
                                     maxLines = 3,
                                     overflow = TextOverflow.Ellipsis
@@ -871,8 +875,8 @@ fun TiviBottomInfoCard(
                             if (nextProg.isNotBlank()) {
                                 Text(
                                     text = "Sıradaki: $nextProg",
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 11.sp,
+                                    color = VegaColors.TextSecondary,
+                                    fontSize = VegaText.Caption,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -882,9 +886,9 @@ fun TiviBottomInfoCard(
                             // Sonraki Programlar (en fazla 2)
                             if (upcomingEpg.isNotEmpty()) {
                                 Text(
-                                    text = "Sonraki Programlar",
-                                    color = OpusCyan,
-                                    fontSize = 11.sp,
+                                    text = "Sonraki programlar",
+                                    color = VegaColors.Accent,
+                                    fontSize = VegaText.Caption,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(bottom = 2.dp)
                                 )
@@ -898,15 +902,15 @@ fun TiviBottomInfoCard(
                                     ) {
                                         Text(
                                             text = progTime,
-                                            color = Color(0xFF94A3B8),
+                                            color = VegaColors.TextSecondary,
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.Medium,
                                             modifier = Modifier.width(82.dp)
                                         )
                                         Text(
                                             text = prog.getDecodedTitle(),
-                                            color = Color.White,
-                                            fontSize = 11.sp,
+                                            color = VegaColors.TextPrimary,
+                                            fontSize = VegaText.Caption,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,
                                             modifier = Modifier.weight(1f)
@@ -926,18 +930,18 @@ fun TiviBottomInfoCard(
 fun TechBadge(text: String, isHighlight: Boolean = false) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isHighlight) Color(0x3300E5FF) else Color(0xFF1E2638))
+            .clip(VegaShapes.Small)
+            .background(if (isHighlight) VegaColors.Accent.copy(alpha = 0.2f) else VegaColors.SurfaceVariant)
             .border(
                 0.8.dp,
-                if (isHighlight) OpusCyan.copy(alpha = 0.8f) else Color(0xFF334155),
-                RoundedCornerShape(6.dp)
+                if (isHighlight) VegaColors.Accent else VegaColors.Border,
+                VegaShapes.Small
             )
             .padding(horizontal = 7.dp, vertical = 3.dp)
     ) {
         Text(
             text = text,
-            color = if (isHighlight) OpusCyan else Color(0xFFE2E8F0),
+            color = if (isHighlight) VegaColors.Accent else VegaColors.TextPrimary,
             fontSize = 10.5.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp,
@@ -969,9 +973,9 @@ fun TiviRecentChannelsBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xD90A0E14),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2638))
+            shape = VegaShapes.Large,
+            color = VegaColors.OverlayPanel,
+            border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border)
         ) {
             Column(modifier = Modifier.padding(10.dp)) {
                 Row(
@@ -980,18 +984,18 @@ fun TiviRecentChannelsBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Default.History, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.History, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(16.dp))
                         Text(
                             text = "Son İzlenen Kanallar (${recentChannels.size})",
-                            color = Color.White,
-                            fontSize = 13.sp,
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.BodyMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
                     Text(
                         text = "Geçiş yapmak için dokunun",
-                        color = Color(0xFF64748B),
-                        fontSize = 11.sp
+                        color = VegaColors.TextMuted,
+                        fontSize = VegaText.Caption
                     )
                 }
 
@@ -1005,11 +1009,11 @@ fun TiviRecentChannelsBar(
                         val isCurrent = ch.streamId == currentStreamId
                         Surface(
                             onClick = { onChannelSelected(ch) },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isCurrent) Color(0x3300E5FF) else Color(0xFF161D28),
+                            shape = VegaShapes.Medium,
+                            color = if (isCurrent) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isCurrent) OpusCyan else Color(0xFF1E2638)
+                                if (isCurrent) VegaColors.Accent else VegaColors.Border
                             ),
                             modifier = Modifier.width(135.dp)
                         ) {
@@ -1020,8 +1024,8 @@ fun TiviRecentChannelsBar(
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFF0F141C)),
+                                        .clip(VegaShapes.Small)
+                                        .background(VegaColors.Background),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (!ch.streamIcon.isNullOrBlank()) {
@@ -1032,14 +1036,14 @@ fun TiviRecentChannelsBar(
                                             modifier = Modifier.fillMaxSize().padding(4.dp)
                                         )
                                     } else {
-                                        Icon(Icons.Default.Tv, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(20.dp))
+                                        Icon(Icons.Default.Tv, contentDescription = null, tint = VegaColors.TextMuted, modifier = Modifier.size(20.dp))
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = ch.name,
-                                    color = if (isCurrent) OpusCyan else Color.White,
-                                    fontSize = 11.sp,
+                                    color = if (isCurrent) VegaColors.Accent else VegaColors.TextPrimary,
+                                    fontSize = VegaText.Caption,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -1048,7 +1052,7 @@ fun TiviRecentChannelsBar(
                                 if (ch.num > 0) {
                                     Text(
                                         text = "Kanal ${ch.num}",
-                                        color = Color(0xFF94A3B8),
+                                        color = VegaColors.TextSecondary,
                                         fontSize = 9.5.sp
                                     )
                                 }
@@ -1079,9 +1083,9 @@ fun TiviNumericZapperBox(
         modifier = modifier
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xB30A0E14),
-            border = androidx.compose.foundation.BorderStroke(1.5.dp, OpusCyan),
+            shape = VegaShapes.Large,
+            color = VegaColors.OverlayPanel,
+            border = androidx.compose.foundation.BorderStroke(1.5.dp, VegaColors.Accent),
             modifier = Modifier.padding(16.dp)
         ) {
             Column(
@@ -1098,14 +1102,14 @@ fun TiviNumericZapperBox(
                         Box(
                             modifier = Modifier
                                 .size(36.dp, 44.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF161D28))
-                                .border(1.dp, OpusCyan.copy(alpha = 0.7f), RoundedCornerShape(8.dp)),
+                                .clip(VegaShapes.Small)
+                                .background(VegaColors.SurfaceVariant)
+                                .border(1.dp, VegaColors.Accent.copy(alpha = 0.7f), VegaShapes.Small),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "$char",
-                                color = OpusCyan,
+                                color = VegaColors.Accent,
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
@@ -1133,8 +1137,8 @@ fun TiviNumericZapperBox(
                         }
                         Text(
                             text = matchedChannel.name,
-                            color = Color.White,
-                            fontSize = 13.sp,
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.BodyMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -1143,8 +1147,8 @@ fun TiviNumericZapperBox(
                 } else {
                     Text(
                         text = "Kanal aranıyor...",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 12.sp
+                        color = VegaColors.TextSecondary,
+                        fontSize = VegaText.BodySmall
                     )
                 }
 
@@ -1154,8 +1158,8 @@ fun TiviNumericZapperBox(
                         .width(100.dp)
                         .height(2.5.dp)
                         .clip(RoundedCornerShape(2.dp)),
-                    color = OpusCyan,
-                    trackColor = Color(0xFF1E2638)
+                    color = VegaColors.Accent,
+                    trackColor = VegaColors.Border
                 )
             }
         }
@@ -1170,9 +1174,9 @@ fun NumericKeypadDialog(
 ) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF0F141C),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2638)),
+            shape = VegaShapes.Large,
+            color = VegaColors.Surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
             modifier = Modifier.width(260.dp)
         ) {
             Column(
@@ -1180,9 +1184,9 @@ fun NumericKeypadDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Kanal Numarası Girin",
-                    color = Color.White,
-                    fontSize = 15.sp,
+                    text = "Kanal numarası gir",
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.HeadlineSmall,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -1210,9 +1214,9 @@ fun NumericKeypadDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    KeypadButton(text = "✕", color = Color(0xFFEF4444)) { onDismiss() }
+                    KeypadButton(text = "✕", color = VegaColors.Danger) { onDismiss() }
                     KeypadButton(text = "0") { onDigitClicked(0) }
-                    KeypadButton(text = "✓", color = OpusCyan) { onEnterClicked(); onDismiss() }
+                    KeypadButton(text = "✓", color = VegaColors.Accent) { onEnterClicked(); onDismiss() }
                 }
             }
         }
@@ -1227,9 +1231,9 @@ private fun KeypadButton(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF161D28),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2638)),
+        shape = VegaShapes.Medium,
+        color = VegaColors.SurfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier.size(56.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -1279,18 +1283,9 @@ fun TiviPlayerHUD(
             } else {
                 Modifier.width(360.dp)
             },
-            shape = RoundedCornerShape(18.dp),
-            color = Color(0xB30B101B), // %70 Yarı Saydam Buzlu Cam Paneli
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        OpusCyan.copy(alpha = 0.7f),
-                        Color(0xFF1E2638),
-                        TiviGold.copy(alpha = 0.4f)
-                    )
-                )
-            ),
+            shape = VegaShapes.Large,
+            color = VegaColors.OverlayPanel,
+            border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
             shadowElevation = 16.dp
         ) {
             Column(
@@ -1306,22 +1301,22 @@ fun TiviPlayerHUD(
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(OpusCyan.copy(alpha = 0.18f)),
+                                .clip(VegaShapes.Small)
+                                .background(VegaColors.Accent.copy(alpha = 0.18f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = if (selectedTab == 0) Icons.Default.Tune else Icons.Default.Info,
                                 contentDescription = null,
-                                tint = OpusCyan,
+                                tint = VegaColors.Accent,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (selectedTab == 0) "KONTROL MERKEZİ" else "YAYIN TEŞHİSİ (HUD)",
-                            color = Color.White,
-                            fontSize = 12.5.sp,
+                            text = if (selectedTab == 0) "Kontrol merkezi" else "Yayın teşhisi (HUD)",
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.BodyMedium,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.8.sp
                         )
@@ -1334,7 +1329,7 @@ fun TiviPlayerHUD(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Kapat",
-                            tint = Color(0xFF94A3B8),
+                            tint = VegaColors.TextSecondary,
                             modifier = Modifier.size(17.dp)
                         )
                     }
@@ -1346,17 +1341,17 @@ fun TiviPlayerHUD(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF141A26))
+                        .clip(VegaShapes.Small)
+                        .background(VegaColors.Background)
                         .padding(3.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Tab 1: Ses & Ekran
+                    // Tab 1: Ses ve Ekran
                     Surface(
                         onClick = { selectedTab = 0 },
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (selectedTab == 0) OpusCyan.copy(alpha = 0.22f) else Color.Transparent,
-                        border = if (selectedTab == 0) androidx.compose.foundation.BorderStroke(1.dp, OpusCyan.copy(alpha = 0.6f)) else null,
+                        shape = VegaShapes.Small,
+                        color = if (selectedTab == 0) VegaColors.Accent.copy(alpha = 0.22f) else Color.Transparent,
+                        border = if (selectedTab == 0) androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.6f)) else null,
                         modifier = Modifier
                             .weight(1f)
                             .height(30.dp)
@@ -1366,13 +1361,13 @@ fun TiviPlayerHUD(
                                 Icon(
                                     imageVector = Icons.Default.Tune,
                                     contentDescription = null,
-                                    tint = if (selectedTab == 0) OpusCyan else Color(0xFF94A3B8),
+                                    tint = if (selectedTab == 0) VegaColors.Accent else VegaColors.TextSecondary,
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Text(
-                                    text = "Ses & Ekran",
-                                    color = if (selectedTab == 0) OpusCyan else Color(0xFF94A3B8),
-                                    fontSize = 11.5.sp,
+                                    text = "Ses ve ekran",
+                                    color = if (selectedTab == 0) VegaColors.Accent else VegaColors.TextSecondary,
+                                    fontSize = VegaText.Caption,
                                     fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
@@ -1382,9 +1377,9 @@ fun TiviPlayerHUD(
                     // Tab 2: Yayın Teşhis
                     Surface(
                         onClick = { selectedTab = 1 },
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (selectedTab == 1) OpusCyan.copy(alpha = 0.22f) else Color.Transparent,
-                        border = if (selectedTab == 1) androidx.compose.foundation.BorderStroke(1.dp, OpusCyan.copy(alpha = 0.6f)) else null,
+                        shape = VegaShapes.Small,
+                        color = if (selectedTab == 1) VegaColors.Accent.copy(alpha = 0.22f) else Color.Transparent,
+                        border = if (selectedTab == 1) androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.6f)) else null,
                         modifier = Modifier
                             .weight(1f)
                             .height(30.dp)
@@ -1394,13 +1389,13 @@ fun TiviPlayerHUD(
                                 Icon(
                                     imageVector = Icons.Default.Info,
                                     contentDescription = null,
-                                    tint = if (selectedTab == 1) OpusCyan else Color(0xFF94A3B8),
+                                    tint = if (selectedTab == 1) VegaColors.Accent else VegaColors.TextSecondary,
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Text(
-                                    text = "Yayın Teşhis",
-                                    color = if (selectedTab == 1) OpusCyan else Color(0xFF94A3B8),
-                                    fontSize = 11.5.sp,
+                                    text = "Yayın teşhis",
+                                    color = if (selectedTab == 1) VegaColors.Accent else VegaColors.TextSecondary,
+                                    fontSize = VegaText.Caption,
                                     fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
@@ -1426,19 +1421,19 @@ fun TiviPlayerHUD(
                             Icon(
                                 imageVector = Icons.Default.BrightnessMedium,
                                 contentDescription = null,
-                                tint = TiviGold,
+                                tint = VegaColors.Gold,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Parlaklık", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(text = "Parlaklık", color = VegaColors.TextPrimary, fontSize = VegaText.BodySmall, fontWeight = FontWeight.SemiBold)
                         }
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(TiviGold.copy(alpha = 0.2f))
+                                .clip(VegaShapes.Small)
+                                .background(VegaColors.Gold.copy(alpha = 0.2f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Text(text = "%$brightnessPct", color = TiviGold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "%$brightnessPct", color = VegaColors.Gold, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -1447,9 +1442,9 @@ fun TiviPlayerHUD(
                         onValueChange = onBrightnessChange,
                         valueRange = 0.05f..1f,
                         colors = SliderDefaults.colors(
-                            thumbColor = TiviGold,
-                            activeTrackColor = TiviGold,
-                            inactiveTrackColor = Color(0xFF1E2638)
+                            thumbColor = VegaColors.Gold,
+                            activeTrackColor = VegaColors.Gold,
+                            inactiveTrackColor = VegaColors.Border
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1465,9 +1460,9 @@ fun TiviPlayerHUD(
                             val isSelected = kotlin.math.abs(currentBrightness - valF) < 0.08f
                             Surface(
                                 onClick = { onBrightnessChange(valF) },
-                                shape = RoundedCornerShape(6.dp),
-                                color = if (isSelected) TiviGold.copy(alpha = 0.25f) else Color(0xFF161D28),
-                                border = androidx.compose.foundation.BorderStroke(0.8.dp, if (isSelected) TiviGold else Color(0xFF1E2638)),
+                                shape = VegaShapes.Small,
+                                color = if (isSelected) VegaColors.Gold.copy(alpha = 0.25f) else VegaColors.SurfaceVariant,
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, if (isSelected) VegaColors.Gold else VegaColors.Border),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(24.dp)
@@ -1475,7 +1470,7 @@ fun TiviPlayerHUD(
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         text = lbl,
-                                        color = if (isSelected) TiviGold else Color(0xFF94A3B8),
+                                        color = if (isSelected) VegaColors.Gold else VegaColors.TextSecondary,
                                         fontSize = 10.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     )
@@ -1502,19 +1497,19 @@ fun TiviPlayerHUD(
                             Icon(
                                 imageVector = volIcon,
                                 contentDescription = null,
-                                tint = OpusCyan,
+                                tint = VegaColors.Accent,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Ses Seviyesi", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(text = "Ses seviyesi", color = VegaColors.TextPrimary, fontSize = VegaText.BodySmall, fontWeight = FontWeight.SemiBold)
                         }
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(OpusCyan.copy(alpha = 0.2f))
+                                .clip(VegaShapes.Small)
+                                .background(VegaColors.Accent.copy(alpha = 0.2f))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
-                            Text(text = "%$volumePct", color = OpusCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "%$volumePct", color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -1523,9 +1518,9 @@ fun TiviPlayerHUD(
                         onValueChange = { onVolumeChange(it.toInt().coerceIn(0, maxVolume)) },
                         valueRange = 0f..maxVolume.toFloat(),
                         colors = SliderDefaults.colors(
-                            thumbColor = OpusCyan,
-                            activeTrackColor = OpusCyan,
-                            inactiveTrackColor = Color(0xFF1E2638)
+                            thumbColor = VegaColors.Accent,
+                            activeTrackColor = VegaColors.Accent,
+                            inactiveTrackColor = VegaColors.Border
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1546,17 +1541,17 @@ fun TiviPlayerHUD(
                                     onVolumeChange((maxVolume / 2).coerceAtLeast(1))
                                 }
                             },
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (currentVolume == 0) Color(0xFFEF4444).copy(alpha = 0.25f) else Color(0xFF161D28),
-                            border = androidx.compose.foundation.BorderStroke(0.8.dp, if (currentVolume == 0) Color(0xFFEF4444) else Color(0xFF1E2638)),
+                            shape = VegaShapes.Small,
+                            color = if (currentVolume == 0) VegaColors.Danger.copy(alpha = 0.25f) else VegaColors.SurfaceVariant,
+                            border = androidx.compose.foundation.BorderStroke(0.8.dp, if (currentVolume == 0) VegaColors.Danger else VegaColors.Border),
                             modifier = Modifier
                                 .weight(1.3f)
                                 .height(24.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = if (currentVolume == 0) "Sesi Aç" else "Sessiz (Mute)",
-                                    color = if (currentVolume == 0) Color(0xFFEF4444) else Color(0xFFE2E8F0),
+                                    text = if (currentVolume == 0) "Sesi aç" else "Sessiz",
+                                    color = if (currentVolume == 0) VegaColors.Danger else VegaColors.TextPrimary,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1568,9 +1563,9 @@ fun TiviPlayerHUD(
                             val isSelected = kotlin.math.abs(currentVolume - targetVol) <= 1 && currentVolume > 0
                             Surface(
                                 onClick = { onVolumeChange(targetVol) },
-                                shape = RoundedCornerShape(6.dp),
-                                color = if (isSelected) OpusCyan.copy(alpha = 0.25f) else Color(0xFF161D28),
-                                border = androidx.compose.foundation.BorderStroke(0.8.dp, if (isSelected) OpusCyan else Color(0xFF1E2638)),
+                                shape = VegaShapes.Small,
+                                color = if (isSelected) VegaColors.Accent.copy(alpha = 0.25f) else VegaColors.SurfaceVariant,
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, if (isSelected) VegaColors.Accent else VegaColors.Border),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(24.dp)
@@ -1578,7 +1573,7 @@ fun TiviPlayerHUD(
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         text = lbl,
-                                        color = if (isSelected) OpusCyan else Color(0xFF94A3B8),
+                                        color = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
                                         fontSize = 10.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     )
@@ -1591,9 +1586,9 @@ fun TiviPlayerHUD(
 
                     // 3. EN-BOY ORANI (ASPECT RATIO) HIZLI SEÇİCİ
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AspectRatio, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.AspectRatio, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("En-Boy Oranı", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("En-boy oranı", color = VegaColors.TextPrimary, fontSize = VegaText.BodySmall, fontWeight = FontWeight.SemiBold)
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -1611,9 +1606,9 @@ fun TiviPlayerHUD(
                             val isCurrent = aspectRatio == mode
                             Surface(
                                 onClick = { onAspectRatioChange(mode) },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isCurrent) OpusCyan.copy(alpha = 0.25f) else Color(0xFF161D28),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isCurrent) OpusCyan else Color(0xFF1E2638)),
+                                shape = VegaShapes.Small,
+                                color = if (isCurrent) VegaColors.Accent.copy(alpha = 0.25f) else VegaColors.SurfaceVariant,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isCurrent) VegaColors.Accent else VegaColors.Border),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(28.dp)
@@ -1621,7 +1616,7 @@ fun TiviPlayerHUD(
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         text = label,
-                                        color = if (isCurrent) OpusCyan else Color(0xFF94A3B8),
+                                        color = if (isCurrent) VegaColors.Accent else VegaColors.TextSecondary,
                                         fontSize = 10.5.sp,
                                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium
                                     )
@@ -1638,48 +1633,48 @@ fun TiviPlayerHUD(
                                 title = "Çözünürlük",
                                 value = diagnostics.resolution,
                                 badge = diagnostics.resolutionBadge,
-                                badgeColor = OpusCyan,
+                                badgeColor = VegaColors.Accent,
                                 modifier = Modifier.weight(1f)
                             )
                             DiagnosticMetricCard(
-                                title = "Kare Hızı",
+                                title = "Kare hızı",
                                 value = diagnostics.frameRate,
                                 badge = diagnostics.frameRateBadge,
-                                badgeColor = Color(0xFF38BDF8),
+                                badgeColor = VegaColors.Accent,
                                 modifier = Modifier.weight(1f)
                             )
                         }
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             DiagnosticMetricCard(
-                                title = "Video Kodek",
+                                title = "Video kodek",
                                 value = diagnostics.videoCodec,
                                 badge = diagnostics.videoCodecBadge,
-                                badgeColor = Color(0xFFA78BFA),
+                                badgeColor = VegaColors.Accent,
                                 modifier = Modifier.weight(1f)
                             )
                             DiagnosticMetricCard(
-                                title = "Ses Formatı",
+                                title = "Ses formatı",
                                 value = diagnostics.audioCodec,
                                 badge = diagnostics.audioCodecBadge,
-                                badgeColor = Color(0xFFF472B6),
+                                badgeColor = VegaColors.Accent,
                                 modifier = Modifier.weight(1f)
                             )
                         }
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             DiagnosticMetricCard(
-                                title = "Anlık Bitrate",
+                                title = "Anlık bitrate",
                                 value = diagnostics.bitrate,
                                 badge = "AĞ",
-                                badgeColor = TiviGold,
+                                badgeColor = VegaColors.Gold,
                                 modifier = Modifier.weight(1f)
                             )
                             DiagnosticMetricCard(
-                                title = "Tampon Sağlığı",
+                                title = "Tampon sağlığı",
                                 value = diagnostics.bufferHealthSecs,
                                 badge = "CANLI",
-                                badgeColor = TiviGreen,
+                                badgeColor = VegaColors.Accent,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -1692,8 +1687,8 @@ fun TiviPlayerHUD(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF141A26))
+                                .clip(VegaShapes.Small)
+                                .background(VegaColors.SurfaceVariant)
                                 .padding(8.dp)
                         ) {
                             Row(
@@ -1701,9 +1696,9 @@ fun TiviPlayerHUD(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Tampon Doluluk Oranı", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
+                                Text("Tampon doluluk oranı", color = VegaColors.TextSecondary, fontSize = 10.5.sp)
                                 val bufferText = if (diagnostics.bufferHealthSecs.isNotBlank()) "${diagnostics.bufferHealthSecs} / 10s" else "—"
-                                Text(bufferText, color = TiviGreen, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                Text(bufferText, color = VegaColors.Accent, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             LinearProgressIndicator(
@@ -1712,8 +1707,8 @@ fun TiviPlayerHUD(
                                     .fillMaxWidth()
                                     .height(4.dp)
                                     .clip(RoundedCornerShape(2.dp)),
-                                color = if (bufferSecs >= 3f) TiviGreen else TiviGold,
-                                trackColor = Color(0xFF1E2638)
+                                color = if (bufferSecs >= 3f) VegaColors.Accent else VegaColors.Gold,
+                                trackColor = VegaColors.Border
                             )
                         }
                     }
@@ -1732,9 +1727,9 @@ private fun DiagnosticMetricCard(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = Color(0xFF141A26),
-        border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0xFF1E2638)),
+        shape = VegaShapes.Small,
+        color = VegaColors.SurfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(0.8.dp, VegaColors.Border),
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -1743,7 +1738,7 @@ private fun DiagnosticMetricCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = title, color = Color(0xFF94A3B8), fontSize = 10.sp)
+                Text(text = title, color = VegaColors.TextSecondary, fontSize = 10.sp)
                 if (badge.isNotBlank()) {
                     Box(
                         modifier = Modifier
@@ -1758,7 +1753,7 @@ private fun DiagnosticMetricCard(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value.ifBlank { "—" },
-                color = Color.White,
+                color = VegaColors.TextPrimary,
                 fontSize = 11.5.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -1781,7 +1776,7 @@ fun PlayerPillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
-    activeColor: Color = OpusCyan,
+    activeColor: Color = VegaColors.Accent,
     isPortrait: Boolean = false
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -1805,25 +1800,25 @@ fun PlayerPillButton(
 
     val animatedBorderColor by animateColorAsState(
         targetValue = when {
-            isFocused -> OpusCyan
+            isFocused -> VegaColors.Accent
             isActive -> activeColor
             isPressed -> Color.White.copy(alpha = 0.5f)
-            else -> Color.White.copy(alpha = 0.22f)
+            else -> VegaColors.Border
         },
         label = "pillBorder"
     )
 
     val animatedBgColor by animateColorAsState(
         targetValue = when {
-            isFocused -> OpusCyan.copy(alpha = 0.35f)
+            isFocused -> VegaColors.Accent.copy(alpha = 0.35f)
             isActive -> activeColor.copy(alpha = 0.25f)
-            isPressed -> Color(0x99111827)
-            else -> Color(0x66111827)
+            isPressed -> VegaColors.SurfaceVariant
+            else -> VegaColors.OverlayPill
         },
         label = "pillBg"
     )
 
-    val contentColor = if (isFocused || isActive) activeColor else Color.White
+    val contentColor = if (isFocused || isActive) activeColor else VegaColors.TextPrimary
 
     Surface(
         onClick = {
@@ -1832,7 +1827,7 @@ fun PlayerPillButton(
             onClick()
         },
         interactionSource = interactionSource,
-        shape = RoundedCornerShape(20.dp),
+        shape = VegaShapes.Pill,
         color = animatedBgColor,
         border = androidx.compose.foundation.BorderStroke(if (isFocused) 2.dp else 1.dp, animatedBorderColor),
         modifier = modifier
@@ -1862,7 +1857,7 @@ fun PlayerPillButton(
             Text(
                 text = text,
                 color = contentColor,
-                fontSize = if (isPortrait) 10.5.sp else 11.5.sp,
+                fontSize = if (isPortrait) VegaText.Caption else VegaText.BodySmall,
                 fontWeight = if (isFocused || isActive) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1
             )
@@ -1903,7 +1898,7 @@ fun BouncyIconButton(
 
     val bgAnimated by animateColorAsState(
         targetValue = when {
-            isFocused -> OpusCyan.copy(alpha = 0.45f)
+            isFocused -> VegaColors.Accent.copy(alpha = 0.45f)
             isPressed -> backgroundColor.copy(alpha = (backgroundColor.alpha + 0.25f).coerceAtMost(1f))
             else -> backgroundColor
         },
@@ -1922,7 +1917,7 @@ fun BouncyIconButton(
             .clip(shape)
             .background(bgAnimated)
             .then(
-                if (isFocused) Modifier.border(2.dp, OpusCyan, shape)
+                if (isFocused) Modifier.border(2.dp, VegaColors.Accent, shape)
                 else if (border != null) Modifier.border(border, shape)
                 else Modifier
             )
@@ -1938,7 +1933,7 @@ fun BouncyIconButton(
             ),
         contentAlignment = Alignment.Center
     ) {
-        CompositionLocalProvider(LocalContentColor provides if (isFocused) OpusCyan else contentColor) {
+        CompositionLocalProvider(LocalContentColor provides if (isFocused) VegaColors.Accent else contentColor) {
             content()
         }
     }

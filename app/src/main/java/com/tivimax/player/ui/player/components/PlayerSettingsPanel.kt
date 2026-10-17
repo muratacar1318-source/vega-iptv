@@ -69,12 +69,10 @@ import androidx.compose.ui.unit.sp
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.StreamDiagnostics
 import com.tivimax.player.player.TrackInfo
-import com.tivimax.player.theme.OpusCyan
-import com.tivimax.player.theme.TiviCardBorder
-import com.tivimax.player.theme.TiviPrimary
-import com.tivimax.player.theme.TiviTextMuted
-import com.tivimax.player.theme.TiviTextPrimary
-import com.tivimax.player.theme.TiviTextSecondary
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaSizes
+import com.tivimax.player.ui.design.VegaText
 import java.util.Locale
 
 enum class SettingsTab(val title: String) {
@@ -186,12 +184,12 @@ fun PlayerSettingsPanel(
                         interactionSource = remember { MutableInteractionSource() }
                     ) { /* Dokunmayı panel içinde yut */ },
                 shape = if (isPortrait) {
-                    RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                    RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 } else {
                     RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
                 },
-                color = Color(0xF2121722), // %95 Opak Koyu Buzlu Cam
-                border = BorderStroke(1.dp, TiviCardBorder.copy(alpha = 0.6f)),
+                color = VegaColors.OverlayPanel,
+                border = BorderStroke(1.dp, VegaColors.Border),
                 shadowElevation = 16.dp
             ) {
                 Column(
@@ -207,26 +205,26 @@ fun PlayerSettingsPanel(
                     ) {
                         Text(
                             text = "Ayarlar",
-                            fontSize = 17.sp,
+                            fontSize = VegaText.SectionTitle,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = VegaColors.TextPrimary
                         )
                         var isCloseFocused by remember { mutableStateOf(false) }
                         IconButton(
                             onClick = onClose,
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(VegaSizes.IconButton)
                                 .onFocusChanged { isCloseFocused = it.isFocused }
                                 .then(
                                     if (isCloseFocused) {
-                                        Modifier.border(2.dp, OpusCyan, CircleShape)
+                                        Modifier.border(2.dp, VegaColors.Accent, CircleShape)
                                     } else Modifier
                                 )
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Kapat",
-                                tint = if (isCloseFocused) OpusCyan else Color.White.copy(alpha = 0.85f),
+                                tint = if (isCloseFocused) VegaColors.Accent else VegaColors.TextSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -246,13 +244,13 @@ fun PlayerSettingsPanel(
                             var isFocused by remember { mutableStateOf(false) }
                             Surface(
                                 onClick = { selectedTab = tab },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isFocused) OpusCyan.copy(alpha = 0.35f)
-                                else if (isSelected) TiviPrimary
-                                else Color.White.copy(alpha = 0.08f),
-                                border = if (isFocused) BorderStroke(2.dp, OpusCyan)
-                                else if (isSelected) BorderStroke(1.dp, TiviPrimary)
-                                else null,
+                                shape = VegaShapes.Small,
+                                color = if (isFocused) VegaColors.Accent.copy(alpha = 0.25f)
+                                else if (isSelected) VegaColors.Accent.copy(alpha = 0.18f)
+                                else VegaColors.SurfaceVariant,
+                                border = if (isFocused) BorderStroke(2.dp, VegaColors.Accent)
+                                else if (isSelected) BorderStroke(1.dp, VegaColors.Accent)
+                                else BorderStroke(1.dp, VegaColors.Border),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(40.dp)
@@ -267,9 +265,9 @@ fun PlayerSettingsPanel(
                                 ) {
                                     Text(
                                         text = tab.title,
-                                        fontSize = 13.sp,
+                                        fontSize = VegaText.Secondary,
                                         fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected && !isFocused) Color.Black else Color.White
+                                        color = if (isSelected || isFocused) VegaColors.Accent else VegaColors.TextSecondary
                                     )
                                 }
                             }
@@ -337,9 +335,9 @@ private fun AudioTabContent(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Ek ses parçası bulunamadı\n(Varsayılan Ses Aktif)",
-                color = TiviTextSecondary,
-                fontSize = 13.sp,
+                text = "Ek ses parçası bulunamadı\n(Varsayılan ses aktif)",
+                color = VegaColors.TextSecondary,
+                fontSize = VegaText.Secondary,
                 textAlign = TextAlign.Center
             )
         }
@@ -355,9 +353,9 @@ private fun AudioTabContent(
                 var isFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = { onSelectAudioTrack(track) },
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isFocused) OpusCyan.copy(alpha = 0.2f) else if (isSelected) TiviPrimary.copy(alpha = 0.12f) else Color.Transparent,
-                    border = if (isFocused) BorderStroke(2.dp, OpusCyan) else if (isSelected) BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.5f)) else null,
+                    shape = VegaShapes.Small,
+                    color = if (isFocused) VegaColors.Accent.copy(alpha = 0.2f) else if (isSelected) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
+                    border = if (isFocused) BorderStroke(2.dp, VegaColors.Accent) else if (isSelected) BorderStroke(1.dp, VegaColors.Accent) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 44.dp)
@@ -373,17 +371,17 @@ private fun AudioTabContent(
                             selected = isSelected,
                             onClick = { onSelectAudioTrack(track) },
                             colors = RadioButtonDefaults.colors(
-                                selectedColor = TiviPrimary,
-                                unselectedColor = Color.White.copy(alpha = 0.4f)
+                                selectedColor = VegaColors.Accent,
+                                unselectedColor = VegaColors.TextMuted
                             ),
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = track.name,
-                            color = if (isSelected) TiviPrimary else TiviTextPrimary,
+                            color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 14.sp,
+                            fontSize = VegaText.Body,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -428,9 +426,9 @@ private fun SubtitleTabContent(
             var isOffFocused by remember { mutableStateOf(false) }
             Surface(
                 onClick = onDisableSubtitles,
-                shape = RoundedCornerShape(8.dp),
-                color = if (isOffFocused) OpusCyan.copy(alpha = 0.2f) else if (!anySubSelected) TiviPrimary.copy(alpha = 0.12f) else Color.Transparent,
-                border = if (isOffFocused) BorderStroke(2.dp, OpusCyan) else if (!anySubSelected) BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.5f)) else null,
+                shape = VegaShapes.Small,
+                color = if (isOffFocused) VegaColors.Accent.copy(alpha = 0.2f) else if (!anySubSelected) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
+                border = if (isOffFocused) BorderStroke(2.dp, VegaColors.Accent) else if (!anySubSelected) BorderStroke(1.dp, VegaColors.Accent) else null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
@@ -446,17 +444,17 @@ private fun SubtitleTabContent(
                         selected = !anySubSelected,
                         onClick = onDisableSubtitles,
                         colors = RadioButtonDefaults.colors(
-                            selectedColor = TiviPrimary,
-                            unselectedColor = Color.White.copy(alpha = 0.4f)
+                            selectedColor = VegaColors.Accent,
+                            unselectedColor = VegaColors.TextMuted
                         ),
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Kapalı",
-                        color = if (!anySubSelected) TiviPrimary else TiviTextPrimary,
+                        color = if (!anySubSelected) VegaColors.Accent else VegaColors.TextPrimary,
                         fontWeight = if (!anySubSelected) FontWeight.Bold else FontWeight.Normal,
-                        fontSize = 14.sp
+                        fontSize = VegaText.Body
                     )
                 }
             }
@@ -467,9 +465,9 @@ private fun SubtitleTabContent(
                 var isTrackFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = { onSelectSubtitleTrack(track) },
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isTrackFocused) OpusCyan.copy(alpha = 0.2f) else if (isSelected) TiviPrimary.copy(alpha = 0.12f) else Color.Transparent,
-                    border = if (isTrackFocused) BorderStroke(2.dp, OpusCyan) else if (isSelected) BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.5f)) else null,
+                    shape = VegaShapes.Small,
+                    color = if (isTrackFocused) VegaColors.Accent.copy(alpha = 0.2f) else if (isSelected) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
+                    border = if (isTrackFocused) BorderStroke(2.dp, VegaColors.Accent) else if (isSelected) BorderStroke(1.dp, VegaColors.Accent) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 44.dp)
@@ -485,17 +483,17 @@ private fun SubtitleTabContent(
                             selected = isSelected,
                             onClick = { onSelectSubtitleTrack(track) },
                             colors = RadioButtonDefaults.colors(
-                                selectedColor = TiviPrimary,
-                                unselectedColor = Color.White.copy(alpha = 0.4f)
+                                selectedColor = VegaColors.Accent,
+                                unselectedColor = VegaColors.TextMuted
                             ),
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = track.name,
-                            color = if (isSelected) TiviPrimary else TiviTextPrimary,
+                            color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 14.sp,
+                            fontSize = VegaText.Body,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -505,7 +503,7 @@ private fun SubtitleTabContent(
         }
 
         HorizontalDivider(
-            color = Color.White.copy(alpha = 0.1f),
+            color = VegaColors.Border,
             modifier = Modifier.padding(vertical = 8.dp)
         )
 
@@ -519,9 +517,9 @@ private fun SubtitleTabContent(
         ) {
             Text(
                 text = "Gecikme",
-                fontSize = 13.sp,
+                fontSize = VegaText.Secondary,
                 fontWeight = FontWeight.SemiBold,
-                color = if (anySubSelected) Color.White else TiviTextMuted
+                color = if (anySubSelected) VegaColors.TextPrimary else VegaColors.TextMuted
             )
 
             Row(
@@ -533,18 +531,18 @@ private fun SubtitleTabContent(
                 Surface(
                     onClick = { onSubtitleDelayChange((subtitleDelayMs - 100L).coerceAtLeast(0L)) },
                     enabled = anySubSelected && subtitleDelayMs > 0L,
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color.White.copy(alpha = 0.1f),
-                    border = if (isMinusFocused) BorderStroke(2.dp, OpusCyan) else null,
+                    shape = VegaShapes.Small,
+                    color = VegaColors.SurfaceVariant,
+                    border = if (isMinusFocused) BorderStroke(2.dp, VegaColors.Accent) else null,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(VegaSizes.IconButton)
                         .onFocusChanged { isMinusFocused = it.isFocused }
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Remove,
-                            contentDescription = "Gecikmeyi Azalt",
-                            tint = if (anySubSelected && subtitleDelayMs > 0L) Color.White else TiviTextMuted,
+                            contentDescription = "Gecikmeyi azalt",
+                            tint = if (anySubSelected && subtitleDelayMs > 0L) VegaColors.TextPrimary else VegaColors.TextMuted,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -554,9 +552,9 @@ private fun SubtitleTabContent(
                 val delaySec = subtitleDelayMs / 1000f
                 Text(
                     text = String.format(Locale.getDefault(), "+%.1f sn", delaySec),
-                    fontSize = 13.sp,
+                    fontSize = VegaText.Secondary,
                     fontWeight = FontWeight.Bold,
-                    color = if (anySubSelected) OpusCyan else TiviTextMuted,
+                    color = if (anySubSelected) VegaColors.Accent else VegaColors.TextMuted,
                     modifier = Modifier.width(54.dp),
                     textAlign = TextAlign.Center
                 )
@@ -566,18 +564,18 @@ private fun SubtitleTabContent(
                 Surface(
                     onClick = { onSubtitleDelayChange((subtitleDelayMs + 100L).coerceAtMost(5000L)) },
                     enabled = anySubSelected && subtitleDelayMs < 5000L,
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color.White.copy(alpha = 0.1f),
-                    border = if (isPlusFocused) BorderStroke(2.dp, OpusCyan) else null,
+                    shape = VegaShapes.Small,
+                    color = VegaColors.SurfaceVariant,
+                    border = if (isPlusFocused) BorderStroke(2.dp, VegaColors.Accent) else null,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(VegaSizes.IconButton)
                         .onFocusChanged { isPlusFocused = it.isFocused }
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "Gecikmeyi Artır",
-                            tint = if (anySubSelected && subtitleDelayMs < 5000L) Color.White else TiviTextMuted,
+                            contentDescription = "Gecikmeyi artır",
+                            tint = if (anySubSelected && subtitleDelayMs < 5000L) VegaColors.TextPrimary else VegaColors.TextMuted,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -588,18 +586,18 @@ private fun SubtitleTabContent(
                 Surface(
                     onClick = { onSubtitleDelayChange(0L) },
                     enabled = anySubSelected && subtitleDelayMs > 0L,
-                    shape = RoundedCornerShape(8.dp),
-                    color = Color.White.copy(alpha = 0.1f),
-                    border = if (isResetFocused) BorderStroke(2.dp, OpusCyan) else null,
+                    shape = VegaShapes.Small,
+                    color = VegaColors.SurfaceVariant,
+                    border = if (isResetFocused) BorderStroke(2.dp, VegaColors.Accent) else null,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(VegaSizes.IconButton)
                         .onFocusChanged { isResetFocused = it.isFocused }
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Gecikmeyi Sıfırla",
-                            tint = if (anySubSelected && subtitleDelayMs > 0L) OpusCyan else TiviTextMuted,
+                            contentDescription = "Gecikmeyi sıfırla",
+                            tint = if (anySubSelected && subtitleDelayMs > 0L) VegaColors.Accent else VegaColors.TextMuted,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -619,9 +617,9 @@ private fun SubtitleTabContent(
         ) {
             Text(
                 text = "Boyut",
-                fontSize = 13.sp,
+                fontSize = VegaText.Secondary,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White
+                color = VegaColors.TextPrimary
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -644,19 +642,21 @@ private fun SubtitleTabContent(
                     var isSizeFocused by remember { mutableStateOf(false) }
                     Surface(
                         onClick = { onSubtitleSizeChange(sizeVal) },
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) TiviPrimary else Color.White.copy(alpha = 0.08f),
-                        border = if (isSizeFocused) BorderStroke(2.dp, OpusCyan) else null,
+                        shape = VegaShapes.Small,
+                        color = if (isSelected) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
+                        border = if (isSizeFocused) BorderStroke(2.dp, VegaColors.Accent)
+                        else if (isSelected) BorderStroke(1.dp, VegaColors.Accent)
+                        else BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(VegaSizes.IconButton)
                             .onFocusChanged { isSizeFocused = it.isFocused }
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
                                 text = label,
-                                fontSize = 13.sp,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color.Black else Color.White
+                                color = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary
                             )
                         }
                     }
@@ -676,9 +676,9 @@ private fun SubtitleTabContent(
         ) {
             Text(
                 text = "Renk",
-                fontSize = 13.sp,
+                fontSize = VegaText.Secondary,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White
+                color = VegaColors.TextPrimary
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -697,11 +697,11 @@ private fun SubtitleTabContent(
                         shape = CircleShape,
                         color = Color.Transparent,
                         border = BorderStroke(
-                            width = if (isColorFocused) 2.5.dp else if (isSelected) 2.dp else 1.dp,
-                            color = if (isColorFocused) OpusCyan else if (isSelected) Color.White else Color.White.copy(alpha = 0.2f)
+                            width = if (isColorFocused) 2.dp else if (isSelected) 2.dp else 1.dp,
+                            color = if (isColorFocused) VegaColors.Accent else if (isSelected) VegaColors.Accent else VegaColors.Border
                         ),
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(VegaSizes.IconButton)
                             .onFocusChanged { isColorFocused = it.isFocused }
                     ) {
                         Box(
@@ -749,9 +749,9 @@ private fun AspectRatioTabContent(
             var isFocused by remember { mutableStateOf(false) }
             Surface(
                 onClick = { onAspectRatioChange(mode) },
-                shape = RoundedCornerShape(8.dp),
-                color = if (isFocused) OpusCyan.copy(alpha = 0.2f) else if (isSelected) TiviPrimary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
-                border = if (isFocused) BorderStroke(2.dp, OpusCyan) else BorderStroke(1.dp, if (isSelected) TiviPrimary else Color.Transparent),
+                shape = VegaShapes.Small,
+                color = if (isFocused) VegaColors.Accent.copy(alpha = 0.2f) else if (isSelected) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
+                border = if (isFocused) BorderStroke(2.dp, VegaColors.Accent) else if (isSelected) BorderStroke(1.dp, VegaColors.Accent) else BorderStroke(1.dp, VegaColors.Border),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
@@ -766,16 +766,16 @@ private fun AspectRatioTabContent(
                 ) {
                     Text(
                         text = label,
-                        fontSize = 14.sp,
+                        fontSize = VegaText.Body,
                         fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isFocused) OpusCyan else if (isSelected) TiviPrimary else Color.White
+                        color = if (isSelected || isFocused) VegaColors.Accent else VegaColors.TextPrimary
                     )
                     if (isSelected) {
                         Text(
                             text = "✓",
-                            fontSize = 14.sp,
+                            fontSize = VegaText.Body,
                             fontWeight = FontWeight.Bold,
-                            color = if (isFocused) OpusCyan else TiviPrimary
+                            color = VegaColors.Accent
                         )
                     }
                 }
@@ -806,9 +806,9 @@ private fun SpeedTabContent(
             var isFocused by remember { mutableStateOf(false) }
             Surface(
                 onClick = { onPlaybackSpeedChange(spd) },
-                shape = RoundedCornerShape(8.dp),
-                color = if (isFocused) OpusCyan.copy(alpha = 0.2f) else if (isSelected) TiviPrimary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
-                border = if (isFocused) BorderStroke(2.dp, OpusCyan) else BorderStroke(1.dp, if (isSelected) TiviPrimary else Color.Transparent),
+                shape = VegaShapes.Small,
+                color = if (isFocused) VegaColors.Accent.copy(alpha = 0.2f) else if (isSelected) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
+                border = if (isFocused) BorderStroke(2.dp, VegaColors.Accent) else if (isSelected) BorderStroke(1.dp, VegaColors.Accent) else BorderStroke(1.dp, VegaColors.Border),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
@@ -823,16 +823,16 @@ private fun SpeedTabContent(
                 ) {
                     Text(
                         text = label,
-                        fontSize = 14.sp,
+                        fontSize = VegaText.Body,
                         fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isFocused) OpusCyan else if (isSelected) TiviPrimary else Color.White
+                        color = if (isSelected || isFocused) VegaColors.Accent else VegaColors.TextPrimary
                     )
                     if (isSelected) {
                         Text(
                             text = "✓",
-                            fontSize = 14.sp,
+                            fontSize = VegaText.Body,
                             fontWeight = FontWeight.Bold,
-                            color = if (isFocused) OpusCyan else TiviPrimary
+                            color = VegaColors.Accent
                         )
                     }
                 }
@@ -872,9 +872,9 @@ private fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
 
     Surface(
         onClick = { isExpanded = !isExpanded },
-        shape = RoundedCornerShape(8.dp),
-        color = if (isFocused) OpusCyan.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
-        border = if (isFocused) BorderStroke(2.dp, OpusCyan) else BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+        shape = VegaShapes.Small,
+        color = if (isFocused) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
+        border = if (isFocused) BorderStroke(2.dp, VegaColors.Accent) else BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
@@ -886,23 +886,32 @@ private fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "ℹ Yayın Bilgisi",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = VegaColors.TextSecondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Yayın bilgisi",
+                        fontSize = VegaText.Caption,
+                        fontWeight = FontWeight.Medium,
+                        color = VegaColors.TextSecondary
+                    )
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = headerText,
-                        fontSize = 11.sp,
-                        color = OpusCyan
+                        fontSize = VegaText.Caption,
+                        color = VegaColors.Accent
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.5f),
+                        tint = VegaColors.TextMuted,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -913,15 +922,15 @@ private fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
                     if (videoText.isNotBlank()) {
                         Text(
                             text = videoText,
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.85f)
+                            fontSize = VegaText.Caption,
+                            color = VegaColors.TextPrimary
                         )
                     }
                     if (audioBufferText.isNotBlank()) {
                         Text(
                             text = audioBufferText,
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.85f)
+                            fontSize = VegaText.Caption,
+                            color = VegaColors.TextPrimary
                         )
                     }
                 }

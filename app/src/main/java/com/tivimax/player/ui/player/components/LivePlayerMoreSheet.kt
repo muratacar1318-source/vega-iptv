@@ -18,8 +18,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.StreamDiagnostics
-import com.tivimax.player.theme.OpusCyan
-import com.tivimax.player.theme.TiviSurface
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 
 /**
  * Canlı TV Tam Ekran Oynatıcı İkincil Aksiyonlar BottomSheet'i ("Daha Fazla ⋯").
@@ -40,9 +41,9 @@ fun LivePlayerMoreSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = TiviSurface,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0xFF64748B)) },
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+        containerColor = VegaColors.Surface,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = VegaColors.TextMuted) },
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
     ) {
         Column(
             modifier = Modifier
@@ -60,9 +61,9 @@ fun LivePlayerMoreSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Oynatıcı Seçenekleri",
-                    color = Color.White,
-                    fontSize = 17.sp,
+                    text = "Oynatıcı seçenekleri",
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.SectionTitle,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -70,7 +71,7 @@ fun LivePlayerMoreSheet(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Kapat",
-                        tint = Color(0xFF94A3B8)
+                        tint = VegaColors.TextSecondary
                     )
                 }
             }
@@ -78,15 +79,15 @@ fun LivePlayerMoreSheet(
             // 1. En-Boy Oranı
             val aspectLabel = when (aspectRatio) {
                 AspectRatioMode.FIT -> "Orijinal"
-                AspectRatioMode.FILL -> "Ekranı Doldur"
-                AspectRatioMode.ZOOM -> "Yakınlaştır (Zoom)"
-                AspectRatioMode.RATIO_16_9 -> "16:9 Geniş Ekran"
-                AspectRatioMode.RATIO_4_3 -> "4:3 Klasik"
+                AspectRatioMode.FILL -> "Ekranı doldur"
+                AspectRatioMode.ZOOM -> "Yakınlaştır"
+                AspectRatioMode.RATIO_16_9 -> "16:9 geniş ekran"
+                AspectRatioMode.RATIO_4_3 -> "4:3 klasik"
             }
             MoreActionRow(
                 icon = Icons.Default.AspectRatio,
-                title = "En-Boy Oranı",
-                subtitle = "Şu an: $aspectLabel (Değiştirmek için dokunun)",
+                title = "En-boy oranı",
+                subtitle = "Şu an: $aspectLabel (değiştirmek için dokun)",
                 badge = aspectLabel,
                 onClick = onCycleAspectRatio
             )
@@ -94,8 +95,8 @@ fun LivePlayerMoreSheet(
             // 2. Çift Ekran / PiP
             MoreActionRow(
                 icon = Icons.Default.GridView,
-                title = "Çift Ekran (Dual View)",
-                subtitle = if (isDualViewActive) "Çift ekran modu aktif" else "Aynı anda iki kanalı yan yana izleyin",
+                title = "Çift ekran",
+                subtitle = if (isDualViewActive) "Çift ekran modu aktif" else "Aynı anda iki kanalı yan yana izle",
                 isHighlighted = isDualViewActive,
                 onClick = onOpenDualView
             )
@@ -103,16 +104,16 @@ fun LivePlayerMoreSheet(
             // 3. Sayısal Tuş Takımı (123)
             MoreActionRow(
                 icon = Icons.Default.Dialpad,
-                title = "Kanal Numarası (123)",
-                subtitle = "Kanal numarası yazarak anında geçiş yapın",
+                title = "Kanal numarası (123)",
+                subtitle = "Kanal numarası yazarak anında geçiş yap",
                 onClick = onOpenNumpad
             )
 
             // 4. Kanal & Kategori Çekmecesi
             MoreActionRow(
                 icon = Icons.Default.Category,
-                title = "Kategoriler & Kanallar",
-                subtitle = "Yayını kesmeden tam kanal listesine göz atın",
+                title = "Kategoriler ve kanallar",
+                subtitle = "Yayını kesmeden tam kanal listesine göz at",
                 onClick = onOpenChannelDrawer
             )
 
@@ -137,9 +138,9 @@ fun LivePlayerMoreSheet(
             }
 
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF131B2A),
-                border = BorderStroke(0.8.dp, Color(0xFF1E293B)),
+                shape = VegaShapes.Medium,
+                color = VegaColors.SurfaceVariant,
+                border = BorderStroke(1.dp, VegaColors.Border),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp)
@@ -151,22 +152,22 @@ fun LivePlayerMoreSheet(
                 ) {
                     Column {
                         Text(
-                            text = "Yayın Akışı Tanılama",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 11.sp,
+                            text = "Yayın akışı tanılama",
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Caption,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = diagnosticText,
-                            color = Color.White,
-                            fontSize = 12.5.sp,
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.Secondary,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = null,
-                        tint = OpusCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -186,11 +187,11 @@ private fun MoreActionRow(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = if (isHighlighted) OpusCyan.copy(alpha = 0.12f) else Color(0xFF161F2E),
+        shape = VegaShapes.Medium,
+        color = if (isHighlighted) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
         border = BorderStroke(
             1.dp,
-            if (isHighlighted) OpusCyan.copy(alpha = 0.6f) else Color(0xFF1E293B).copy(alpha = 0.8f)
+            if (isHighlighted) VegaColors.Accent else VegaColors.Border
         ),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -201,13 +202,13 @@ private fun MoreActionRow(
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .clip(VegaShapes.Small),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isHighlighted) OpusCyan else Color.White,
+                    tint = if (isHighlighted) VegaColors.Accent else VegaColors.TextPrimary,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -217,28 +218,28 @@ private fun MoreActionRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    color = Color.White,
-                    fontSize = 14.sp,
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.Body,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = subtitle,
-                    color = Color(0xFF94A3B8),
-                    fontSize = 11.5.sp,
+                    color = VegaColors.TextSecondary,
+                    fontSize = VegaText.Caption,
                     maxLines = 1
                 )
             }
 
             if (!badge.isNullOrBlank()) {
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = OpusCyan.copy(alpha = 0.2f),
-                    border = BorderStroke(0.8.dp, OpusCyan.copy(alpha = 0.5f))
+                    shape = VegaShapes.Small,
+                    color = VegaColors.Accent.copy(alpha = 0.18f),
+                    border = BorderStroke(1.dp, VegaColors.Accent)
                 ) {
                     Text(
                         text = badge,
-                        color = OpusCyan,
-                        fontSize = 11.sp,
+                        color = VegaColors.Accent,
+                        fontSize = VegaText.Caption,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
@@ -247,7 +248,7 @@ private fun MoreActionRow(
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = Color(0xFF64748B),
+                    tint = VegaColors.TextMuted,
                     modifier = Modifier.size(18.dp)
                 )
             }
