@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-009 | [Önizleme yüzey devri: görünüm pencereye eklenince devret (TV kenar durumu)](docs/gorevler/G-009-yuzey-devri-ekleme-bekle.md) | 🟢 | ⏳ Bekliyor |
+| G-009 | [Önizleme yüzey devri: görünüm pencereye eklenince devret (TV kenar durumu)](docs/gorevler/G-009-yuzey-devri-ekleme-bekle.md) | 🟢 | 🔍 İncelemede (branch: fix/yuzey-devri-ekleme-bekle) |
 | G-011 | [Yayın bilgisindeki uydurma değerleri kaynağında kaldır (FHD 1080p / 50 FPS)](docs/gorevler/G-011-yayin-bilgisi-uydurma-degerler.md) | 🟢 | ⏳ Bekliyor |
 
 ---
