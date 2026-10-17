@@ -159,4 +159,31 @@ Başka hiçbir şeyi değiştirme.
 - **A)** ve **B)** hâlâ çalışmalı.
 
 Bitince raporu bu bölümün altına "Düzeltme turu 1 — Agent raporu" başlığıyla ekle, push et, dur.
->>>>>>> main
+
+---
+
+## Düzeltme turu 1 — Agent raporu
+
+### 1. Yapılan Değişiklikler (`TiviPlayerManager.kt`)
+- `private var pendingSecondaryView: WeakReference<PlayerView>? = null` eklendi.
+- `attachView`: `isPrimary = false` talebi tam ekran oynatıcı aktifken reddedildiğinde, talep eden görünüm `pendingSecondaryView` olarak kaydedildi.
+- `detachView`: Ayrılan görünüm birincil (primary) sahip olduğunda (`wasPrimary == true`), kayıtlı `pendingSecondaryView` kontrol ediliyor. Eğer görünüm hâlâ pencereye bağlıysa (`isAttachedToWindow == true`), yüzey hemen ona devrediliyor: `attachView(pending, isPrimary = false, tag = "pending-handover")`.
+- `detachView`: Eğer ayrılan görünüm bekleyen (pending) görünümün kendisi ise `pendingSecondaryView = null` yapıldı.
+- `release()`: `pendingSecondaryView = null` ile temizlendi.
+- Loglama: Yüzey bekleyen önizlemeye devredildiğinde `VideoTarget` etiketiyle `"detachView: pending önizlemeye devredildi"` logu eklendi.
+
+### 2. Akış Mantığı ve Test Senaryoları Analizi
+- **C) Canlı TV → kanal → tam ekran → geri:**
+  1. Geri tuşuna basıldığında Crossfade animasyonu başlar ve `HomeScreen` compose edilir.
+  2. Önizleme `PlayerView`'i `attachView(isPrimary = false)` çağırır. O anda `Screen.Player` (`VideoPlayerSurface`) hâlâ aktif ve primary sahip olduğu için talep reddedilir ve `pendingSecondaryView` olarak hafızaya alınır.
+  3. Crossfade tamamlandığında `VideoPlayerSurface`'in `onRelease` bloğu çalışır ve `detachView` çağrılır.
+  4. `detachView` ayrılan görünümün primary sahip olduğunu görür, hafızadaki `pendingSecondaryView`'i kontrol eder. Önizleme görünümü pencereye bağlı (`isAttachedToWindow == true`) olduğundan yüzey derhal önizleme görünümüne atanır (`attachView(pending, isPrimary = false)`).
+  5. Önizleme/mini oynatıcı siyah kalmadan kesintisiz olarak görüntüyü gösterir.
+- **G) TV: kanal → tam ekran (`TvPlayerOverlay`) → geri:**
+  - `TvPlayerOverlay` (primary) kapandığında `onRelease` çağrılır ve `detachView` tetiklenir.
+  - Rehberdeki TV önizleme görünümü `TvTiviMateScreen` pending listesinden alınarak yüzeyi hemen devralır, TV önizlemesi siyah kalmaz.
+- **A) ve B):**
+  - Tam ekrana geçişlerde tam ekran oynatıcı `isPrimary = true` ile doğrudan yüzeyi alır; `attachView` başarılı olduğunda varsa bekleyen pending'i de temizler. İlk açılış ve kanal değiştirme akışı bozulmadan çalışmaya devam eder.
+
+### 3. Derleme
+- `./gradlew assembleDebug` başarıyla tamamlandı (BUILD SUCCESSFUL in 26s).

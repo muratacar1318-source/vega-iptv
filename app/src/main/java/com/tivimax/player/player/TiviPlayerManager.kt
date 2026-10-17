@@ -233,6 +233,7 @@ class TiviPlayerManager(private val context: Context) {
 
     private var activePlayerView: WeakReference<PlayerView>? = null
     private var isCurrentOwnerPrimary: Boolean = false
+    private var pendingSecondaryView: WeakReference<PlayerView>? = null
 
     /**
      * Video yüzeyini tek sahipli olarak yönetir.
@@ -246,10 +247,15 @@ class TiviPlayerManager(private val context: Context) {
 
         // Öncelik kuralı: tam ekran oynatıcı açıkken önizleme görünümleri yüzeyi ALAMAZ
         if (!isPrimary && isCurrentOwnerPrimary && oldView != null && oldView != view) {
+            pendingSecondaryView = WeakReference(view)
             if (BuildConfig.DEBUG) {
-                Log.d("VideoTarget", "[+${timingOffsetMs()}ms] attachView REDDEDİLDİ: tag='$tag' isPrimary=false ancak aktif sahip zaten tam ekran (oldView=$oldView)")
+                Log.d("VideoTarget", "[+${timingOffsetMs()}ms] attachView REDDEDİLDİ: tag='$tag' isPrimary=false ancak aktif sahip zaten tam ekran (oldView=$oldView). Pending olarak kaydedildi.")
             }
             return
+        }
+
+        if (pendingSecondaryView?.get() == view || isPrimary) {
+            pendingSecondaryView = null
         }
 
         val currentPlayer = exoPlayer ?: initializePlayer()
@@ -276,13 +282,31 @@ class TiviPlayerManager(private val context: Context) {
             Log.d("VideoTarget", "[+${timingOffsetMs()}ms] detachView: tag='$tag', view=$view, currentOwner=$currentOwner, isOwner=${currentOwner == view}")
         }
 
+        // Bir önizleme görünümü detachView ile ayrılırken pending ise, pending'i temizle
+        if (pendingSecondaryView?.get() == view) {
+            pendingSecondaryView = null
+        }
+
         // SADECE görünüm o anki sahipse view.player = null ve sahibi temizle
         if (currentOwner == view || currentOwner == null) {
+            val wasPrimary = isCurrentOwnerPrimary
             if (currentOwner == view) {
                 view.player = null
             }
             activePlayerView = null
             isCurrentOwnerPrimary = false
+
+            // Ayrılan görünüm primary sahip ise ve pendingSecondaryView hâlâ geçerliyse yüzeyi hemen ona devret
+            if (wasPrimary) {
+                val pending = pendingSecondaryView?.get()
+                pendingSecondaryView = null
+                if (pending != null && pending.isAttachedToWindow) {
+                    if (BuildConfig.DEBUG) {
+                        Log.d("VideoTarget", "[+${timingOffsetMs()}ms] detachView: pending önizlemeye devredildi (pending=$pending)")
+                    }
+                    attachView(pending, isPrimary = false, tag = "pending-handover")
+                }
+            }
         } else {
             if (BuildConfig.DEBUG) {
                 Log.d("VideoTarget", "[+${timingOffsetMs()}ms] detachView YOK SAYILDI: tag='$tag', bu view artık sahip değil (sahip=$currentOwner)")
@@ -1305,6 +1329,7 @@ class TiviPlayerManager(private val context: Context) {
         exoPlayer = null
         activePlayerView = null
         isCurrentOwnerPrimary = false
+        pendingSecondaryView = null
         _isBuffering.value = false
         _isPlaying.value = false
     }
