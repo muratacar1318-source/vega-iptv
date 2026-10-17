@@ -18,6 +18,15 @@ Ana dosya: `ui/settings/SettingsScreen.kt` (`enum class SettingsSection` ~55 ve 
 
 - Ekranda teknik terim YOK: "Kodek", "Decoder", "Buffer", "VOD", "PiP", "HTTPS", "SP Punto", "Media3", "LibVLC",
   "GPU/CPU", "Ping", "Sunucu Yanıtı: 200" vb. Sade Türkçe, "sen" diliyle kısa cümleler.
+- **Profesyonel ve tutarlı yazım (bütün Ayarlar ekranında):**
+  - Kategori başlıkları kısa isim: her kelimenin ilk harfi büyük ("Güncelleme ve Bakım", "Ebeveyn Kilidi").
+  - Ayar başlıkları, buton ve seçenek metinleri: sadece ilk harf büyük ("Tercih edilen ses dili", "Testi başlat",
+    "Şifreyi değiştir", "Kategorileri düzenle"). TÜMÜ BÜYÜK HARF yok (ekran başlığı "AYARLAR" → "Ayarlar").
+  - Açıklamalar tek cümle, nokta ile biter; ünlem, emoji, "Pro/Ultra/Süper" gibi pazarlama sözcükleri yok.
+  - "&" yerine "ve"; köşeli parantez "[Önerilen]" yerine "(önerilen)"; sayı + birim arasında boşluk ("5 sn", "45 ms").
+  - Toast mesajları kısa ve aynı kalıpta: "<Ayar adı>: <yeni değer>" (ör. "Görüntü boyutu: Doldur").
+  - Bu kurallara uymayan, bu dosyada tek tek yazılmamış başka metin görürsen de aynı kurala göre düzelt
+    ve raporda "ek düzeltilen metinler" listesi olarak yaz.
 - Kullanıcıya görünen hiçbir metinde (Toast dahil) **sunucu adresi / URL / port** geçmeyecek.
 - Ayarı UI'dan kaldırmak = sadece ekrandan kaldırmak. `UserPreferences` anahtarlarını/fonksiyonlarını SİLME
   (eski kayıtlar bozulmasın). Oynatma mantığına dokunma.
@@ -41,18 +50,18 @@ Kaldırma sonrası kullanılmayan state/import'ları temizle (derleme uyarısı 
 
 | Eski | Yeni başlık | Yeni alt başlık |
 |---|---|---|
-| Hesap ve Liste — "Sunucu, hesap ve liste güncelleme" | **Hesabım** | Abonelik bilgileri ve listeyi güncelleme |
-| Oynatıcı ve Kodek — "Video çözücü, tampon (buffer) & PiP" | **Oynatma** | Ses ve altyazı dili, görüntü, yükleme süresi |
+| Hesap ve Liste — "Sunucu, hesap ve liste güncelleme" | **Hesabım** | Abonelik bilgileri ve içerik listesi |
+| Oynatıcı ve Kodek — "Video çözücü, tampon (buffer) & PiP" | **Oynatıcı** | Ses ve altyazı dili, görüntü ve akıcılık |
 | Görünüm ve Altyazı — "Altyazı boyutu, rengi & kategoriler" | **Görünüm** | Tema, kanal listesi ve altyazı görünümü |
 | Cihaz Modu — "Telefon, Tablet ve TV çalışma düzeni" | **Cihaz Türü** | Telefon, tablet veya TV düzeni |
 | Ebeveyn Kontrolü — "+18 içerik kilidi & PIN kodu & HTTPS" | **Ebeveyn Kilidi** | Yetişkin içerikleri şifreyle kilitle |
-| Yedekleme ve Uygulama — "Yedekle, önbellek, hız testi & sürüm" | **Uygulama** | Bağlantı testi, önbellek, güncelleme ve sürüm |
+| Yedekleme ve Uygulama — "Yedekle, önbellek, hız testi & sürüm" | **Güncelleme ve Bakım** | Güncellemeler, bağlantı testi ve sürüm bilgisi |
 
 (Enum sabit adlarını değiştirme; sadece `title` ve `subtitle` metinleri.)
 
 ## 3) AYAR METİNLERİ — bölüm bölüm
 
-### Oynatma
+### Oynatıcı
 - "Varsayılan Ses Dili" → **Tercih edilen ses dili** · "Birden fazla dili olan yayınlarda önce bu dil açılır."
   Seçenek "Orijinal" kalsın.
 - "Varsayılan Altyazı Dili" → **Tercih edilen altyazı dili** · "Altyazısı olan içeriklerde kendiliğinden açılacak dil."
@@ -85,7 +94,7 @@ Kaldırma sonrası kullanılmayan state/import'ları temizle (derleme uyarısı 
   Önizleme metni "Örnek altyazı" kalsın. "SP Punto" yazısını kaldır.
 - "Altyazı Metin Rengi" → **Altyazı rengi** (seçenekler aynı).
 - "Kategori Gizleme & Sıralama Yönetimi" → **Kategorileri düzenle** ·
-  "İstemediğin kategorileri gizle, sık izlediklerini en üste al." · buton **Kategorileri Düzenle**.
+  "İstemediğin kategorileri gizle, sık izlediklerini en üste al." · buton **Kategorileri düzenle**.
 
 ### Cihaz Türü
 - "Cihaz Modu ve Yön Yönetimi" → **Cihaz türü** · "Uygulamanın düzenini cihazına göre ayarla."
@@ -98,13 +107,14 @@ Kaldırma sonrası kullanılmayan state/import'ları temizle (derleme uyarısı 
 
 ### Ebeveyn Kilidi
 - "Ebeveyn Kilidi (+18 Koruma)" → **Ebeveyn kilidi** · "Yetişkin kategorilerini açmak için 4 haneli şifre istenir."
-- "4 Haneli Ebeveyn PIN Kodunu Değiştir" → **Şifreyi Değiştir**.
+- "4 Haneli Ebeveyn PIN Kodunu Değiştir" → **Şifreyi değiştir**.
 - PIN diyaloğu: başlık "Yeni şifre", metin "4 haneli yeni şifreyi gir.", placeholder "••••" ("Örn: 1234" kalksın).
-- **"Güvenli Bağlantı (HTTPS)"** anahtarını buradan **Uygulama** bölümüne taşı (aşağıda).
+- **"Güvenli Bağlantı (HTTPS)"** anahtarını buradan **Güncelleme ve Bakım** bölümüne taşı (aşağıda).
 
-### Uygulama
+### Güncelleme ve Bakım
+(Sıra: Güncellemeleri kontrol et → Bağlantı testi → Şifreli bağlantı → Önbelleği temizle → Hakkında)
 - **Bağlantı testi** (eski "Sunucu Hız ve Ping Testi") · "Yayınlar takılıyorsa bağlantını kontrol et." ·
-  buton **Testi Başlat** / "Ölçülüyor…".
+  buton **Testi başlat** / "Ölçülüyor…".
   `MainViewModel.runSpeedTest()` (~1800) sonuç metinlerini değiştir (ölçüm mantığına dokunma):
   - < 150 ms → "Bağlantı iyi (gecikme N ms)"; < 400 ms → "Bağlantı orta (gecikme N ms)"; diğer → "Bağlantı yavaş (gecikme N ms)".
   - Hata → **"Bağlantı kurulamadı. İnternetini kontrol et."** — `e.localizedMessage` GÖSTERME (sunucu adresi içerebilir).
@@ -123,10 +133,10 @@ Hesap bölümü içeriği (G-012'nin işi), `UserPreferences` anahtarları, oyna
 
 ## Test
 
-- Ayarlar ana listesinde 6 kategori yeni isim ve alt başlıklarla görünüyor.
+- Ayarlar ana listesinde 6 kategori yeni isim ve alt başlıklarla görünüyor: Hesabım, Oynatıcı, Görünüm, Cihaz Türü, Ebeveyn Kilidi, Güncelleme ve Bakım.
 - Görünüm'de "Altyazı Gecikmesi" yok; film oynatırken Ayarlar panelinde gecikme hâlâ çalışıyor.
-- Oynatma'da motor seçimi ve hızlı kanal açılışı yok; kalan ayarlar çalışıyor.
-- Uygulama'da yedekleme ve Telegram/WhatsApp yok; bağlantı testi sade sonuç veriyor; uçak modunda
+- Oynatıcı'da motor seçimi ve hızlı kanal açılışı yok; kalan ayarlar çalışıyor.
+- Güncelleme ve Bakım'da yedekleme ve Telegram/WhatsApp yok; bağlantı testi sade sonuç veriyor; uçak modunda
   "Bağlantı kurulamadı…" (adres yok).
 - Şifreli bağlantı anahtarı değiştirilince Toast'ta adres görünmüyor.
 - Altyazı boyutu 4 seçenekli ve oynatıcı paneliyle aynı değeri gösteriyor.
