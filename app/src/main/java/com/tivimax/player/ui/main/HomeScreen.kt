@@ -37,6 +37,7 @@ import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.VegaGlobalMiniPlayer
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.favorites.FavoritesScreen
 import com.tivimax.player.ui.live.LiveTvScreen
@@ -91,6 +92,8 @@ fun HomeScreen(viewModel: MainViewModel) {
     val updateInfo by viewModel.autoUpdateManager.updateInfo.collectAsState()
     val downloadProgress by viewModel.autoUpdateManager.downloadProgress.collectAsState()
 
+    val isMiniPlayerActive by viewModel.isMiniPlayerActive.collectAsState()
+
     // Çıkış Önleme: Kullanıcı hangi sekmede olursa olsun yanlışlıkla çıkmayı önlemek için çift tıklama istenir
     BackHandler(enabled = true) {
         if (isTvDevice && !tvRailHasFocus) {
@@ -103,6 +106,11 @@ fun HomeScreen(viewModel: MainViewModel) {
         if (selectedTab != HomeTab.DASHBOARD) {
             // TV ve Mobil/Tablet: Seçili sekme Dashboard değilse Dashboard'a dön
             viewModel.setSelectedHomeTab(HomeTab.DASHBOARD)
+            return@BackHandler
+        }
+        // Dashboard'dayken mini oynatıcı aktifse önce mini oynatıcıyı kapat
+        if (!isTvDevice && isMiniPlayerActive) {
+            viewModel.closeMiniPlayer()
             return@BackHandler
         }
         val now = System.currentTimeMillis()
@@ -233,16 +241,38 @@ fun HomeScreen(viewModel: MainViewModel) {
                         .weight(1f)
                         .fillMaxHeight()
                 ) {
-                    HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        val activeMiniItem by viewModel.activeMiniPlayerItem.collectAsState()
+                        if (selectedTab != HomeTab.LIVE_TV || activeMiniItem?.isLive == false) {
+                            VegaGlobalMiniPlayer(
+                                viewModel = viewModel,
+                                isWideScreen = true,
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
+                        }
+                    }
                 }
             }
         } else {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
+                VegaGlobalMiniPlayer(
+                    viewModel = viewModel,
+                    isWideScreen = false
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
+                }
             }
         }
     }

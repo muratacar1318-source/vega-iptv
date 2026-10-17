@@ -63,7 +63,9 @@ fun AppNavigation(viewModel: MainViewModel = viewModel()) {
                     categoryId = screen.categoryId,
                     viewModel = viewModel,
                     onBack = {
-                        if (!viewModel.navigateBack()) {
+                        if (viewModel.isMiniPlayerActive.value) {
+                            viewModel.navigateTo(Screen.Home, false)
+                        } else if (!viewModel.navigateBack()) {
                             viewModel.navigateTo(Screen.Home, false)
                         }
                     }

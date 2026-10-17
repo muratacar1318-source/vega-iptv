@@ -44,6 +44,19 @@ sealed class Screen {
     data class SeriesDetail(val seriesStream: SeriesStream) : Screen()
 }
 
+data class ActiveMiniPlayerItem(
+    val title: String,
+    val badge: String,
+    val isLive: Boolean,
+    val streamId: Int,
+    val streamUrl: String = "",
+    val categoryId: String = "",
+    val liveChannel: LiveStream? = null,
+    val vodStream: VodStream? = null,
+    val seriesEpisode: SeriesEpisode? = null,
+    val seriesTitle: String? = null
+)
+
 enum class SyncStepStatus {
     PENDING,
     IN_PROGRESS,
@@ -136,9 +149,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val selectedHomeTab = MutableStateFlow(HomeTab.DASHBOARD)
     fun setSelectedHomeTab(tab: HomeTab) {
         if (selectedHomeTab.value != tab) {
-            if (tab != HomeTab.LIVE_TV) {
-                detachMiniPlayer()
-            }
             selectedHomeTab.value = tab
         }
     }
@@ -213,8 +223,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Genel Arama Durumu (Tüm kategoriler/bölümler arası arama aktarımı)
     val globalSearchQuery = MutableStateFlow("")
 
-    // Mini-Player Canlı Önizleme (TiviMate Tarzı Dikey Önizleme)
+    // Mini-Player Önizleme (Tüm İçerikler İçin Evrensel Mini Oynatıcı)
     val activePreviewChannel = MutableStateFlow<LiveStream?>(null)
+    val activeMiniPlayerItem = MutableStateFlow<ActiveMiniPlayerItem?>(null)
     val isMiniPlayerActive = MutableStateFlow(false)
 
     // Aktif Dizi Bölümü (Binge-Watching & Otomatik Sonraki Bölüm Geçişi)
@@ -1294,43 +1305,168 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.buildLiveStreamUrls(channel.streamId, preferHls)
         }
         playerManager.playWithFallbacks(urls, isLive = true)
-        activePreviewChannel.value = channel
-        isMiniPlayerActive.value = true
+        setActiveMiniPlayerLive(channel, urls.firstOrNull() ?: "")
         recordRecentChannel(channel)
         loadEpgForChannel(channel.streamId)
     }
 
+    fun setActiveMiniPlayerLive(channel: LiveStream, streamUrl: String = "") {
+        activePreviewChannel.value = channel
+        activeMiniPlayerItem.value = ActiveMiniPlayerItem(
+            title = channel.name,
+            badge = "CANLI",
+            isLive = true,
+            streamId = channel.streamId,
+            streamUrl = streamUrl,
+            categoryId = channel.categoryId,
+            liveChannel = channel
+        )
+        isMiniPlayerActive.value = true
+    }
+
+    fun setActiveMiniPlayerVod(vod: VodStream, streamUrl: String = "") {
+        activePreviewChannel.value = null
+        activeMiniPlayerItem.value = ActiveMiniPlayerItem(
+            title = vod.name,
+            badge = "FİLM",
+            isLive = false,
+            streamId = vod.streamId,
+            streamUrl = streamUrl,
+            categoryId = vod.categoryId,
+            vodStream = vod
+        )
+        isMiniPlayerActive.value = true
+    }
+
+    fun setActiveMiniPlayerSeries(episode: SeriesEpisode, seriesTitle: String, streamUrl: String = "") {
+        activePreviewChannel.value = null
+        val epTitle = if (episode.title.isNotBlank()) " - S${episode.season} B${episode.episodeNum}: ${episode.title}" else " - S${episode.season} B${episode.episodeNum}"
+        activeMiniPlayerItem.value = ActiveMiniPlayerItem(
+            title = "$seriesTitle$epTitle",
+            badge = "DİZİ",
+            isLive = false,
+            streamId = episode.id.toIntOrNull() ?: 0,
+            streamUrl = streamUrl,
+            seriesEpisode = episode,
+            seriesTitle = seriesTitle
+        )
+        isMiniPlayerActive.value = true
+    }
+
     fun closeMiniPlayer() {
+        val item = activeMiniPlayerItem.value
+        if (item != null && !item.isLive) {
+            val player = playerManager.player
+            val currentPos = player?.currentPosition ?: playerManager.currentPosition.value
+            val dur = player?.duration ?: playerManager.duration.value
+            if (currentPos > 0) {
+                saveWatchProgress(item.streamId, currentPos, dur)
+            }
+        }
         playerManager.release()
         activePreviewChannel.value = null
+        activeMiniPlayerItem.value = null
         isMiniPlayerActive.value = false
     }
 
     fun detachMiniPlayer() {
         activePreviewChannel.value = null
+        activeMiniPlayerItem.value = null
         isMiniPlayerActive.value = false
         playerManager.stopAndClear()
     }
 
     fun expandMiniPlayerToFullscreen() {
-        val channel = activePreviewChannel.value ?: return
-        activePreviewChannel.value = null
+        val item = activeMiniPlayerItem.value
+        val channel = activePreviewChannel.value
         isMiniPlayerActive.value = false
-        val preferHls = streamFormat.value == "HLS"
-        val urls = if (!channel.directSource.isNullOrBlank()) {
-            listOf(channel.directSource)
-        } else {
-            repository.buildLiveStreamUrls(channel.streamId, preferHls)
-        }
-        navigateTo(
-            Screen.Player(
-                streamUrl = urls.firstOrNull() ?: "",
-                title = channel.name,
-                isLive = true,
-                streamId = channel.streamId,
-                categoryId = channel.categoryId
+
+        if (item != null) {
+            if (item.isLive) {
+                val chan = item.liveChannel ?: allLiveStreams.value.firstOrNull { it.streamId == item.streamId }
+                val preferHls = streamFormat.value == "HLS"
+                val urls = if (chan != null && !chan.directSource.isNullOrBlank()) {
+                    listOf(chan.directSource)
+                } else if (chan != null) {
+                    repository.buildLiveStreamUrls(chan.streamId, preferHls)
+                } else if (item.streamUrl.isNotBlank()) {
+                    listOf(item.streamUrl)
+                } else emptyList()
+
+                navigateTo(
+                    Screen.Player(
+                        streamUrl = urls.firstOrNull() ?: item.streamUrl,
+                        title = chan?.name ?: item.title,
+                        isLive = true,
+                        streamId = item.streamId,
+                        categoryId = chan?.categoryId ?: item.categoryId
+                    )
+                )
+            } else if (item.vodStream != null) {
+                val vod = item.vodStream
+                val player = playerManager.player
+                val startPos = player?.currentPosition ?: playerManager.currentPosition.value
+                val urls = if (item.streamUrl.isNotBlank()) {
+                    listOf(item.streamUrl)
+                } else {
+                    repository.buildVodStreamUrls(vod.streamId, vod.containerExtension)
+                }
+                navigateTo(
+                    Screen.Player(
+                        streamUrl = urls.firstOrNull() ?: item.streamUrl,
+                        title = vod.name,
+                        isLive = false,
+                        streamId = vod.streamId,
+                        categoryId = vod.categoryId,
+                        startPositionMs = startPos
+                    )
+                )
+            } else if (item.seriesEpisode != null) {
+                val ep = item.seriesEpisode
+                val player = playerManager.player
+                val startPos = player?.currentPosition ?: playerManager.currentPosition.value
+                val urls = if (item.streamUrl.isNotBlank()) {
+                    listOf(item.streamUrl)
+                } else {
+                    repository.buildSeriesStreamUrls(ep.id, ep.containerExtension)
+                }
+                navigateTo(
+                    Screen.Player(
+                        streamUrl = urls.firstOrNull() ?: item.streamUrl,
+                        title = item.title,
+                        isLive = false,
+                        streamId = item.streamId,
+                        startPositionMs = startPos
+                    )
+                )
+            } else {
+                navigateTo(
+                    Screen.Player(
+                        streamUrl = item.streamUrl,
+                        title = item.title,
+                        isLive = item.isLive,
+                        streamId = item.streamId,
+                        categoryId = item.categoryId
+                    )
+                )
+            }
+        } else if (channel != null) {
+            val preferHls = streamFormat.value == "HLS"
+            val urls = if (!channel.directSource.isNullOrBlank()) {
+                listOf(channel.directSource)
+            } else {
+                repository.buildLiveStreamUrls(channel.streamId, preferHls)
+            }
+            navigateTo(
+                Screen.Player(
+                    streamUrl = urls.firstOrNull() ?: "",
+                    title = channel.name,
+                    isLive = true,
+                    streamId = channel.streamId,
+                    categoryId = channel.categoryId
+                )
             )
-        )
+        }
     }
 
     fun unlockParental(pin: String): Boolean {
@@ -1368,6 +1504,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playLiveChannel(channel: LiveStream) {
+        isMiniPlayerActive.value = false
+        activeMiniPlayerItem.value = null
         val currentChannel = activePreviewChannel.value
         if (currentChannel != null && currentChannel.streamId != channel.streamId) {
             lastPlayedLiveChannel.value = currentChannel
@@ -1461,6 +1599,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playVod(vod: VodStream, resume: Boolean = false) {
         isMiniPlayerActive.value = false
+        activeMiniPlayerItem.value = null
         activePreviewChannel.value = null
         currentPlayingEpisode.value = null
         playerManager.stopAndClear()
@@ -1491,6 +1630,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun playSeriesEpisode(episode: SeriesEpisode, seriesTitle: String, resume: Boolean = true) {
         isMiniPlayerActive.value = false
+        activeMiniPlayerItem.value = null
         activePreviewChannel.value = null
         currentPlayingEpisode.value = Pair(episode, seriesTitle)
         playerManager.stopAndClear()

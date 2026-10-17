@@ -64,6 +64,8 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import androidx.compose.foundation.BorderStroke
 import com.tivimax.player.data.model.LiveStream
+import com.tivimax.player.data.model.VodStream
+import com.tivimax.player.data.model.SeriesEpisode
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.TiviPlayerManager
 import com.tivimax.player.player.TrackInfo
@@ -534,6 +536,47 @@ fun PlayerScreen(
         }
     }
 
+    // Geri Tuşu ve Kapatma Davranışı (TV korunur, Mobil ve Tablet mini oynatıcıya geçer)
+    val handleBackAction = {
+        val isTv = isTvDevice || deviceMode == DeviceMode.TV
+        if (isTv) {
+            if (!isLive) {
+                if (currentPosition > 0) {
+                    viewModel.saveWatchProgress(streamId, currentPosition, duration)
+                }
+                playerManager.release()
+            } else {
+                val curChan = allLiveStreams.firstOrNull { it.streamId == streamId } ?: lastPlayedLiveChannel
+                if (curChan != null) {
+                    viewModel.activePreviewChannel.value = curChan
+                }
+            }
+            onBack()
+        } else {
+            // Mobil ve Tablet: Oynatmayı durdurmadan mini oynatıcıya devret
+            if (isLive) {
+                val curChan = allLiveStreams.firstOrNull { it.streamId == streamId }
+                    ?: lastPlayedLiveChannel
+                    ?: LiveStream(streamId = streamId, name = title, categoryId = categoryId)
+                viewModel.setActiveMiniPlayerLive(curChan, streamUrl = streamUrl)
+            } else {
+                val epPair = viewModel.currentPlayingEpisode.value
+                if (epPair != null && (epPair.first.id.toIntOrNull() == streamId || epPair.first.id == streamId.toString())) {
+                    viewModel.setActiveMiniPlayerSeries(
+                        episode = epPair.first,
+                        seriesTitle = epPair.second,
+                        streamUrl = streamUrl
+                    )
+                } else {
+                    val curVod = viewModel.vodStreams.value.firstOrNull { it.streamId == streamId }
+                        ?: VodStream(streamId = streamId, name = title, categoryId = categoryId)
+                    viewModel.setActiveMiniPlayerVod(curVod, streamUrl = streamUrl)
+                }
+            }
+            onBack()
+        }
+    }
+
     // Geri Tuşu Davranışı
     BackHandler {
         if (showOverlayGuide) {
@@ -557,18 +600,7 @@ fun PlayerScreen(
         } else if (isDualViewActive) {
             playerManager.closeDualView()
         } else {
-            if (!isLive) {
-                if (currentPosition > 0) {
-                    viewModel.saveWatchProgress(streamId, currentPosition, duration)
-                }
-                playerManager.release()
-            } else {
-                val curChan = allLiveStreams.firstOrNull { it.streamId == streamId } ?: lastPlayedLiveChannel
-                if (curChan != null) {
-                    viewModel.activePreviewChannel.value = curChan
-                }
-            }
-            onBack()
+            handleBackAction()
         }
     }
 
@@ -1450,20 +1482,7 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     BouncyIconButton(
-                        onClick = {
-                            if (!isLive) {
-                                if (currentPosition > 0) {
-                                    viewModel.saveWatchProgress(streamId, currentPosition, duration)
-                                }
-                                playerManager.release()
-                            } else {
-                                val curChan = allLiveStreams.firstOrNull { it.streamId == streamId } ?: lastPlayedLiveChannel
-                                if (curChan != null) {
-                                    viewModel.activePreviewChannel.value = curChan
-                                }
-                            }
-                            onBack()
-                        },
+                        onClick = handleBackAction,
                         modifier = Modifier.size(if (isPortrait) 38.dp else 44.dp),
                         backgroundColor = Color.Black.copy(alpha = 0.25f)
                     ) {

@@ -229,7 +229,7 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                         selectedCategory = selectedCategory,
                         displayedChannels = displayedChannels,
                         activePreviewChannel = activePreviewChannel,
-                        isMiniPlayerActive = isMiniPlayerActive,
+                        isMiniPlayerActive = false, // HomeScreen seviyesindeki VegaGlobalMiniPlayer tarafından üstte yönetilir
                         epgSummaryMap = epgSummaryMap,
                         favoriteIds = favoriteIds,
                         recentChannels = recentChannels,
