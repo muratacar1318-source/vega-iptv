@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-013 | [Ayarları sadeleştir: işe yaramayanları kaldır, isim ve açıklamaları anlaşılır yap](docs/gorevler/G-013-ayarlar-sadelestirme.md) | 🟠 | ⏳ Bekliyor |
+| G-013 | [Ayarları sadeleştir: işe yaramayanları kaldır, isim ve açıklamaları anlaşılır yap](docs/gorevler/G-013-ayarlar-sadelestirme.md) | 🟠 | 🔍 İncelemede (branch: ui/ayarlar-sadelestirme) |
 
 ---
 
