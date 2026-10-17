@@ -355,25 +355,37 @@ fun PlayerScreen(
         }
     }
 
-    // Tam Ekran (Immersive Mode): Oynatıcı açıldığında tam ekran moduna al, çıkışta geri yükle
+    // Tam Ekran (Immersive Mode): Merkezi OrientationManager üzerinden yönet
     DisposableEffect(Unit) {
-        val window = activity?.window
-        if (window != null) {
-            val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
-            insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            
-            // Eğer varsa çentik/kamera boşluğunu da kullanmasına izin ver (Tam kapsayıcı medya deneyimi)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                window.attributes.layoutInDisplayCutoutMode = android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        orientationManager?.setImmersiveMode(true)
+        onDispose {
+            // Çıkış sonrası tam ekran bayrağı hâlâ açıksa gösterme
+            if (!viewModel.isVideoFullscreen.value && viewModel.deviceMode.value != com.tivimax.player.util.DeviceMode.TV) {
+                orientationManager?.setImmersiveMode(false)
             }
         }
-        onDispose {
-            val w = activity?.window
-            if (w != null) {
-                val insetsController = androidx.core.view.WindowCompat.getInsetsController(w, w.decorView)
-                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            }
+    }
+
+    // Yön değişimi (portrait <-> landscape) tamamlandığında immersive modunu yeniden uygula
+    LaunchedEffect(configuration.orientation) {
+        orientationManager?.setImmersiveMode(true)
+    }
+
+    // Oynatıcı kontrolleri otomatik gizlendiğinde (HUD auto-hide) immersive modunu yeniden uygula
+    LaunchedEffect(showControls, showBottomInfoCard) {
+        if (!showControls && !showBottomInfoCard) {
+            orientationManager?.setImmersiveMode(true)
+        }
+    }
+
+    // Modal BottomSheet / Dialog'lar kapandığında immersive modunu yeniden uygula
+    val anyOverlayOpen = showTrackSheet || showMoreSheet || showPlayerHUD ||
+            showSleepTimerDialog || showNumericKeypad || showChannelDrawer ||
+            showOverlayGuide || showEpisodesDrawer || showDualViewPicker ||
+            showCategoryManagementDialog
+    LaunchedEffect(anyOverlayOpen) {
+        if (!anyOverlayOpen) {
+            orientationManager?.setImmersiveMode(true)
         }
     }
 
@@ -1259,7 +1271,7 @@ fun PlayerScreen(
             exit = fadeOut(tween(250)) + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .statusBarsPadding()
+                .displayCutoutPadding()
                 .padding(top = 16.dp, start = 20.dp, end = 20.dp)
         ) {
             Surface(
@@ -1351,7 +1363,7 @@ fun PlayerScreen(
             exit = fadeOut(tween(250)) + slideOutVertically(tween(250)) { -it },
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .statusBarsPadding()
+                .displayCutoutPadding()
                 .padding(top = 16.dp)
         ) {
             resumeNotification?.let { msg ->
@@ -1393,7 +1405,7 @@ fun PlayerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .statusBarsPadding()
+                        .displayCutoutPadding()
                         .padding(16.dp)
                 ) {
                     Surface(
@@ -1442,7 +1454,7 @@ fun PlayerScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
+                        .displayCutoutPadding()
                         .padding(
                             start = if (isPortrait) 10.dp else 18.dp,
                             end = if (isPortrait) 10.dp else 18.dp,
@@ -1686,7 +1698,7 @@ fun PlayerScreen(
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
+                            .displayCutoutPadding()
                             .padding(
                                 horizontal = if (isPortrait) 8.dp else 16.dp,
                                 vertical = if (isPortrait) 4.dp else 8.dp
@@ -2191,7 +2203,7 @@ fun PlayerScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .statusBarsPadding()
+                        .displayCutoutPadding()
                         .padding(14.dp)
                 ) {
                     Row(
@@ -2902,7 +2914,7 @@ fun PlayerScreen(
             isPortrait = isPortrait,
             modifier = Modifier
                 .align(if (isPortrait) Alignment.BottomCenter else Alignment.TopEnd)
-                .statusBarsPadding()
+                .displayCutoutPadding()
                 .padding(if (isPortrait) PaddingValues(start = 12.dp, end = 12.dp, bottom = 65.dp) else PaddingValues(top = 55.dp, end = 18.dp))
         )
 
@@ -3122,7 +3134,7 @@ fun PlayerScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
+                    .displayCutoutPadding()
                     .padding(bottom = if (showControls || showBottomInfoCard) 130.dp else 16.dp)
             )
         }
@@ -3135,7 +3147,7 @@ fun PlayerScreen(
                 matchedChannel = zapperMatchedChannel,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .statusBarsPadding()
+                    .displayCutoutPadding()
                     .padding(top = 16.dp, end = 16.dp)
             )
         }

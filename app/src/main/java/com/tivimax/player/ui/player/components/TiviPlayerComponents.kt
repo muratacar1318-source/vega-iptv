@@ -115,8 +115,7 @@ fun TiviOverlayGuide(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .statusBarsPadding()
-                        .navigationBarsPadding()
+                        .displayCutoutPadding()
                 ) {
                     // SOL SÜTUN: KATEGORİLER (200.dp)
                     Column(

@@ -130,6 +130,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentScreen = MutableStateFlow<Screen>(Screen.Splash)
     val currentScreen: StateFlow<Screen> = _currentScreen.asStateFlow()
 
+    // Merkezi Tam Ekran Video Durumu (Tüm Tam Ekran Yolları)
+    private val _isVideoFullscreen = MutableStateFlow(false)
+    val isVideoFullscreen: StateFlow<Boolean> = _isVideoFullscreen.asStateFlow()
+
+    fun setVideoFullscreen(fullscreen: Boolean) {
+        _isVideoFullscreen.value = fullscreen
+    }
+
     fun navigateTo(screen: Screen, addToBackStack: Boolean = true) {
         if (addToBackStack) {
             val current = _currentScreen.value
@@ -138,12 +146,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         _currentScreen.value = screen
+        if (screen is Screen.Player) {
+            _isVideoFullscreen.value = true
+        } else {
+            _isVideoFullscreen.value = false
+        }
     }
 
     fun navigateBack(): Boolean {
         if (backStack.isNotEmpty()) {
             val previous = backStack.removeLast()
             _currentScreen.value = previous
+            if (previous !is Screen.Player) {
+                _isVideoFullscreen.value = false
+            }
             return true
         }
         return false

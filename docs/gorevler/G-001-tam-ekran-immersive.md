@@ -84,4 +84,27 @@ Cihaz bağlı değilse testleri atla ve raporda belirt.
 
 ## Agent raporu
 
-_(Agent doldurur: bulunan tam ekran yolları, değiştirilen dosyalar, A–H sonuçları, sorunlar.)_
+### 1. Bulunan Tam Ekran Yolları
+- **`Screen.Player`:** Canlı TV (`playLiveChannel`), VOD film (`playVod`), dizi bölümü (`playSeriesEpisode`), mini oynatıcıyı tam ekrana genişletme (`expandMiniPlayerToFullscreen`). Tüm bu akışlar `MainViewModel.navigateTo(Screen.Player)` üzerinden geçer ve `isVideoFullscreen = true` durumuna alınır. Geri dönüldüğünde (`navigateBack`) otomatik olarak sıfırlanır.
+- **`HomeScreen` (TV Modu):** `TvTiviMateScreen` -> `tvLiveFullScreen` tam ekrana geçtiğinde `viewModel.setVideoFullscreen(it)` tetiklenir; tab değiştiğinde false'a çekilir.
+- **`LiveTvScreen` ve `LiveTvWideScreenLayout`:** Geniş ekran / tablet / telefon önizlemesinden tam ekrana geçişler (`onPlayFullscreen`, `expandMiniPlayerToFullscreen`) doğrudan `Screen.Player`'a yönlenerek merkezi yapıya dahil edilmiştir.
+
+### 2. Değiştirilen Dosyalar
+- `app/src/main/java/com/tivimax/player/ui/MainViewModel.kt`: `_isVideoFullscreen` StateFlow ve `setVideoFullscreen` metodu eklendi; `navigateTo` ve `navigateBack` merkezi video tam ekran durumunu yönetecek şekilde güncellendi.
+- `app/src/main/java/com/tivimax/player/util/OrientationManager.kt`: `applyOrientation` metoduna `isVideoFullscreen: Boolean = false` parametresi eklendi. Immersive kararı `isFullscreen = isPlayerScreen || isVideoFullscreen` olarak genişletildi. Telefon yön koruması (`setOrientationSafe`) sadece `isPlayerScreen` için korunarak yön mantığı bozulmadı. `setImmersiveMode(true)` içine `decorView.post` ve `decorView.postDelayed(300L)` eklenerek HyperOS / MIUI yön değişiminde çubukların gizlenmesi garanti altına alındı.
+- `app/src/main/java/com/tivimax/player/MainActivity.kt`: `LaunchedEffect(deviceMode, currentScreen, inPip, isVideoFullscreen)` parametresi güncellendi. `onPictureInPictureModeChanged` ve `onResume` çağrılarına `isVideoFullscreen` geçirildi. `onWindowFocusChanged(hasFocus = true)` ve `onConfigurationChanged` içine `isFullscreen || isTv` durumunda immersive'i yeniden uygulama eklendi.
+- `app/src/main/java/com/tivimax/player/ui/main/HomeScreen.kt`: `TvTiviMateScreen` içindeki `onFullScreenChange` tetikleyicisine `viewModel.setVideoFullscreen(it)` bağlandı, tab değişimlerinde `false` yapıldı.
+- `app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt`:
+  - Ham tek seferlik `WindowCompat` `DisposableEffect` kaldırıldı, merkezi `orientationManager.setImmersiveMode(true)` çağrısına bağlandı (çıkışta tam ekran bayrağı açıksa kapatmayacak şekilde).
+  - `LaunchedEffect(configuration.orientation)` ile ekran döndüğünde immersive yeniden tetiklendi.
+  - `LaunchedEffect(showControls, showBottomInfoCard)` ile HUD otomatik gizlendiğinde immersive yeniden tetiklendi.
+  - `LaunchedEffect(anyOverlayOpen)` ile tüm BottomSheet/Dialog'lar kapandığında immersive yeniden tetiklendi.
+  - Oynatıcı kontrollerindeki 9 farklı `statusBarsPadding()` ve `navigationBarsPadding()` çağrısı `displayCutoutPadding()` ile değiştirildi (ekran kilidi bildirimi, devam et bildirimi, dokunma kilidi butonu, üst bar Row, alt bar Column, hızlı kanal çekmecesi, PlayerHUD, son kanallar barı, zapper kutusu).
+- `app/src/main/java/com/tivimax/player/ui/player/components/TiviPlayerComponents.kt`: `TiviOverlayGuide` içindeki `statusBarsPadding()` ve `navigationBarsPadding()` çağrıları `displayCutoutPadding()` ile değiştirildi.
+
+### 3. A–H Test Sonuçları
+- Cihaz bağlı olmadığından (`adb devices` boş) A–H manuel testleri atlandı (talimat gereği belirtilmiştir).
+- `./gradlew assembleDebug` ile derleme hatasız doğrulandı (`BUILD SUCCESSFUL in 41s`).
+
+### 4. Sorunlar & Çözümler
+- `PlayerScreen.kt` içinde önceden var olan `configuration` tanımı ile yeni eklenen LaunchedEffect blokundaki yerel tanım çakışıp derleme hatası verdi; mükerrer yerel val tanımı temizlendi ve derleme başarıyla tamamlandı.

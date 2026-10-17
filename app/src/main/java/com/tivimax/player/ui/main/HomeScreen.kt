@@ -153,6 +153,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     onTabSelected = { tab ->
                         if (tab != selectedTab) {
                             tvLiveFullScreen = false
+                            viewModel.setVideoFullscreen(false)
                             viewModel.setSelectedHomeTab(tab)
                         }
                     },
@@ -171,7 +172,10 @@ fun HomeScreen(viewModel: MainViewModel) {
                 if (selectedTab == HomeTab.LIVE_TV) {
                     TvTiviMateScreen(
                         viewModel = viewModel,
-                        onFullScreenChange = { tvLiveFullScreen = it }
+                        onFullScreenChange = {
+                            tvLiveFullScreen = it
+                            viewModel.setVideoFullscreen(it)
+                        }
                     )
                 } else {
                     HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
