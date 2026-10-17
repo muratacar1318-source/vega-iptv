@@ -3381,7 +3381,12 @@ fun DualViewSingleWindow(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
-                    player = if (isPrimary) playerManager.initializePlayer() else playerManager.secondaryExoPlayer
+                    if (isPrimary) {
+                        playerManager.initializePlayer()
+                        playerManager.attachView(this, isPrimary = true, tag = "DualViewSingleWindow-primary")
+                    } else {
+                        player = playerManager.secondaryExoPlayer
+                    }
                     resizeMode = when (aspectRatio) {
                         AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                         AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -3392,9 +3397,14 @@ fun DualViewSingleWindow(
                 }
             },
             update = { playerView ->
-                val targetPlayer = if (isPrimary) playerManager.initializePlayer() else playerManager.secondaryExoPlayer
-                if (playerView.player != targetPlayer) {
-                    playerView.player = targetPlayer
+                if (isPrimary) {
+                    playerManager.initializePlayer()
+                    playerManager.attachView(playerView, isPrimary = true, tag = "DualViewSingleWindow-primary")
+                } else {
+                    val targetPlayer = playerManager.secondaryExoPlayer
+                    if (playerView.player != targetPlayer) {
+                        playerView.player = targetPlayer
+                    }
                 }
                 playerView.resizeMode = when (aspectRatio) {
                     AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
@@ -3405,7 +3415,11 @@ fun DualViewSingleWindow(
                 }
             },
             onRelease = { playerView ->
-                playerView.player = null
+                if (isPrimary) {
+                    playerManager.detachView(playerView, tag = "DualViewSingleWindow-primary")
+                } else {
+                    playerView.player = null
+                }
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -3677,9 +3691,19 @@ private fun VideoPlayerSurface(
         }
     }
 
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+
+    LaunchedEffect(playerViewRef) {
+        val view = playerViewRef ?: return@LaunchedEffect
+        // İlk karede ve Crossfade bittikten sonra yüzeyi garantiye almak için yeniden talep
+        delay(350L)
+        playerManager.attachView(view, isPrimary = true, tag = "VideoPlayerSurface-delay350")
+    }
+
     AndroidView(
         factory = { ctx ->
             PlayerView(ctx).apply {
+                playerViewRef = this
                 useController = false
                 keepScreenOn = true
                 setKeepContentOnPlayerReset(true)
@@ -3690,7 +3714,7 @@ private fun VideoPlayerSurface(
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
                 val initialPlayer = playerManager.initializePlayer(isLive)
-                player = initialPlayer
+                playerManager.attachView(this, isPrimary = true, tag = "VideoPlayerSurface-factory")
                 val (initialResizeMode, initialScaleX, initialScaleY) = when (aspectRatio) {
                     AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
                     AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
@@ -3707,10 +3731,9 @@ private fun VideoPlayerSurface(
             }
         },
         update = { playerView ->
+            playerViewRef = playerView
             val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive)
-            if (playerView.player != currentPlayer) {
-                playerView.player = currentPlayer
-            }
+            playerManager.attachView(playerView, isPrimary = true, tag = "VideoPlayerSurface-update")
             val (targetResizeMode, targetScaleX, targetScaleY) = when (aspectRatio) {
                 AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
                 AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
@@ -3740,8 +3763,11 @@ private fun VideoPlayerSurface(
             }
         },
         onRelease = { playerView ->
+            if (playerViewRef == playerView) {
+                playerViewRef = null
+            }
             delayedController.detach()
-            playerView.player = null
+            playerManager.detachView(playerView, tag = "VideoPlayerSurface-onRelease")
         },
         modifier = modifier
     )

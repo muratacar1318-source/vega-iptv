@@ -69,6 +69,8 @@ fun TvTiviMateScreen(
     val zapperNumber by viewModel.zapperNumber.collectAsState()
     val isZapperActive by viewModel.isZapperActive.collectAsState()
     val zapperMatchedChannel by viewModel.zapperMatchedChannel.collectAsState()
+    val currentScreen by viewModel.currentScreen.collectAsState()
+    val isPlayerScreen = currentScreen is Screen.Player
 
     var isFullScreenPlayer by remember { mutableStateOf(false) }
     var showEpgGrid by remember { mutableStateOf(false) }
@@ -527,30 +529,32 @@ fun TvTiviMateScreen(
                         )
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        AndroidView(
-                            factory = { ctx ->
-                                PlayerView(ctx).apply {
-                                    useController = false
-                                    setKeepContentOnPlayerReset(true)
-                                    isFocusable = false
-                                    isFocusableInTouchMode = false
-                                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                    layoutParams = FrameLayout.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT
-                                    )
-                                    player = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
-                                }
-                            },
-                            update = { playerView ->
-                                val p = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
-                                if (playerView.player != p) {
-                                    playerView.player = p
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (!isPlayerScreen) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    PlayerView(ctx).apply {
+                                        useController = false
+                                        setKeepContentOnPlayerReset(true)
+                                        isFocusable = false
+                                        isFocusableInTouchMode = false
+                                        descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                        layoutParams = FrameLayout.LayoutParams(
+                                            ViewGroup.LayoutParams.MATCH_PARENT,
+                                            ViewGroup.LayoutParams.MATCH_PARENT
+                                        )
+                                        viewModel.playerManager.attachView(this, isPrimary = false, tag = "TvTiviMateScreen-preview")
+                                    }
+                                },
+                                update = { playerView ->
+                                    viewModel.playerManager.attachView(playerView, isPrimary = false, tag = "TvTiviMateScreen-preview")
+                                },
+                                onRelease = { playerView ->
+                                    viewModel.playerManager.detachView(playerView, tag = "TvTiviMateScreen-preview")
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
 
                         // Canlı & Tam Ekran İpucu Rozeti
                         Row(
