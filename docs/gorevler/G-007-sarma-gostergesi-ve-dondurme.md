@@ -75,3 +75,38 @@ immersive mod (G-001), alt kontrol pilleri (G-008), canlı yayın alt kartı (G-
 - **Doğrulama:**
   - `./gradlew assembleDebug`: Başarılı.
   - `./gradlew testDebugUnitTest`: Başarılı (tüm testler geçti).
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 17 Ekim)
+
+**Durum:** Sarma göstergesi (yanlarda, birikmeli, en üst katman) ve bilgi balonu doğru. `rotatePhonePlayer` +
+`OrientationEventListener` ile kilidi bırakma yaklaşımı doğru. Main'e alınmadı; aşağıdaki hata düzeltilmeli.
+**AYNI BRANCH'te devam et**, yeni branch AÇMA.
+
+### Hata: Kullanıcının döndürdüğü yön kanal değiştirince / uygulamaya dönünce eziliyor
+
+`OrientationManager.applyOrientation` telefon + `Screen.Player` dalında artık HER çağrıda
+`SCREEN_ORIENTATION_SENSOR_LANDSCAPE` ayarlıyor. Bu fonksiyon şu durumlarda tekrar çağrılıyor:
+- `MainActivity`'deki `LaunchedEffect(deviceMode, currentScreen, inPip, isVideoFullscreen)` — oynatıcı içinde
+  **kanal değiştirmek** yeni bir `Screen.Player` nesnesi oluşturduğu için `currentScreen` değişir → tetiklenir.
+- `onResume` (bildirim perdesi, arka plandan dönüş), PiP'ten çıkış.
+
+Sonuç: Kullanıcı döndür butonuyla dikeye geçip izlerken kanal değiştirirse veya uygulamaya geri dönerse
+ekran **zorla yataya** döner.
+
+### Yapılacak düzeltme (sadece `util/OrientationManager.kt`)
+- `private var playerOrientationOverridden = false` ekle.
+- `rotatePhonePlayer` çağrıldığında `playerOrientationOverridden = true`.
+- `applyOrientation` telefon + Player dalında: `playerOrientationOverridden` true ise `setOrientationSafe` ÇAĞIRMA
+  (mevcut yönü koru; immersive kararı aynen devam etsin). False ise mevcut davranış (`SENSOR_LANDSCAPE`).
+- Oynatıcıdan çıkış dalında (telefon, Player değil) `playerOrientationOverridden = false` yap (mevcut
+  `stopOrientationReleaseListener()` çağrısının yanına).
+- Başka hiçbir dosyayı değiştirme.
+
+### Test
+- **H)** Film/kanal aç (yatay) → döndür butonu → dikey → oynatıcı içinde kanal değiştir → **dikey kalmalı**.
+- **I)** Dikeyde izlerken bildirim perdesini indir-kaldır / uygulamayı arka plana alıp geri dön → dikey kalmalı.
+- **G)** Oynatıcıdan çık → liste dikey; tekrar oynatıcı aç → yine otomatik yatay açılmalı (bayrak sıfırlanmış).
+
+Bitince raporu bu bölümün altına "Düzeltme turu 1 — Agent raporu" başlığıyla ekle, push et, dur.
