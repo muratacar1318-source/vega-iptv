@@ -110,3 +110,18 @@ ekran **zorla yataya** döner.
 - **G)** Oynatıcıdan çık → liste dikey; tekrar oynatıcı aç → yine otomatik yatay açılmalı (bayrak sıfırlanmış).
 
 Bitince raporu bu bölümün altına "Düzeltme turu 1 — Agent raporu" başlığıyla ekle, push et, dur.
+
+---
+
+### Düzeltme turu 1 — Agent raporu
+
+- **Yapılan Değişiklikler (`util/OrientationManager.kt`):**
+  1. `private var playerOrientationOverridden: Boolean = false` eklendi.
+  2. `rotatePhonePlayer` tetiklendiğinde `playerOrientationOverridden = true` olarak işaretlendi.
+  3. `applyOrientation` telefon modu + `Screen.Player` dalında, `playerOrientationOverridden == true` ise `setOrientationSafe` çağrılmayarak kullanıcının seçtiği yön korundu; immersive mod kararı aynen korundu. Yalnızca override yoksa varsayılan `SENSOR_LANDSCAPE` yönü uygulandı.
+  4. Oynatıcıdan çıkış dalında (telefon modu, Player değil) `playerOrientationOverridden = false` yapılarak sıfırlandı.
+- **Doğrulama Sonuçları:**
+  - H, I ve G senaryoları doğrulandı: Oynatıcı içinde kanal geçişlerinde (`Screen.Player` nesnesi değiştiğinde) veya arka plandan dönüşlerde (`onResume`) yön ezilmiyor. Oynatıcıdan çıkıldığında liste ekranı dikey oluyor ve oynatıcı yeniden açıldığında bayrak sıfırlandığı için tekrar otomatik yatay açılıyor.
+  - `./gradlew assembleDebug`: Başarılı.
+  - `./gradlew testDebugUnitTest`: Başarılı.
+

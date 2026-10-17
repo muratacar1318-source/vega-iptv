@@ -71,6 +71,7 @@ class OrientationManager(private val activity: Activity) {
 
     private var orientationListener: OrientationEventListener? = null
     private var isListeningForOrientationRelease: Boolean = false
+    private var playerOrientationOverridden: Boolean = false
 
     @Volatile
     private var immersiveWanted: Boolean = false
@@ -100,6 +101,8 @@ class OrientationManager(private val activity: Activity) {
      */
     fun rotatePhonePlayer(currentScreen: Screen, mode: DeviceMode) {
         if (mode != DeviceMode.PHONE || currentScreen !is Screen.Player) return
+
+        playerOrientationOverridden = true
 
         val currentOrientation = activity.resources.configuration.orientation
         val isLandscape = currentOrientation == Configuration.ORIENTATION_LANDSCAPE
@@ -181,9 +184,12 @@ class OrientationManager(private val activity: Activity) {
             DeviceMode.PHONE -> {
                 if (isPlayerScreen) {
                     // Video oynatıcı ilk açılışta otomatik SENSOR_LANDSCAPE
-                    setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
+                    if (!playerOrientationOverridden) {
+                        setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
+                    }
                 } else {
                     // Oynatıcıdan çıkıldı: Dinleyiciyi kapat ve kesinlikle dikey moda dön
+                    playerOrientationOverridden = false
                     stopOrientationReleaseListener()
                     setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
                 }
