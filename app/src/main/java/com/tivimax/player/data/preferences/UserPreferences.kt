@@ -86,6 +86,7 @@ class UserPreferences(private val context: Context) {
         // Altyazı Tercihleri
         val KEY_SUBTITLE_SIZE = stringPreferencesKey("subtitle_size") // "KUCUK", "ORTA", "BUYUK", "COK_BUYUK"
         val KEY_SUBTITLE_COLOR = stringPreferencesKey("subtitle_color") // "BEYAZ", "SARI", "YESIL", "MAVI"
+        val KEY_SUBTITLE_DELAY_MS = longPreferencesKey("subtitle_delay_ms") // 0..5000 ms
 
         // Varsayılan Ses ve Altyazı Dili Tercihleri
         val KEY_DEFAULT_AUDIO_LANG = stringPreferencesKey("default_audio_lang") // "tr", "en", "de", "fr", "auto"
@@ -390,6 +391,7 @@ class UserPreferences(private val context: Context) {
 
     val subtitleSizeFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_SIZE] ?: "ORTA" }
     val subtitleColorFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_COLOR] ?: "BEYAZ" }
+    val subtitleDelayMsFlow: Flow<Long> = context.dataStore.data.map { it[KEY_SUBTITLE_DELAY_MS] ?: 0L }
 
     val defaultAudioLangFlow: Flow<String> = context.dataStore.data.map { it[KEY_DEFAULT_AUDIO_LANG] ?: "tr" }
     val defaultSubtitleLangFlow: Flow<String> = context.dataStore.data.map { it[KEY_DEFAULT_SUBTITLE_LANG] ?: "tr" }
@@ -411,6 +413,10 @@ class UserPreferences(private val context: Context) {
 
     suspend fun setSubtitleColor(color: String) {
         context.dataStore.edit { it[KEY_SUBTITLE_COLOR] = color }
+    }
+
+    suspend fun setSubtitleDelayMs(delayMs: Long) {
+        context.dataStore.edit { it[KEY_SUBTITLE_DELAY_MS] = delayMs.coerceIn(0L, 5000L) }
     }
 
     suspend fun setDefaultAudioLang(lang: String) {

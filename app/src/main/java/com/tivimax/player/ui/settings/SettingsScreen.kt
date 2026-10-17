@@ -3,6 +3,7 @@ package com.tivimax.player.ui.settings
 import android.content.Context
 import android.content.res.Configuration
 import android.widget.Toast
+import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -1270,6 +1271,124 @@ private fun RenderSelectedSection(
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp)
                                 )
                             }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                    // Altyazı Gecikmesi (0..5000 ms, 100 ms adımlı)
+                    val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
+                    val delaySeconds = subtitleDelayMs / 1000f
+                    val formattedDelay = String.format(Locale.getDefault(), "+%.1f sn", delaySeconds)
+
+                    Text(text = "Altyazı Gecikmesi", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Altyazıların ses ile senkronize olması için genel gecikme süresi (0 - 5.0 sn)", color = TiviTextSecondary, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = TiviSurfaceVariant),
+                        border = BorderStroke(1.dp, TiviCardBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                // "-" Butonu
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (subtitleDelayMs > 0L) TiviCard else TiviCardBorder,
+                                    border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .dpadFocusable(
+                                            focusedBorderColor = OpusCyan,
+                                            shape = RoundedCornerShape(10.dp),
+                                            onClick = {
+                                                viewModel.setSubtitleDelayMs(subtitleDelayMs - 100L)
+                                            }
+                                        )
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Remove,
+                                            contentDescription = "Gecikmeyi Azalt",
+                                            tint = if (subtitleDelayMs > 0L) OpusCyan else TiviTextMuted,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+
+                                // Orta: Değer Göstergesi ve Sıfırla
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "$formattedDelay (${subtitleDelayMs} ms)",
+                                        color = OpusCyan,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                    if (subtitleDelayMs > 0L) {
+                                        Text(
+                                            text = "Sıfırla",
+                                            color = TiviGold,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .padding(top = 2.dp)
+                                                .clickable { viewModel.setSubtitleDelayMs(0L) }
+                                        )
+                                    }
+                                }
+
+                                // "+" Butonu
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = if (subtitleDelayMs < 5000L) TiviCard else TiviCardBorder,
+                                    border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .dpadFocusable(
+                                            focusedBorderColor = OpusCyan,
+                                            shape = RoundedCornerShape(10.dp),
+                                            onClick = {
+                                                viewModel.setSubtitleDelayMs(subtitleDelayMs + 100L)
+                                            }
+                                        )
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Gecikmeyi Artır",
+                                            tint = if (subtitleDelayMs < 5000L) OpusCyan else TiviTextMuted,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Slider(
+                                value = subtitleDelayMs.toFloat(),
+                                onValueChange = { newVal ->
+                                    val rounded = (Math.round(newVal / 100f) * 100L).coerceIn(0L, 5000L)
+                                    viewModel.setSubtitleDelayMs(rounded)
+                                },
+                                valueRange = 0f..5000f,
+                                steps = 49,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = OpusCyan,
+                                    activeTrackColor = OpusCyan
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
 

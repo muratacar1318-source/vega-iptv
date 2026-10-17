@@ -3,6 +3,8 @@ package com.tivimax.player.player
 import android.app.Activity
 import android.content.Context
 import android.os.Build
+import android.util.Log
+import com.tivimax.player.BuildConfig
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -115,9 +117,14 @@ class TiviPlayerManager(private val context: Context) {
     val sleepTimerSeconds: StateFlow<Int?> = _sleepTimerSeconds.asStateFlow()
     private var sleepTimerJob: Job? = null
 
-    // Ses Senkronizasyon Kayması (Milisaniye)
+    // Ses Senkronizasyon Kayması (Milisaniye) - Uygulanmıyor: arayüzden kaldırıldı
+    // Uygulanmıyor: arayüzden kaldırıldı
     private val _audioOffsetMs = MutableStateFlow(0L)
     val audioOffsetMs: StateFlow<Long> = _audioOffsetMs.asStateFlow()
+
+    // Altyazı Gecikmesi (Milisaniye, 0..5000 ms, 100 ms adımlı)
+    private val _subtitleDelayMs = MutableStateFlow(0L)
+    val subtitleDelayMs: StateFlow<Long> = _subtitleDelayMs.asStateFlow()
 
     // Oynatma Hızı (0.75x, 1.0x, 1.25x, 1.5x, 2.0x)
     private val _playbackSpeed = MutableStateFlow(1.0f)
@@ -758,6 +765,9 @@ class TiviPlayerManager(private val context: Context) {
                     audios.add(info)
                 } else if (trackType == C.TRACK_TYPE_TEXT) {
                     subtitles.add(info)
+                    if (isSelected && BuildConfig.DEBUG) {
+                        Log.d("SubtitleInfo", "Mevcut seçili altyazı: sampleMimeType=${format.sampleMimeType}, language=${format.language}, label=${format.label}")
+                    }
                 }
             }
         }
@@ -785,6 +795,10 @@ class TiviPlayerManager(private val context: Context) {
                     it.copy(isSelected = (it.groupIndex == trackInfo.groupIndex && it.formatIndex == trackInfo.formatIndex))
                 }
             } else if (trackType == C.TRACK_TYPE_TEXT) {
+                if (BuildConfig.DEBUG) {
+                    val format = group.mediaTrackGroup.getFormat(trackInfo.formatIndex)
+                    Log.d("SubtitleInfo", "Altyazı seçildi: sampleMimeType=${format.sampleMimeType}, language=${format.language}, label=${format.label}")
+                }
                 _subtitleTracks.value = _subtitleTracks.value.map {
                     it.copy(isSelected = (it.groupIndex == trackInfo.groupIndex && it.formatIndex == trackInfo.formatIndex))
                 }
@@ -901,8 +915,13 @@ class TiviPlayerManager(private val context: Context) {
         _sleepTimerSeconds.value = null
     }
 
+    // Uygulanmıyor: arayüzden kaldırıldı
     fun setAudioOffset(offsetMs: Long) {
         _audioOffsetMs.value = offsetMs
+    }
+
+    fun setSubtitleDelay(delayMs: Long) {
+        _subtitleDelayMs.value = delayMs.coerceIn(0L, 5000L)
     }
 
     fun startDualView(url: String, title: String) {

@@ -83,6 +83,10 @@ fun TvPlayerOverlay(
     val allStreams by viewModel.liveStreams.collectAsState()
     val recentChannels by viewModel.recentChannels.collectAsState()
     val epgSummaryMap by viewModel.epgSummaryMap.collectAsState()
+    val audioTracks by playerManager.audioTracks.collectAsState()
+    val subtitleTracks by playerManager.subtitleTracks.collectAsState()
+    val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
+    val anySubSelected = subtitleTracks.any { it.isSelected }
 
     var showInfoCard by remember { mutableStateOf(true) }
     var showActionTray by remember { mutableStateOf(false) }
@@ -115,8 +119,8 @@ fun TvPlayerOverlay(
         try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
     }
 
-    LaunchedEffect(showInfoCard, showActionTray, showOverlayGuide, showQuickSettings) {
-        if (!showActionTray && !showOverlayGuide && !showQuickSettings) {
+    LaunchedEffect(showInfoCard, showActionTray, showOverlayGuide, showQuickSettings, showTrackSheet) {
+        if (!showActionTray && !showOverlayGuide && !showQuickSettings && !showTrackSheet) {
             delay(50)
             try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
         }
@@ -124,7 +128,7 @@ fun TvPlayerOverlay(
 
     // 5 Saniyelik Otomatik Gizlenme Zamanlayıcısı
     LaunchedEffect(showInfoCard, showActionTray, lastInteractionTime) {
-        if ((showInfoCard || showActionTray) && !showOverlayGuide && !showQuickSettings) {
+        if ((showInfoCard || showActionTray) && !showOverlayGuide && !showQuickSettings && !showTrackSheet) {
             val elapsed = System.currentTimeMillis() - lastInteractionTime
             val remaining = 5000L - elapsed
             if (remaining > 0) {
@@ -142,6 +146,8 @@ fun TvPlayerOverlay(
     BackHandler(enabled = true) {
         if (isZapperActive) {
             viewModel.dismissZapper()
+        } else if (showTrackSheet) {
+            showTrackSheet = false
         } else if (showQuickSettings) {
             showQuickSettings = false
         } else if (showOverlayGuide) {
@@ -174,10 +180,11 @@ fun TvPlayerOverlay(
                 }
 
                 // EĞER AÇIK SÜTÜN VEYA YAN PANEL VARSA
-                if (showOverlayGuide || showQuickSettings) {
+                if (showOverlayGuide || showQuickSettings || showTrackSheet) {
                     if (keyCode == KeyEvent.KEYCODE_BACK) {
                         showOverlayGuide = false
                         showQuickSettings = false
+                        showTrackSheet = false
                         return@onPreviewKeyEvent true
                     }
                     return@onPreviewKeyEvent false
@@ -563,6 +570,319 @@ fun TvPlayerOverlay(
                                 ) {
                                     Text("${st.num}", color = OpusCyan, fontSize = 11.sp, modifier = Modifier.width(24.dp))
                                     Text(st.name, color = Color.White, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. YAYIN ÜSTÜ SES & ALTYAZI AYARLARI PANELİ (D-PAD KUMANDA UYUMLU)
+        AnimatedVisibility(
+            visible = showTrackSheet,
+            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.CenterEnd)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(420.dp),
+                color = Color(0xE60A0E14),
+                border = BorderStroke(1.dp, Color(0xFF1E2638))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "SES & ALTYAZI AYARLARI",
+                            color = OpusCyan,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        IconButton(
+                            onClick = { showTrackSheet = false },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Kapat",
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // 1. SES DİLİ
+                        item {
+                            Text(
+                                text = "Ses Dili",
+                                color = TiviPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (audioTracks.isEmpty()) {
+                            item {
+                                Text(
+                                    text = "Ek ses parçası bulunamadı",
+                                    color = TiviTextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        } else {
+                            items(audioTracks) { track ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (track.isSelected) TiviPrimary.copy(alpha = 0.2f) else Color.Transparent,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .dpadFocusable(
+                                            focusedBorderColor = TiviPrimary,
+                                            shape = RoundedCornerShape(8.dp),
+                                            onClick = { playerManager.selectTrack(track, C.TRACK_TYPE_AUDIO) }
+                                        )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = if (track.isSelected) "●" else "○",
+                                            color = if (track.isSelected) TiviPrimary else TiviTextSecondary,
+                                            fontSize = 12.sp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = track.name,
+                                            color = if (track.isSelected) TiviPrimary else Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (track.isSelected) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(color = Color(0xFF1E2638))
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        // 2. ALTYAZI
+                        item {
+                            Text(
+                                text = "Altyazı",
+                                color = TiviGold,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        // Altyazı Kapalı Seçeneği
+                        item {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (!anySubSelected) TiviGold.copy(alpha = 0.2f) else Color.Transparent,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .dpadFocusable(
+                                        focusedBorderColor = TiviGold,
+                                        shape = RoundedCornerShape(8.dp),
+                                        onClick = { playerManager.disableSubtitles() }
+                                    )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (!anySubSelected) "●" else "○",
+                                        color = if (!anySubSelected) TiviGold else TiviTextSecondary,
+                                        fontSize = 12.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Altyazı Kapalı",
+                                        color = if (!anySubSelected) TiviGold else Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (!anySubSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+
+                        items(subtitleTracks) { track ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (track.isSelected) TiviGold.copy(alpha = 0.2f) else Color.Transparent,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .dpadFocusable(
+                                        focusedBorderColor = TiviGold,
+                                        shape = RoundedCornerShape(8.dp),
+                                        onClick = { playerManager.selectTrack(track, C.TRACK_TYPE_TEXT) }
+                                    )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (track.isSelected) "●" else "○",
+                                        color = if (track.isSelected) TiviGold else TiviTextSecondary,
+                                        fontSize = 12.sp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = track.name,
+                                        color = if (track.isSelected) TiviGold else Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (track.isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+
+                        // 3. ALTYAZI GECİKMESİ
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(color = Color(0xFF1E2638))
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        item {
+                            Text(
+                                text = "Altyazı Gecikmesi",
+                                color = if (anySubSelected) OpusCyan else TiviTextMuted,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (!anySubSelected) {
+                            item {
+                                Text(
+                                    text = "Gecikme ayarı için önce bir altyazı seçin.",
+                                    color = TiviTextMuted,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        } else {
+                            item {
+                                val delaySeconds = subtitleDelayMs / 1000f
+                                val formattedDelay = String.format(Locale.getDefault(), "+%.1f sn", delaySeconds)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // [-] butonu
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF161F2E),
+                                        border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.4f)),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .dpadFocusable(
+                                                focusedBorderColor = OpusCyan,
+                                                shape = RoundedCornerShape(8.dp),
+                                                onClick = {
+                                                    viewModel.setSubtitleDelayMs(subtitleDelayMs - 100L)
+                                                }
+                                            )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("-100 ms", color = OpusCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    // Değer göstergesi
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = OpusCyan.copy(alpha = 0.15f),
+                                        border = BorderStroke(1.dp, OpusCyan),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = formattedDelay,
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.ExtraBold
+                                            )
+                                        }
+                                    }
+
+                                    // [+] butonu
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF161F2E),
+                                        border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.4f)),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .dpadFocusable(
+                                                focusedBorderColor = OpusCyan,
+                                                shape = RoundedCornerShape(8.dp),
+                                                onClick = {
+                                                    viewModel.setSubtitleDelayMs(subtitleDelayMs + 100L)
+                                                }
+                                            )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("+100 ms", color = OpusCyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    // Sıfırla
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF161F2E),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .dpadFocusable(
+                                                focusedBorderColor = TiviGold,
+                                                shape = RoundedCornerShape(8.dp),
+                                                onClick = {
+                                                    viewModel.setSubtitleDelayMs(0L)
+                                                }
+                                            )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("Sıfırla", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
                                 }
                             }
                         }
