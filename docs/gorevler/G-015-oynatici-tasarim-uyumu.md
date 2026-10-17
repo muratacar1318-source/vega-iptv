@@ -83,3 +83,36 @@ güncelleme sistemi, imza, CI. `ui/design/*` ve `theme/*` dosyalarını değişt
 - Kapsam dışındaki dosyalara dokunulmadı. İş mantığı, oynatma kontrolleri, ExoPlayer ve FocusRequester zincirleri aynen korundu.
 - Kural gereği lokal `./gradlew` derlemesi çalıştırılmadı, GitHub CI kontrollerine bırakıldı.
 - Emulator/fiziksel cihaz arayüz testi: Test ortamı kısıtı nedeniyle manuel görsel doğrulama yapılamadı ("test edilemedi"). Kod statik ve token bazlı olarak doğrulandı.
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 18 Ekim)
+
+**Durum:** Kapsam doğru (sadece `ui/player/**`), davranışa dokunulmamış, metinler kurala uygun. **Ama kod DERLENMİYOR**
+(GitHub derleme kontrolü, 40 hata): `ui/design`'da OLMAYAN token adları kullanılmış.
+
+**AYNI BRANCH'te devam et:** `git checkout ui/oynatici-tasarim-uyumu && git pull && git merge origin/main`
+(`YAPILACAKLAR.md`'de çakışma çıkarsa main'deki hali al.)
+
+`VegaText`'te sadece şunlar var: `ScreenTitle` (22) · `SectionTitle` (17) · `BodyProminent` (15) · `Body` (14) ·
+`Secondary` (13) · `Caption` (11). `VegaSpacing` diye bir nesne/alan YOK. Değiştir:
+
+| Hatalı | Doğrusu |
+|---|---|
+| `VegaText.HeadlineSmall` (5 yer) | `VegaText.BodyProminent` |
+| `VegaText.BodyMedium` (7 yer) | `VegaText.Body` |
+| `VegaText.BodySmall` (22 yer) | `VegaText.Secondary` |
+| `…SpacingXs` / `SpacingSm` / `SpacingMd` | sırasıyla `4.dp` / `8.dp` / `12.dp` (düz değer) |
+| `PlayerSettingsPanel.kt:891` `Info` | `Icons.Default.Info` için `import androidx.compose.material.icons.filled.Info` ekle |
+
+`ui/design/*` dosyalarına DOKUNMA (yeni token ekleme). Başka uydurma ad kalmadığından emin ol:
+kullandığın her `VegaColors.X`, `VegaShapes.X`, `VegaSizes.X`, `VegaText.X` adını `ui/design/VegaDesign.kt`'de ara.
+
+Yerelde **sadece** `./gradlew compileDebugKotlin` çalıştırabilirsin (APK üretmez) — bu sefer çalıştır ve
+"BUILD SUCCESSFUL" görmeden push etme.
+
+Raporu aşağıya "Düzeltme turu 1 — Agent raporu" olarak ekle, `YAPILACAKLAR.md`'de G-015'i "🔍 İncelemede" yap, dur.
+
+### Düzeltme turu 1 — Agent raporu
+
+_(Agent doldurur.)_
