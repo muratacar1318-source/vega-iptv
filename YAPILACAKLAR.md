@@ -22,6 +22,13 @@ Kullanıcı "yapılacakları kontrol et ve uygula" dediğinde:
    - Bu tablodaki durumu `🔍 İncelemede (branch: ...)` yap — bu değişikliği de görev branch'inde yap.
 5. Kullanıcıya kısa bir özet ver ve DUR. Sıradaki göreve kullanıcı tekrar söylemeden geçme.
 
+**Agent dağılımı:** Her görev dosyasının başında `Agent dağılımı` satırı vardır.
+- `Tek agent` → görevi tek başına, tek branch'te yap.
+- `N agent (paralel)` → görev dosyasındaki "Agent bölümleri" kısmında her agent için ayrı iş, ayrı branch ve
+  dokunabileceği dosyalar yazılıdır. Kullanıcı her agent'a hangi bölümü yapacağını söyler
+  (ör. "G-00X Bölüm A'yı yap"). Bir agent SADECE kendi bölümündeki dosyalara dokunur; başka bölümün dosyasını
+  değiştirmesi gerekirse durur ve raporlar.
+
 Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütme, raporda soruyu yaz ve dur.
 
 **Durumlar:** ⏳ Bekliyor · 🔍 İncelemede (agent bitirdi, Claude kontrol ediyor) ·

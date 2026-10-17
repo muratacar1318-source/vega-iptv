@@ -1,6 +1,7 @@
 # G-006 — Evrensel arama: eski pencereyi tam ekran, anlık sonuçlu arama ekranıyla değiştir
 
 - **Öncelik:** 🟠
+- **Agent dağılımı:** Tek agent
 - **Branch:** `feat/evrensel-arama-ekrani`
 - **Commit mesajı:** `feat(search): tam ekran evrensel arama — anlık sonuçlar, Türkçe uyumlu, son aramalar`
 

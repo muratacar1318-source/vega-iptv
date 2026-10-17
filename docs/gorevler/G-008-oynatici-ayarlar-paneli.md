@@ -1,6 +1,7 @@
 # G-008 — Oynatıcı ayarlarını tek, kompakt ve kullanıcı dostu bir panelde topla
 
 - **Öncelik:** 🟠
+- **Agent dağılımı:** Tek agent
 - **Branch:** `ui/oynatici-ayarlar-paneli`
 - **Commit mesajı:** `ui(player): ses/altyazı/görüntü/hız tek kompakt ayarlar panelinde; kontrol paneli sadeleştirildi`
 - **Not:** G-001 (immersive) ve G-007'den SONRA yapılmalı (aynı dosyalar). G-002 canlı yayın kartına dokunur; bu görev

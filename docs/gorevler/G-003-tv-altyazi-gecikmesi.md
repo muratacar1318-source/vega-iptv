@@ -1,6 +1,7 @@
 # G-003 — TV canlı yayın oynatıcısında altyazı gecikmesi ayarı çalışmıyor
 
 - **Öncelik:** 🟢
+- **Agent dağılımı:** Tek agent
 - **Branch:** `fix/tv-altyazi-gecikmesi`
 - **Commit mesajı:** `fix(tv): canlı yayın oynatıcısında altyazı gecikmesi uygulanıyor`
 

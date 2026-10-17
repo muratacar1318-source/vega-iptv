@@ -1,6 +1,7 @@
 # G-004 — Canlı TV'de kanal ilk açıldığında siyah ekran (ses var/yok), kanal değişince düzeliyor
 
 - **Öncelik:** 🔴
+- **Agent dağılımı:** Tek agent
 - **Branch:** `fix/canli-ilk-acilis-siyah-ekran`
 - **Commit mesajı:** `fix(player): video yüzeyi tek sahipli; canlı yayın ilk açılışta siyah ekran düzeltildi`
 

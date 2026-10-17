@@ -1,6 +1,7 @@
 # G-007 — Film/dizi oynatıcı: ±10 sn göstergesi kontrollerin arkasında kalıyor, döndür butonu dikeyde kilitliyor
 
 - **Öncelik:** 🟠
+- **Agent dağılımı:** Tek agent
 - **Branch:** `fix/sarma-gostergesi-dondurme`
 - **Commit mesajı:** `fix(player): sarma göstergesi yanlarda ve en üstte; döndür butonu yönü kilitlemiyor`
 

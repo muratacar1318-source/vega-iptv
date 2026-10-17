@@ -1,5 +1,7 @@
 # Vega IPTV — Geliştirme Kuralları
 ## Çalışma düzeni
+- Görev dosyasındaki "Agent dağılımı" satırına uy: paralel bölümlere ayrılmış bir görevde sadece sana verilen
+  bölümü ve o bölümün dosyalarını değiştir.
 - İş listesi YAPILACAKLAR.md'dedir. "Yapılacakları kontrol et ve uygula" denince oradaki
   "Agent için çalışma talimatı" bölümünü harfiyen uygula. Görev tarifleri docs/gorevler/ altındadır.
 - YAPILACAKLAR.md'ye kendi başına yeni görev EKLEME ve mevcut görevlerin tarifini DEĞİŞTİRME;

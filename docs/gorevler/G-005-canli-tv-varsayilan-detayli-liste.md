@@ -1,6 +1,7 @@
 # G-005 — Canlı TV varsayılan görünümü "Detaylı liste" olsun + liste kusurları
 
 - **Öncelik:** 🟠
+- **Agent dağılımı:** Tek agent
 - **Branch:** `ui/canli-tv-detayli-varsayilan`
 - **Commit mesajı:** `ui(live): varsayılan detaylı liste; EPG saatleri yerel saate çevrildi, sahte ilerleme ve dolgu metinleri kaldırıldı`
 - **Not:** G-004 de `LiveTvModernPortraitLayout.kt`'ye dokunuyor (mini oynatıcı). G-004 main'e alındıktan SONRA başla.
