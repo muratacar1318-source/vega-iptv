@@ -1,6 +1,7 @@
 # G-001 — Tam ekranda durum ve gezinme çubukları gizlenmiyor
 
 - **Öncelik:** 🔴
+- **Önerilen düşünme seviyesi:** high
 - **Branch:** `fix/tam-ekran-immersive`
 - **Commit mesajı:** `fix(player): tüm tam ekran yollarında sistem çubukları kalıcı olarak gizleniyor`
 
