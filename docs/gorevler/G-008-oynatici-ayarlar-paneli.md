@@ -96,3 +96,27 @@ oynatıcısı (`ui/tv/*`), canlı yayın alt kartının yerleşimi (G-002), gün
 ## Agent raporu
 
 _(Agent doldurur: ekran görüntüsü açıklamaları, değiştirilen dosyalar, A–I sonuçları.)_
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 17 Ekim) — G-007 main'e alındıktan SONRA yap
+
+**Durum:** `ui/oynatici-ayarlar-paneli` branch'indeki iş içerik olarak onaylandı (sağ panel 340dp / dikeyde ≤%55,
+sekmeler, canlı yayında yalnız Ses+Altyazı, Kontrol Paneli kaldırıldı, yayın bilgisi altta). Ancak G-007
+(`fix/sarma-gostergesi-dondurme`) main'e alınmadan başlatıldığı için `PlayerScreen.kt`'de onunla **çakışıyor**.
+
+**ÖN KOŞUL:** `YAPILACAKLAR.md`'de G-007 "✅ Tamamlananlar" tablosunda görünmüyorsa bu görevi YAPMA; önce G-007'yi yap.
+
+**AYNI BRANCH'te devam et:** `git checkout ui/oynatici-ayarlar-paneli && git pull && git merge origin/main`
+
+Çakışmaları şöyle çöz (G-007'nin sarma/bilgi balonu sistemi + G-008'in ayarlar paneli birlikte kalacak):
+1. `isUserInteracting`: G-007'deki hali (`seekDirection != null`, `infoBannerText != null`) + G-008'deki
+   `showSettingsPanel` (ve `showTrackSheet`/`showPlayerHUD` artık yoksa onları çıkar).
+2. Görüntü (en-boy) pili: G-008 kazanır → `settingsInitialTab = SettingsTab.ASPECT_RATIO; showSettingsPanel = true`.
+   G-007'deki `cycleAspectRatio()` + bilgi balonu sadece **ortaya çift dokunma** jestinde kalsın.
+3. Hız pili: G-008 kazanır → `settingsInitialTab = SettingsTab.SPEED; showSettingsPanel = true`.
+4. G-007'nin `seekRipple` → `showInfoBanner(...)`, `doubleTapSide` → `seekDirection` dönüşümleri korunmalı;
+   birleştirmeden sonra dosyada `seekRipple` ve `doubleTapSide` kalmamalı.
+5. `YAPILACAKLAR.md` çakışmasında main'deki hali al, sadece G-008 satırını "🔍 İncelemede" yap.
+
+Derle (`./gradlew assembleDebug`), push et, raporu bu bölümün altına "Düzeltme turu 1 — Agent raporu" olarak ekle, dur.
