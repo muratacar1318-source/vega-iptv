@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-006 | [Evrensel arama: eski pencere yerine tam ekran, anlık sonuçlu arama ekranı](docs/gorevler/G-006-evrensel-arama-ekrani.md) | 🟠 | 🔍 İncelemede (branch: feat/evrensel-arama-ekrani) |
 | G-007 | [Film/dizi: ±10 sn göstergesi kontrollerin arkasında; döndür butonu dikeyde kilitliyor](docs/gorevler/G-007-sarma-gostergesi-ve-dondurme.md) | 🟠 | ⏳ Bekliyor |
 | G-008 | [Oynatıcı ayarlarını tek kompakt panelde topla (ses, altyazı, görüntü, hız)](docs/gorevler/G-008-oynatici-ayarlar-paneli.md) | 🟠 | ⏳ Bekliyor |
 | G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor |
@@ -56,6 +55,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-004 | Canlı TV'de kanal ilk açıldığında siyah ekran (video yüzeyi tek sahipli) — PR #7 | 17 Ekim |
 | G-001 | Tam ekranda durum ve gezinme çubukları gizleniyor (tüm tam ekran yolları) — PR #8 | 17 Ekim |
 | G-005 | Canlı TV varsayılan detaylı liste, EPG saatleri yerel saat, sahte ilerleme kaldırıldı — PR #9 | 17 Ekim |
+| G-006 | Tam ekran evrensel arama (anlık sonuç, Türkçe uyumlu, son aramalar) — PR #10 | 17 Ekim |
 
 ---
 
