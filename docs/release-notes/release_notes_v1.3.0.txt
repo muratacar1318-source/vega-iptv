@@ -1,0 +1,29 @@
+# Vega IPTV v1.3.0 (Build 52) - Kompakt Oynatıcı Ayarları, Evrensel Arama & Oynatıcı İyileştirmeleri
+
+### 🎛️ Oynatıcı Ayarları Paneli (G-008):
+- **Tek Kompakt Panel (`PlayerSettingsPanel`):**
+  - Ses parçaları, altyazı seçimi/gecikmesi/boyutu/rengi, görüntü en-boy oranları ve oynatma hızı ayarları tek sekmeli panelde toplandı.
+  - Yatayda ekranı kapatmayan 340dp sağ panel; dikeyde ekranın en fazla %55'ini kaplayan alttan açılır panel.
+  - Eski ekranı kaplayan bottom sheet ve alt bardaki çakışan kontrol paneli kartı kaldırıldı.
+  - Canlı yayında sadece Ses & Altyazı sekmeleri gösterilecek şekilde sadeleştirildi.
+  - Panel açıldığında kontroller gizlenerek çakışma önlendi; kapanışta durum çubukları gizli tutularak immersive korundu.
+
+### ⏩ Sarma Göstergesi & Ekran Döndürme (G-007):
+- **Kenarlarda Birikmeli Sarma (`SeekIndicator`):**
+  - ±10 sn göstergesi ekran ortasındaki kontrollerin altından alınarak en üst katmanda sol ve sağ alanlara taşındı.
+  - 700 ms penceresinde birikmeli sayım (+10s, +20s, +30s) eklendi.
+  - Ekran döndürme butonu yön kilitleme yerine serbest döndürme modeline geçirildi, kanal değişimlerinde kullanıcı tercihi korundu.
+
+### 🔍 Tam Ekran Evrensel Arama (G-006):
+- **Anlık ve Akıllı Arama:**
+  - Tüm kanallar, filmler ve diziler tek ekrandan anlık aranabiliyor.
+  - Türkçe karakter desteği (İ/ı, Ş/ş, Ğ/ğ vb.) ve son aramalar geçmişi eklendi.
+
+### 📺 Canlı TV & Yayın Akışı İyileştirmeleri (G-004, G-005):
+- **Kanal Açılış Kararlılığı:**
+  - İlk kanal açılışındaki video yüzeyi çekişmesi giderildi, siyah ekran sorunu çözüldü.
+  - Canlı TV kanal listesi varsayılan olarak detaylı liste moduna alındı.
+  - EPG yayın akışı saatleri cihazın yerel saatine uyarlandı.
+
+### 📱 Tam Ekran & Sistem Çubukları (G-001):
+- Tam ekran oynatıcı modunda durum ve gezinme çubuklarının yeniden belirmesi önlendi (MIUI/HyperOS uyumlu).
