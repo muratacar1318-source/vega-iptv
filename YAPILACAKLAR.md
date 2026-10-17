@@ -35,6 +35,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 |---|---|---|---|
 | G-001 | [Tam ekranda durum ve gezinme çubukları gizlenmiyor](docs/gorevler/G-001-tam-ekran-immersive.md) | 🔴 | ⏳ Bekliyor |
 | G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor |
+| G-003 | [TV canlı yayın oynatıcısında altyazı gecikmesi ayarı çalışmıyor](docs/gorevler/G-003-tv-altyazi-gecikmesi.md) | 🟢 | ⏳ Bekliyor |
 
 ---
 
