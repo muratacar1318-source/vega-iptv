@@ -1,7 +1,6 @@
 # G-002 — Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır
 
 - **Öncelik:** 🟠
-- **Önerilen düşünme seviyesi:** high
 - **Branch:** `ui/kompakt-canli-oynatici`
 - **Commit mesajı:** `ui(player): kompakt canlı yayın kartı, sahte EPG/kalite verileri kaldırıldı, tutarlı üst düğmeler`
 - **Not:** G-001 ile aynı dosyalara (PlayerScreen) dokunur. G-001 main'e alındıktan SONRA başla.

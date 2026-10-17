@@ -24,8 +24,6 @@ Kullanıcı "yapılacakları kontrol et ve uygula" dediğinde:
 
 Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütme, raporda soruyu yaz ve dur.
 
-**Seviye:** Görevi yaptırırken Antigravity'de seçilmesi önerilen düşünme seviyesi (low/medium/high).
-
 **Durumlar:** ⏳ Bekliyor · 🔍 İncelemede (agent bitirdi, Claude kontrol ediyor) ·
 ✅ Tamamlandı (main'e alındı) · ⏸️ Ertelendi
 
@@ -33,11 +31,11 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 ## 📋 Bekleyen görevler
 
-| # | Görev | Öncelik | Seviye | Durum |
-|---|---|---|---|---|
-| G-001 | [Tam ekranda durum ve gezinme çubukları gizlenmiyor](docs/gorevler/G-001-tam-ekran-immersive.md) | 🔴 | high | ⏳ Bekliyor |
-| G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | high | ⏳ Bekliyor |
-| G-003 | [TV canlı yayın oynatıcısında altyazı gecikmesi ayarı çalışmıyor](docs/gorevler/G-003-tv-altyazi-gecikmesi.md) | 🟢 | medium | ⏳ Bekliyor |
+| # | Görev | Öncelik | Durum |
+|---|---|---|---|
+| G-001 | [Tam ekranda durum ve gezinme çubukları gizlenmiyor](docs/gorevler/G-001-tam-ekran-immersive.md) | 🔴 | ⏳ Bekliyor |
+| G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor |
+| G-003 | [TV canlı yayın oynatıcısında altyazı gecikmesi ayarı çalışmıyor](docs/gorevler/G-003-tv-altyazi-gecikmesi.md) | 🟢 | ⏳ Bekliyor |
 
 ---
 
