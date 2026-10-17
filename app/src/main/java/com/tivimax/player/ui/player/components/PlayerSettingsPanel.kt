@@ -47,12 +47,17 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import kotlinx.coroutines.delay
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -108,6 +113,15 @@ fun PlayerSettingsPanel(
 
     BackHandler(enabled = visible) {
         onClose()
+    }
+
+    val firstFocus = remember { FocusRequester() }
+
+    LaunchedEffect(visible) {
+        if (visible) {
+            delay(100)
+            runCatching { firstFocus.requestFocus() }
+        }
     }
 
     var selectedTab by remember(visible, initialTab) {
@@ -197,14 +211,22 @@ fun PlayerSettingsPanel(
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
+                        var isCloseFocused by remember { mutableStateOf(false) }
                         IconButton(
                             onClick = onClose,
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier
+                                .size(44.dp)
+                                .onFocusChanged { isCloseFocused = it.isFocused }
+                                .then(
+                                    if (isCloseFocused) {
+                                        Modifier.border(2.dp, OpusCyan, CircleShape)
+                                    } else Modifier
+                                )
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Kapat",
-                                tint = Color.White.copy(alpha = 0.85f),
+                                tint = if (isCloseFocused) OpusCyan else Color.White.copy(alpha = 0.85f),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -214,28 +236,40 @@ fun PlayerSettingsPanel(
 
                     // SEKME BUTONLARI (Tabs)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         availableTabs.forEach { tab ->
                             val isSelected = (selectedTab == tab)
+                            var isFocused by remember { mutableStateOf(false) }
                             Surface(
                                 onClick = { selectedTab = tab },
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) TiviPrimary else Color.White.copy(alpha = 0.08f),
+                                color = if (isFocused) OpusCyan.copy(alpha = 0.35f)
+                                else if (isSelected) TiviPrimary
+                                else Color.White.copy(alpha = 0.08f),
+                                border = if (isFocused) BorderStroke(2.dp, OpusCyan)
+                                else if (isSelected) BorderStroke(1.dp, TiviPrimary)
+                                else null,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .heightIn(min = 38.dp)
+                                    .height(40.dp)
+                                    .then(if (isSelected) Modifier.focusRequester(firstFocus) else Modifier)
+                                    .onFocusChanged { isFocused = it.isFocused }
                             ) {
                                 Box(
-                                    modifier = Modifier.fillMaxSize(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(40.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = tab.title,
                                         fontSize = 13.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) Color.Black else Color.White.copy(alpha = 0.85f)
+                                        fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected && !isFocused) Color.Black else Color.White
                                     )
                                 }
                             }
@@ -318,13 +352,16 @@ private fun AudioTabContent(
         ) {
             audioTracks.forEach { track ->
                 val isSelected = track.isSelected
+                var isFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = { onSelectAudioTrack(track) },
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) TiviPrimary.copy(alpha = 0.12f) else Color.Transparent,
+                    color = if (isFocused) OpusCyan.copy(alpha = 0.2f) else if (isSelected) TiviPrimary.copy(alpha = 0.12f) else Color.Transparent,
+                    border = if (isFocused) BorderStroke(2.dp, OpusCyan) else if (isSelected) BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.5f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 44.dp)
+                        .onFocusChanged { isFocused = it.isFocused }
                 ) {
                     Row(
                         modifier = Modifier
@@ -388,13 +425,16 @@ private fun SubtitleTabContent(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             // Kapalı Seçeneği
+            var isOffFocused by remember { mutableStateOf(false) }
             Surface(
                 onClick = onDisableSubtitles,
                 shape = RoundedCornerShape(8.dp),
-                color = if (!anySubSelected) TiviPrimary.copy(alpha = 0.12f) else Color.Transparent,
+                color = if (isOffFocused) OpusCyan.copy(alpha = 0.2f) else if (!anySubSelected) TiviPrimary.copy(alpha = 0.12f) else Color.Transparent,
+                border = if (isOffFocused) BorderStroke(2.dp, OpusCyan) else if (!anySubSelected) BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.5f)) else null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
+                    .onFocusChanged { isOffFocused = it.isFocused }
             ) {
                 Row(
                     modifier = Modifier
@@ -424,13 +464,16 @@ private fun SubtitleTabContent(
             // Mevcut Altyazılar
             subtitleTracks.forEach { track ->
                 val isSelected = track.isSelected
+                var isTrackFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = { onSelectSubtitleTrack(track) },
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) TiviPrimary.copy(alpha = 0.12f) else Color.Transparent,
+                    color = if (isTrackFocused) OpusCyan.copy(alpha = 0.2f) else if (isSelected) TiviPrimary.copy(alpha = 0.12f) else Color.Transparent,
+                    border = if (isTrackFocused) BorderStroke(2.dp, OpusCyan) else if (isSelected) BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.5f)) else null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 44.dp)
+                        .onFocusChanged { isTrackFocused = it.isFocused }
                 ) {
                     Row(
                         modifier = Modifier
@@ -483,22 +526,26 @@ private fun SubtitleTabContent(
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // Azalt [-]
+                var isMinusFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = { onSubtitleDelayChange((subtitleDelayMs - 100L).coerceAtLeast(0L)) },
                     enabled = anySubSelected && subtitleDelayMs > 0L,
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = Color.White.copy(alpha = 0.1f),
-                    modifier = Modifier.size(34.dp)
+                    border = if (isMinusFocused) BorderStroke(2.dp, OpusCyan) else null,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .onFocusChanged { isMinusFocused = it.isFocused }
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Remove,
                             contentDescription = "Gecikmeyi Azalt",
                             tint = if (anySubSelected && subtitleDelayMs > 0L) Color.White else TiviTextMuted,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -515,37 +562,45 @@ private fun SubtitleTabContent(
                 )
 
                 // Artır [+]
+                var isPlusFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = { onSubtitleDelayChange((subtitleDelayMs + 100L).coerceAtMost(5000L)) },
                     enabled = anySubSelected && subtitleDelayMs < 5000L,
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = Color.White.copy(alpha = 0.1f),
-                    modifier = Modifier.size(34.dp)
+                    border = if (isPlusFocused) BorderStroke(2.dp, OpusCyan) else null,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .onFocusChanged { isPlusFocused = it.isFocused }
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Gecikmeyi Artır",
                             tint = if (anySubSelected && subtitleDelayMs < 5000L) Color.White else TiviTextMuted,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
                 // Sıfırla ⟲
+                var isResetFocused by remember { mutableStateOf(false) }
                 Surface(
                     onClick = { onSubtitleDelayChange(0L) },
                     enabled = anySubSelected && subtitleDelayMs > 0L,
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = Color.White.copy(alpha = 0.1f),
-                    modifier = Modifier.size(34.dp)
+                    border = if (isResetFocused) BorderStroke(2.dp, OpusCyan) else null,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .onFocusChanged { isResetFocused = it.isFocused }
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Gecikmeyi Sıfırla",
                             tint = if (anySubSelected && subtitleDelayMs > 0L) OpusCyan else TiviTextMuted,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -586,16 +641,20 @@ private fun SubtitleTabContent(
 
                 sizeOptions.forEach { (sizeVal, label) ->
                     val isSelected = (currentNorm == sizeVal)
+                    var isSizeFocused by remember { mutableStateOf(false) }
                     Surface(
                         onClick = { onSubtitleSizeChange(sizeVal) },
-                        shape = RoundedCornerShape(6.dp),
+                        shape = RoundedCornerShape(8.dp),
                         color = if (isSelected) TiviPrimary else Color.White.copy(alpha = 0.08f),
-                        modifier = Modifier.size(36.dp)
+                        border = if (isSizeFocused) BorderStroke(2.dp, OpusCyan) else null,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .onFocusChanged { isSizeFocused = it.isFocused }
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
                                 text = label,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) Color.Black else Color.White
                             )
@@ -622,7 +681,7 @@ private fun SubtitleTabContent(
                 color = Color.White
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 val colorOptions = listOf(
                     "BEYAZ" to Color(0xFFFFFFFF),
                     "SARI" to Color(0xFFFFEB3B),
@@ -632,30 +691,30 @@ private fun SubtitleTabContent(
 
                 colorOptions.forEach { (colorKey, colorVal) ->
                     val isSelected = (subtitleColor == colorKey)
-                    Box(
+                    var isColorFocused by remember { mutableStateOf(false) }
+                    Surface(
+                        onClick = { onSubtitleColorChange(colorKey) },
+                        shape = CircleShape,
+                        color = Color.Transparent,
+                        border = BorderStroke(
+                            width = if (isColorFocused) 2.5.dp else if (isSelected) 2.dp else 1.dp,
+                            color = if (isColorFocused) OpusCyan else if (isSelected) Color.White else Color.White.copy(alpha = 0.2f)
+                        ),
                         modifier = Modifier
-                            .size(36.dp)
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) {
-                                onSubtitleColorChange(colorKey)
-                            },
-                        contentAlignment = Alignment.Center
+                            .size(44.dp)
+                            .onFocusChanged { isColorFocused = it.isFocused }
                     ) {
                         Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(colorVal)
-                                .then(
-                                    if (isSelected) {
-                                        Modifier.border(2.5.dp, Color.White, CircleShape)
-                                    } else {
-                                        Modifier.border(1.dp, Color.Black.copy(alpha = 0.3f), CircleShape)
-                                    }
-                                )
-                        )
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(colorVal)
+                            )
+                        }
                     }
                 }
             }
@@ -687,14 +746,16 @@ private fun AspectRatioTabContent(
     ) {
         modes.forEach { (mode, label) ->
             val isSelected = (aspectRatio == mode)
+            var isFocused by remember { mutableStateOf(false) }
             Surface(
                 onClick = { onAspectRatioChange(mode) },
                 shape = RoundedCornerShape(8.dp),
-                color = if (isSelected) TiviPrimary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
-                border = BorderStroke(1.dp, if (isSelected) TiviPrimary else Color.Transparent),
+                color = if (isFocused) OpusCyan.copy(alpha = 0.2f) else if (isSelected) TiviPrimary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
+                border = if (isFocused) BorderStroke(2.dp, OpusCyan) else BorderStroke(1.dp, if (isSelected) TiviPrimary else Color.Transparent),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
+                    .onFocusChanged { isFocused = it.isFocused }
             ) {
                 Row(
                     modifier = Modifier
@@ -706,15 +767,15 @@ private fun AspectRatioTabContent(
                     Text(
                         text = label,
                         fontSize = 14.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) TiviPrimary else Color.White
+                        fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isFocused) OpusCyan else if (isSelected) TiviPrimary else Color.White
                     )
                     if (isSelected) {
                         Text(
                             text = "✓",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TiviPrimary
+                            color = if (isFocused) OpusCyan else TiviPrimary
                         )
                     }
                 }
@@ -742,14 +803,16 @@ private fun SpeedTabContent(
         speeds.forEach { spd ->
             val isSelected = (playbackSpeed == spd)
             val label = if (spd == 1.0f) "1.0x (Normal)" else "${spd}x"
+            var isFocused by remember { mutableStateOf(false) }
             Surface(
                 onClick = { onPlaybackSpeedChange(spd) },
                 shape = RoundedCornerShape(8.dp),
-                color = if (isSelected) TiviPrimary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
-                border = BorderStroke(1.dp, if (isSelected) TiviPrimary else Color.Transparent),
+                color = if (isFocused) OpusCyan.copy(alpha = 0.2f) else if (isSelected) TiviPrimary.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
+                border = if (isFocused) BorderStroke(2.dp, OpusCyan) else BorderStroke(1.dp, if (isSelected) TiviPrimary else Color.Transparent),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 44.dp)
+                    .onFocusChanged { isFocused = it.isFocused }
             ) {
                 Row(
                     modifier = Modifier
@@ -761,15 +824,15 @@ private fun SpeedTabContent(
                     Text(
                         text = label,
                         fontSize = 14.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) TiviPrimary else Color.White
+                        fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isFocused) OpusCyan else if (isSelected) TiviPrimary else Color.White
                     )
                     if (isSelected) {
                         Text(
                             text = "✓",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TiviPrimary
+                            color = if (isFocused) OpusCyan else TiviPrimary
                         )
                     }
                 }
@@ -784,15 +847,17 @@ private fun SpeedTabContent(
 @Composable
 private fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
     var isExpanded by remember { mutableStateOf(false) }
+    var isFocused by remember { mutableStateOf(false) }
 
     Surface(
         onClick = { isExpanded = !isExpanded },
         shape = RoundedCornerShape(8.dp),
-        color = Color.White.copy(alpha = 0.05f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+        color = if (isFocused) OpusCyan.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
+        border = if (isFocused) BorderStroke(2.dp, OpusCyan) else BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
+            .onFocusChanged { isFocused = it.isFocused }
     ) {
         Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
             Row(
