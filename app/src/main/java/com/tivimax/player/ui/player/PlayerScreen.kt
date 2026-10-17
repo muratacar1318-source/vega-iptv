@@ -79,7 +79,8 @@ import com.tivimax.player.ui.player.components.TiviBottomInfoCard
 import com.tivimax.player.ui.player.components.TiviNumericZapperBox
 import com.tivimax.player.ui.player.components.TiviOverlayGuide
 import com.tivimax.player.ui.player.components.TiviRecentChannelsBar
-import com.tivimax.player.ui.player.components.TiviPlayerHUD
+import com.tivimax.player.ui.player.components.PlayerSettingsPanel
+import com.tivimax.player.ui.player.components.SettingsTab
 import com.tivimax.player.ui.player.components.PlayerPillButton
 import com.tivimax.player.ui.player.components.BouncyIconButton
 import com.tivimax.player.ui.player.components.LocalPlayerInteraction
@@ -163,9 +164,8 @@ fun PlayerScreen(
     var showControls by remember { mutableStateOf(true) }
     var isControlsLocked by remember { mutableStateOf(false) }
     var showChannelDrawer by remember { mutableStateOf(false) }
-    var showTrackSheet by remember { mutableStateOf(false) }
-    var showPlayerHUD by remember { mutableStateOf(false) }
-    var hudInitialTab by remember { mutableIntStateOf(0) }
+    var showSettingsPanel by remember { mutableStateOf(false) }
+    var settingsInitialTab by remember { mutableStateOf(SettingsTab.AUDIO) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showOverlayGuide by remember { mutableStateOf(false) }
     var showRecentChannelsBar by remember { mutableStateOf(false) }
@@ -315,7 +315,7 @@ fun PlayerScreen(
     }
 
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val isUserInteracting = isScrubbing || gestureScrubActive || (doubleTapSide != null) || (optimisticSeekPosition != null) || (seekRipple != null) || showChannelDrawer || showTrackSheet || showSleepTimerDialog || showPlayerHUD || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || showMoreSheet || (dragStartOffset != null)
+    val isUserInteracting = isScrubbing || gestureScrubActive || (doubleTapSide != null) || (optimisticSeekPosition != null) || (seekRipple != null) || showChannelDrawer || showSettingsPanel || showSleepTimerDialog || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || showMoreSheet || (dragStartOffset != null)
 
     LaunchedEffect(isUserInteracting) {
         lastInteractionTime = System.currentTimeMillis()
@@ -383,7 +383,7 @@ fun PlayerScreen(
     }
 
     // Modal BottomSheet / Dialog'lar kapandığında immersive modunu yeniden uygula
-    val anyOverlayOpen = showTrackSheet || showMoreSheet || showPlayerHUD ||
+    val anyOverlayOpen = showSettingsPanel || showMoreSheet ||
             showSleepTimerDialog || showNumericKeypad || showChannelDrawer ||
             showOverlayGuide || showEpisodesDrawer || showDualViewPicker ||
             showCategoryManagementDialog
@@ -560,8 +560,8 @@ fun PlayerScreen(
             showOverlayGuide = false
         } else if (showEpisodesDrawer) {
             showEpisodesDrawer = false
-        } else if (showPlayerHUD) {
-            showPlayerHUD = false
+        } else if (showSettingsPanel) {
+            showSettingsPanel = false
         } else if (showRecentChannelsBar) {
             showRecentChannelsBar = false
         } else if (showNumericKeypad) {
@@ -669,13 +669,13 @@ fun PlayerScreen(
                     }
 
                     // Yarı Saydam Rehber, Son Kanallar veya Çekmeceler açıkken:
-                    if (showOverlayGuide || showRecentChannelsBar || showEpisodesDrawer || showPlayerHUD || showChannelDrawer) {
+                    if (showOverlayGuide || showRecentChannelsBar || showEpisodesDrawer || showSettingsPanel || showChannelDrawer) {
                         registerInteraction()
                         if (keyCode == KeyEvent.KEYCODE_BACK) {
                             if (showOverlayGuide) showOverlayGuide = false
                             else if (showRecentChannelsBar) showRecentChannelsBar = false
                             else if (showEpisodesDrawer) showEpisodesDrawer = false
-                            else if (showPlayerHUD) showPlayerHUD = false
+                            else if (showSettingsPanel) showSettingsPanel = false
                             else if (showChannelDrawer) showChannelDrawer = false
                             try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
                             return@onPreviewKeyEvent true
@@ -1402,7 +1402,7 @@ fun PlayerScreen(
 
         // CONTROLS OVERLAY (Üst Bar, Merkez Butonlar, Alt Bar)
         AnimatedVisibility(
-            visible = showControls && !isInPipMode,
+            visible = showControls && !isInPipMode && !showSettingsPanel,
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(200))
         ) {
@@ -1746,7 +1746,8 @@ fun PlayerScreen(
                                                 if (prev != null) seekRipple = "↩ ${prev.name}"
                                             },
                                             onOpenAudioSubtitles = {
-                                                showTrackSheet = true
+                                                settingsInitialTab = SettingsTab.AUDIO
+                                                showSettingsPanel = true
                                             },
                                             onOpenMore = {
                                                 showMoreSheet = true
@@ -2031,23 +2032,11 @@ fun PlayerScreen(
                                 )
 
                                 PlayerPillButton(
-                                    text = when (aspectRatio) {
-                                        AspectRatioMode.FIT -> "Orijinal"
-                                        AspectRatioMode.FILL -> "Doldur"
-                                        AspectRatioMode.ZOOM -> "Zoom"
-                                        AspectRatioMode.RATIO_16_9 -> "16:9"
-                                        AspectRatioMode.RATIO_4_3 -> "4:3"
-                                    },
-                                    icon = Icons.Default.AspectRatio,
+                                    text = "Ses & Altyazı",
+                                    icon = Icons.Default.Subtitles,
                                     onClick = {
-                                        val newMode = playerManager.cycleAspectRatio()
-                                        seekRipple = when (newMode) {
-                                            AspectRatioMode.FIT -> "Orijinal Oran"
-                                            AspectRatioMode.FILL -> "Ekranı Doldur"
-                                            AspectRatioMode.ZOOM -> "Yakınlaştır"
-                                            AspectRatioMode.RATIO_16_9 -> "16:9 Oran"
-                                            AspectRatioMode.RATIO_4_3 -> "4:3 Oran"
-                                        }
+                                        settingsInitialTab = SettingsTab.SUBTITLE
+                                        showSettingsPanel = true
                                     },
                                     isPortrait = isPortrait,
                                     modifier = Modifier
@@ -2062,9 +2051,18 @@ fun PlayerScreen(
                                 )
 
                                 PlayerPillButton(
-                                    text = "Ses & Altyazı",
-                                    icon = Icons.Default.Subtitles,
-                                    onClick = { showTrackSheet = true },
+                                    text = when (aspectRatio) {
+                                        AspectRatioMode.FIT -> "Görüntü: Orijinal"
+                                        AspectRatioMode.FILL -> "Görüntü: Doldur"
+                                        AspectRatioMode.ZOOM -> "Görüntü: Zoom"
+                                        AspectRatioMode.RATIO_16_9 -> "Görüntü: 16:9"
+                                        AspectRatioMode.RATIO_4_3 -> "Görüntü: 4:3"
+                                    },
+                                    icon = Icons.Default.AspectRatio,
+                                    onClick = {
+                                        settingsInitialTab = SettingsTab.ASPECT_RATIO
+                                        showSettingsPanel = true
+                                    },
                                     isPortrait = isPortrait,
                                     modifier = Modifier
                                         .focusProperties { up = sliderFocusRequester }
@@ -2118,35 +2116,12 @@ fun PlayerScreen(
                                 }
 
                                 PlayerPillButton(
-                                    text = "${playbackSpeed}x Hız",
+                                    text = "Hız: ${playbackSpeed}x",
                                     icon = Icons.Default.Speed,
                                     onClick = {
-                                        val newSpeed = playerManager.cyclePlaybackSpeed()
-                                        seekRipple = "Hız: ${newSpeed}x"
+                                        settingsInitialTab = SettingsTab.SPEED
+                                        showSettingsPanel = true
                                     },
-                                    isPortrait = isPortrait,
-                                    modifier = Modifier
-                                        .focusProperties { up = sliderFocusRequester }
-                                        .onPreviewKeyEvent { keyEvent ->
-                                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN &&
-                                                keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-                                                try { sliderFocusRequester.requestFocus() } catch (e: Exception) {}
-                                                true
-                                            } else false
-                                        }
-                                )
-
-                                PlayerPillButton(
-                                    text = "Kontrol Paneli",
-                                    icon = Icons.Default.Tune,
-                                    onClick = {
-                                        currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                                        currentBrightness = activity?.window?.attributes?.screenBrightness.let { if (it == null || it < 0f) 0.5f else it }
-                                        hudInitialTab = 0
-                                        showPlayerHUD = !showPlayerHUD
-                                    },
-                                    isActive = showPlayerHUD,
-                                    activeColor = Color(0xFFFF2A6D),
                                     isPortrait = isPortrait,
                                     modifier = Modifier
                                         .focusProperties { up = sliderFocusRequester }
@@ -2480,448 +2455,48 @@ fun PlayerScreen(
             )
         }
 
-        // MEDYA VE OYNATMA SEÇENEKLERİ MODAL BOTTOM SHEET
-        if (showTrackSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showTrackSheet = false },
-                containerColor = TiviSurface,
-                dragHandle = { BottomSheetDefaults.DragHandle() }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    Text(
-                        text = "Medya ve Oynatma Seçenekleri",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TiviTextPrimary
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 1. SES DİLİ (AUDIO TRACKS)
-                    Text(text = "Ses Dili", color = TiviPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    if (audioTracks.isEmpty()) {
-                        Text(text = "Ek ses parçası bulunamadı (Varsayılan Ses)", color = TiviTextSecondary, fontSize = 13.sp, modifier = Modifier.padding(vertical = 8.dp))
-                    } else {
-                        audioTracks.forEach { track ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_AUDIO) }
-                                    .padding(vertical = 4.dp, horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = track.isSelected,
-                                    onClick = { playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_AUDIO) }
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = track.name,
-                                    color = if (track.isSelected) TiviPrimary else TiviTextPrimary,
-                                    fontWeight = if (track.isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 2. ALTYAZI (SUBTITLES)
-                    Text(text = "Altyazı", color = TiviSecondary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    val anySubSelected = subtitleTracks.any { it.isSelected }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { playerManager.disableSubtitles() }
-                            .padding(vertical = 4.dp, horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = !anySubSelected,
-                            onClick = { playerManager.disableSubtitles() }
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Altyazı Kapalı",
-                            color = if (!anySubSelected) TiviSecondary else TiviTextPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = if (!anySubSelected) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-
-                    if (subtitleTracks.isNotEmpty()) {
-                        subtitleTracks.forEach { track ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_TEXT) }
-                                    .padding(vertical = 4.dp, horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = track.isSelected,
-                                    onClick = { playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_TEXT) }
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = track.name,
-                                    color = if (track.isSelected) TiviSecondary else TiviTextPrimary,
-                                    fontWeight = if (track.isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-                    }
-
-                    // ALTYAZI BOYUTU VE RENGİ ÖZELLEŞTİRME
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "Altyazı Boyutu",
-                        color = TiviTextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    val currentSpInt = when (subtitleSize) {
-                        "KUCUK" -> 14
-                        "ORTA" -> 18
-                        "BUYUK" -> 22
-                        "COK_BUYUK" -> 26
-                        else -> subtitleSize.toIntOrNull() ?: 18
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = TiviSurfaceVariant,
-                        border = BorderStroke(1.dp, TiviCardBorder),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Surface(
-                                onClick = {
-                                    val newSp = (currentSpInt - 2).coerceAtLeast(12)
-                                    viewModel.setSubtitleSize(newSp.toString())
-                                },
-                                enabled = currentSpInt > 12,
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (currentSpInt > 12) TiviCard else TiviCardBorder,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Remove,
-                                        contentDescription = "Küçült",
-                                        tint = if (currentSpInt > 12) OpusCyan else TiviTextMuted,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-
-                            Text(
-                                text = "$currentSpInt SP Punto",
-                                color = OpusCyan,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-
-                            Surface(
-                                onClick = {
-                                    val newSp = (currentSpInt + 2).coerceAtMost(36)
-                                    viewModel.setSubtitleSize(newSp.toString())
-                                },
-                                enabled = currentSpInt < 36,
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (currentSpInt < 36) TiviCard else TiviCardBorder,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Büyüt",
-                                        tint = if (currentSpInt < 36) OpusCyan else TiviTextMuted,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "Altyazı Rengi",
-                        color = TiviTextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val colors = listOf(
-                            "BEYAZ" to "⚪ Beyaz",
-                            "SARI" to "🟡 Sarı",
-                            "YESIL" to "🟢 Yeşil",
-                            "MAVI" to "🔵 Mavi"
-                        )
-                        items(colors) { (key, label) ->
-                            val isSelected = (subtitleColor == key)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { viewModel.setSubtitleColor(key) },
-                                label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = TiviGold,
-                                    selectedLabelColor = Color.Black
-                                )
-                            )
-                        }
-                    }
-
-                    // 3. OYNATMA HIZI (VOD / DİZİ İÇİN)
-                    if (!isLive) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(text = "Oynatma Hızı", color = TiviGold, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            val speeds = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-                            items(speeds) { spd ->
-                                val isSelected = (playbackSpeed == spd)
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { playerManager.setPlaybackSpeed(spd) },
-                                    label = {
-                                        Text(
-                                            text = if (spd == 1.0f) "1.0x (Normal)" else "${spd}x",
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = TiviGold,
-                                        selectedLabelColor = Color.Black
-                                    )
-                                )
-                            }
-                        }
-                    }
-
-                    // 4. DECODER MODE (HW / SW)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = "Video Çözücü (HW/SW)", color = TiviPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    val currentMode = viewModel.preferences.decoderModeFlow.collectAsState(initial = "HARDWARE").value
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        listOf("HARDWARE" to "Donanım (Önerilen)", "SOFTWARE" to "Yazılım (Güvenli)").forEach { (mode, label) ->
-                            val isSelected = currentMode == mode
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) TiviPrimary.copy(alpha = 0.2f) else TiviSurfaceVariant,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) TiviPrimary else TiviCardBorder),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { viewModel.setDecoderMode(mode) }
-                            ) {
-                                Text(
-                                    text = label,
-                                    color = if (isSelected) TiviPrimary else TiviTextSecondary,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-
-                    // 5. UYKU ZAMANLAYICISI
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(text = "Uyku Zamanlayıcısı", color = Color(0xFF64B5F6), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val timerMinutes = listOf(0, 15, 30, 45, 60, 90)
-                        items(timerMinutes) { mins ->
-                            val isSelected = if (mins == 0) sleepTimerSeconds == null else (sleepTimerSeconds != null && sleepTimerSeconds!! / 60 in (mins - 1)..mins)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    if (mins == 0) playerManager.cancelSleepTimer() else playerManager.setSleepTimer(mins)
-                                },
-                                label = {
-                                    Text(
-                                        text = if (mins == 0) "Kapalı" else "$mins dk",
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Color(0xFF64B5F6),
-                                    selectedLabelColor = Color.Black
-                                )
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // 5. ALTYAZI GECİKMESİ (0..5000 ms, 100 ms adımlı)
-                    val isSubtitleActive = subtitleTracks.any { it.isSelected }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .alpha(if (isSubtitleActive) 1f else 0.4f)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Altyazı Gecikmesi",
-                                    color = if (isSubtitleActive) TiviPrimary else TiviTextSecondary,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp
-                                )
-                                if (!isSubtitleActive) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "(Altyazı kapalı)",
-                                        color = TiviTextMuted,
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            }
-
-                            val delaySeconds = subtitleDelayMs / 1000f
-                            val formattedDelay = String.format(Locale.getDefault(), "+%.1f sn", delaySeconds)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = formattedDelay,
-                                    color = if (isSubtitleActive) Color.White else TiviTextMuted,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                TextButton(
-                                    onClick = { viewModel.setSubtitleDelayMs(0L) },
-                                    enabled = isSubtitleActive && subtitleDelayMs > 0L,
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "Sıfırla",
-                                        fontSize = 12.sp,
-                                        color = if (isSubtitleActive && subtitleDelayMs > 0L) TiviPrimary else TiviTextMuted
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            IconButton(
-                                onClick = { viewModel.setSubtitleDelayMs(subtitleDelayMs - 100L) },
-                                enabled = isSubtitleActive && subtitleDelayMs > 0L,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Remove,
-                                    contentDescription = "Gecikmeyi Azalt",
-                                    tint = if (isSubtitleActive && subtitleDelayMs > 0L) TiviPrimary else TiviTextMuted
-                                )
-                            }
-
-                            Slider(
-                                value = subtitleDelayMs.toFloat(),
-                                onValueChange = { newVal ->
-                                    val rounded = (Math.round(newVal / 100f) * 100L).coerceIn(0L, 5000L)
-                                    viewModel.setSubtitleDelayMs(rounded)
-                                },
-                                valueRange = 0f..5000f,
-                                steps = 49,
-                                enabled = isSubtitleActive,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = TiviPrimary,
-                                    activeTrackColor = TiviPrimary,
-                                    disabledThumbColor = TiviTextMuted,
-                                    disabledActiveTrackColor = TiviTextMuted.copy(alpha = 0.3f)
-                                ),
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            IconButton(
-                                onClick = { viewModel.setSubtitleDelayMs(subtitleDelayMs + 100L) },
-                                enabled = isSubtitleActive && subtitleDelayMs < 5000L,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Gecikmeyi Artır",
-                                    tint = if (isSubtitleActive && subtitleDelayMs < 5000L) TiviPrimary else TiviTextMuted
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
-            }
-        }
-
-        // UNIFIED MODERN PLAYER HUD (SES & EKRAN / YAYIN TEŞHİS)
-        TiviPlayerHUD(
-            visible = showPlayerHUD,
-            initialTab = hudInitialTab,
-            diagnostics = streamDiagnostics,
-            currentBrightness = currentBrightness,
-            onBrightnessChange = { newB ->
-                currentBrightness = newB
-                activity?.window?.let { window ->
-                    val lp = window.attributes
-                    lp.screenBrightness = newB.coerceIn(0.01f, 1f)
-                    window.attributes = lp
-                }
+        // TEK KOMPAKT OYNATICI AYARLARI PANELİ (SES, ALTYAZI, GÖRÜNTÜ, HIZ)
+        PlayerSettingsPanel(
+            visible = showSettingsPanel,
+            initialTab = settingsInitialTab,
+            isLive = isLive,
+            isPortrait = isPortrait,
+            audioTracks = audioTracks,
+            onSelectAudioTrack = { track ->
+                playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_AUDIO)
             },
-            currentVolume = currentVolume,
-            maxVolume = maxVolume,
-            onVolumeChange = { newV ->
-                currentVolume = newV
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newV, 0)
+            subtitleTracks = subtitleTracks,
+            onSelectSubtitleTrack = { track ->
+                playerManager.selectTrack(track, androidx.media3.common.C.TRACK_TYPE_TEXT)
+            },
+            onDisableSubtitles = {
+                playerManager.disableSubtitles()
+            },
+            subtitleDelayMs = subtitleDelayMs,
+            onSubtitleDelayChange = { newDelay ->
+                viewModel.setSubtitleDelayMs(newDelay)
+            },
+            subtitleSize = subtitleSize,
+            onSubtitleSizeChange = { newSize ->
+                viewModel.setSubtitleSize(newSize)
+            },
+            subtitleColor = subtitleColor,
+            onSubtitleColorChange = { newColor ->
+                viewModel.setSubtitleColor(newColor)
             },
             aspectRatio = aspectRatio,
-            onAspectRatioChange = { mode ->
-                playerManager.setAspectRatio(mode)
+            onAspectRatioChange = { newMode ->
+                playerManager.setAspectRatio(newMode)
             },
-            onClose = { showPlayerHUD = false },
-            isPortrait = isPortrait,
-            modifier = Modifier
-                .align(if (isPortrait) Alignment.BottomCenter else Alignment.TopEnd)
-                .displayCutoutPadding()
-                .padding(if (isPortrait) PaddingValues(start = 12.dp, end = 12.dp, bottom = 65.dp) else PaddingValues(top = 55.dp, end = 18.dp))
+            playbackSpeed = playbackSpeed,
+            onPlaybackSpeedChange = { newSpeed ->
+                playerManager.setPlaybackSpeed(newSpeed)
+            },
+            diagnostics = streamDiagnostics,
+            onClose = {
+                showSettingsPanel = false
+                orientationManager?.setImmersiveMode(true)
+            }
         )
 
         // BÖLÜMLER SEÇİCİ BOTTOM SHEET (DİZİ MODUNDA)

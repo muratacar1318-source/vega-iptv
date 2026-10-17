@@ -95,4 +95,22 @@ oynatıcısı (`ui/tv/*`), canlı yayın alt kartının yerleşimi (G-002), gün
 
 ## Agent raporu
 
-_(Agent doldurur: ekran görüntüsü açıklamaları, değiştirilen dosyalar, A–I sonuçları.)_
+- **Değiştirilen ve Eklenen Dosyalar:**
+  1. `app/src/main/java/com/tivimax/player/ui/player/components/PlayerSettingsPanel.kt` (Yeni Bileşen):
+     - Yatayda sağdan kayan 340dp yan panel, dikeyde alttan açılan ekran yüksekliğinin en fazla %55'ini kaplayan kompakt panel.
+     - Sekmeli yapı (`[Ses] [Altyazı] [Görüntü] [Hız]`), canlı yayında sadece `[Ses] [Altyazı]`.
+     - Ses sekmesinde tek satır 44dp radyo butonlu parça seçimi.
+     - Altyazı sekmesinde kompakt parça listesi + gecikme `[−] +0,3 sn [+] ⟲` + segmentli boyut `[K][O][B][ÇB]` + renk daireleri `⚪ 🟡 🟢 🔵`.
+     - Görüntü sekmesinde en-boy oranı butonları `[Orijinal][Doldur][Yakınlaştır][16:9][4:3]`.
+     - Hız sekmesinde `[0.75x][1.0x][1.25x][1.5x][2.0x]`.
+     - Panelin altında katlanabilir küçük "Yayın Bilgisi" (StreamDiagnostics).
+  2. `app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt`:
+     - Eski uzun `ModalBottomSheet` ("Medya ve Oynatma Seçenekleri") ve `TiviPlayerHUD` film/dizi oynatıcısından kaldırıldı.
+     - Alt bardaki piller `[Baştan Başlat] [Ses & Altyazı] [Görüntü: Orijinal] [Hız: 1.0x]` olarak düzenlendi ve her pil ilgili sekmede paneli açacak şekilde bağlandı.
+     - "Kontrol Paneli" pili ve çakışan HUD kartı tamamen kaldırıldı.
+     - Panel açıkken alt bar ve kontroller gizleniyor; panel kapanınca immersive mod geri çağrılarak durum çubukları gizleniyor.
+     - TV kumanda ve geri tuşu desteği (`BackHandler`) entegre edildi.
+- **Doğrulama Sonuçları:**
+  - **A–I Senaryoları:** Tüm durumlar test edildi ve desteklendi.
+  - `./gradlew assembleDebug`: Başarılı.
+  - `./gradlew testDebugUnitTest`: Başarılı (tüm testler geçti).
