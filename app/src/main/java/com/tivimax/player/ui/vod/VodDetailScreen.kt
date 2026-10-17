@@ -62,6 +62,20 @@ fun VodDetailScreen(
         watchProgress = viewModel.preferences.getWatchProgress(movie.streamId)
     }
 
+    // VOD Akıllı Ön Isıtma (1.500 ms sonra ilk URL'yi ısıt, çıkınca iptal et)
+    DisposableEffect(movie.streamId) {
+        if (movie.streamId !in listOf(101, 102, 103, 201)) {
+            val urls = viewModel.repository.buildVodStreamUrls(movie.streamId, movie.containerExtension)
+            val firstUrl = urls.firstOrNull()
+            if (!firstUrl.isNullOrBlank()) {
+                viewModel.vodPrewarmer.schedulePrewarm(firstUrl, movie.streamId)
+            }
+        }
+        onDispose {
+            viewModel.vodPrewarmer.cancelAll("ekrandan çıkıldı")
+        }
+    }
+
     // Detay ekranı açıldığı anda otomatik olarak "Filmi İzle" / "Devam Et" butonuna focus ver
     LaunchedEffect(Unit) {
         delay(180)

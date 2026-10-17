@@ -15,9 +15,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.MediaSession
@@ -74,6 +76,18 @@ class TiviPlayerManager(private val context: Context) {
 
     companion object {
         private const val TAG_TIMING = "VodTiming"
+        const val USER_AGENT = "VLC/3.0.20 LibVLC/3.0.20"
+
+        fun extractHttpStatusCode(error: PlaybackException): Int? {
+            var cause: Throwable? = error.cause
+            while (cause != null) {
+                if (cause is HttpDataSource.InvalidResponseCodeException) {
+                    return cause.responseCode
+                }
+                cause = cause.cause
+            }
+            return null
+        }
 
         fun maskUrl(url: String): String {
             if (url.isBlank()) return url
@@ -102,6 +116,13 @@ class TiviPlayerManager(private val context: Context) {
     private var playerLoadControlIsLive: Boolean? = null
     @Volatile
     private var playStartElapsedMs: Long = 0L
+
+    private var rebufferCount: Int = 0
+    private var hasRenderedFirstFrameOrReady: Boolean = false
+    private var firstUrlAuthRetried: Boolean = false
+
+    var onVodAuthErrorCallback: ((httpCode: Int) -> Unit)? = null
+    var onVodPlaybackSuccessCallback: (() -> Unit)? = null
 
     private fun timingOffsetMs(): Long {
         val start = playStartElapsedMs
@@ -162,7 +183,15 @@ class TiviPlayerManager(private val context: Context) {
             ) {
                 if (BuildConfig.DEBUG) {
                     when (state) {
-                        Player.STATE_BUFFERING -> Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onPlaybackStateChanged: BUFFERING")
+                        Player.STATE_BUFFERING -> {
+                            val offset = timingOffsetMs()
+                            if (hasRenderedFirstFrameOrReady && offset <= 60_000L) {
+                                rebufferCount++
+                                Log.d(TAG_TIMING, "[+${offset}ms] rebuffer#$rebufferCount at +${offset}ms")
+                            } else {
+                                Log.d(TAG_TIMING, "[+${offset}ms] onPlaybackStateChanged: BUFFERING")
+                            }
+                        }
                         Player.STATE_READY -> Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onPlaybackStateChanged: READY")
                         Player.STATE_ENDED -> Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onPlaybackStateChanged: ENDED")
                         Player.STATE_IDLE -> Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] onPlaybackStateChanged: IDLE")
@@ -349,7 +378,7 @@ class TiviPlayerManager(private val context: Context) {
         vodBufferSecondsState.value = validSecs
     }
 
-    private val okHttpClient: OkHttpClient by lazy {
+    val baseOkHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
@@ -358,10 +387,11 @@ class TiviPlayerManager(private val context: Context) {
             .retryOnConnectionFailure(true)
             .build()
     }
+    private val okHttpClient: OkHttpClient get() = baseOkHttpClient
 
     fun createDataSourceFactory(): DataSource.Factory {
-        val okHttpDataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(okHttpClient)
-            .setUserAgent("VLC/3.0.20 LibVLC/3.0.20")
+        val okHttpDataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(baseOkHttpClient)
+            .setUserAgent(USER_AGENT)
         return DefaultDataSource.Factory(context, okHttpDataSourceFactory)
     }
 
@@ -386,7 +416,7 @@ class TiviPlayerManager(private val context: Context) {
                 .setBufferDurationsMs(
                     /* minBufferMs = */ vodMinBufferMs,
                     /* maxBufferMs = */ vodMaxBufferMs,
-                    /* bufferForPlaybackMs = */ 2_500,
+                    /* bufferForPlaybackMs = */ 1_500,
                     /* bufferForPlaybackAfterRebufferMs = */ 5_000
                 )
                 .setPrioritizeTimeOverSizeThresholds(true)
@@ -447,9 +477,12 @@ class TiviPlayerManager(private val context: Context) {
                         _errorMessage.value = null
                     }
                     Player.STATE_READY -> {
+                        player.setSeekParameters(SeekParameters.DEFAULT)
+                        hasRenderedFirstFrameOrReady = true
                         _isBuffering.value = false
                         _duration.value = if (isLiveStream) 0L else player.duration.coerceAtLeast(0L)
                         _errorMessage.value = null
+                        onVodPlaybackSuccessCallback?.invoke()
                         updateDiagnostics()
                     }
                     Player.STATE_ENDED -> {
@@ -479,9 +512,11 @@ class TiviPlayerManager(private val context: Context) {
             }
 
             override fun onRenderedFirstFrame() {
+                hasRenderedFirstFrameOrReady = true
                 decoderRecoveryAttempt = 0
                 networkRecoveryAttempt = 0
                 isReconnecting = false
+                onVodPlaybackSuccessCallback?.invoke()
                 updateDiagnostics()
             }
 
@@ -497,6 +532,27 @@ class TiviPlayerManager(private val context: Context) {
             override fun onPlayerError(error: PlaybackException) {
                 _isBuffering.value = false
                 android.util.Log.e("VegaIPTV", "Player error: ${error.errorCodeName} (${error.errorCode})", error)
+
+                val httpStatusCode = extractHttpStatusCode(error)
+
+                // SADECE isLive == false iken: İlk URL HTTP 403, 429 veya 509 ile başarısız olursa,
+                // sonraki fallback uzantısına geçmeden ÖNCE aynı URL'yi 1.500 ms bekleyip bir kez daha dene.
+                if (!isLiveStream && httpStatusCode != null && (httpStatusCode in listOf(403, 429, 509))) {
+                    onVodAuthErrorCallback?.invoke(httpStatusCode)
+                    if (fallbackAttempt == 0 && !firstUrlAuthRetried && fallbackUrls.isNotEmpty()) {
+                        firstUrlAuthRetried = true
+                        val currentPos = exoPlayer?.currentPosition ?: 0L
+                        val sameUrl = fallbackUrls[0]
+                        if (BuildConfig.DEBUG) {
+                            Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] İlk VOD URL'si HTTP $httpStatusCode aldı (tek bağlantı emniyeti). 1500ms beklenip aynı URL tekrar deneniyor...")
+                        }
+                        scope.launch {
+                            delay(1500L)
+                            playInternal(sameUrl, isLive = false, startPositionMs = currentPos)
+                        }
+                        return
+                    }
+                }
 
                 if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW && isLiveStream) {
                     player.seekToDefaultPosition()
@@ -520,9 +576,10 @@ class TiviPlayerManager(private val context: Context) {
                 }
 
                 // Ağ Kopmalarında Exponential Backoff ile Otomatik Yeniden Bağlanma (Max 3 Deneme)
-                if (error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                if ((error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
                     error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
-                    error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) {
+                    error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS) &&
+                    (isLiveStream || (fallbackUrls.isEmpty() && httpStatusCode !in listOf(403, 429, 509)))) {
                     
                     if (networkRecoveryAttempt < 3 && !isReconnecting) {
                         isReconnecting = true
@@ -595,6 +652,9 @@ class TiviPlayerManager(private val context: Context) {
 
     fun playWithFallbacks(urls: List<String>, isLive: Boolean = false, startPositionMs: Long = 0L, t0Ms: Long = 0L) {
         playStartElapsedMs = if (t0Ms > 0L) t0Ms else SystemClock.elapsedRealtime()
+        rebufferCount = 0
+        hasRenderedFirstFrameOrReady = false
+        firstUrlAuthRetried = false
         if (BuildConfig.DEBUG) {
             val masked = urls.map { maskUrl(it) }
             Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] playWithFallbacks: isLive=$isLive, urlCount=${urls.size}, startPositionMs=$startPositionMs, urls=$masked")
@@ -637,6 +697,11 @@ class TiviPlayerManager(private val context: Context) {
             val player = initializePlayer(isLive)
             player.stop()
             player.clearMediaItems()
+
+            player.setSeekParameters(SeekParameters.DEFAULT)
+            if (!isLive && startPositionMs > 0) {
+                player.setSeekParameters(SeekParameters.PREVIOUS_SYNC)
+            }
 
             val mediaItemBuilder = MediaItem.Builder().setUri(url)
 

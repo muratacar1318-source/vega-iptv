@@ -31,6 +31,7 @@ object AppConfig {
     val SUPPORT_WEBSITE: String by lazy { SERVER_URL_HTTPS }
 
     // Video Motoru İnce Ayarları (TiviMate Hızı İçin)
+    const val ENABLE_VOD_PREWARM = true       // VOD için akıllı ön ısıtma (Xtream tek bağlantı emniyetli)
     const val MIN_BUFFER_MS = 2500            // Minimum tampon (hızlı kanal açılışı için)
     const val MAX_BUFFER_MS = 8000            // Maksimum tampon (mobil veri tasarrufu ve takılmama dengesi)
     const val BUFFER_FOR_PLAYBACK_MS = 800    // Oynatma başlangıcı tamponu (0.8 saniyede anında yayın başlar)

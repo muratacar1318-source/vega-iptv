@@ -78,6 +78,21 @@ fun SeriesDetailScreen(
         episodesMap[selectedSeason] ?: emptyList()
     }
 
+    // Dizi Bölümü Ön Isıtma (Seçili sezonun 1. bölümü, sezon değişince veya çıkınca iptal et)
+    val nextEpForPrewarm = episodesForSeason.firstOrNull()
+    DisposableEffect(series.seriesId, selectedSeason, nextEpForPrewarm?.id) {
+        if (nextEpForPrewarm != null && series.seriesId !in listOf(101, 102, 103, 201)) {
+            val urls = viewModel.repository.buildSeriesStreamUrls(nextEpForPrewarm.id, nextEpForPrewarm.containerExtension)
+            val firstUrl = urls.firstOrNull()
+            if (!firstUrl.isNullOrBlank()) {
+                viewModel.vodPrewarmer.schedulePrewarm(firstUrl, nextEpForPrewarm.id.toIntOrNull())
+            }
+        }
+        onDispose {
+            viewModel.vodPrewarmer.cancelAll("ekrandan çıkıldı / sezon değişti")
+        }
+    }
+
     val info = seriesInfoResponse?.info
 
     // Detay ekranı açıldığı anda otomatik olarak "1. Bölümü Oynat / Devam Et" butonuna focus ver

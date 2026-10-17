@@ -132,6 +132,9 @@ class UserPreferences(private val context: Context) {
         // Güncellemeyi Erteleme (Snooze)
         val KEY_SNOOZED_UPDATE_TAG = stringPreferencesKey("snoozed_update_tag")
         val KEY_SNOOZE_UPDATE_UNTIL = longPreferencesKey("snooze_update_until")
+
+        // VOD Ön Isıtma Kalıcı Devre Dışı (Circuit Breaker)
+        val KEY_VOD_PREWARM_DISABLED = booleanPreferencesKey("vod_prewarm_disabled")
     }
 
     val usernameFlow: Flow<String> = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
@@ -519,6 +522,16 @@ class UserPreferences(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs.remove(KEY_SNOOZED_UPDATE_TAG)
             prefs.remove(KEY_SNOOZE_UPDATE_UNTIL)
+        }
+    }
+
+    val vodPrewarmDisabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_VOD_PREWARM_DISABLED] ?: false
+    }
+
+    suspend fun setVodPrewarmDisabled(disabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_VOD_PREWARM_DISABLED] = disabled
         }
     }
 }

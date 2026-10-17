@@ -100,6 +100,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val preferences = UserPreferences(application)
     val playerManager = TiviPlayerManager(application)
     val autoUpdateManager = com.tivimax.player.data.update.AutoUpdateManager(application)
+    val vodPrewarmer = com.tivimax.player.player.VodPrewarmer(
+        playerManager = playerManager,
+        preferences = preferences,
+        coroutineScope = viewModelScope,
+        isBusyProvider = {
+            playerManager.isPlaying.value ||
+            playerManager.isBuffering.value ||
+            playerManager.isDualViewActive.value ||
+            isMiniPlayerActive.value ||
+            activePreviewChannel.value != null
+        }
+    )
 
     // Cihaz Modu (Telefon / Tablet / TV)
     private val _deviceMode = MutableStateFlow<DeviceMode>(
@@ -448,6 +460,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
+        playerManager.onVodAuthErrorCallback = { httpCode ->
+            vodPrewarmer.onPlaybackAuthError(httpCode)
+        }
+        playerManager.onVodPlaybackSuccessCallback = {
+            vodPrewarmer.onPlaybackSuccess()
+        }
+
         viewModelScope.launch {
             preferences.autoSyncLiveFlow.collect {
                 playerManager.setAutoSyncLive(it)
@@ -1481,6 +1500,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playVod(vod: VodStream, resume: Boolean = false) {
+        vodPrewarmer.cancelAll("oynat basıldı")
         val t0 = SystemClock.elapsedRealtime()
         if (BuildConfig.DEBUG) {
             Log.d(TAG_TIMING, "[+0ms] MainViewModel.playVod: Başladı. streamId=${vod.streamId}, name='${vod.name}', ext='${vod.containerExtension}', resume=$resume")
@@ -1519,6 +1539,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playSeriesEpisode(episode: SeriesEpisode, seriesTitle: String, resume: Boolean = true) {
+        vodPrewarmer.cancelAll("oynat basıldı")
         val t0 = SystemClock.elapsedRealtime()
         if (BuildConfig.DEBUG) {
             Log.d(TAG_TIMING, "[+0ms] MainViewModel.playSeriesEpisode: Başladı. series='$seriesTitle', episodeId=${episode.id}, S${episode.season}E${episode.episodeNum}, title='${episode.title}', ext='${episode.containerExtension}', resume=$resume")
