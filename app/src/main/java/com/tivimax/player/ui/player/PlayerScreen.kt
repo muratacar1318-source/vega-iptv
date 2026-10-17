@@ -44,7 +44,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import java.util.Locale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -148,7 +150,7 @@ fun PlayerScreen(
 
     val streamDiagnostics by playerManager.streamDiagnostics.collectAsState()
     val sleepTimerSeconds by playerManager.sleepTimerSeconds.collectAsState()
-    val audioOffsetMs by playerManager.audioOffsetMs.collectAsState()
+    val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
     val playbackSpeed by playerManager.playbackSpeed.collectAsState()
 
     val isDualViewActive by playerManager.isDualViewActive.collectAsState()
@@ -922,6 +924,7 @@ fun PlayerScreen(
                 aspectRatio = aspectRatio,
                 subtitleColor = subtitleColor,
                 subtitleSize = subtitleSize,
+                subtitleDelayMs = subtitleDelayMs,
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -2762,25 +2765,107 @@ fun PlayerScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 5. SES SENKRONİZASYONU (GECİKME AYARI)
-                    Text(text = "Ses Senkronizasyonu (Gecikme)", color = TiviPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    Row(
+                    // 5. ALTYAZI GECİKMESİ (0..5000 ms, 100 ms adımlı)
+                    val isSubtitleActive = subtitleTracks.any { it.isSelected }
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .alpha(if (isSubtitleActive) 1f else 0.4f)
                     ) {
-                        Text(text = "${audioOffsetMs}ms", color = Color.White, fontSize = 12.sp, modifier = Modifier.width(64.dp))
-                        Slider(
-                            value = audioOffsetMs.toFloat(),
-                            onValueChange = { playerManager.setAudioOffset(it.toLong()) },
-                            valueRange = -2000f..2000f,
-                            steps = 39,
-                            colors = SliderDefaults.colors(thumbColor = TiviPrimary, activeTrackColor = TiviPrimary),
-                            modifier = Modifier.weight(1f)
-                        )
-                        TextButton(onClick = { playerManager.setAudioOffset(0L) }) {
-                            Text("Sıfırla", fontSize = 12.sp, color = TiviPrimary)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Altyazı Gecikmesi",
+                                    color = if (isSubtitleActive) TiviPrimary else TiviTextSecondary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
+                                if (!isSubtitleActive) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "(Altyazı kapalı)",
+                                        color = TiviTextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            val delaySeconds = subtitleDelayMs / 1000f
+                            val formattedDelay = String.format(Locale.getDefault(), "+%.1f sn", delaySeconds)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = formattedDelay,
+                                    color = if (isSubtitleActive) Color.White else TiviTextMuted,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                TextButton(
+                                    onClick = { viewModel.setSubtitleDelayMs(0L) },
+                                    enabled = isSubtitleActive && subtitleDelayMs > 0L,
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "Sıfırla",
+                                        fontSize = 12.sp,
+                                        color = if (isSubtitleActive && subtitleDelayMs > 0L) TiviPrimary else TiviTextMuted
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            IconButton(
+                                onClick = { viewModel.setSubtitleDelayMs(subtitleDelayMs - 100L) },
+                                enabled = isSubtitleActive && subtitleDelayMs > 0L,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Remove,
+                                    contentDescription = "Gecikmeyi Azalt",
+                                    tint = if (isSubtitleActive && subtitleDelayMs > 0L) TiviPrimary else TiviTextMuted
+                                )
+                            }
+
+                            Slider(
+                                value = subtitleDelayMs.toFloat(),
+                                onValueChange = { newVal ->
+                                    val rounded = (Math.round(newVal / 100f) * 100L).coerceIn(0L, 5000L)
+                                    viewModel.setSubtitleDelayMs(rounded)
+                                },
+                                valueRange = 0f..5000f,
+                                steps = 49,
+                                enabled = isSubtitleActive,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = TiviPrimary,
+                                    activeTrackColor = TiviPrimary,
+                                    disabledThumbColor = TiviTextMuted,
+                                    disabledActiveTrackColor = TiviTextMuted.copy(alpha = 0.3f)
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            IconButton(
+                                onClick = { viewModel.setSubtitleDelayMs(subtitleDelayMs + 100L) },
+                                enabled = isSubtitleActive && subtitleDelayMs < 5000L,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Gecikmeyi Artır",
+                                    tint = if (isSubtitleActive && subtitleDelayMs < 5000L) TiviPrimary else TiviTextMuted
+                                )
+                            }
                         }
                     }
 
@@ -3577,8 +3662,21 @@ private fun VideoPlayerSurface(
     aspectRatio: AspectRatioMode,
     subtitleColor: String,
     subtitleSize: String,
+    subtitleDelayMs: Long = 0L,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val delayedController = remember {
+        com.tivimax.player.player.DelayedSubtitleController(context, coroutineScope)
+    }
+
+    DisposableEffect(delayedController) {
+        onDispose {
+            delayedController.detach()
+        }
+    }
+
     AndroidView(
         factory = { ctx ->
             PlayerView(ctx).apply {
@@ -3591,7 +3689,8 @@ private fun VideoPlayerSurface(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                player = playerManager.initializePlayer(isLive)
+                val initialPlayer = playerManager.initializePlayer(isLive)
+                player = initialPlayer
                 val (initialResizeMode, initialScaleX, initialScaleY) = when (aspectRatio) {
                     AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
                     AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
@@ -3602,6 +3701,9 @@ private fun VideoPlayerSurface(
                 resizeMode = initialResizeMode
                 scaleX = initialScaleX
                 scaleY = initialScaleY
+                delayedController.attach(this, initialPlayer)
+                delayedController.updateDelay(subtitleDelayMs)
+                delayedController.updateStyle(subtitleColor, subtitleSize)
             }
         },
         update = { playerView ->
@@ -3630,38 +3732,15 @@ private fun VideoPlayerSurface(
                 playerView.requestLayout()
             }
             try {
-                playerView.subtitleView?.let { subView ->
-                    val subTextColor = when (subtitleColor) {
-                        "SARI" -> android.graphics.Color.rgb(255, 215, 0)
-                        "YESIL" -> android.graphics.Color.rgb(0, 230, 118)
-                        "MAVI" -> android.graphics.Color.rgb(64, 196, 255)
-                        else -> android.graphics.Color.WHITE
-                    }
-                    val subTextSp = when (subtitleSize) {
-                        "KUCUK" -> 14f
-                        "ORTA" -> 18f
-                        "BUYUK" -> 22f
-                        "COK_BUYUK" -> 26f
-                        else -> subtitleSize.toFloatOrNull() ?: 18f
-                    }
-                    subView.setStyle(
-                        androidx.media3.ui.CaptionStyleCompat(
-                            subTextColor,
-                            android.graphics.Color.argb(160, 0, 0, 0),
-                            android.graphics.Color.TRANSPARENT,
-                            androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
-                            android.graphics.Color.BLACK,
-                            null
-                        )
-                    )
-                    subView.setFixedTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, subTextSp)
-                    subView.setBottomPaddingFraction(0.12f)
-                }
+                delayedController.attach(playerView, currentPlayer)
+                delayedController.updateDelay(subtitleDelayMs)
+                delayedController.updateStyle(subtitleColor, subtitleSize)
             } catch (e: Throwable) {
                 // Ignore
             }
         },
         onRelease = { playerView ->
+            delayedController.detach()
             playerView.player = null
         },
         modifier = modifier

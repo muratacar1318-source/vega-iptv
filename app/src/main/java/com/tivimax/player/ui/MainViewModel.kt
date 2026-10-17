@@ -387,9 +387,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val watchProgressMap = preferences.watchProgressMapFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
     val isInPipMode = MutableStateFlow(false)
 
-    // Altyazı Özelleştirme ("ORTA", "BEYAZ")
+    // Altyazı Özelleştirme ("ORTA", "BEYAZ", gecikme ms)
     val subtitleSize = preferences.subtitleSizeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "ORTA")
     val subtitleColor = preferences.subtitleColorFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "BEYAZ")
+    val subtitleDelayMs = preferences.subtitleDelayMsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
 
     // Varsayılan Dil Tercihleri ve Oynatıcı Motoru
     val defaultAudioLang = preferences.defaultAudioLangFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "tr")
@@ -437,6 +438,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setSubtitleColor(color: String) {
         viewModelScope.launch {
             preferences.setSubtitleColor(color)
+        }
+    }
+
+    fun setSubtitleDelayMs(delayMs: Long) {
+        val clamped = delayMs.coerceIn(0L, 5000L)
+        viewModelScope.launch {
+            preferences.setSubtitleDelayMs(clamped)
+            playerManager.setSubtitleDelay(clamped)
         }
     }
 
@@ -502,6 +511,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             preferences.autoFrameRateFlow.collect {
                 playerManager.setAutoFrameRateEnabled(it)
+            }
+        }
+
+        viewModelScope.launch {
+            preferences.subtitleDelayMsFlow.collect {
+                playerManager.setSubtitleDelay(it)
             }
         }
 
