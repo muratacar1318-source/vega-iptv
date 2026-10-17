@@ -1441,18 +1441,39 @@ fun PlayerScreen(
                         }
 
                         if (sleepTimerSeconds != null) {
-                            Box(
+                            var isTimerFocused by remember { mutableStateOf(false) }
+                            Surface(
+                                onClick = { showSleepTimerDialog = true },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isTimerFocused) OpusCyan.copy(alpha = 0.45f) else TiviSecondary.copy(alpha = 0.35f),
+                                border = if (isTimerFocused) BorderStroke(2.dp, OpusCyan) else null,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(TiviSecondary.copy(alpha = 0.35f))
-                                    .padding(horizontal = 6.dp, vertical = 3.dp)
-                                    .clickable { showSleepTimerDialog = true }
+                                    .height(40.dp)
+                                    .onFocusChanged { isTimerFocused = it.isFocused }
                             ) {
-                                Text(
-                                    text = "🌙 ${sleepTimerSeconds!! / 60}d",
-                                    color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                ) {
+                                    Text(
+                                        text = "🌙 ${sleepTimerSeconds!! / 60}d",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        } else {
+                            BouncyIconButton(
+                                onClick = { showSleepTimerDialog = true },
+                                modifier = Modifier.size(40.dp),
+                                backgroundColor = Color.Black.copy(alpha = 0.25f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Bedtime,
+                                    contentDescription = "Uyku Zamanlayıcısı",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -2467,6 +2488,9 @@ fun PlayerScreen(
             onClose = {
                 showSettingsPanel = false
                 orientationManager?.setImmersiveMode(true)
+                try {
+                    playerFocusRequester.requestFocus()
+                } catch (_: Exception) {}
             }
         )
 

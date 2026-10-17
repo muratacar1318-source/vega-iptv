@@ -76,4 +76,24 @@ G-007 sarma/bilgi balonu sistemi, panel sekmeleri ve düzeni, parça seçimi/alt
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+### Yapılan Değişiklikler
+1. **0) Sekmelerin tüm paneli kaplaması ve içeriğin görünmemesi sorunu çözüldü (`PlayerSettingsPanel.kt`):**
+   - Sekme butonları `Surface`'ında `heightIn(min = 38.dp)` yerine sabit `height(40.dp)` verildi.
+   - İçindeki `Box`'ta `Modifier.fillMaxSize()` kaldırılarak `Modifier.fillMaxWidth().height(40.dp)` ve `contentAlignment = Alignment.Center` yapıldı. Böylece sekme alanı tüm dikey alanı yutmaz; içerik alanı (`weight(1f)`) tam olarak görünür.
+2. **1) Uyku Zamanlayıcısı (`PlayerScreen.kt`):**
+   - Sağ üst kontrollerde zamanlayıcı kapalıyken de `Icons.Default.Bedtime` ikonlu buton (dokunma alanı 40dp, ikon 20dp, `contentDescription = "Uyku Zamanlayıcısı"`) eklendi.
+   - Zamanlayıcı açıkken "🌙 Nd" rozeti korundu ve 40dp yükseklik ile TV kumanda odak çerçevesi eklendi.
+   - Her iki durumda da tıklandığında `showSleepTimerDialog = true` açılarak zamanlayıcı ayarlanabiliyor veya kapatılabiliyor.
+3. **2) TV Kumandası Odak Yönetimi (`PlayerSettingsPanel.kt` & `PlayerScreen.kt`):**
+   - Panelde `firstFocus = remember { FocusRequester() }` oluşturuldu, seçili sekmeye bağlandı ve `LaunchedEffect(visible)` ile panel açılınca odağın seçili sekmeye geçmesi sağlandı.
+   - Kapatma butonuna, sekme butonlarına, ses ve altyazı listelerine, gecikme `[-]`/`[+]`/`[⟲]` butonlarına, boyut butonlarına, görüntü modu seçeneklerine, hız seçeneklerine ve teşhis footer'ına D-Pad odağı ve `OpusCyan` çerçevesi eklendi.
+   - Renk daireleri `Box.clickable` yerine `Surface(onClick = ...)` yapılarak D-Pad ile seçilebilir ve odaklandığında `OpusCyan` çerçeveli hale getirildi.
+   - Panel kapandığında `PlayerScreen` içindeki `onClose` callback'inde `playerFocusRequester.requestFocus()` çağrılarak odak oynatıcıya iade edildi.
+4. **3) Dokunma Alanları (`PlayerSettingsPanel.kt`):**
+   - Gecikme butonları (`[-]`, `[+]`, `[⟲]`), boyut seçenekleri (`[K]`, `[O]`, `[B]`, `[ÇB]`) ve altyazı renk dairelerinin tümü 44dp dokunma alanına çıkarıldı.
+
+### Değiştirilen Dosyalar
+- `app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt`
+- `app/src/main/java/com/tivimax/player/ui/player/components/PlayerSettingsPanel.kt`
+- `docs/gorevler/G-010-ayarlar-paneli-eksikler.md`
+- `YAPILACAKLAR.md`
