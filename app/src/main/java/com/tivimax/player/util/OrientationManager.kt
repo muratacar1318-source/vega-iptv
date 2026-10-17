@@ -3,7 +3,10 @@ package com.tivimax.player.util
 import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Build
+import android.provider.Settings
+import android.view.OrientationEventListener
 import android.view.WindowManager
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -66,8 +69,9 @@ class OrientationManager(private val activity: Activity) {
         }
     }
 
-    // Telefon modunda oynatıcı içindeyken kullanıcının elle dikey moda geçmesini sağlayan kilit durumu
-    private var isPhonePlayerLockedPortrait: Boolean = false
+    private var orientationListener: OrientationEventListener? = null
+    private var isListeningForOrientationRelease: Boolean = false
+    private var playerOrientationOverridden: Boolean = false
 
     @Volatile
     private var immersiveWanted: Boolean = false
@@ -91,17 +95,75 @@ class OrientationManager(private val activity: Activity) {
     }
 
     /**
-     * Kullanıcının telefon modundayken video oynatıcıda dikey / yatay yön kilidini değiştirmesini sağlar.
-     * @return Yeni durum: true ise dikey kilitli, false ise otomatik sensör yatay
+     * Kullanıcının telefon modundayken video oynatıcıda ekranı dikey/yatay döndürmesini sağlar.
+     * Döndürdükten sonra cihaz fiziksel olarak bu yöne geldiğinde (veya serbestçe döndürüldüğünde)
+     * yönü SCREEN_ORIENTATION_FULL_USER yaparak kilidi serbest bırakır.
      */
-    fun togglePhonePlayerOrientationLock(currentScreen: Screen, mode: DeviceMode): Boolean {
-        if (mode != DeviceMode.PHONE || currentScreen !is Screen.Player) return false
-        isPhonePlayerLockedPortrait = !isPhonePlayerLockedPortrait
-        applyOrientation(mode, currentScreen, inPip = false)
-        return isPhonePlayerLockedPortrait
+    fun rotatePhonePlayer(currentScreen: Screen, mode: DeviceMode) {
+        if (mode != DeviceMode.PHONE || currentScreen !is Screen.Player) return
+
+        playerOrientationOverridden = true
+
+        val currentOrientation = activity.resources.configuration.orientation
+        val isLandscape = currentOrientation == Configuration.ORIENTATION_LANDSCAPE
+
+        // Hedef: Yataysa Dikey yap, Dikeyse Yatay yap
+        val targetOrientation = if (isLandscape) {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+
+        setOrientationSafe(targetOrientation)
+
+        // Sistem otomatik döndürme ayarı açık mı?
+        val isAutoRotateEnabled = try {
+            Settings.System.getInt(
+                activity.contentResolver,
+                Settings.System.ACCELEROMETER_ROTATION,
+                0
+            ) == 1
+        } catch (_: Exception) {
+            false
+        }
+
+        if (isAutoRotateEnabled) {
+            startOrientationReleaseListener(targetOrientation)
+        }
     }
 
-    fun isPhonePlayerPortraitLocked(): Boolean = isPhonePlayerLockedPortrait
+    private fun startOrientationReleaseListener(targetOrientation: Int) {
+        stopOrientationReleaseListener()
+        val listener = object : OrientationEventListener(activity) {
+            override fun onOrientationChanged(degrees: Int) {
+                if (degrees == OrientationEventListener.ORIENTATION_UNKNOWN) return
+
+                val isDevicePortrait = (degrees in 340..360) || (degrees in 0..20) || (degrees in 160..200)
+                val isDeviceLandscape = (degrees in 70..110) || (degrees in 250..290)
+
+                val isTargetPortrait = targetOrientation == ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                val matchesTarget = if (isTargetPortrait) isDevicePortrait else isDeviceLandscape
+
+                if (matchesTarget) {
+                    setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_FULL_USER)
+                    stopOrientationReleaseListener()
+                }
+            }
+        }
+        if (listener.canDetectOrientation()) {
+            listener.enable()
+            orientationListener = listener
+            isListeningForOrientationRelease = true
+        }
+    }
+
+    fun stopOrientationReleaseListener() {
+        if (isListeningForOrientationRelease) {
+            orientationListener?.disable()
+            orientationListener = null
+            isListeningForOrientationRelease = false
+        }
+    }
 
     /**
      * Ekran geçişlerinde, mod değişikliklerinde veya PiP durumlarında merkezi yönlendirmeyi uygular.
@@ -121,15 +183,14 @@ class OrientationManager(private val activity: Activity) {
         when (mode) {
             DeviceMode.PHONE -> {
                 if (isPlayerScreen) {
-                    // Video oynatıcı açık: Kullanıcı dikey kilitlemediyse otomatik SENSOR_LANDSCAPE
-                    if (isPhonePlayerLockedPortrait) {
-                        setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
-                    } else {
+                    // Video oynatıcı ilk açılışta otomatik SENSOR_LANDSCAPE
+                    if (!playerOrientationOverridden) {
                         setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE)
                     }
                 } else {
-                    // Oynatıcıdan çıkıldı: Kesinlikle dikey moda dön
-                    isPhonePlayerLockedPortrait = false
+                    // Oynatıcıdan çıkıldı: Dinleyiciyi kapat ve kesinlikle dikey moda dön
+                    playerOrientationOverridden = false
+                    stopOrientationReleaseListener()
                     setOrientationSafe(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT)
                 }
                 setImmersiveMode(isFullscreen)

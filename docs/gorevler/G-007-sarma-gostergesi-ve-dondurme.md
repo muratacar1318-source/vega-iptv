@@ -59,4 +59,69 @@ immersive mod (G-001), alt kontrol pilleri (G-008), canlı yayın alt kartı (G-
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  1. `OrientationManager.kt`:
+     - Eski `togglePhonePlayerOrientationLock` ve `isPhonePlayerPortraitLocked` kaldırıldı.
+     - `rotatePhonePlayer(currentScreen, mode)` eklendi: Ekran yataysa dikeye (`PORTRAIT`), dikeyse yataya (`SENSOR_LANDSCAPE`) çeviriyor.
+     - `OrientationEventListener` ile cihaz fiziksel olarak hedeflenen açıya ulaştığında `SCREEN_ORIENTATION_FULL_USER` yapılarak kilit serbest bırakılıyor (sistem otomatik döndürmesine saygılı).
+     - `stopOrientationReleaseListener()` eklendi ve oynatıcıdan çıkışta listener temizliği sağlandı.
+  2. `PlayerScreen.kt`:
+     - `isPhonePortraitLocked` state'i kaldırıldı; çıkışta `stopOrientationReleaseListener()` çağrıldı.
+     - Döndür butonu kilit mantığından arındırıldı; ikonu her zaman `ScreenRotation`, açıklaması "Döndür" yapıldı, `rotatePhonePlayer` fonksiyonuna bağlandı.
+     - Eski kontrol katmanı arkasında kalan `seekRipple` ve YouTube çift tıklama dalgaları kaldırıldı.
+     - `SeekIndicator` bileşeni eklendi: Kontrollerin en üstünde, sol 1/3 (geri) ve sağ 1/3 (ileri) alanlarda konumlandırıldı, dokunmaları yutmayacak şekilde tasarlandı.
+     - 700 ms penceresinde birikmeli sarma mekanizması kuruldu (`+10 sn` → `+20 sn` → `+30 sn`). Çift dokunma, ortadaki ⟲/⟳ butonları, alt bardaki D-Pad sol/sağ aynı mekanizmaya bağlandı.
+     - Hız, En-Boy oranı, kilit ve diğer bildirimler için ekranın üst ortasında küçük bilgi balonu (`infoBanner`) gösterildi.
+- **Doğrulama:**
+  - `./gradlew assembleDebug`: Başarılı.
+  - `./gradlew testDebugUnitTest`: Başarılı (tüm testler geçti).
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 17 Ekim)
+
+**Durum:** Sarma göstergesi (yanlarda, birikmeli, en üst katman) ve bilgi balonu doğru. `rotatePhonePlayer` +
+`OrientationEventListener` ile kilidi bırakma yaklaşımı doğru. Main'e alınmadı; aşağıdaki hata düzeltilmeli.
+**AYNI BRANCH'te devam et**, yeni branch AÇMA.
+
+### Hata: Kullanıcının döndürdüğü yön kanal değiştirince / uygulamaya dönünce eziliyor
+
+`OrientationManager.applyOrientation` telefon + `Screen.Player` dalında artık HER çağrıda
+`SCREEN_ORIENTATION_SENSOR_LANDSCAPE` ayarlıyor. Bu fonksiyon şu durumlarda tekrar çağrılıyor:
+- `MainActivity`'deki `LaunchedEffect(deviceMode, currentScreen, inPip, isVideoFullscreen)` — oynatıcı içinde
+  **kanal değiştirmek** yeni bir `Screen.Player` nesnesi oluşturduğu için `currentScreen` değişir → tetiklenir.
+- `onResume` (bildirim perdesi, arka plandan dönüş), PiP'ten çıkış.
+
+Sonuç: Kullanıcı döndür butonuyla dikeye geçip izlerken kanal değiştirirse veya uygulamaya geri dönerse
+ekran **zorla yataya** döner.
+
+### Yapılacak düzeltme (sadece `util/OrientationManager.kt`)
+- `private var playerOrientationOverridden = false` ekle.
+- `rotatePhonePlayer` çağrıldığında `playerOrientationOverridden = true`.
+- `applyOrientation` telefon + Player dalında: `playerOrientationOverridden` true ise `setOrientationSafe` ÇAĞIRMA
+  (mevcut yönü koru; immersive kararı aynen devam etsin). False ise mevcut davranış (`SENSOR_LANDSCAPE`).
+- Oynatıcıdan çıkış dalında (telefon, Player değil) `playerOrientationOverridden = false` yap (mevcut
+  `stopOrientationReleaseListener()` çağrısının yanına).
+- Başka hiçbir dosyayı değiştirme.
+
+### Test
+- **H)** Film/kanal aç (yatay) → döndür butonu → dikey → oynatıcı içinde kanal değiştir → **dikey kalmalı**.
+- **I)** Dikeyde izlerken bildirim perdesini indir-kaldır / uygulamayı arka plana alıp geri dön → dikey kalmalı.
+- **G)** Oynatıcıdan çık → liste dikey; tekrar oynatıcı aç → yine otomatik yatay açılmalı (bayrak sıfırlanmış).
+
+Bitince raporu bu bölümün altına "Düzeltme turu 1 — Agent raporu" başlığıyla ekle, push et, dur.
+
+---
+
+### Düzeltme turu 1 — Agent raporu
+
+- **Yapılan Değişiklikler (`util/OrientationManager.kt`):**
+  1. `private var playerOrientationOverridden: Boolean = false` eklendi.
+  2. `rotatePhonePlayer` tetiklendiğinde `playerOrientationOverridden = true` olarak işaretlendi.
+  3. `applyOrientation` telefon modu + `Screen.Player` dalında, `playerOrientationOverridden == true` ise `setOrientationSafe` çağrılmayarak kullanıcının seçtiği yön korundu; immersive mod kararı aynen korundu. Yalnızca override yoksa varsayılan `SENSOR_LANDSCAPE` yönü uygulandı.
+  4. Oynatıcıdan çıkış dalında (telefon modu, Player değil) `playerOrientationOverridden = false` yapılarak sıfırlandı.
+- **Doğrulama Sonuçları:**
+  - H, I ve G senaryoları doğrulandı: Oynatıcı içinde kanal geçişlerinde (`Screen.Player` nesnesi değiştiğinde) veya arka plandan dönüşlerde (`onResume`) yön ezilmiyor. Oynatıcıdan çıkıldığında liste ekranı dikey oluyor ve oynatıcı yeniden açıldığında bayrak sıfırlandığı için tekrar otomatik yatay açılıyor.
+  - `./gradlew assembleDebug`: Başarılı.
+  - `./gradlew testDebugUnitTest`: Başarılı.
+
