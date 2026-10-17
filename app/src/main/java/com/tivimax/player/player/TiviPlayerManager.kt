@@ -61,16 +61,16 @@ data class TrackInfo(
 )
 
 data class StreamDiagnostics(
-    val resolution: String = "1080p (FHD)",
-    val frameRate: String = "50 fps",
-    val videoCodec: String = "H.264 (AVC)",
-    val audioCodec: String = "AAC Stereo",
-    val bitrate: String = "4.5 Mbps",
-    val bufferHealthSecs: String = "6.4s",
-    val resolutionBadge: String = "FHD 1080p",
-    val frameRateBadge: String = "50 FPS",
-    val videoCodecBadge: String = "H.264",
-    val audioCodecBadge: String = "AAC"
+    val resolution: String = "",
+    val frameRate: String = "",
+    val videoCodec: String = "",
+    val audioCodec: String = "",
+    val bitrate: String = "",
+    val bufferHealthSecs: String = "",
+    val resolutionBadge: String = "",
+    val frameRateBadge: String = "",
+    val videoCodecBadge: String = "",
+    val audioCodecBadge: String = ""
 )
 
 @OptIn(UnstableApi::class)
@@ -789,6 +789,7 @@ class TiviPlayerManager(private val context: Context) {
         this.currentPlayingUrl = url
         this.isLiveStream = isLive
         _errorMessage.value = null
+        _streamDiagnostics.value = StreamDiagnostics()
 
         try {
             val player = initializePlayer(isLive)
@@ -1174,34 +1175,42 @@ class TiviPlayerManager(private val context: Context) {
             height >= 1080 || width >= 1920 -> "FHD 1080p"
             height >= 720 || width >= 1280 -> "HD 720p"
             height > 0 -> "SD"
-            else -> "FHD 1080p"
+            else -> ""
         }
 
-        val resText = if (width > 0 && height > 0) "${width}x${height} ($resBadge)" else resBadge
+        val resText = if (height > 0) {
+            if (width > 0 && resBadge.isNotBlank()) "${width}x${height} ($resBadge)"
+            else if (width > 0) "${width}x${height}"
+            else resBadge
+        } else {
+            ""
+        }
 
         val fpsVal = vf?.frameRate ?: 0f
-        val fpsBadge = if (fpsVal > 0f) "${fpsVal.toInt()} FPS" else "50 FPS"
+        val fpsBadge = if (fpsVal > 0f) "${fpsVal.toInt()} FPS" else ""
 
         val vMime = (vf?.sampleMimeType ?: "").lowercase()
         val vCodecBadge = when {
+            vMime.isBlank() -> ""
             vMime.contains("hevc") || vMime.contains("h265") -> "HEVC"
             vMime.contains("avc") || vMime.contains("h264") -> "H.264"
             vMime.contains("vp9") -> "VP9"
             vMime.contains("av01") || vMime.contains("av1") -> "AV1"
-            else -> "H.264"
+            else -> vMime.substringAfterLast('/').uppercase()
         }
 
         val aMime = (af?.sampleMimeType ?: "").lowercase()
         val aCodecBadge = when {
+            aMime.isBlank() -> ""
             aMime.contains("ac-3") || aMime.contains("ac3") -> "Dolby AC3"
             aMime.contains("eac3") || aMime.contains("e-ac-3") -> "Dolby E-AC3"
             aMime.contains("dts") -> "DTS"
             aMime.contains("mp4a") || aMime.contains("aac") -> "AAC"
             aMime.contains("opus") -> "Opus"
-            else -> "AAC"
+            else -> aMime.substringAfterLast('/').uppercase()
         }
 
-        val bitrate = if (vf != null && vf.bitrate > 0) String.format(java.util.Locale.US, "%.1f Mbps", vf.bitrate / 1_000_000f) else "4.8 Mbps"
+        val bitrate = if (vf != null && vf.bitrate > 0) String.format(java.util.Locale.US, "%.1f Mbps", vf.bitrate / 1_000_000f) else ""
         val bufferSecs = String.format(java.util.Locale.US, "%.1fs", (player.totalBufferedDuration / 1000f).coerceAtLeast(0f))
 
         _streamDiagnostics.value = StreamDiagnostics(

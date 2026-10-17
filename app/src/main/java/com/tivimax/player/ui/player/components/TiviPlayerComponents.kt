@@ -1702,7 +1702,8 @@ fun TiviPlayerHUD(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("Tampon Doluluk Oranı", color = Color(0xFF94A3B8), fontSize = 10.5.sp)
-                                Text("${diagnostics.bufferHealthSecs} / 10s", color = TiviGreen, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                val bufferText = if (diagnostics.bufferHealthSecs.isNotBlank()) "${diagnostics.bufferHealthSecs} / 10s" else "—"
+                                Text(bufferText, color = TiviGreen, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             LinearProgressIndicator(
@@ -1756,7 +1757,7 @@ private fun DiagnosticMetricCard(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = value.ifBlank { "Bilinmiyor" },
+                text = value.ifBlank { "—" },
                 color = Color.White,
                 fontSize = 11.5.sp,
                 fontWeight = FontWeight.Bold,
