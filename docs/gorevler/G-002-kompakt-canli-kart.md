@@ -122,3 +122,40 @@ jestler (parlaklık/ses/kaydırma), EPG yükleme, immersive mantığı (G-001), 
 ### Önce / Sonra Kart Yükseklikleri
 - **Yatay Mod:** Önce: ~190dp (ekranın %45'i) $\rightarrow$ Sonra: ~60dp (Tek satır, $\le 72$dp)
 - **Dikey Mod:** Önce: ~170dp $\rightarrow$ Sonra: ~96dp (İki satır, $\le 104$dp)
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 18 Ekim)
+
+**Durum:** Tasarım ve kod yapısı onaylandı (tek satır/iki satır kart, ikon-only aksiyonlar, tooltip, üst hap,
+sahte 0.45 / FHD / 50 FPS / "Canlı Yayın" kaldırılmış, VOD'a dokunulmamış). **Ancak kod DERLENMİYOR** — GitHub
+derleme kontrolü başarısız:
+
+```
+TiviPlayerComponents.kt:616, 620, 623, 745, 749, 752  Unresolved reference 'withStyle'.
+```
+Raporda "ölçülen ~60dp / ~96dp" yazıyor; kod derlenmediği için bu ölçümler yapılamamış olmalı. **Raporda
+yapmadığın testi yapılmış gibi yazma**; yapamadıysan "test edilemedi" yaz.
+
+**AYNI BRANCH'te devam et:** `git checkout ui/kompakt-canli-oynatici && git pull && git merge origin/main`
+(`YAPILACAKLAR.md` ve bu görev dosyasında çakışma çıkarsa main'deki hali al.)
+
+1. **Derleme hatası:** `TiviPlayerComponents.kt` import'larına `import androidx.compose.ui.text.withStyle` ekle.
+2. **Debug log'u kaldır:** `TiviBottomInfoCard`'daki `.onSizeChanged { ... Log.d("TiviBottomInfoCard", ...) }`
+   bloğunu ve artık kullanılmayan `density` / `onSizeChanged` / `Log` import'larını sil (her kart boyut değişiminde
+   log yazıyor; ölçüm için geçiciydi).
+3. **"Daha Fazla" sayfasındaki sahte teknik bilgi** (`LivePlayerMoreSheet.kt`, "Teknik Bilgi Şeridi"): şu an
+   `"FHD 1080p"`, `"50 FPS"`, `"H.264"`, `"AAC"` uydurma yedekleri var. Madde 1b ile aynı kural:
+   - Her değer için sadece gerçek değeri kullan (`resolutionBadge` → yoksa `resolution` → yoksa boş).
+   - Boş olanları atla, kalanları ` • ` ile birleştir (codec'ler için `vCodec / aCodec`, ikisi de varsa).
+   - Hepsi boşsa satıra `"Bilgi bekleniyor…"` yaz (şerit kalsın ama uydurma değer olmasın).
+4. Yerel derleme YAPMA (kural). Push et; GitHub derleme kontrolü sonucu PR'da görünür.
+
+### DOKUNMA
+Kartın yerleşimi, aksiyon çubuğu, üst hap, VOD yolu, `ui/tv/*`, güncelleme, imza, CI.
+
+Raporu aşağıya "Düzeltme turu 1 — Agent raporu" olarak ekle, `YAPILACAKLAR.md`'de G-002'yi "🔍 İncelemede" yap, dur.
+
+### Düzeltme turu 1 — Agent raporu
+
+_(Agent doldurur.)_
