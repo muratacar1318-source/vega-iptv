@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-007 | [Film/dizi: ±10 sn göstergesi kontrollerin arkasında; döndür butonu dikeyde kilitliyor](docs/gorevler/G-007-sarma-gostergesi-ve-dondurme.md) | 🟠 | ⏳ Bekliyor |
+| G-007 | [Film/dizi: ±10 sn göstergesi kontrollerin arkasında; döndür butonu dikeyde kilitliyor](docs/gorevler/G-007-sarma-gostergesi-ve-dondurme.md) | 🟠 | 🔍 İncelemede (branch: `fix/sarma-gostergesi-dondurme`) |
 | G-008 | [Oynatıcı ayarlarını tek kompakt panelde topla (ses, altyazı, görüntü, hız)](docs/gorevler/G-008-oynatici-ayarlar-paneli.md) | 🟠 | ⏳ Bekliyor |
 | G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor |
 | G-003 | [TV canlı yayın oynatıcısında altyazı gecikmesi ayarı çalışmıyor](docs/gorevler/G-003-tv-altyazi-gecikmesi.md) | 🟢 | ⏳ Bekliyor |

@@ -59,4 +59,19 @@ immersive mod (G-001), alt kontrol pilleri (G-008), canlı yayın alt kartı (G-
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  1. `OrientationManager.kt`:
+     - Eski `togglePhonePlayerOrientationLock` ve `isPhonePlayerPortraitLocked` kaldırıldı.
+     - `rotatePhonePlayer(currentScreen, mode)` eklendi: Ekran yataysa dikeye (`PORTRAIT`), dikeyse yataya (`SENSOR_LANDSCAPE`) çeviriyor.
+     - `OrientationEventListener` ile cihaz fiziksel olarak hedeflenen açıya ulaştığında `SCREEN_ORIENTATION_FULL_USER` yapılarak kilit serbest bırakılıyor (sistem otomatik döndürmesine saygılı).
+     - `stopOrientationReleaseListener()` eklendi ve oynatıcıdan çıkışta listener temizliği sağlandı.
+  2. `PlayerScreen.kt`:
+     - `isPhonePortraitLocked` state'i kaldırıldı; çıkışta `stopOrientationReleaseListener()` çağrıldı.
+     - Döndür butonu kilit mantığından arındırıldı; ikonu her zaman `ScreenRotation`, açıklaması "Döndür" yapıldı, `rotatePhonePlayer` fonksiyonuna bağlandı.
+     - Eski kontrol katmanı arkasında kalan `seekRipple` ve YouTube çift tıklama dalgaları kaldırıldı.
+     - `SeekIndicator` bileşeni eklendi: Kontrollerin en üstünde, sol 1/3 (geri) ve sağ 1/3 (ileri) alanlarda konumlandırıldı, dokunmaları yutmayacak şekilde tasarlandı.
+     - 700 ms penceresinde birikmeli sarma mekanizması kuruldu (`+10 sn` → `+20 sn` → `+30 sn`). Çift dokunma, ortadaki ⟲/⟳ butonları, alt bardaki D-Pad sol/sağ aynı mekanizmaya bağlandı.
+     - Hız, En-Boy oranı, kilit ve diğer bildirimler için ekranın üst ortasında küçük bilgi balonu (`infoBanner`) gösterildi.
+- **Doğrulama:**
+  - `./gradlew assembleDebug`: Başarılı.
+  - `./gradlew testDebugUnitTest`: Başarılı (tüm testler geçti).
