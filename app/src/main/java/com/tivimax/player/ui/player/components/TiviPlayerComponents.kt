@@ -51,6 +51,9 @@ import com.tivimax.player.ui.components.dpadFocusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import kotlinx.coroutines.delay
 
 // ============================================================================
@@ -521,190 +524,288 @@ fun TiviBottomInfoCard(
         ) {
             Surface(
                 modifier = Modifier
-                    .then(if (!isPortrait) Modifier.widthIn(max = 680.dp) else Modifier.fillMaxWidth())
+                    .then(if (!isPortrait) Modifier.widthIn(max = 760.dp) else Modifier.fillMaxWidth())
                     .padding(
                         horizontal = if (isPortrait) 8.dp else 16.dp,
                         vertical = if (isPortrait) 4.dp else 8.dp
                     )
                     .then(cardDragModifier),
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = Color(0xD90A0E17), // %85 saydam koyu buzlu cam paneli
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2638).copy(alpha = 0.85f))
             ) {
                 Column(
-                    modifier = Modifier.padding(
-                        horizontal = if (isPortrait) 12.dp else 16.dp,
-                        vertical = if (isPortrait) 10.dp else 12.dp
-                    )
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    val currentTitle = epg?.getDecodedTitle() ?: channel.currentProgram.decodeBase64IfNeeded().ifBlank { "Canlı Yayın" }
-                    val timeString = LiveTimeFormatter.formatProgramTime(epg)
-                    val progress = LiveTimeFormatter.calculateProgress(epg, if (channel.programProgress > 0f) channel.programProgress else 0.45f)
+                    // Sahte "Canlı Yayın" kaldırıldı; yoksa boş string
+                    val currentTitle = epg?.getDecodedTitle() ?: channel.currentProgram.decodeBase64IfNeeded().trim()
+                    val timeRange = LiveTimeFormatter.formatTimeRange(epg)
+                    // Sahte 0.45 kaldırıldı; EPG yoksa null
+                    val progress = LiveTimeFormatter.calculateProgress(epg, if (channel.programProgress > 0f) channel.programProgress else null)
 
                     val rawNext = channel.nextProgram ?: epg?.getDecodedDescription()
-                    val nextProg = rawNext.decodeBase64IfNeeded()
+                    val nextProg = rawNext?.decodeBase64IfNeeded()?.trim() ?: ""
 
-                    val resBadge = diagnostics.resolutionBadge.ifBlank {
-                        if (diagnostics.resolution.contains("1080")) "FHD 1080p"
-                        else if (diagnostics.resolution.contains("2160") || diagnostics.resolution.contains("4K")) "4K 2160p"
-                        else if (diagnostics.resolution.contains("720")) "HD 720p"
-                        else "FHD 1080p"
+                    // Gerçek kalite rozeti kontrolü (uydurma FHD 1080p / 50 FPS yok)
+                    val hasRes = diagnostics.resolutionBadge.isNotBlank()
+                    val hasFps = diagnostics.frameRateBadge.isNotBlank()
+                    val qualityBadge = when {
+                        hasRes && hasFps -> "${diagnostics.resolutionBadge} • ${diagnostics.frameRateBadge}"
+                        hasRes -> diagnostics.resolutionBadge
+                        hasFps -> diagnostics.frameRateBadge
+                        else -> null
                     }
-                    val fpsBadge = diagnostics.frameRateBadge.ifBlank { "50 FPS" }
 
-                    // 1. ÜST SATIR: Kanal No + Logo + Ad + Rozetler + Favori Yıldızı + Genişlet Butonu
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (channel.num > 0) {
-                            Text(
-                                text = "${channel.num}",
-                                color = OpusCyan,
-                                fontSize = if (isPortrait) 20.sp else 24.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                modifier = Modifier.padding(end = 8.dp)
-                            )
-                        }
-
-                        // Logo
-                        Box(
-                            modifier = Modifier
-                                .size(if (isPortrait) 38.dp else 44.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF161D28)),
-                            contentAlignment = Alignment.Center
+                    if (!isPortrait) {
+                        // ====================================================================
+                        // YATAY MOD: TEK SATIR (Hedef yükseklik <= 72dp)
+                        // [kanal no] [logo 32dp] [kanal adı 15sp · program adı 13sp] [saat] [aksiyonlar] [favori] [genişlet]
+                        // ====================================================================
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (!channel.streamIcon.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = channel.streamIcon,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.fillMaxSize().padding(3.dp)
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Tv,
-                                    contentDescription = null,
-                                    tint = Color(0xFF64748B),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(10.dp))
-
-                        // Kanal Adı ve Küçük Soluk Teknik Rozetler
-                        Column(modifier = Modifier.weight(1f)) {
                             Row(
+                                modifier = Modifier.weight(1f),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                if (channel.num > 0) {
+                                    Text(
+                                        text = "${channel.num}",
+                                        color = OpusCyan,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+
+                                // Logo (32dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFF161D28)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (!channel.streamIcon.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = channel.streamIcon,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier.fillMaxSize().padding(2.dp)
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Tv,
+                                            contentDescription = null,
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                // Kanal Adı 15sp bold · Program Adı 13sp (tek satır, ellipsis)
+                                val titleText = buildAnnotatedString {
+                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)) {
+                                        append(channel.name)
+                                    }
+                                    if (currentTitle.isNotBlank()) {
+                                        withStyle(SpanStyle(color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)) {
+                                            append(" · ")
+                                        }
+                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = 13.sp, color = Color(0xFFF1F5F9))) {
+                                            append(currentTitle)
+                                        }
+                                    }
+                                }
                                 Text(
-                                    text = channel.name,
-                                    color = Color.White,
-                                    fontSize = if (isPortrait) 15.sp else 16.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    text = titleText,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
 
-                                // Küçük ve soluk kalite rozetleri (birincil bilgi gibi yer kaplamaz)
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = Color(0x331E293B),
-                                    border = androidx.compose.foundation.BorderStroke(0.6.dp, Color(0x4464748B))
-                                ) {
+                                if (timeRange.isNotBlank()) {
                                     Text(
-                                        text = "$resBadge • $fpsBadge",
-                                        color = Color(0xFF94A3B8),
-                                        fontSize = 9.sp,
+                                        text = timeRange,
+                                        color = OpusCyan.copy(alpha = 0.9f),
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
+                                        maxLines = 1
                                     )
                                 }
                             }
+
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            // Aksiyon Butonları (Yatayda tek satırın sağına eklenir)
+                            if (actions != null) {
+                                actions()
+                                Spacer(modifier = Modifier.width(2.dp))
+                            }
+
+                            // Favori Butonu (40dp)
+                            IconButton(
+                                onClick = onToggleFavorite,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                    contentDescription = "Favorilere Ekle/Çıkar",
+                                    tint = if (isFavorite) TiviGold else Color(0xFF64748B),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Genişlet Oku (40dp)
+                            IconButton(
+                                onClick = { isExpanded = !isExpanded },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                    contentDescription = if (isExpanded) "Detayları Kapat" else "Detayları Göster",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
 
-                        // Favori Butonu (En az 44dp dokunma alanı)
-                        IconButton(
-                            onClick = onToggleFavorite,
-                            modifier = Modifier.size(44.dp)
+                        // SADECE gerçek EPG varsa 2dp ince ilerleme çubuğu
+                        if (progress != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.dp)
+                                    .clip(RoundedCornerShape(1.dp)),
+                                color = OpusCyan,
+                                trackColor = Color(0xFF1E2638)
+                            )
+                        }
+                    } else {
+                        // ====================================================================
+                        // DİKEY MOD: İKİ SATIR (Hedef yükseklik <= 104dp)
+                        // 1. satır: kanal no, logo 32dp, kanal adı + program adı, favori, genişlet
+                        // 2. satır: aksiyon ikonları eşit aralıklı
+                        // ====================================================================
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                contentDescription = "Favorilere Ekle/Çıkar",
-                                tint = if (isFavorite) TiviGold else Color(0xFF64748B),
-                                modifier = Modifier.size(22.dp)
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (channel.num > 0) {
+                                    Text(
+                                        text = "${channel.num}",
+                                        color = OpusCyan,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                }
+
+                                // Logo (32dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFF161D28)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (!channel.streamIcon.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = channel.streamIcon,
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier.fillMaxSize().padding(2.dp)
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Tv,
+                                            contentDescription = null,
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                // Kanal Adı 15sp bold · Program Adı 13sp (tek satır, ellipsis)
+                                val titleText = buildAnnotatedString {
+                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color.White)) {
+                                        append(channel.name)
+                                    }
+                                    if (currentTitle.isNotBlank()) {
+                                        withStyle(SpanStyle(color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp)) {
+                                            append(" · ")
+                                        }
+                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = 13.sp, color = Color(0xFFF1F5F9))) {
+                                            append(currentTitle)
+                                        }
+                                    }
+                                }
+                                Text(
+                                    text = titleText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                            }
+
+                            // Favori Butonu (40dp)
+                            IconButton(
+                                onClick = onToggleFavorite,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                    contentDescription = "Favorilere Ekle/Çıkar",
+                                    tint = if (isFavorite) TiviGold else Color(0xFF64748B),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Genişlet Oku (40dp)
+                            IconButton(
+                                onClick = { isExpanded = !isExpanded },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                    contentDescription = if (isExpanded) "Detayları Kapat" else "Detayları Göster",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        // SADECE gerçek EPG varsa 2dp ince ilerleme çubuğu
+                        if (progress != null) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.dp)
+                                    .clip(RoundedCornerShape(1.dp)),
+                                color = OpusCyan,
+                                trackColor = Color(0xFF1E2638)
                             )
                         }
 
-                        // Detay Genişlet / Kapat Butonu
-                        IconButton(
-                            onClick = { isExpanded = !isExpanded },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                contentDescription = if (isExpanded) "Detayları Kapat" else "Detayları Göster",
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(22.dp)
-                            )
+                        // 2. Satır: Aksiyon İkonları Eşit Aralıklı
+                        if (actions != null) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            actions()
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // 2. ORTA SATIR: Program Adı (en fazla 2 satır) & Saat/Kalan Süre Bilgisi
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = currentTitle,
-                            color = Color(0xFFF1F5F9),
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 17.sp
-                        )
-
-                        if (timeString.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = timeString,
-                                color = OpusCyan.copy(alpha = 0.95f),
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(5.dp))
-
-                    // 3. İNCE İLERLEME ÇUBUĞU (2.5dp)
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(2.5.dp)
-                            .clip(RoundedCornerShape(1.5.dp)),
-                        color = OpusCyan,
-                        trackColor = Color(0xFF1E2638)
-                    )
-
-                    // 4. SIRADAKİ PROGRAM (Tek satır)
-                    if (nextProg.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Sıradaki: $nextProg",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 11.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    // 5. GENİŞLETİLEBİLİR DETAY BÖLÜMÜ (Yukarı kaydırınca veya oka dokununca)
+                    // ====================================================================
+                    // GENİŞLETİLMİŞ DETAY BÖLÜMÜ (Yukarı kaydırınca veya oka dokununca)
+                    // ====================================================================
                     AnimatedVisibility(
                         visible = isExpanded,
                         enter = expandVertically() + fadeIn(),
@@ -715,12 +816,44 @@ fun TiviBottomInfoCard(
                                 .fillMaxWidth()
                                 .padding(top = 8.dp)
                         ) {
-                            HorizontalDivider(
-                                color = Color(0xFF1E2638).copy(alpha = 0.6f),
-                                thickness = 0.5.dp
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
+                            // Kalite rozeti (yalnızca gerçek değer varsa) & Saat Aralığı
+                            if (qualityBadge != null || timeRange.isNotBlank()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (timeRange.isNotBlank()) {
+                                        Text(
+                                            text = timeRange,
+                                            color = OpusCyan,
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.width(1.dp))
+                                    }
 
+                                    if (qualityBadge != null) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = Color(0x331E293B),
+                                            border = androidx.compose.foundation.BorderStroke(0.6.dp, Color(0x4464748B))
+                                        ) {
+                                            Text(
+                                                text = qualityBadge,
+                                                color = Color(0xFF94A3B8),
+                                                fontSize = 9.5.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+
+                            // Program Açıklaması (en fazla 3 satır)
                             val desc = epg?.getDecodedDescription()
                             if (!desc.isNullOrBlank()) {
                                 Text(
@@ -734,6 +867,19 @@ fun TiviBottomInfoCard(
                                 Spacer(modifier = Modifier.height(6.dp))
                             }
 
+                            // Sıradaki Program (varsayılandan kaldırıldı, sadece genişletilmiş bölümde)
+                            if (nextProg.isNotBlank()) {
+                                Text(
+                                    text = "Sıradaki: $nextProg",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+
+                            // Sonraki Programlar (en fazla 2)
                             if (upcomingEpg.isNotEmpty()) {
                                 Text(
                                     text = "Sonraki Programlar",
@@ -769,16 +915,6 @@ fun TiviBottomInfoCard(
                                 }
                             }
                         }
-                    }
-
-                    // 6. ALT KISIM: YATAY KAYDIRMA GEREKTİRMEYEN AKSIYON BUTONLARI DOCK'U
-                    if (actions != null) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                            color = Color(0xFF1E2638).copy(alpha = 0.7f),
-                            thickness = 0.6.dp
-                        )
-                        actions()
                     }
                 }
             }
@@ -1742,6 +1878,7 @@ fun BouncyIconButton(
     backgroundColor: Color = Color.Transparent,
     contentColor: Color = Color.White,
     pressedScale: Float = 0.85f,
+    border: androidx.compose.foundation.BorderStroke? = null,
     content: @Composable () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -1784,7 +1921,9 @@ fun BouncyIconButton(
             .clip(shape)
             .background(bgAnimated)
             .then(
-                if (isFocused) Modifier.border(2.dp, OpusCyan, shape) else Modifier
+                if (isFocused) Modifier.border(2.dp, OpusCyan, shape)
+                else if (border != null) Modifier.border(border, shape)
+                else Modifier
             )
             .clickable(
                 interactionSource = interactionSource,
