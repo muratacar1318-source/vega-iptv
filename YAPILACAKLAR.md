@@ -12,23 +12,15 @@ Kullanıcı "yapılacakları kontrol et ve uygula" dediğinde:
 1. `git checkout main && git pull` yap. `AGENTS.md` kurallarını oku ve uygula.
 2. Aşağıdaki **Bekleyen görevler** tablosunda, durumu `⏳ Bekliyor` olan **en üstteki** görevi seç.
    Aynı anda yalnızca **bir** görev yap.
-3. **ONAY AL — kod yazmadan ÖNCE DUR ve kullanıcıya şunu sor:**
-   > Sıradaki görev: **G-XXX — <görev adı>**
-   > Önerilen düşünme seviyesi: **<seviye>** · Önerilen model: listedeki en güçlü kodlama modeli
-   > Şu an hangi model ve seviyedeyim: <bildiğin kadarıyla yaz; bilmiyorsan "bilmiyorum" de>
-   > Model ve seviye uygunsa **"onay"** yaz; değiştirmen gerekiyorsa değiştirip sonra "onay" yaz.
-
-   Kullanıcı açıkça "onay" (veya "evet", "başla") yazmadan hiçbir dosyayı değiştirme, branch açma, komut çalıştırma.
-   Kullanıcı başka bir görev numarası söylerse onu yap.
-4. Görevin dosyasını (`docs/gorevler/...`) baştan sona oku. Dosyadaki branch adını, kapsamı,
+3. Görevin dosyasını (`docs/gorevler/...`) baştan sona oku. Dosyadaki branch adını, kapsamı,
    "DOKUNMA" listesini ve test adımlarını aynen uygula.
-5. Bitince:
+4. Bitince:
    - `./gradlew assembleDebug` ile derle.
    - Görev branch'ine commit edip push et. **main'e merge ETME.**
    - Görev dosyasının en altındaki **Agent raporu** bölümünü doldur (ne yaptın, hangi dosyalar,
      test sonuçları, sorunlar). Bu rapor değişikliği görev branch'inde commit et.
    - Bu tablodaki durumu `🔍 İncelemede (branch: ...)` yap — bu değişikliği de görev branch'inde yap.
-6. Kullanıcıya kısa bir özet ver ve DUR. Sıradaki göreve kullanıcı tekrar söylemeden geçme.
+5. Kullanıcıya kısa bir özet ver ve DUR. Sıradaki göreve kullanıcı tekrar söylemeden geçme.
 
 Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütme, raporda soruyu yaz ve dur.
 
