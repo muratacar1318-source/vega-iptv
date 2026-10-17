@@ -51,11 +51,9 @@ import com.tivimax.player.ui.components.dpadFocusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
-import android.util.Log
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import kotlinx.coroutines.delay
 
 // ============================================================================
@@ -498,7 +496,6 @@ fun TiviBottomInfoCard(
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
     var isExpanded by remember(channel.streamId) { mutableStateOf(false) }
-    val density = LocalDensity.current
 
     AnimatedVisibility(
         visible = visible,
@@ -532,11 +529,7 @@ fun TiviBottomInfoCard(
                         horizontal = if (isPortrait) 8.dp else 16.dp,
                         vertical = if (isPortrait) 4.dp else 8.dp
                     )
-                    .then(cardDragModifier)
-                    .onSizeChanged { size ->
-                        val heightDp = with(density) { size.height.toDp() }
-                        Log.d("TiviBottomInfoCard", "Kart yüksekliği: $heightDp (isPortrait=$isPortrait)")
-                    },
+                    .then(cardDragModifier),
                 shape = RoundedCornerShape(16.dp),
                 color = Color(0xD90A0E17), // %85 saydam koyu buzlu cam paneli
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2638).copy(alpha = 0.85f))
