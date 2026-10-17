@@ -58,6 +58,9 @@ class UserPreferences(private val context: Context) {
         // Son İzlenen Canlı Kanallar (Son 20 Kanal - JSON StreamId Listesi)
         val KEY_RECENT_LIVE_CHANNELS = stringPreferencesKey("recent_live_channels_json")
 
+        // Son Aramalar (En fazla 8 - JSON Listesi)
+        val KEY_RECENT_SEARCHES = stringPreferencesKey("recent_searches_json")
+
         // Oynatıcı Tercihleri
         val KEY_ASPECT_RATIO = stringPreferencesKey("aspect_ratio") // "FIT", "FILL", "ZOOM", "16:9"
         val KEY_STREAM_FORMAT = stringPreferencesKey("stream_format") // "TS", "HLS"
@@ -538,6 +541,61 @@ class UserPreferences(private val context: Context) {
     suspend fun setVodPrewarmDisabled(disabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[KEY_VOD_PREWARM_DISABLED] = disabled
+        }
+    }
+
+    // ============================================================================
+    // EVRENSEL ARAMA: SON ARAMALAR (EN FAZLA 8)
+    // ============================================================================
+
+    val recentSearchesFlow: Flow<List<String>> = context.dataStore.data.map { prefs ->
+        val json = prefs[KEY_RECENT_SEARCHES] ?: return@map emptyList()
+        try {
+            val type = object : TypeToken<List<String>>() {}.type
+            gson.fromJson<List<String>>(json, type) ?: emptyList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun addRecentSearch(query: String) {
+        val clean = query.trim()
+        if (clean.length < 2) return
+        context.dataStore.edit { prefs ->
+            val currentJson = prefs[KEY_RECENT_SEARCHES]
+            val currentList: MutableList<String> = try {
+                if (currentJson != null) {
+                    val type = object : TypeToken<List<String>>() {}.type
+                    (gson.fromJson<List<String>>(currentJson, type) ?: emptyList()).toMutableList()
+                } else mutableListOf()
+            } catch (_: Exception) {
+                mutableListOf()
+            }
+            currentList.removeAll { it.equals(clean, ignoreCase = true) }
+            currentList.add(0, clean)
+            val trimmed = currentList.take(8)
+            prefs[KEY_RECENT_SEARCHES] = gson.toJson(trimmed)
+        }
+    }
+
+    suspend fun removeRecentSearch(query: String) {
+        val clean = query.trim()
+        context.dataStore.edit { prefs ->
+            val currentJson = prefs[KEY_RECENT_SEARCHES] ?: return@edit
+            val currentList: MutableList<String> = try {
+                val type = object : TypeToken<List<String>>() {}.type
+                (gson.fromJson<List<String>>(currentJson, type) ?: emptyList()).toMutableList()
+            } catch (_: Exception) {
+                return@edit
+            }
+            currentList.removeAll { it.equals(clean, ignoreCase = true) }
+            prefs[KEY_RECENT_SEARCHES] = gson.toJson(currentList)
+        }
+    }
+
+    suspend fun clearRecentSearches() {
+        context.dataStore.edit { prefs ->
+            prefs.remove(KEY_RECENT_SEARCHES)
         }
     }
 }

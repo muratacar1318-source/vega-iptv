@@ -29,6 +29,7 @@ import com.tivimax.player.ui.devicemode.DeviceModeSetupScreen
 import com.tivimax.player.ui.login.LoginScreen
 import com.tivimax.player.ui.main.HomeScreen
 import com.tivimax.player.ui.player.PlayerScreen
+import com.tivimax.player.ui.search.UniversalSearchScreen
 import com.tivimax.player.ui.series.SeriesDetailScreen
 import com.tivimax.player.ui.sync.PlaylistSyncScreen
 import com.tivimax.player.ui.vod.VodDetailScreen
@@ -90,6 +91,9 @@ fun AppNavigation(viewModel: MainViewModel = viewModel()) {
                         }
                     }
                 )
+            }
+            is Screen.Search -> {
+                UniversalSearchScreen(viewModel = viewModel)
             }
         }
     }
