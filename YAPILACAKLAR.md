@@ -41,6 +41,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
 | G-014 | [Tasarım temeli: tek vurgu rengi, renk/şekil tokenları, ortak bileşenler](docs/gorevler/G-014-tasarim-temeli.md) | 🟠 | ⏳ Bekliyor |
+| G-019 | [Yeni logo: uygulama simgesi, TV afişi, uygulama içi logo (\"Yıldızlı V\")](docs/gorevler/G-019-logo.md) | 🟠 | ⏳ Bekliyor |
 | G-015 | [Oynatıcı ekranlarını tasarım kurallarına uydur](docs/gorevler/G-015-oynatici-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor (G-014'ten sonra) |
 | G-016 | [TV ekranlarını tasarım kurallarına uydur](docs/gorevler/G-016-tv-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor (G-014'ten sonra) |
 | G-017 | [Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu](docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor (G-014'ten sonra) |
