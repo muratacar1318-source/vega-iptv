@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-020 | [İçerik ilk açılışta "Session ID must be unique" hatası (medya oturumu sızıntısı)](docs/gorevler/G-020-medya-oturumu-hatasi.md) | 🔴 | ⏳ Bekliyor |
 | G-017 | [Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu](docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 | G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 
@@ -66,6 +65,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-014 | Tasarım temeli: tek vurgu rengi, renk/şekil tokenları, ortak bileşenler — PR #20 | 18 Ekim |
 | G-015 | Oynatıcı ekranları tasarım kurallarına uyduruldu — PR #21 | 18 Ekim |
 | G-016 | TV ekranları tasarım kurallarına uyduruldu — PR #22 | 18 Ekim |
+| G-020 | İçerik ilk açılış hatası (\"Session ID must be unique\") giderildi — PR #23 | 18 Ekim |
 
 ---
 
