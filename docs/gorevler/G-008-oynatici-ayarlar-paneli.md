@@ -95,7 +95,25 @@ oynatıcısı (`ui/tv/*`), canlı yayın alt kartının yerleşimi (G-002), gün
 
 ## Agent raporu
 
-_(Agent doldurur: ekran görüntüsü açıklamaları, değiştirilen dosyalar, A–I sonuçları.)_
+- **Değiştirilen ve Eklenen Dosyalar:**
+  1. `app/src/main/java/com/tivimax/player/ui/player/components/PlayerSettingsPanel.kt` (Yeni Bileşen):
+     - Yatayda sağdan kayan 340dp yan panel, dikeyde alttan açılan ekran yüksekliğinin en fazla %55'ini kaplayan kompakt panel.
+     - Sekmeli yapı (`[Ses] [Altyazı] [Görüntü] [Hız]`), canlı yayında sadece `[Ses] [Altyazı]`.
+     - Ses sekmesinde tek satır 44dp radyo butonlu parça seçimi.
+     - Altyazı sekmesinde kompakt parça listesi + gecikme `[−] +0,3 sn [+] ⟲` + segmentli boyut `[K][O][B][ÇB]` + renk daireleri `⚪ 🟡 🟢 🔵`.
+     - Görüntü sekmesinde en-boy oranı butonları `[Orijinal][Doldur][Yakınlaştır][16:9][4:3]`.
+     - Hız sekmesinde `[0.75x][1.0x][1.25x][1.5x][2.0x]`.
+     - Panelin altında katlanabilir küçük "Yayın Bilgisi" (StreamDiagnostics).
+  2. `app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt`:
+     - Eski uzun `ModalBottomSheet` ("Medya ve Oynatma Seçenekleri") ve `TiviPlayerHUD` film/dizi oynatıcısından kaldırıldı.
+     - Alt bardaki piller `[Baştan Başlat] [Ses & Altyazı] [Görüntü: Orijinal] [Hız: 1.0x]` olarak düzenlendi ve her pil ilgili sekmede paneli açacak şekilde bağlandı.
+     - "Kontrol Paneli" pili ve çakışan HUD kartı tamamen kaldırıldı.
+     - Panel açıkken alt bar ve kontroller gizleniyor; panel kapanınca immersive mod geri çağrılarak durum çubukları gizleniyor.
+     - TV kumanda ve geri tuşu desteği (`BackHandler`) entegre edildi.
+- **Doğrulama Sonuçları:**
+  - **A–I Senaryoları:** Tüm durumlar test edildi ve desteklendi.
+  - `./gradlew assembleDebug`: Başarılı.
+  - `./gradlew testDebugUnitTest`: Başarılı (tüm testler geçti).
 
 ---
 
@@ -120,3 +138,19 @@ sekmeler, canlı yayında yalnız Ses+Altyazı, Kontrol Paneli kaldırıldı, ya
 5. `YAPILACAKLAR.md` çakışmasında main'deki hali al, sadece G-008 satırını "🔍 İncelemede" yap.
 
 Derle (`./gradlew assembleDebug`), push et, raporu bu bölümün altına "Düzeltme turu 1 — Agent raporu" olarak ekle, dur.
+
+---
+
+### Düzeltme turu 1 — Agent raporu
+
+- **Yapılan Birleştirme ve Çözümler (`PlayerScreen.kt`):**
+  1. `origin/main` (G-007) `ui/oynatici-ayarlar-paneli` branch'ine birleştirildi.
+  2. `isUserInteracting` durumu G-007'deki `seekDirection != null`, `infoBannerText != null` ve G-008'deki `showSettingsPanel` birleştirilerek temizlendi; `showTrackSheet`, `showPlayerHUD`, `seekRipple`, `doubleTapSide` tamamen kaldırıldı.
+  3. Görüntü (en-boy) pili `settingsInitialTab = SettingsTab.ASPECT_RATIO; showSettingsPanel = true` olarak korundu; ortaya çift dokunma jestinde `cycleAspectRatio()` + bilgi balonu çalışmaya devam ediyor.
+  4. Hız pili `settingsInitialTab = SettingsTab.SPEED; showSettingsPanel = true` olarak bağlandı.
+  5. Dosyadaki tüm `seekRipple` ve `doubleTapSide` referansları temizlendi, G-007'nin `SeekIndicator` ve bilgi balonu ile G-008'in `PlayerSettingsPanel` bileşeni tam uyumla entegre edildi.
+  6. `YAPILACAKLAR.md` tablosu güncellendi (G-008 durumu `🔍 İncelemede (branch: ui/oynatici-ayarlar-paneli)`).
+- **Doğrulama Sonuçları:**
+  - `./gradlew assembleDebug`: Başarılı.
+  - `./gradlew testDebugUnitTest`: Başarılı.
+
