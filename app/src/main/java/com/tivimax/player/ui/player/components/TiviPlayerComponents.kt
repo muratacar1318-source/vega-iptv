@@ -141,9 +141,9 @@ fun TiviOverlayGuide(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "REHBER",
+                                text = "Rehber",
                                 color = VegaColors.Accent,
-                                fontSize = VegaText.BodySmall,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.ExtraBold,
                                 letterSpacing = 1.sp
                             )
@@ -345,7 +345,7 @@ private fun GuideCategoryItem(
                 Text(
                     text = title,
                     color = if (isFocused || isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
-                    fontSize = VegaText.BodySmall,
+                    fontSize = VegaText.Secondary,
                     fontWeight = if (isFocused || isSelected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -403,7 +403,7 @@ private fun GuideChannelItem(
             Text(
                 text = if (channel.num > 0) "${channel.num}" else "•",
                 color = if (isFocused || isPlaying) VegaColors.Accent else VegaColors.TextSecondary,
-                fontSize = VegaText.BodySmall,
+                fontSize = VegaText.Secondary,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.width(28.dp)
             )
@@ -435,7 +435,7 @@ private fun GuideChannelItem(
                 Text(
                     text = channel.name,
                     color = VegaColors.TextPrimary,
-                    fontSize = VegaText.BodyMedium,
+                    fontSize = VegaText.Body,
                     fontWeight = if (isFocused || isPlaying) FontWeight.Bold else FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -610,14 +610,14 @@ fun TiviBottomInfoCard(
 
                                 // Kanal Adı 15sp bold · Program Adı 13sp (tek satır, ellipsis)
                                 val titleText = buildAnnotatedString {
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = VegaText.HeadlineSmall, color = VegaColors.TextPrimary)) {
+                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = VegaText.BodyProminent, color = VegaColors.TextPrimary)) {
                                         append(channel.name)
                                     }
                                     if (currentTitle.isNotBlank()) {
-                                        withStyle(SpanStyle(color = VegaColors.TextSecondary, fontSize = VegaText.BodySmall)) {
+                                        withStyle(SpanStyle(color = VegaColors.TextSecondary, fontSize = VegaText.Secondary)) {
                                             append(" · ")
                                         }
-                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = VegaText.BodySmall, color = VegaColors.TextPrimary)) {
+                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = VegaText.Secondary, color = VegaColors.TextPrimary)) {
                                             append(currentTitle)
                                         }
                                     }
@@ -739,14 +739,14 @@ fun TiviBottomInfoCard(
 
                                 // Kanal Adı 15sp bold · Program Adı 13sp (tek satır, ellipsis)
                                 val titleText = buildAnnotatedString {
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = VegaText.HeadlineSmall, color = VegaColors.TextPrimary)) {
+                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = VegaText.BodyProminent, color = VegaColors.TextPrimary)) {
                                         append(channel.name)
                                     }
                                     if (currentTitle.isNotBlank()) {
-                                        withStyle(SpanStyle(color = VegaColors.TextSecondary, fontSize = VegaText.BodySmall)) {
+                                        withStyle(SpanStyle(color = VegaColors.TextSecondary, fontSize = VegaText.Secondary)) {
                                             append(" · ")
                                         }
-                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = VegaText.BodySmall, color = VegaColors.TextPrimary)) {
+                                        withStyle(SpanStyle(fontWeight = FontWeight.Normal, fontSize = VegaText.Secondary, color = VegaColors.TextPrimary)) {
                                             append(currentTitle)
                                         }
                                     }
@@ -988,12 +988,12 @@ fun TiviRecentChannelsBar(
                         Text(
                             text = "Son İzlenen Kanallar (${recentChannels.size})",
                             color = VegaColors.TextPrimary,
-                            fontSize = VegaText.BodyMedium,
+                            fontSize = VegaText.Body,
                             fontWeight = FontWeight.Bold
                         )
                     }
                     Text(
-                        text = "Geçiş yapmak için dokunun",
+                        text = "Geçiş yapmak için dokun",
                         color = VegaColors.TextMuted,
                         fontSize = VegaText.Caption
                     )
@@ -1138,7 +1138,7 @@ fun TiviNumericZapperBox(
                         Text(
                             text = matchedChannel.name,
                             color = VegaColors.TextPrimary,
-                            fontSize = VegaText.BodyMedium,
+                            fontSize = VegaText.Body,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -1148,7 +1148,7 @@ fun TiviNumericZapperBox(
                     Text(
                         text = "Kanal aranıyor...",
                         color = VegaColors.TextSecondary,
-                        fontSize = VegaText.BodySmall
+                        fontSize = VegaText.Secondary
                     )
                 }
 
@@ -1186,7 +1186,7 @@ fun NumericKeypadDialog(
                 Text(
                     text = "Kanal numarası gir",
                     color = VegaColors.TextPrimary,
-                    fontSize = VegaText.HeadlineSmall,
+                    fontSize = VegaText.BodyProminent,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -1316,7 +1316,7 @@ fun TiviPlayerHUD(
                         Text(
                             text = if (selectedTab == 0) "Kontrol merkezi" else "Yayın teşhisi (HUD)",
                             color = VegaColors.TextPrimary,
-                            fontSize = VegaText.BodyMedium,
+                            fontSize = VegaText.Body,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 0.8.sp
                         )
@@ -1425,7 +1425,7 @@ fun TiviPlayerHUD(
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Parlaklık", color = VegaColors.TextPrimary, fontSize = VegaText.BodySmall, fontWeight = FontWeight.SemiBold)
+                            Text(text = "Parlaklık", color = VegaColors.TextPrimary, fontSize = VegaText.Secondary, fontWeight = FontWeight.SemiBold)
                         }
                         Box(
                             modifier = Modifier
@@ -1501,7 +1501,7 @@ fun TiviPlayerHUD(
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Ses seviyesi", color = VegaColors.TextPrimary, fontSize = VegaText.BodySmall, fontWeight = FontWeight.SemiBold)
+                            Text(text = "Ses seviyesi", color = VegaColors.TextPrimary, fontSize = VegaText.Secondary, fontWeight = FontWeight.SemiBold)
                         }
                         Box(
                             modifier = Modifier
@@ -1588,7 +1588,7 @@ fun TiviPlayerHUD(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.AspectRatio, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("En-boy oranı", color = VegaColors.TextPrimary, fontSize = VegaText.BodySmall, fontWeight = FontWeight.SemiBold)
+                        Text("En-boy oranı", color = VegaColors.TextPrimary, fontSize = VegaText.Secondary, fontWeight = FontWeight.SemiBold)
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -1857,7 +1857,7 @@ fun PlayerPillButton(
             Text(
                 text = text,
                 color = contentColor,
-                fontSize = if (isPortrait) VegaText.Caption else VegaText.BodySmall,
+                fontSize = if (isPortrait) VegaText.Caption else VegaText.Secondary,
                 fontWeight = if (isFocused || isActive) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1
             )

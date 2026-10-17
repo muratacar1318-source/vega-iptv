@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
-import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 
 // ============================================================================
@@ -577,7 +576,7 @@ fun VegaPlayerPortraitMenuArea(
     Column(
         modifier = modifier
             .background(VegaColors.Background)
-            .padding(VegaSizes.SpacingMd)
+            .padding(12.dp)
     ) {
         // Header title & IMDb
         Row(
@@ -589,7 +588,7 @@ fun VegaPlayerPortraitMenuArea(
                 Text(
                     text = title.substringBefore("-").trim(),
                     color = VegaColors.TextPrimary,
-                    fontSize = VegaText.HeadlineSmall,
+                    fontSize = VegaText.BodyProminent,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
@@ -614,12 +613,12 @@ fun VegaPlayerPortraitMenuArea(
             }
         }
 
-        Spacer(modifier = Modifier.height(VegaSizes.SpacingSm))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Tabs Row
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(VegaSizes.SpacingXs)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             tabs.forEachIndexed { index, tabName ->
                 val isSelected = selectedTab == index
@@ -635,7 +634,7 @@ fun VegaPlayerPortraitMenuArea(
                     Text(
                         text = tabName,
                         color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
-                        fontSize = VegaText.BodySmall,
+                        fontSize = VegaText.Secondary,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
                     )
@@ -643,7 +642,7 @@ fun VegaPlayerPortraitMenuArea(
             }
         }
 
-        Spacer(modifier = Modifier.height(VegaSizes.SpacingSm))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Tab Content
         when (selectedTab) {
@@ -651,7 +650,7 @@ fun VegaPlayerPortraitMenuArea(
                 // Episodes List
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(VegaSizes.SpacingXs)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     item {
                         // Episode 1 (Active)
@@ -680,7 +679,7 @@ fun VegaPlayerPortraitMenuArea(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("1. Karşılaşma", color = VegaColors.TextPrimary, fontSize = VegaText.BodyMedium, fontWeight = FontWeight.Bold)
+                                        Text("1. Karşılaşma", color = VegaColors.TextPrimary, fontSize = VegaText.Body, fontWeight = FontWeight.Bold)
                                         Text("İzleniyor", color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Medium)
                                     }
                                     Text(
@@ -724,7 +723,7 @@ fun VegaPlayerPortraitMenuArea(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text("2. Beklenmedik Misafir", color = VegaColors.TextPrimary, fontSize = VegaText.BodyMedium, fontWeight = FontWeight.SemiBold)
+                                        Text("2. Beklenmedik Misafir", color = VegaColors.TextPrimary, fontSize = VegaText.Body, fontWeight = FontWeight.SemiBold)
                                         Text("Sıradaki", color = VegaColors.TextSecondary, fontSize = VegaText.Caption)
                                     }
                                     Text(
@@ -747,22 +746,22 @@ fun VegaPlayerPortraitMenuArea(
                     Text(
                         text = "Konu özeti",
                         color = VegaColors.Accent,
-                        fontSize = VegaText.BodySmall,
+                        fontSize = VegaText.Secondary,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "Yolları beklenmedik bir anda kesişen iki farklı dünyanın insanı, imkansız gibi görünen bir bağ kurar. Ancak geçmişin çözülmemiş gizemleri ve çevrelerindeki engeller, aşklarını büyük bir sınavdan geçirecektir.",
                         color = VegaColors.TextPrimary,
-                        fontSize = VegaText.BodySmall,
+                        fontSize = VegaText.Secondary,
                         lineHeight = 18.sp
                     )
                 }
             }
             2 -> {
                 // Audio & Subtitles
-                Column(verticalArrangement = Arrangement.spacedBy(VegaSizes.SpacingSm)) {
-                    Text(text = "Seslendirme (Dublaj)", color = VegaColors.TextPrimary, fontSize = VegaText.BodyMedium, fontWeight = FontWeight.Bold)
-                    Row(horizontalArrangement = Arrangement.spacedBy(VegaSizes.SpacingXs)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "Seslendirme (Dublaj)", color = VegaColors.TextPrimary, fontSize = VegaText.Body, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Surface(
                             shape = VegaShapes.Small,
                             color = VegaColors.Accent.copy(alpha = 0.2f),
@@ -779,8 +778,8 @@ fun VegaPlayerPortraitMenuArea(
                         }
                     }
 
-                    Text(text = "Altyazı", color = VegaColors.TextPrimary, fontSize = VegaText.BodyMedium, fontWeight = FontWeight.Bold)
-                    Row(horizontalArrangement = Arrangement.spacedBy(VegaSizes.SpacingXs)) {
+                    Text(text = "Altyazı", color = VegaColors.TextPrimary, fontSize = VegaText.Body, fontWeight = FontWeight.Bold)
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Surface(
                             shape = VegaShapes.Small,
                             color = VegaColors.Accent.copy(alpha = 0.2f),

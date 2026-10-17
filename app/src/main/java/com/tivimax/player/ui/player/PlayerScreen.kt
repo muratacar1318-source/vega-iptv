@@ -1199,7 +1199,7 @@ fun PlayerScreen(
                     Text(
                         text = "Ekran kilidi aktif — Kilidi açmak için ekrana çift dokun veya kumandadan OK tuşuna 2 kez bas.",
                         color = VegaColors.TextPrimary,
-                        fontSize = VegaText.BodySmall,
+                        fontSize = VegaText.Secondary,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -1236,7 +1236,7 @@ fun PlayerScreen(
                         Text(
                             text = "[$sign${formatDuration(diffAbs)}]",
                             color = VegaColors.TextSecondary,
-                            fontSize = VegaText.BodySmall,
+                            fontSize = VegaText.Secondary,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -2283,7 +2283,7 @@ fun PlayerScreen(
                         Text(
                             text = text,
                             color = VegaColors.TextPrimary,
-                            fontSize = VegaText.BodySmall,
+                            fontSize = VegaText.Secondary,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -2680,7 +2680,7 @@ fun PlayerScreen(
                                         Text(
                                             text = "Sezon $sKey",
                                             color = if (isSel) VegaColors.Accent else VegaColors.TextPrimary,
-                                            fontSize = VegaText.BodySmall,
+                                            fontSize = VegaText.Secondary,
                                             fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium
                                         )
                                     }
@@ -2731,7 +2731,7 @@ fun PlayerScreen(
                                         Text(
                                             text = ep.title.ifBlank { "Bölüm ${ep.episodeNum}" },
                                             color = if (isCurrentEp) VegaColors.Accent else VegaColors.TextPrimary,
-                                            fontSize = VegaText.BodyMedium,
+                                            fontSize = VegaText.Body,
                                             fontWeight = if (isCurrentEp) FontWeight.Bold else FontWeight.Medium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -3266,13 +3266,13 @@ fun DualViewChannelPicker(
                         Text(
                             text = "Çift ekran — İkinci kanal",
                             color = VegaColors.TextPrimary,
-                            fontSize = VegaText.HeadlineSmall,
+                            fontSize = VegaText.BodyProminent,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Aynı anda canlı izlemek istediğin kanalı seç",
                             color = VegaColors.TextSecondary,
-                            fontSize = VegaText.BodySmall
+                            fontSize = VegaText.Secondary
                         )
                     }
                 }
@@ -3288,7 +3288,7 @@ fun DualViewChannelPicker(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Kanal ara...", color = VegaColors.TextMuted, fontSize = VegaText.BodySmall) },
+                placeholder = { Text("Kanal ara...", color = VegaColors.TextMuted, fontSize = VegaText.Secondary) },
                 leadingIcon = {
                     Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = VegaColors.Accent)
                 },
@@ -3531,7 +3531,7 @@ private fun SeekIndicator(
             Text(
                 text = if (direction == SeekDirection.FORWARD) "+$seconds sn" else "-$seconds sn",
                 color = Color.White,
-                fontSize = if (isPortrait) VegaText.Caption else VegaText.BodySmall,
+                fontSize = if (isPortrait) VegaText.Caption else VegaText.Secondary,
                 fontWeight = FontWeight.Bold
             )
         }
