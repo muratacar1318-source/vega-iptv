@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.live.shelf
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -62,6 +63,10 @@ fun ShelfLiveLayout(
     var searchQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     val listState = rememberLazyListState()
+
+    BackHandler(enabled = searchQuery.isNotBlank()) {
+        searchQuery = ""
+    }
 
     // "Tümünü Gör" ile açılan kategori durumu
     var selectedSeeAllCategory by remember { mutableStateOf<Pair<String, List<LiveStream>>?>(null) }

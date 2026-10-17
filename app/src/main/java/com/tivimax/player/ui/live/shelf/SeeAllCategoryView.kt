@@ -48,13 +48,17 @@ fun SeeAllCategoryView(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Donanım veya sistem geri tuşunu yakala
-    BackHandler {
-        onBack()
-    }
-
     var localQuery by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+
+    // Donanım veya sistem geri tuşunu yakala: Arama varsa önce aramayı temizle, yoksa geri dön
+    BackHandler {
+        if (localQuery.isNotBlank()) {
+            localQuery = ""
+        } else {
+            onBack()
+        }
+    }
 
     val filteredList = remember(channels, localQuery) {
         if (localQuery.isBlank()) {

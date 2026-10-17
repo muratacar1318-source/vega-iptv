@@ -100,8 +100,8 @@ fun HomeScreen(viewModel: MainViewModel) {
             } catch (_: Exception) {}
             return@BackHandler
         }
-        if (isTvDevice && selectedTab != HomeTab.DASHBOARD) {
-            // TV: Menüdeyken geri tuşu Ana Sayfa'ya döner
+        if (selectedTab != HomeTab.DASHBOARD) {
+            // TV ve Mobil/Tablet: Seçili sekme Dashboard değilse Dashboard'a dön
             viewModel.setSelectedHomeTab(HomeTab.DASHBOARD)
             return@BackHandler
         }
