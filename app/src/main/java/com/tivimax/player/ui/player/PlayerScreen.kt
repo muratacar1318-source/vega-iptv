@@ -71,6 +71,7 @@ import com.tivimax.player.player.TiviPlayerManager
 import com.tivimax.player.player.TrackInfo
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.CategoryManagementDialog
@@ -1025,7 +1026,7 @@ fun PlayerScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(
                             onClick = { playerManager.retryCurrent() },
-                            colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary, contentColor = TiviBackground),
+                            colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary, contentColor = VegaColors.OnAccent),
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -2536,7 +2537,7 @@ fun PlayerScreen(
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Text("Hemen İzle", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Hemen İzle", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = VegaColors.OnAccent)
                         }
                     }
                 }

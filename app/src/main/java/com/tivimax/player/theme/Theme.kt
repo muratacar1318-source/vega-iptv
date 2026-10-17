@@ -22,9 +22,9 @@ fun TiviMaxTheme(
             TiviSurfaceVariant = AppThemes.OceanCardDark
             TiviCard = AppThemes.OceanCard
             TiviCardBorder = AppThemes.OceanCardBorder
-            TiviPrimary = AppThemes.OceanPrimary
-            TiviPrimaryDark = AppThemes.OceanPrimary
-            TiviSecondary = AppThemes.OceanPrimary
+            TiviPrimary = AppThemes.OceanCyan
+            TiviPrimaryDark = AppThemes.OceanCyan
+            TiviSecondary = AppThemes.OceanCyan
             OpusCyan = AppThemes.OceanCyan
             TiviCardDark = AppThemes.OceanCardDark
             TiviAccentLive = AppThemes.OceanAccentLive
@@ -35,9 +35,9 @@ fun TiviMaxTheme(
             TiviSurfaceVariant = AppThemes.ForestCardDark
             TiviCard = AppThemes.ForestCard
             TiviCardBorder = AppThemes.ForestCardBorder
-            TiviPrimary = AppThemes.ForestPrimary
-            TiviPrimaryDark = AppThemes.ForestPrimary
-            TiviSecondary = AppThemes.ForestPrimary
+            TiviPrimary = AppThemes.ForestCyan
+            TiviPrimaryDark = AppThemes.ForestCyan
+            TiviSecondary = AppThemes.ForestCyan
             OpusCyan = AppThemes.ForestCyan
             TiviCardDark = AppThemes.ForestCardDark
             TiviAccentLive = AppThemes.ForestAccentLive
@@ -48,9 +48,9 @@ fun TiviMaxTheme(
             TiviSurfaceVariant = AppThemes.VioletCardDark
             TiviCard = AppThemes.VioletCard
             TiviCardBorder = AppThemes.VioletCardBorder
-            TiviPrimary = AppThemes.VioletPrimary
-            TiviPrimaryDark = AppThemes.VioletPrimary
-            TiviSecondary = AppThemes.VioletPrimary
+            TiviPrimary = AppThemes.VioletCyan
+            TiviPrimaryDark = AppThemes.VioletCyan
+            TiviSecondary = AppThemes.VioletCyan
             OpusCyan = AppThemes.VioletCyan
             TiviCardDark = AppThemes.VioletCardDark
             TiviAccentLive = AppThemes.VioletAccentLive
@@ -61,9 +61,9 @@ fun TiviMaxTheme(
             TiviSurfaceVariant = AppThemes.MidnightCardDark
             TiviCard = AppThemes.MidnightCard
             TiviCardBorder = AppThemes.MidnightCardBorder
-            TiviPrimary = AppThemes.MidnightPrimary
-            TiviPrimaryDark = AppThemes.MidnightPrimary
-            TiviSecondary = AppThemes.MidnightPrimary
+            TiviPrimary = AppThemes.MidnightCyan
+            TiviPrimaryDark = AppThemes.MidnightCyan
+            TiviSecondary = AppThemes.MidnightCyan
             OpusCyan = AppThemes.MidnightCyan
             TiviCardDark = AppThemes.MidnightCardDark
             TiviAccentLive = AppThemes.MidnightAccentLive
@@ -72,7 +72,7 @@ fun TiviMaxTheme(
 
     val DarkColorScheme = darkColorScheme(
         primary = TiviPrimary,
-        onPrimary = TiviBackground,
+        onPrimary = androidx.compose.ui.graphics.Color.Black,
         secondary = TiviSecondary,
         onSecondary = TiviTextPrimary,
         background = TiviBackground,

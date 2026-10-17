@@ -23,6 +23,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.design.VegaColors
 
 @Composable
 fun CategoryManagementDialog(
@@ -298,7 +299,7 @@ fun CategoryManagementDialog(
                         .fillMaxWidth()
                         .height(46.dp)
                 ) {
-                    Text("Kaydet ve Kapat", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Kaydet ve Kapat", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = VegaColors.OnAccent)
                 }
             }
         }

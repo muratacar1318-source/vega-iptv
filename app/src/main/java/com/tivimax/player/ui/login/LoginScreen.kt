@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.theme.*
+import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.MainViewModel
 
 @Composable
@@ -88,7 +89,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                 Icon(
                     imageVector = Icons.Default.Tv,
                     contentDescription = "Logo",
-                    tint = Color.White,
+                    tint = VegaColors.OnAccent,
                     modifier = Modifier.size(48.dp)
                 )
             }
@@ -230,7 +231,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                 enabled = !isLoading && username.isNotBlank() && password.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = TiviPrimary,
-                    contentColor = Color.White,
+                    contentColor = VegaColors.OnAccent,
                     disabledContainerColor = TiviCardBorder,
                     disabledContentColor = TiviTextMuted
                 ),
@@ -241,7 +242,7 @@ fun LoginScreen(viewModel: MainViewModel) {
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        color = Color.White,
+                        color = VegaColors.OnAccent,
                         strokeWidth = 3.dp,
                         modifier = Modifier.size(22.dp)
                     )
