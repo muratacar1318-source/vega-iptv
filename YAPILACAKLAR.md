@@ -1,6 +1,6 @@
 # Vega IPTV — Yapılacaklar Listesi
 
-_Son güncelleme: 17 Ekim 2026 · Sürüm: v1.2.7 (versionCode 49) · Dal: `analiz/oynatici`_
+_Son güncelleme: 17 Ekim 2026 · Sürüm: v1.2.8 (versionCode 50) · Dal: `main`_
 
 Kodun güncel hali yeniden incelenerek hazırlandı. Derleme ve birim testleri şu an başarılı (`./gradlew assembleRelease testDebugUnitTest`).
 
@@ -64,6 +64,12 @@ Kodun güncel hali yeniden incelenerek hazırlandı. Derleme ve birim testleri �
 
 ### ✅ Tamamlananlar (16-17 Ekim)
 
+- **v1.2.8 (Build 50) Güncellemeleri:**
+  - **Dikey Mod (Telefon) Filmler ve Diziler Çökme Düzeltmesi:** `MediaCategoryNavigationBar` içindeki statik "Tümü" çipi (`key = "media_cat_all"`) ile listedeki sentetik `"all"` kategorisi arasındaki LazyRow anahtar çakışması (`IllegalArgumentException: Key was already used`) çözüldü.
+  - **Mükerrer ve İki Katına Çıkan Sayaç Düzeltildi:** Film ve dizi toplam sayaçlarının iki katı çıkması düzeltildi; kategoriler `filter { it.categoryId != "all" }.distinctBy { it.categoryId }` filtresiyle korunarak güvene alındı.
+  - **CategorySidebar Sol Panel:** Sol panelde "Tüm Filmler" ve "Tüm Diziler" sabit öğesi eklenerek TV ve yatay modda da listenin en başında düzgün gösterilmesi sağlandı.
+  - **Akıllı Güncelleme Erteleme (Snooze) & "Daha Sonra" Butonu:** Açılıştaki otomatik güncelleme diyaloğuna belirgin, ikonlu ve D-Pad odaklı **"Daha Sonra"** butonu eklendi. Kullanıcı güncellemeyi 24 saat erteleyebilir ve uygulamayı açılışta popup çıkmadan kesintisiz kullanabilir.
+  - **GitHub Release v1.2.8:** R8 optimizasyonlu release APK (`app-release.apk`) derlendi, GitHub Releases üzerinde yayınlandı.
 - **Dikey Konum Esnek Kategori Navigasyonu (Film & Dizi):** Kullanıcının isteğine göre tek dokunuşla ve Ayarlar'dan değiştirilebilen 3 farklı kategori gezinme stili eklendi:
   1. *Yatay Çipler (Tam Ekran):* Ekran genişliğinin %100'ü poster ızgarasına ayrılır, üstte otomatik kayan kategori çipleri ve sayaç rozetleri yer alır.
   2. *Klasik Sol Panel:* Solda kategori sütunu ve sağda posterler (özellikle tablet/yatay kullanım için).
@@ -81,4 +87,4 @@ Kodun güncel hali yeniden incelenerek hazırlandı. Derleme ve birim testleri �
 - APK git'ten çıkarıldı, sürüm notları `docs/release-notes/` altına taşındı
 - `TurkishStringNormalizer` birim testleri eklendi
 - TV'de kumandayla rakam girerek kanal seçme ve CH+/CH− desteği
-- v1.2.7 Release APK başarıyla derlendi ve GitHub (`main` ve `analiz/oynatici`) branch'lerine senkronize edildi.
+- v1.2.7 ve v1.2.8 Release APK'ları başarıyla derlendi ve GitHub (`main`) branch'ine senkronize edildi.
