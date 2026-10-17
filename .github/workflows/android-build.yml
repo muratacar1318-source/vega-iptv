@@ -40,6 +40,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Release imza dosyalarını oluştur
+        if: github.event_name == 'workflow_dispatch'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -57,11 +58,17 @@ jobs:
             echo "::warning::KEYSTORE_BASE64 / KEYSTORE_PASSWORD secret'ları yok; release APK debug anahtarıyla imzalanacak."
           fi
 
-      - name: Debug ve Release APK derle
+      # Normal push/PR'da sadece derleme kontrolü yapılır (APK saklanmaz).
+      # APK dosyası sadece Actions sekmesinden elle "Run workflow" ile çalıştırınca üretilir.
+      - name: Derle (kontrol) / APK üret (elle çalıştırınca)
         id: build
         run: |
           set -o pipefail
-          ./gradlew assembleDebug assembleRelease --stacktrace 2>&1 | tee build.log
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ./gradlew assembleDebug assembleRelease --stacktrace 2>&1 | tee build.log
+          else
+            ./gradlew compileDebugKotlin --stacktrace 2>&1 | tee build.log
+          fi
 
       - name: Derleme sonucunu yorum olarak yaz
         if: always()
@@ -74,7 +81,7 @@ jobs:
             const outcome = process.env.BUILD_OUTCOME;
             const ok = outcome === 'success';
             let body = `<!-- vega-ci -->\n### ${ok ? '✅ Derleme başarılı' : '❌ Derleme başarısız'} (\`${context.sha.substring(0, 7)}\`)\n`;
-            body += `[Çalışma detayı ve APK'lar](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
+            body += `[Çalışma detayı](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n`;
             if (!ok && fs.existsSync('build.log')) {
               const lines = fs.readFileSync('build.log', 'utf8').split('\n');
               const errs = lines.filter(l => /^e: |error:|FAILURE|What went wrong|Exception/.test(l)).slice(0, 40);
@@ -90,6 +97,7 @@ jobs:
             }
 
       - name: Debug APK'yı yükle
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: vega-iptv-debug
@@ -97,6 +105,7 @@ jobs:
           retention-days: 14
 
       - name: Release APK'yı yükle
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: vega-iptv-release
