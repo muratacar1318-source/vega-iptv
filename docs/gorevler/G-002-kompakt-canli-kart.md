@@ -158,4 +158,10 @@ Raporu aşağıya "Düzeltme turu 1 — Agent raporu" olarak ekle, `YAPILACAKLAR
 
 ### Düzeltme turu 1 — Agent raporu
 
-_(Agent doldurur.)_
+1. **Derleme Hatası Düzeltildi:** `TiviPlayerComponents.kt` dosyasına `import androidx.compose.ui.text.withStyle` import'u eklendi.
+2. **Geçici Loglar Temizlendi:** `TiviBottomInfoCard` üzerindeki `.onSizeChanged { ... Log.d(...) }` bloğu ve `density` / `onSizeChanged` / `Log` import'ları kaldırıldı.
+3. **Teknik Bilgi Şeridi Sahte Verileri Kaldırıldı (`LivePlayerMoreSheet.kt`):**
+   - Sabit fallback'ler (`"FHD 1080p"`, `"50 FPS"`, `"H.264"`, `"AAC"`) kaldırıldı.
+   - Sadece gerçek `resolutionBadge`/`resolution`, `frameRateBadge`/`frameRate` ve codec değerleri kullanıldı.
+   - Boş olanlar filtrelenip ` • ` ile birleştirildi. Hepsi boşsa `"Bilgi bekleniyor…"` yazıldı.
+4. **Derleme Doğrulaması:** `./gradlew compileDebugKotlin` çalıştırıldı ve `BUILD SUCCESSFUL` ile hatasız tamamlandığı doğrulandı.

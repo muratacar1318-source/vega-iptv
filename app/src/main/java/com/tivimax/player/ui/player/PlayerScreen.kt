@@ -1381,7 +1381,8 @@ fun PlayerScreen(
                             onBack()
                         },
                         modifier = Modifier.size(if (isPortrait) 38.dp else 44.dp),
-                        backgroundColor = Color.Black.copy(alpha = 0.25f)
+                        backgroundColor = if (isLive) Color(0x8C0A0E17) else Color.Black.copy(alpha = 0.25f),
+                        border = if (isLive) BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)) else null
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -1420,131 +1421,264 @@ fun PlayerScreen(
                     }
 
                     // Sağ Üst: Gerçek zamanlı Saat (14:35), Uyku Zamanlayıcısı, PiP, Ekran Kilidi
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(if (isPortrait) 4.dp else 8.dp)
-                    ) {
-                        if (currentTimeText.isNotBlank()) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color.Black.copy(alpha = 0.35f),
-                                border = BorderStroke(0.8.dp, Color.White.copy(alpha = 0.15f))
+                    if (isLive) {
+                        // CANLI TV İÇİN TEK YARI SAYDAM HAP
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0x8C0A0E17),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(if (isPortrait) 2.dp else 4.dp),
+                                modifier = Modifier.padding(horizontal = if (isPortrait) 6.dp else 8.dp, vertical = 2.dp)
                             ) {
-                                Text(
-                                    text = currentTimeText,
-                                    color = Color.White,
-                                    fontSize = if (isPortrait) 12.sp else 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
+                                if (currentTimeText.isNotBlank()) {
+                                    Text(
+                                        text = currentTimeText,
+                                        color = Color.White,
+                                        fontSize = if (isPortrait) 12.sp else 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 4.dp)
+                                    )
+                                }
+
+                                if (sleepTimerSeconds != null) {
+                                    var isTimerFocused by remember { mutableStateOf(false) }
+                                    Surface(
+                                        onClick = { showSleepTimerDialog = true },
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (isTimerFocused) OpusCyan.copy(alpha = 0.35f) else Color.Transparent,
+                                        border = if (isTimerFocused) BorderStroke(1.5.dp, OpusCyan) else null,
+                                        modifier = Modifier
+                                            .height(if (isPortrait) 32.dp else 36.dp)
+                                            .onFocusChanged { isTimerFocused = it.isFocused }
+                                    ) {
+                                        Box(
+                                            contentAlignment = Alignment.Center,
+                                            modifier = Modifier.padding(horizontal = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = "🌙 ${sleepTimerSeconds!! / 60}d",
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    BouncyIconButton(
+                                        onClick = { showSleepTimerDialog = true },
+                                        modifier = Modifier.size(if (isPortrait) 32.dp else 36.dp),
+                                        backgroundColor = Color.Transparent
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Bedtime,
+                                            contentDescription = "Uyku Zamanlayıcısı",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+                                    BouncyIconButton(
+                                        onClick = {
+                                            try {
+                                                val params = PictureInPictureParams.Builder()
+                                                    .setAspectRatio(Rational(16, 9))
+                                                    .build()
+                                                activity.enterPictureInPictureMode(params)
+                                            } catch (e: Throwable) {
+                                                // Ignore
+                                            }
+                                        },
+                                        modifier = Modifier.size(if (isPortrait) 32.dp else 36.dp),
+                                        backgroundColor = Color.Transparent
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.PictureInPictureAlt,
+                                            contentDescription = "Küçük Pencere (PiP)",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                // Telefon modunda tek dokunuşla "Döndür" (yatay <-> dikey)
+                                if (deviceMode == DeviceMode.PHONE && orientationManager != null) {
+                                    BouncyIconButton(
+                                        onClick = {
+                                            orientationManager.rotatePhonePlayer(
+                                                viewModel.currentScreen.value,
+                                                deviceMode
+                                            )
+                                            registerInteraction()
+                                        },
+                                        modifier = Modifier.size(if (isPortrait) 32.dp else 36.dp),
+                                        backgroundColor = Color.Transparent
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ScreenRotation,
+                                            contentDescription = "Döndür",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+
+                                BouncyIconButton(
+                                    onClick = {
+                                        isControlsLocked = !isControlsLocked
+                                        if (!isControlsLocked) {
+                                            showLockBanner = false
+                                            showInfoBanner("🔓 Ekran Kilidi Açıldı")
+                                        } else {
+                                            showLockBanner = true
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .size(if (isPortrait) 32.dp else 36.dp)
+                                        .focusRequester(lockButtonFocusRequester),
+                                    backgroundColor = Color.Transparent
+                                ) {
+                                    Icon(
+                                        imageVector = if (isControlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                                        contentDescription = "Ekran Kilidi",
+                                        tint = if (isControlsLocked) TiviAccentLive else Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
-
-                        if (sleepTimerSeconds != null) {
-                            var isTimerFocused by remember { mutableStateOf(false) }
-                            Surface(
-                                onClick = { showSleepTimerDialog = true },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isTimerFocused) OpusCyan.copy(alpha = 0.45f) else TiviSecondary.copy(alpha = 0.35f),
-                                border = if (isTimerFocused) BorderStroke(2.dp, OpusCyan) else null,
-                                modifier = Modifier
-                                    .height(40.dp)
-                                    .onFocusChanged { isTimerFocused = it.isFocused }
-                            ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(horizontal = 8.dp)
+                    } else {
+                        // VOD (Film / Dizi) için mevcut üst sağ grup aynen korunur
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(if (isPortrait) 4.dp else 8.dp)
+                        ) {
+                            if (currentTimeText.isNotBlank()) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color.Black.copy(alpha = 0.35f),
+                                    border = BorderStroke(0.8.dp, Color.White.copy(alpha = 0.15f))
                                 ) {
                                     Text(
-                                        text = "🌙 ${sleepTimerSeconds!! / 60}d",
+                                        text = currentTimeText,
                                         color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontSize = if (isPortrait) 12.sp else 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
                             }
-                        } else {
-                            BouncyIconButton(
-                                onClick = { showSleepTimerDialog = true },
-                                modifier = Modifier.size(40.dp),
-                                backgroundColor = Color.Black.copy(alpha = 0.25f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Bedtime,
-                                    contentDescription = "Uyku Zamanlayıcısı",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
 
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+                            if (sleepTimerSeconds != null) {
+                                var isTimerFocused by remember { mutableStateOf(false) }
+                                Surface(
+                                    onClick = { showSleepTimerDialog = true },
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (isTimerFocused) OpusCyan.copy(alpha = 0.45f) else TiviSecondary.copy(alpha = 0.35f),
+                                    border = if (isTimerFocused) BorderStroke(2.dp, OpusCyan) else null,
+                                    modifier = Modifier
+                                        .height(40.dp)
+                                        .onFocusChanged { isTimerFocused = it.isFocused }
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = "🌙 ${sleepTimerSeconds!! / 60}d",
+                                            color = Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            } else {
+                                BouncyIconButton(
+                                    onClick = { showSleepTimerDialog = true },
+                                    modifier = Modifier.size(40.dp),
+                                    backgroundColor = Color.Black.copy(alpha = 0.25f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Bedtime,
+                                        contentDescription = "Uyku Zamanlayıcısı",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+                                BouncyIconButton(
+                                    onClick = {
+                                        try {
+                                            val params = PictureInPictureParams.Builder()
+                                                .setAspectRatio(Rational(16, 9))
+                                                .build()
+                                            activity.enterPictureInPictureMode(params)
+                                        } catch (e: Throwable) {
+                                            // Ignore
+                                        }
+                                    },
+                                    modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp),
+                                    backgroundColor = Color.Black.copy(alpha = 0.25f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PictureInPictureAlt,
+                                        contentDescription = "Küçük Pencere (PiP)",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(if (isPortrait) 20.dp else 23.dp)
+                                    )
+                                }
+                            }
+
+                            // Telefon modunda tek dokunuşla "Döndür" (yatay <-> dikey)
+                            if (deviceMode == DeviceMode.PHONE && orientationManager != null) {
+                                BouncyIconButton(
+                                    onClick = {
+                                        orientationManager.rotatePhonePlayer(
+                                            viewModel.currentScreen.value,
+                                            deviceMode
+                                        )
+                                        registerInteraction()
+                                    },
+                                    modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp),
+                                    backgroundColor = Color.Black.copy(alpha = 0.25f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ScreenRotation,
+                                        contentDescription = "Döndür",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(if (isPortrait) 20.dp else 23.dp)
+                                    )
+                                }
+                            }
+
                             BouncyIconButton(
                                 onClick = {
-                                    try {
-                                        val params = PictureInPictureParams.Builder()
-                                            .setAspectRatio(Rational(16, 9))
-                                            .build()
-                                        activity.enterPictureInPictureMode(params)
-                                    } catch (e: Throwable) {
-                                        // Ignore
+                                    isControlsLocked = !isControlsLocked
+                                    if (!isControlsLocked) {
+                                        showLockBanner = false
+                                        showInfoBanner("🔓 Ekran Kilidi Açıldı")
+                                    } else {
+                                        showLockBanner = true
                                     }
                                 },
-                                modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp),
+                                modifier = Modifier
+                                    .size(if (isPortrait) 34.dp else 40.dp)
+                                    .focusRequester(lockButtonFocusRequester),
                                 backgroundColor = Color.Black.copy(alpha = 0.25f)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.PictureInPictureAlt,
-                                    contentDescription = "Küçük Pencere (PiP)",
-                                    tint = Color.White,
+                                    imageVector = if (isControlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                                    contentDescription = "Ekran Kilidi",
+                                    tint = if (isControlsLocked) TiviAccentLive else Color.White,
                                     modifier = Modifier.size(if (isPortrait) 20.dp else 23.dp)
                                 )
                             }
-                        }
-
-                        // Telefon modunda tek dokunuşla "Döndür" (yatay <-> dikey)
-                        if (deviceMode == DeviceMode.PHONE && orientationManager != null) {
-                            BouncyIconButton(
-                                onClick = {
-                                    orientationManager.rotatePhonePlayer(
-                                        viewModel.currentScreen.value,
-                                        deviceMode
-                                    )
-                                    registerInteraction()
-                                },
-                                modifier = Modifier.size(if (isPortrait) 34.dp else 40.dp),
-                                backgroundColor = Color.Black.copy(alpha = 0.25f)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ScreenRotation,
-                                    contentDescription = "Döndür",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(if (isPortrait) 20.dp else 23.dp)
-                                )
-                            }
-                        }
-
-                        BouncyIconButton(
-                            onClick = {
-                                isControlsLocked = !isControlsLocked
-                                if (!isControlsLocked) {
-                                    showLockBanner = false
-                                    showInfoBanner("🔓 Ekran Kilidi Açıldı")
-                                } else {
-                                    showLockBanner = true
-                                }
-                            },
-                            modifier = Modifier
-                                .size(if (isPortrait) 34.dp else 40.dp)
-                                .focusRequester(lockButtonFocusRequester),
-                            backgroundColor = Color.Black.copy(alpha = 0.25f)
-                        ) {
-                            Icon(
-                                imageVector = if (isControlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                                contentDescription = "Ekran Kilidi",
-                                tint = if (isControlsLocked) TiviAccentLive else Color.White,
-                                modifier = Modifier.size(if (isPortrait) 20.dp else 23.dp)
-                            )
                         }
                     }
                 }
@@ -1641,6 +1775,7 @@ fun PlayerScreen(
                                 actions = if (showControls && !showOverlayGuide) {
                                     {
                                         LivePlayerActionBar(
+                                            modifier = if (isPortrait) Modifier.fillMaxWidth() else Modifier.wrapContentWidth(),
                                             onOpenGuide = {
                                                 showOverlayGuide = true
                                                 showControls = false

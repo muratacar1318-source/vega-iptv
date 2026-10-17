@@ -34,7 +34,7 @@ fun LivePlayerMoreSheet(
     onOpenDualView: () -> Unit,
     onOpenNumpad: () -> Unit,
     onOpenChannelDrawer: () -> Unit,
-    onLockControls: () -> Unit,
+    onLockControls: (() -> Unit)? = null,
     diagnostics: StreamDiagnostics,
     onDismiss: () -> Unit
 ) {
@@ -116,19 +116,25 @@ fun LivePlayerMoreSheet(
                 onClick = onOpenChannelDrawer
             )
 
-            // 5. Ekran Dokunmalarını Kilitle
-            MoreActionRow(
-                icon = Icons.Default.Lock,
-                title = "Ekranı Kilitle",
-                subtitle = "İstenmeyen dokunmaları ve kanal değişimlerini engeller",
-                onClick = onLockControls
-            )
+            // 5. Teknik Bilgi Şeridi
+            val resText = diagnostics.resolutionBadge.ifBlank { diagnostics.resolution }.trim()
+            val fpsText = diagnostics.frameRateBadge.ifBlank { diagnostics.frameRate }.trim()
+            val vCodec = diagnostics.videoCodecBadge.ifBlank { diagnostics.videoCodec }.trim()
+            val aCodec = diagnostics.audioCodecBadge.ifBlank { diagnostics.audioCodec }.trim()
 
-            // 6. Teknik Bilgi Şeridi
-            val resText = diagnostics.resolutionBadge.ifBlank { diagnostics.resolution.ifBlank { "FHD 1080p" } }
-            val fpsText = diagnostics.frameRateBadge.ifBlank { "50 FPS" }
-            val vCodec = diagnostics.videoCodecBadge.ifBlank { "H.264" }
-            val aCodec = diagnostics.audioCodecBadge.ifBlank { "AAC" }
+            val codecPart = when {
+                vCodec.isNotBlank() && aCodec.isNotBlank() -> "$vCodec / $aCodec"
+                vCodec.isNotBlank() -> vCodec
+                aCodec.isNotBlank() -> aCodec
+                else -> ""
+            }
+
+            val diagnosticParts = listOf(resText, fpsText, codecPart).filter { it.isNotBlank() }
+            val diagnosticText = if (diagnosticParts.isNotEmpty()) {
+                diagnosticParts.joinToString(" • ")
+            } else {
+                "Bilgi bekleniyor…"
+            }
 
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -151,7 +157,7 @@ fun LivePlayerMoreSheet(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "$resText • $fpsText • $vCodec / $aCodec",
+                            text = diagnosticText,
                             color = Color.White,
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold

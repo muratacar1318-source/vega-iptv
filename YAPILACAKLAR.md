@@ -40,8 +40,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor — **Düzeltme turu 1** (aynı branch'te devam; derleme hatası) |
 | G-009 | [Önizleme yüzey devri: görünüm pencereye eklenince devret (TV kenar durumu)](docs/gorevler/G-009-yuzey-devri-ekleme-bekle.md) | 🟢 | 🔍 İncelemede (branch: fix/yuzey-devri-ekleme-bekle) |
+| G-011 | [Yayın bilgisindeki uydurma değerleri kaynağında kaldır (FHD 1080p / 50 FPS)](docs/gorevler/G-011-yayin-bilgisi-uydurma-degerler.md) | 🟢 | ⏳ Bekliyor |
 
 ---
 
@@ -57,6 +57,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-008 | Oynatıcı ayarları tek kompakt panelde (ses, altyazı, görüntü, hız) — PR #12 | 17 Ekim |
 | G-010 | Ayarlar paneli içeriği görünüyor, uyku zamanlayıcısı, TV kumanda odağı — PR #13 | 18 Ekim |
 | G-003 | TV canlı yayın oynatıcısında altyazı gecikmesi uygulanıyor — PR #15 | 18 Ekim |
+| G-002 | Kompakt canlı yayın kartı, sahte EPG/kalite verileri kaldırıldı, üst düğmeler tek hapta — PR #14 | 18 Ekim |
 
 ---
 
