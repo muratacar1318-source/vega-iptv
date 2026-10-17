@@ -48,6 +48,7 @@ import androidx.media3.ui.PlayerView
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.player.AspectRatioMode
+import com.tivimax.player.player.DelayedSubtitleController
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
@@ -86,7 +87,21 @@ fun TvPlayerOverlay(
     val audioTracks by playerManager.audioTracks.collectAsState()
     val subtitleTracks by playerManager.subtitleTracks.collectAsState()
     val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsState()
+    val subtitleColor by viewModel.subtitleColor.collectAsState()
+    val subtitleSize by viewModel.subtitleSize.collectAsState()
     val anySubSelected = subtitleTracks.any { it.isSelected }
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val delayedController = remember {
+        DelayedSubtitleController(context, coroutineScope)
+    }
+
+    DisposableEffect(delayedController) {
+        onDispose {
+            delayedController.detach()
+        }
+    }
 
     var showInfoCard by remember { mutableStateOf(true) }
     var showActionTray by remember { mutableStateOf(false) }
@@ -258,13 +273,26 @@ fun TvPlayerOverlay(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
+                    val initialPlayer = playerManager.player ?: playerManager.initializePlayer(isLive = true)
                     playerManager.attachView(this, isPrimary = true, tag = "TvPlayerOverlay")
+                    delayedController.attach(this, initialPlayer)
+                    delayedController.updateDelay(subtitleDelayMs)
+                    delayedController.updateStyle(subtitleColor, subtitleSize)
                 }
             },
             update = { playerView ->
+                val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive = true)
                 playerManager.attachView(playerView, isPrimary = true, tag = "TvPlayerOverlay")
+                try {
+                    delayedController.attach(playerView, currentPlayer)
+                    delayedController.updateDelay(subtitleDelayMs)
+                    delayedController.updateStyle(subtitleColor, subtitleSize)
+                } catch (e: Throwable) {
+                    // Ignore
+                }
             },
             onRelease = { playerView ->
+                delayedController.detach()
                 playerManager.detachView(playerView, tag = "TvPlayerOverlay")
             },
             modifier = Modifier.fillMaxSize()
