@@ -40,8 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-009 | [Önizleme yüzey devri: görünüm pencereye eklenince devret (TV kenar durumu)](docs/gorevler/G-009-yuzey-devri-ekleme-bekle.md) | 🟢 | ⏳ Bekliyor |
-| G-011 | [Yayın bilgisindeki uydurma değerleri kaynağında kaldır (FHD 1080p / 50 FPS)](docs/gorevler/G-011-yayin-bilgisi-uydurma-degerler.md) | 🟢 | 🔍 İncelemede (branch: fix/yayin-bilgisi-gercek-degerler) |
+| G-011 | [Yayın bilgisindeki uydurma değerleri kaynağında kaldır (FHD 1080p / 50 FPS)](docs/gorevler/G-011-yayin-bilgisi-uydurma-degerler.md) | 🟢 | ⏳ Bekliyor |
 
 ---
 
@@ -58,6 +57,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-010 | Ayarlar paneli içeriği görünüyor, uyku zamanlayıcısı, TV kumanda odağı — PR #13 | 18 Ekim |
 | G-003 | TV canlı yayın oynatıcısında altyazı gecikmesi uygulanıyor — PR #15 | 18 Ekim |
 | G-002 | Kompakt canlı yayın kartı, sahte EPG/kalite verileri kaldırıldı, üst düğmeler tek hapta — PR #14 | 18 Ekim |
+| G-009 | Önizleme yüzey devri: görünüm pencereye eklenince devrediliyor — PR #16 | 18 Ekim |
 
 ---
 
