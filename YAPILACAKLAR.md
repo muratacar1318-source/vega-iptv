@@ -15,7 +15,7 @@ Kullanıcı "yapılacakları kontrol et ve uygula" dediğinde:
 3. Görevin dosyasını (`docs/gorevler/...`) baştan sona oku. Dosyadaki branch adını, kapsamı,
    "DOKUNMA" listesini ve test adımlarını aynen uygula.
 4. Bitince:
-   - `./gradlew assembleDebug` ile derle.
+   - **Derleme yapma / APK üretme** (kullanıcı özellikle istemedikçe). Derleme kontrolünü GitHub otomatik yapar.
    - Görev branch'ine commit edip push et. **main'e merge ETME.**
    - Görev dosyasının en altındaki **Agent raporu** bölümünü doldur (ne yaptın, hangi dosyalar,
      test sonuçları, sorunlar). Bu rapor değişikliği görev branch'inde commit et.
@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-010 | [Ayarlar paneli boş görünüyor (ACİL) + uyku zamanlayıcısı, TV kumanda odağı, dokunma alanları](docs/gorevler/G-010-ayarlar-paneli-eksikler.md) | 🔴 | 🔍 İncelemede (branch: fix/ayarlar-paneli-eksikler) |
 | G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor |
 | G-003 | [TV canlı yayın oynatıcısında altyazı gecikmesi ayarı çalışmıyor](docs/gorevler/G-003-tv-altyazi-gecikmesi.md) | 🟢 | ⏳ Bekliyor |
 | G-009 | [Önizleme yüzey devri: görünüm pencereye eklenince devret (TV kenar durumu)](docs/gorevler/G-009-yuzey-devri-ekleme-bekle.md) | 🟢 | ⏳ Bekliyor |
@@ -57,6 +56,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-006 | Tam ekran evrensel arama (anlık sonuç, Türkçe uyumlu, son aramalar) — PR #10 | 17 Ekim |
 | G-007 | ±10 sn göstergesi yanlarda/en üstte; döndür butonu kilitlemiyor — PR #11 | 17 Ekim |
 | G-008 | Oynatıcı ayarları tek kompakt panelde (ses, altyazı, görüntü, hız) — PR #12 | 17 Ekim |
+| G-010 | Ayarlar paneli içeriği görünüyor, uyku zamanlayıcısı, TV kumanda odağı — PR #13 | 18 Ekim |
 
 ---
 

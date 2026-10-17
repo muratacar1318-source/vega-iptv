@@ -7,7 +7,7 @@
 - YAPILACAKLAR.md'ye kendi başına yeni görev EKLEME ve mevcut görevlerin tarifini DEĞİŞTİRME;
   sadece kendi görevinin durumunu ve rapor bölümünü güncelle.
 - Her iş için main'den yeni bir branch aç (fix/..., feat/..., chore/...). main'e doğrudan commit ATMA.
-- İş bitince ./gradlew assembleDebug ile derlendiğini doğrula, branch'e push et.
+- İş bitince derleme/APK üretme (kullanıcı istemedikçe `./gradlew` çalıştırma); derleme kontrolünü GitHub otomatik yapar. Branch'e push et ve PR aç.
 - main'e merge ETME; birleştirme kullanıcının onayıyla yapılır.
 - Görev dışındaki dosyalara dokunma; refactor, biçimlendirme, import düzenlemesi yapma.
 ## Asla dokunulmayacaklar
