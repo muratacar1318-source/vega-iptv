@@ -66,7 +66,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
       G-001 ve G-002 bu branch'ten bağımsız, main üzerinden yapılır.
 - [ ] **Release anahtarı:** Yayınlanan tüm sürümler hâlâ derleme bilgisayarının geçici "Android Debug"
       anahtarıyla imzalı. `vega-release.jks` ve `keystore.properties` derleme bilgisayarına konmadı.
-- [ ] **GitHub Actions** çalışmıyor (ilk derlemeden sonra hiç tetiklenmedi). Repo → Actions sekmesi kontrol edilmeli.
 
 ## ⏸️ Ertelenenler
 
