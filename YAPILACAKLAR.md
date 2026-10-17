@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-008 | [Oynatıcı ayarlarını tek kompakt panelde topla (ses, altyazı, görüntü, hız)](docs/gorevler/G-008-oynatici-ayarlar-paneli.md) | 🟠 | 🔍 İncelemede (branch: ui/oynatici-ayarlar-paneli) |
+| G-010 | [Ayarlar paneli eksikleri: uyku zamanlayıcısı, TV kumanda odağı, dokunma alanları](docs/gorevler/G-010-ayarlar-paneli-eksikler.md) | 🟠 | ⏳ Bekliyor |
 | G-002 | [Canlı yayın alt kartını kompaktlaştır, sahte EPG/kalite verilerini kaldır](docs/gorevler/G-002-kompakt-canli-kart.md) | 🟠 | ⏳ Bekliyor |
 | G-003 | [TV canlı yayın oynatıcısında altyazı gecikmesi ayarı çalışmıyor](docs/gorevler/G-003-tv-altyazi-gecikmesi.md) | 🟢 | ⏳ Bekliyor |
 | G-009 | [Önizleme yüzey devri: görünüm pencereye eklenince devret (TV kenar durumu)](docs/gorevler/G-009-yuzey-devri-ekleme-bekle.md) | 🟢 | ⏳ Bekliyor |
@@ -56,6 +56,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-005 | Canlı TV varsayılan detaylı liste, EPG saatleri yerel saat, sahte ilerleme kaldırıldı — PR #9 | 17 Ekim |
 | G-006 | Tam ekran evrensel arama (anlık sonuç, Türkçe uyumlu, son aramalar) — PR #10 | 17 Ekim |
 | G-007 | ±10 sn göstergesi yanlarda/en üstte; döndür butonu kilitlemiyor — PR #11 | 17 Ekim |
+| G-008 | Oynatıcı ayarları tek kompakt panelde (ses, altyazı, görüntü, hız) — PR #12 | 17 Ekim |
 
 ---
 
