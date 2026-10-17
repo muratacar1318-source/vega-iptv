@@ -40,12 +40,10 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-014 | [Tasarım temeli: tek vurgu rengi, renk/şekil tokenları, ortak bileşenler](docs/gorevler/G-014-tasarim-temeli.md) | 🟠 | ⏳ Bekliyor |
-| G-019 | [Yeni logo: uygulama simgesi, TV afişi, uygulama içi logo (\"Yıldızlı V\")](docs/gorevler/G-019-logo.md) | 🟠 | ⏳ Bekliyor |
-| G-015 | [Oynatıcı ekranlarını tasarım kurallarına uydur](docs/gorevler/G-015-oynatici-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor (G-014'ten sonra) |
-| G-016 | [TV ekranlarını tasarım kurallarına uydur](docs/gorevler/G-016-tv-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor (G-014'ten sonra) |
-| G-017 | [Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu](docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor (G-014'ten sonra) |
-| G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor (G-014'ten sonra) |
+| G-015 | [Oynatıcı ekranlarını tasarım kurallarına uydur](docs/gorevler/G-015-oynatici-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
+| G-016 | [TV ekranlarını tasarım kurallarına uydur](docs/gorevler/G-016-tv-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
+| G-017 | [Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu](docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
+| G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 
 ---
 
@@ -66,6 +64,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-011 | Yayın bilgisi sadece gerçek değerleri gösteriyor (uydurma FHD/50 FPS kaldırıldı) — PR #17 | 18 Ekim |
 | G-012 | Hesap ekranı: gerçek abonelik bilgileri, içerik özeti, çıkış onayı — PR #18 | 18 Ekim |
 | G-013 | Ayarlar sadeleştirildi: işlevsiz ayarlar kaldırıldı, kategori ve metinler anlaşılır — PR #19 | 18 Ekim |
+| G-014 | Tasarım temeli: tek vurgu rengi, renk/şekil tokenları, ortak bileşenler — PR #20 | 18 Ekim |
 
 ---
 
@@ -79,6 +78,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 ## ⏸️ Ertelenenler
 
+- **Yeni logo ve uygulama simgesi:** Kullanıcı uygulamaya yeni bir isim bulacak; logo isim belli olunca tasarlanacak.
+  (Şu an telefondaki simge hâlâ Android'in hazır yeşil simgesi.)
 - **Güncelleyicide indirme doğrulaması** (eksik inen APK'yı kurmadan önce yakalama).
 - **Samsung Tizen / LG webOS sürümü.**
 - **Dizi detayında "Oynat" butonu** kaldığın bölümü değil, seçili sezonun ilk bölümünü açıyor.
