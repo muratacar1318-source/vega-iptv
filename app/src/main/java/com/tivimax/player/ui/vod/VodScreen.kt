@@ -38,6 +38,7 @@ import coil.compose.AsyncImage
 import androidx.compose.foundation.BorderStroke
 import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.data.model.VodStream
+import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
@@ -51,14 +52,15 @@ fun VodScreen(viewModel: MainViewModel) {
     val isLoading by viewModel.vodLoading.collectAsState()
     val currentSort by viewModel.vodSortOption.collectAsState()
     val watchProgressMap by viewModel.watchProgressMap.collectAsState()
+    val portraitNavStyle by viewModel.portraitCategoryNavStyle.collectAsState()
 
     val searchQuery by viewModel.vodSearchQuery.collectAsState()
-    var isSortMenuOpen by remember { mutableStateOf(false) }
     var showCategoryDialog by remember { mutableStateOf(false) }
+    var showCategorySheet by remember { mutableStateOf(false) }
 
     val filteredMovies = movies
 
-    var visibleLimit by remember(filteredMovies) { mutableStateOf(40) }
+    var visibleLimit by remember(filteredMovies) { mutableIntStateOf(40) }
     val pagedMovies = remember(filteredMovies, visibleLimit) {
         filteredMovies.take(visibleLimit)
     }
@@ -70,7 +72,13 @@ fun VodScreen(viewModel: MainViewModel) {
 
     val configuration = LocalConfiguration.current
     val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
-    val gridColumns = if (isWideScreen) (configuration.screenWidthDp / 140).coerceIn(5, 7) else 3
+
+    val totalVodCount = remember(categories) { categories.sumOf { it.itemCount } }
+    val selectedCategoryItem = remember(categories, selectedCategory) {
+        categories.firstOrNull { it.categoryId == selectedCategory }
+    }
+    val selectedCategoryName = selectedCategoryItem?.categoryName ?: "Tüm Filmler"
+    val selectedCategoryCount = selectedCategoryItem?.itemCount ?: totalVodCount
 
     val uiCategories = remember(categories) {
         categories.map {
@@ -84,27 +92,143 @@ fun VodScreen(viewModel: MainViewModel) {
         }
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Ortak Sol Kategori Menüsü
-        com.tivimax.player.ui.components.CategorySidebar(
+    if (showCategorySheet) {
+        com.tivimax.player.ui.components.MediaCategoryBottomSheet(
+            title = "Film Türleri",
             categories = uiCategories,
             selectedCategoryId = selectedCategory,
+            totalCount = totalVodCount,
             onCategorySelected = { viewModel.loadVodStreams(it) },
-            title = "TÜRLER",
-            onFilterClick = { showCategoryDialog = true }
+            onDismissRequest = { showCategorySheet = false }
         )
+    }
 
-        // SAĞ PANEL: ARAMA ÇUBUĞU & FİLMLER IZGARASI
-            Column(
+    if (showCategoryDialog) {
+        CategoryManagementDialog(
+            viewModel = viewModel,
+            initialTab = 1,
+            onDismiss = { showCategoryDialog = false }
+        )
+    }
+
+    if (isWideScreen || portraitNavStyle == com.tivimax.player.data.preferences.UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Ortak Sol Kategori Menüsü
+            com.tivimax.player.ui.components.CategorySidebar(
+                categories = uiCategories,
+                selectedCategoryId = selectedCategory,
+                onCategorySelected = { viewModel.loadVodStreams(it) },
+                title = "TÜRLER",
+                onFilterClick = { showCategoryDialog = true }
+            )
+
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
             ) {
+                VodMediaContentGrid(
+                    viewModel = viewModel,
+                    filteredMovies = filteredMovies,
+                    pagedMovies = pagedMovies,
+                    featuredMovie = featuredMovie,
+                    selectedHeroMovie = selectedHeroMovie,
+                    onSelectHeroMovie = { selectedHeroMovie = it },
+                    watchProgressMap = watchProgressMap,
+                    searchQuery = searchQuery,
+                    selectedCategory = selectedCategory,
+                    currentSort = currentSort,
+                    isLoading = isLoading,
+                    gridColumns = if (isWideScreen) (configuration.screenWidthDp / 140).coerceIn(5, 7) else 2,
+                    isWideScreen = isWideScreen,
+                    portraitNavStyle = portraitNavStyle,
+                    visibleLimit = visibleLimit,
+                    onLoadMore = { visibleLimit += 30 }
+                )
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp, vertical = 4.dp)
+        ) {
+            if (portraitNavStyle == com.tivimax.player.data.preferences.UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN) {
+                com.tivimax.player.ui.components.MediaCategoryDropdownBar(
+                    selectedCategoryName = selectedCategoryName,
+                    selectedCategoryCount = selectedCategoryCount,
+                    onOpenCategorySheet = { showCategorySheet = true }
+                )
+            } else {
+                com.tivimax.player.ui.components.MediaCategoryNavigationBar(
+                    categories = uiCategories,
+                    selectedCategoryId = selectedCategory,
+                    onCategorySelected = { viewModel.loadVodStreams(it) },
+                    totalCount = totalVodCount,
+                    allLabel = "Tüm Filmler",
+                    defaultIcon = Icons.Default.Movie,
+                    onOpenAllCategories = { showCategorySheet = true }
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                VodMediaContentGrid(
+                    viewModel = viewModel,
+                    filteredMovies = filteredMovies,
+                    pagedMovies = pagedMovies,
+                    featuredMovie = featuredMovie,
+                    selectedHeroMovie = selectedHeroMovie,
+                    onSelectHeroMovie = { selectedHeroMovie = it },
+                    watchProgressMap = watchProgressMap,
+                    searchQuery = searchQuery,
+                    selectedCategory = selectedCategory,
+                    currentSort = currentSort,
+                    isLoading = isLoading,
+                    gridColumns = 3,
+                    isWideScreen = isWideScreen,
+                    portraitNavStyle = portraitNavStyle,
+                    visibleLimit = visibleLimit,
+                    onLoadMore = { visibleLimit += 30 }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VodMediaContentGrid(
+    viewModel: MainViewModel,
+    filteredMovies: List<VodStream>,
+    pagedMovies: List<VodStream>,
+    featuredMovie: VodStream?,
+    selectedHeroMovie: VodStream?,
+    onSelectHeroMovie: (VodStream) -> Unit,
+    watchProgressMap: Map<String, WatchProgress>,
+    searchQuery: String,
+    selectedCategory: String,
+    currentSort: SortOption,
+    isLoading: Boolean,
+    gridColumns: Int,
+    isWideScreen: Boolean,
+    portraitNavStyle: String,
+    visibleLimit: Int,
+    onLoadMore: () -> Unit
+) {
+    var isSortMenuOpen by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
                 // Sıralama ve Aktif Arama Filtresi Başlığı
                 Row(
                     modifier = Modifier
@@ -153,68 +277,85 @@ fun VodScreen(viewModel: MainViewModel) {
                             }
                         }
                     } else {
-                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "${filteredMovies.size} Film",
+                            color = TiviTextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
 
-                    // Sıralama Seçici Butonu
-                    Box {
-                        com.tivimax.player.ui.components.ActionChipButton(
-                            text = when (currentSort) {
-                                SortOption.ADDED_DESC -> "Eklenme"
-                                SortOption.RATING_DESC -> "Puan"
-                                SortOption.NAME_ASC -> "A - Z"
-                                SortOption.NAME_DESC -> "Z - A"
-                                SortOption.DEFAULT -> "Varsayılan"
-                            },
-                            icon = Icons.AutoMirrored.Filled.Sort,
-                            onClick = { isSortMenuOpen = true }
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (!isWideScreen) {
+                            com.tivimax.player.ui.components.CategoryNavStyleToggleButton(
+                                currentStyle = portraitNavStyle,
+                                onStyleChange = { viewModel.setPortraitCategoryNavStyle(it) }
+                            )
+                        }
 
-                        DropdownMenu(
-                            expanded = isSortMenuOpen,
-                            onDismissRequest = { isSortMenuOpen = false },
-                            modifier = Modifier.background(TiviSurface)
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Eklenme Tarihi (Yeni)", color = if (currentSort == SortOption.ADDED_DESC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = TiviSecondary, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    viewModel.setVodSort(SortOption.ADDED_DESC)
-                                    isSortMenuOpen = false
-                                }
+                        // Sıralama Seçici Butonu
+                        Box {
+                            com.tivimax.player.ui.components.ActionChipButton(
+                                text = when (currentSort) {
+                                    SortOption.ADDED_DESC -> "Eklenme"
+                                    SortOption.RATING_DESC -> "Puan"
+                                    SortOption.NAME_ASC -> "A - Z"
+                                    SortOption.NAME_DESC -> "Z - A"
+                                    SortOption.DEFAULT -> "Sırala"
+                                },
+                                icon = Icons.AutoMirrored.Filled.Sort,
+                                onClick = { isSortMenuOpen = true }
                             )
-                            DropdownMenuItem(
-                                text = { Text("Puan Sıralaması (En Yüksek)", color = if (currentSort == SortOption.RATING_DESC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    viewModel.setVodSort(SortOption.RATING_DESC)
-                                    isSortMenuOpen = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("A - Z (İsme Göre)", color = if (currentSort == SortOption.NAME_ASC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    viewModel.setVodSort(SortOption.NAME_ASC)
-                                    isSortMenuOpen = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Z - A (İsme Göre Ters)", color = if (currentSort == SortOption.NAME_DESC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    viewModel.setVodSort(SortOption.NAME_DESC)
-                                    isSortMenuOpen = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Varsayılan Sıra", color = if (currentSort == SortOption.DEFAULT) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    viewModel.setVodSort(SortOption.DEFAULT)
-                                    isSortMenuOpen = false
-                                }
-                            )
+
+                            DropdownMenu(
+                                expanded = isSortMenuOpen,
+                                onDismissRequest = { isSortMenuOpen = false },
+                                modifier = Modifier.background(TiviSurface)
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Eklenme Tarihi (Yeni)", color = if (currentSort == SortOption.ADDED_DESC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = TiviSecondary, modifier = Modifier.size(16.dp)) },
+                                    onClick = {
+                                        viewModel.setVodSort(SortOption.ADDED_DESC)
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Puan Sıralaması (En Yüksek)", color = if (currentSort == SortOption.RATING_DESC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(16.dp)) },
+                                    onClick = {
+                                        viewModel.setVodSort(SortOption.RATING_DESC)
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("A - Z (İsme Göre)", color = if (currentSort == SortOption.NAME_ASC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
+                                    onClick = {
+                                        viewModel.setVodSort(SortOption.NAME_ASC)
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Z - A (İsme Göre Ters)", color = if (currentSort == SortOption.NAME_DESC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
+                                    onClick = {
+                                        viewModel.setVodSort(SortOption.NAME_DESC)
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Varsayılan Sıra", color = if (currentSort == SortOption.DEFAULT) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
+                                    leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
+                                    onClick = {
+                                        viewModel.setVodSort(SortOption.DEFAULT)
+                                        isSortMenuOpen = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -363,7 +504,7 @@ fun VodScreen(viewModel: MainViewModel) {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(gridColumns),
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 90.dp),
+                                contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 96.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
@@ -376,7 +517,7 @@ fun VodScreen(viewModel: MainViewModel) {
                                     MoviePosterCard(
                                         movie = movie,
                                         watchProgress = progress,
-                                        onFocused = { selectedHeroMovie = movie },
+                                        onFocused = { onSelectHeroMovie(movie) },
                                         onClick = { viewModel.loadVodDetail(movie) }
                                     )
                                 }
@@ -385,7 +526,7 @@ fun VodScreen(viewModel: MainViewModel) {
                                 if (visibleLimit < filteredMovies.size) {
                                     item(span = { GridItemSpan(gridColumns) }) {
                                         LaunchedEffect(Unit) {
-                                            visibleLimit += 30
+                                            onLoadMore()
                                         }
                                         Box(
                                             modifier = Modifier
@@ -422,14 +563,6 @@ fun VodScreen(viewModel: MainViewModel) {
             }
         }
 
-        if (showCategoryDialog) {
-            CategoryManagementDialog(
-                viewModel = viewModel,
-                initialTab = 1,
-                onDismiss = { showCategoryDialog = false }
-            )
-        }
-    }
 
 @Composable
 fun MoviePosterCard(

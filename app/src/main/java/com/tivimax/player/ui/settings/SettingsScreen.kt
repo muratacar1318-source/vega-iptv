@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.automirrored.filled.ViewSidebar
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -971,6 +972,95 @@ private fun RenderSelectedSection(
                                     fontSize = 10.5.sp,
                                     lineHeight = 14.sp
                                 )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                    // Dikey Kategori Navigasyon Stili (Film & Dizi)
+                    val portraitNavStyle by viewModel.portraitCategoryNavStyle.collectAsState()
+                    Text(text = "Dikey Kategori Gezinme Düzeni", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Dikey (telefon/tablet) modda Film ve Dizi ekranlarında kategori gezinme biçimini belirleyin.",
+                        color = TiviTextSecondary,
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            Triple(UserPreferences.PORTRAIT_CAT_NAV_CHIPS, "Yatay Çipler", "Geniş afiş ızgarası, üstte kayan çipler"),
+                            Triple(UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR, "Sol Panel", "Klasik bölünmüş ekran ve dikey liste"),
+                            Triple(UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN, "Kompakt Menü", "Minimal başlık ve açılır menü")
+                        ).forEach { (style, label, desc) ->
+                            val isSelected = portraitNavStyle == style
+                            Surface(
+                                onClick = {
+                                    viewModel.setPortraitCategoryNavStyle(style)
+                                    Toast.makeText(context, "Kategori Düzeni: $label", Toast.LENGTH_SHORT).show()
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) OpusCyan.copy(alpha = 0.16f) else TiviSurfaceVariant,
+                                border = BorderStroke(1.5.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .dpadFocusable(
+                                        focusedBorderColor = OpusCyan,
+                                        shape = RoundedCornerShape(12.dp),
+                                        onClick = {
+                                            viewModel.setPortraitCategoryNavStyle(style)
+                                            Toast.makeText(context, "Kategori Düzeni: $label", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Icon(
+                                            imageVector = when (style) {
+                                                UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR -> Icons.AutoMirrored.Filled.ViewSidebar
+                                                UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN -> Icons.Default.ExpandCircleDown
+                                                else -> Icons.AutoMirrored.Filled.ViewList
+                                            },
+                                            contentDescription = null,
+                                            tint = if (isSelected) OpusCyan else TiviTextSecondary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        RadioButton(
+                                            selected = isSelected,
+                                            onClick = {
+                                                viewModel.setPortraitCategoryNavStyle(style)
+                                                Toast.makeText(context, "Kategori Düzeni: $label", Toast.LENGTH_SHORT).show()
+                                            },
+                                            colors = RadioButtonDefaults.colors(selectedColor = OpusCyan),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) Color.White else TiviTextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = desc,
+                                        color = if (isSelected) OpusCyan.copy(alpha = 0.9f) else TiviTextSecondary,
+                                        fontSize = 9.5.sp,
+                                        lineHeight = 12.sp,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }

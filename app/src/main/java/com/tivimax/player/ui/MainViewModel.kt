@@ -270,6 +270,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Dikey Kategori Navigasyon Modu ("CHIPS" = Yatay Çipler & Tam Genişlik, "SIDEBAR" = Klasik Sol Panel, "DROPDOWN" = Kompakt Menü)
+    val portraitCategoryNavStyle: StateFlow<String> = preferences.portraitCategoryNavStyleFlow
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferences.PORTRAIT_CAT_NAV_CHIPS)
+
+    fun setPortraitCategoryNavStyle(style: String) {
+        viewModelScope.launch {
+            preferences.setPortraitCategoryNavStyle(style)
+        }
+    }
+
+    fun togglePortraitCategoryNavStyle() {
+        val current = portraitCategoryNavStyle.value
+        val next = when (current) {
+            UserPreferences.PORTRAIT_CAT_NAV_CHIPS -> UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR
+            UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR -> UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN
+            else -> UserPreferences.PORTRAIT_CAT_NAV_CHIPS
+        }
+        setPortraitCategoryNavStyle(next)
+    }
+
     // Canlı TV Sekmesine Tekrar Tıklanınca En Üste Kaydırma Olayı
     val scrollToTopLiveEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 

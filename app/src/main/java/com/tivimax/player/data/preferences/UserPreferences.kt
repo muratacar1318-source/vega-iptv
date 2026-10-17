@@ -121,6 +121,12 @@ class UserPreferences(private val context: Context) {
         const val LIVE_VIEW_COMPACT = "COMPACT"
         const val LIVE_VIEW_GRID = "GRID"
         const val LIVE_VIEW_DETAILED = "DETAILED"
+
+        // Dikey Kategori Navigasyon Modu ("CHIPS" = Yatay Çipler & Tam Genişlik [Varsayılan], "SIDEBAR" = Klasik Sol Panel, "DROPDOWN" = Kompakt Başlık Menüsü)
+        val KEY_PORTRAIT_CATEGORY_NAV_STYLE = stringPreferencesKey("portrait_category_nav_style")
+        const val PORTRAIT_CAT_NAV_CHIPS = "CHIPS"
+        const val PORTRAIT_CAT_NAV_SIDEBAR = "SIDEBAR"
+        const val PORTRAIT_CAT_NAV_DROPDOWN = "DROPDOWN"
     }
 
     val usernameFlow: Flow<String> = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
@@ -475,6 +481,16 @@ class UserPreferences(private val context: Context) {
     suspend fun setLiveViewMode(mode: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_LIVE_VIEW_MODE] = mode
+        }
+    }
+
+    val portraitCategoryNavStyleFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_PORTRAIT_CATEGORY_NAV_STYLE] ?: PORTRAIT_CAT_NAV_CHIPS
+    }
+
+    suspend fun setPortraitCategoryNavStyle(style: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_PORTRAIT_CATEGORY_NAV_STYLE] = style
         }
     }
 }

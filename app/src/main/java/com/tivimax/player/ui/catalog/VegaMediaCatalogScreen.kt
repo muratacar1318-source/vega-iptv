@@ -26,6 +26,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.SeriesStream
+import com.tivimax.player.data.preferences.UserPreferences
+import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.*
 
@@ -41,6 +43,19 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
     val selectedCategory by viewModel.selectedSeriesCategory.collectAsState()
     val isLoading by viewModel.seriesLoading.collectAsState()
     val currentSort by viewModel.seriesSortOption.collectAsState()
+    val portraitNavStyle by viewModel.portraitCategoryNavStyle.collectAsState()
+
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
+
+    var showCategorySheet by remember { mutableStateOf(false) }
+
+    val totalSeriesCount = remember(categories) { categories.sumOf { it.itemCount } }
+    val selectedCategoryItem = remember(categories, selectedCategory) {
+        categories.firstOrNull { it.categoryId == selectedCategory }
+    }
+    val selectedCategoryName = selectedCategoryItem?.categoryName ?: "Tüm Diziler"
+    val selectedCategoryCount = selectedCategoryItem?.itemCount ?: totalSeriesCount
 
     val uiCategories = remember(categories) {
         categories.map {
@@ -54,33 +69,92 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
         }
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Ortak Sol Kategori Menüsü
-        CategorySidebar(
+    if (showCategorySheet) {
+        MediaCategoryBottomSheet(
+            title = "Dizi Kategorileri",
             categories = uiCategories,
             selectedCategoryId = selectedCategory,
+            totalCount = totalSeriesCount,
             onCategorySelected = { viewModel.loadSeriesStreams(it) },
-            title = "KATEGORİLER"
+            onDismissRequest = { showCategorySheet = false }
         )
+    }
 
-        // SAĞ İÇERİK ALANI (LazyVerticalGrid - 3 Sütun)
-        Box(
+    if (isWideScreen || portraitNavStyle == UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) {
+        // İki bölmeli Klasik Düzen (Yatay ekran veya kullanıcının seçtiği sol panel modu)
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
+                .fillMaxSize()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            VegaMediaContentGrid(
-                isLoading = isLoading,
-                seriesList = seriesList,
-                currentSort = currentSort,
-                onSortSelected = { sort -> viewModel.setSeriesSort(sort) },
-                onSeriesClick = { series -> viewModel.loadSeriesDetail(series) }
+            CategorySidebar(
+                categories = uiCategories,
+                selectedCategoryId = selectedCategory,
+                onCategorySelected = { viewModel.loadSeriesStreams(it) },
+                title = "KATEGORİLER"
             )
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                VegaMediaContentGrid(
+                    isLoading = isLoading,
+                    seriesList = seriesList,
+                    currentSort = currentSort,
+                    onSortSelected = { sort -> viewModel.setSeriesSort(sort) },
+                    onSeriesClick = { series -> viewModel.loadSeriesDetail(series) },
+                    portraitNavStyle = portraitNavStyle,
+                    onPortraitNavStyleChange = { viewModel.setPortraitCategoryNavStyle(it) },
+                    isWideScreen = isWideScreen,
+                    isSidebarActive = true
+                )
+            }
+        }
+    } else {
+        // DİKEY MOD: TAM EKRAN POSTER IZGARASI + ÇİPLER VEYA AÇILIR MENÜ NAVİGASYONU
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp, vertical = 4.dp)
+        ) {
+            if (portraitNavStyle == UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN) {
+                MediaCategoryDropdownBar(
+                    selectedCategoryName = selectedCategoryName,
+                    selectedCategoryCount = selectedCategoryCount,
+                    onOpenCategorySheet = { showCategorySheet = true }
+                )
+            } else {
+                MediaCategoryNavigationBar(
+                    categories = uiCategories,
+                    selectedCategoryId = selectedCategory,
+                    onCategorySelected = { viewModel.loadSeriesStreams(it) },
+                    totalCount = totalSeriesCount,
+                    allLabel = "Tüm Diziler",
+                    defaultIcon = Icons.Default.VideoLibrary,
+                    onOpenAllCategories = { showCategorySheet = true }
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                VegaMediaContentGrid(
+                    isLoading = isLoading,
+                    seriesList = seriesList,
+                    currentSort = currentSort,
+                    onSortSelected = { sort -> viewModel.setSeriesSort(sort) },
+                    onSeriesClick = { series -> viewModel.loadSeriesDetail(series) },
+                    portraitNavStyle = portraitNavStyle,
+                    onPortraitNavStyleChange = { viewModel.setPortraitCategoryNavStyle(it) },
+                    isWideScreen = isWideScreen,
+                    isSidebarActive = false
+                )
+            }
         }
     }
 }
@@ -91,7 +165,11 @@ private fun VegaMediaContentGrid(
     seriesList: List<SeriesStream>,
     currentSort: com.tivimax.player.data.model.SortOption,
     onSortSelected: (com.tivimax.player.data.model.SortOption) -> Unit,
-    onSeriesClick: (SeriesStream) -> Unit
+    onSeriesClick: (SeriesStream) -> Unit,
+    portraitNavStyle: String,
+    onPortraitNavStyleChange: (String) -> Unit,
+    isWideScreen: Boolean,
+    isSidebarActive: Boolean
 ) {
     var isSortMenuOpen by remember { mutableStateOf(false) }
 
@@ -99,24 +177,42 @@ private fun VegaMediaContentGrid(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 6.dp),
-            horizontalArrangement = Arrangement.End,
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box {
-                val sortLabel = when (currentSort) {
-                    com.tivimax.player.data.model.SortOption.ADDED_DESC -> "Eklenme"
-                    com.tivimax.player.data.model.SortOption.RATING_DESC -> "Puan"
-                    com.tivimax.player.data.model.SortOption.NAME_ASC -> "A - Z"
-                    com.tivimax.player.data.model.SortOption.NAME_DESC -> "Z - A"
-                    com.tivimax.player.data.model.SortOption.DEFAULT -> "Filtrele"
+            Text(
+                text = "${seriesList.size} Dizi",
+                color = TiviTextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                if (!isWideScreen) {
+                    CategoryNavStyleToggleButton(
+                        currentStyle = portraitNavStyle,
+                        onStyleChange = onPortraitNavStyleChange
+                    )
                 }
 
-                ActionChipButton(
-                    text = sortLabel,
-                    icon = Icons.Default.FilterList,
-                    onClick = { isSortMenuOpen = true }
-                )
+                Box {
+                    val sortLabel = when (currentSort) {
+                        com.tivimax.player.data.model.SortOption.ADDED_DESC -> "Eklenme"
+                        com.tivimax.player.data.model.SortOption.RATING_DESC -> "Puan"
+                        com.tivimax.player.data.model.SortOption.NAME_ASC -> "A - Z"
+                        com.tivimax.player.data.model.SortOption.NAME_DESC -> "Z - A"
+                        com.tivimax.player.data.model.SortOption.DEFAULT -> "Sırala"
+                    }
+
+                    ActionChipButton(
+                        text = sortLabel,
+                        icon = Icons.Default.FilterList,
+                        onClick = { isSortMenuOpen = true }
+                    )
 
                 DropdownMenu(
                     expanded = isSortMenuOpen,
@@ -166,6 +262,7 @@ private fun VegaMediaContentGrid(
                 }
             }
         }
+    }
 
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -180,10 +277,14 @@ private fun VegaMediaContentGrid(
                 )
             }
         } else {
-            // TV / yatay ekranda daha fazla sütun (Filmler ekranıyla aynı ölçü)
             val configuration = LocalConfiguration.current
-            val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
-            val gridColumns = if (isWideScreen) (configuration.screenWidthDp / 140).coerceIn(5, 7) else 3
+            val gridColumns = if (isWideScreen) {
+                (configuration.screenWidthDp / 140).coerceIn(5, 7)
+            } else if (isSidebarActive) {
+                2
+            } else {
+                3
+            }
 
             // Sonsuz kaydırma: tüm diziler parça parça yüklenir (önceden ilk 60 ile sınırlıydı)
             var visibleLimit by remember(seriesList) { mutableIntStateOf(40) }
@@ -193,7 +294,7 @@ private fun VegaMediaContentGrid(
                 columns = GridCells.Fixed(gridColumns),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(top = 8.dp, start = 8.dp, end = 8.dp, bottom = 90.dp),
+                contentPadding = PaddingValues(top = 8.dp, start = 8.dp, end = 8.dp, bottom = 96.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(pagedSeries, key = { "series_${it.seriesId}_${it.num}" }) { series ->

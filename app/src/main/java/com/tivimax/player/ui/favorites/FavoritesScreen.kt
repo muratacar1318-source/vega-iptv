@@ -142,7 +142,7 @@ fun FavoritesScreen(viewModel: MainViewModel) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridColumns),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 80.dp),
+                contentPadding = PaddingValues(bottom = 96.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
