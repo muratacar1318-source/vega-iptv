@@ -39,6 +39,7 @@ import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.CategoryItem
 import com.tivimax.player.ui.components.QualityBadge
@@ -70,6 +71,8 @@ fun LiveTvWideScreenLayout(
     onSelectProgramDetail: (LiveStream, EpgProgram) -> Unit
 ) {
     val liveSearchQuery by viewModel.liveSearchQuery.collectAsState()
+    val currentScreen by viewModel.currentScreen.collectAsState()
+    val isPlayerScreen = currentScreen is Screen.Player
     val finalChannels = displayedChannels
     val filteredCategories = categories
 
@@ -667,29 +670,28 @@ fun LiveTvWideScreenLayout(
                                 onClick = { viewModel.expandMiniPlayerToFullscreen() }
                             )
                     ) {
-                        AndroidView(
-                            factory = { ctx ->
-                                PlayerView(ctx).apply {
-                                    useController = false
-                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                    layoutParams = FrameLayout.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT
-                                    )
-                                    player = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
-                                }
-                            },
-                            update = { playerView ->
-                                val p = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
-                                if (playerView.player != p) {
-                                    playerView.player = p
-                                }
-                            },
-                            onRelease = { playerView ->
-                                playerView.player = null
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        if (!isPlayerScreen) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    PlayerView(ctx).apply {
+                                        useController = false
+                                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                        layoutParams = FrameLayout.LayoutParams(
+                                            ViewGroup.LayoutParams.MATCH_PARENT,
+                                            ViewGroup.LayoutParams.MATCH_PARENT
+                                        )
+                                        viewModel.playerManager.attachView(this, isPrimary = false, tag = "LiveTvWideScreen-preview")
+                                    }
+                                },
+                                update = { playerView ->
+                                    viewModel.playerManager.attachView(playerView, isPrimary = false, tag = "LiveTvWideScreen-preview")
+                                },
+                                onRelease = { playerView ->
+                                    viewModel.playerManager.detachView(playerView, tag = "LiveTvWideScreen-preview")
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
 
                         // Üst Bilgi Rozeti
                         Row(

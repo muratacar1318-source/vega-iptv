@@ -258,12 +258,14 @@ fun TvPlayerOverlay(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
-                    player = playerManager.player ?: playerManager.initializePlayer(isLive = true)
+                    playerManager.attachView(this, isPrimary = true, tag = "TvPlayerOverlay")
                 }
             },
             update = { playerView ->
-                val p = playerManager.player ?: playerManager.initializePlayer(isLive = true)
-                if (playerView.player != p) playerView.player = p
+                playerManager.attachView(playerView, isPrimary = true, tag = "TvPlayerOverlay")
+            },
+            onRelease = { playerView ->
+                playerManager.detachView(playerView, tag = "TvPlayerOverlay")
             },
             modifier = Modifier.fillMaxSize()
         )

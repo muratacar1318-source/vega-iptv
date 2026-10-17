@@ -94,6 +94,8 @@ fun LiveTvScreen(viewModel: MainViewModel) {
     val currentEpgList by viewModel.currentEpgList.collectAsState()
 
     val globalQuery by viewModel.globalSearchQuery.collectAsState()
+    val currentScreen by viewModel.currentScreen.collectAsState()
+    val isPlayerScreen = currentScreen is Screen.Player
     var searchQuery by remember { mutableStateOf("") }
 
     var showCategoryManagerDialog by remember { mutableStateOf(false) }
@@ -441,6 +443,8 @@ fun LiveTvPortraitLayout(
     onOpenParentalDialog: () -> Unit,
     onSelectProgramDetail: (LiveStream, EpgProgram) -> Unit
 ) {
+    val currentScreen by viewModel.currentScreen.collectAsState()
+    val isPlayerScreen = currentScreen is Screen.Player
     var isSortMenuOpen by remember { mutableStateOf(false) }
     var isEpgTimelineMode by remember { mutableStateOf(false) }
     var isSidebarExpanded by remember { mutableStateOf(true) }
@@ -474,29 +478,28 @@ fun LiveTvPortraitLayout(
                         .background(Color.Black)
                         .clickable { viewModel.expandMiniPlayerToFullscreen() }
                 ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            PlayerView(ctx).apply {
-                                useController = false
-                                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                layoutParams = FrameLayout.LayoutParams(
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                    ViewGroup.LayoutParams.MATCH_PARENT
-                                )
-                                player = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
-                            }
-                        },
-                        update = { playerView ->
-                            val p = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
-                            if (playerView.player != p) {
-                                playerView.player = p
-                            }
-                        },
-                        onRelease = { playerView ->
-                            playerView.player = null
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (!isPlayerScreen) {
+                        AndroidView(
+                            factory = { ctx ->
+                                PlayerView(ctx).apply {
+                                    useController = false
+                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                    layoutParams = FrameLayout.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                    viewModel.playerManager.attachView(this, isPrimary = false, tag = "LiveTvScreen-preview")
+                                }
+                            },
+                            update = { playerView ->
+                                viewModel.playerManager.attachView(playerView, isPrimary = false, tag = "LiveTvScreen-preview")
+                            },
+                            onRelease = { playerView ->
+                                viewModel.playerManager.detachView(playerView, tag = "LiveTvScreen-preview")
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
 
                     Row(
                         modifier = Modifier

@@ -42,6 +42,7 @@ import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.GlobalSearchOptionsCard
 import kotlinx.coroutines.flow.collectLatest
 
@@ -82,6 +83,8 @@ fun LiveTvModernPortraitLayout(
     modifier: Modifier = Modifier
 ) {
     val currentViewMode by viewModel.liveViewMode.collectAsState()
+    val currentScreen by viewModel.currentScreen.collectAsState()
+    val isPlayerScreen = currentScreen is Screen.Player
 
     var showSortSheet by remember { mutableStateOf(false) }
     var showCategorySheet by remember { mutableStateOf(false) }
@@ -160,29 +163,28 @@ fun LiveTvModernPortraitLayout(
                         .background(Color.Black)
                         .clickable { viewModel.expandMiniPlayerToFullscreen() }
                 ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            PlayerView(ctx).apply {
-                                useController = false
-                                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                layoutParams = FrameLayout.LayoutParams(
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                    ViewGroup.LayoutParams.MATCH_PARENT
-                                )
-                                player = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
-                            }
-                        },
-                        update = { playerView ->
-                            val p = viewModel.playerManager.player ?: viewModel.playerManager.initializePlayer()
-                            if (playerView.player != p) {
-                                playerView.player = p
-                            }
-                        },
-                        onRelease = { playerView ->
-                            playerView.player = null
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (!isPlayerScreen) {
+                        AndroidView(
+                            factory = { ctx ->
+                                PlayerView(ctx).apply {
+                                    useController = false
+                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                    layoutParams = FrameLayout.LayoutParams(
+                                        ViewGroup.LayoutParams.MATCH_PARENT,
+                                        ViewGroup.LayoutParams.MATCH_PARENT
+                                    )
+                                    viewModel.playerManager.attachView(this, isPrimary = false, tag = "LiveTvModernPortrait-preview")
+                                }
+                            },
+                            update = { playerView ->
+                                viewModel.playerManager.attachView(playerView, isPrimary = false, tag = "LiveTvModernPortrait-preview")
+                            },
+                            onRelease = { playerView ->
+                                viewModel.playerManager.detachView(playerView, tag = "LiveTvModernPortrait-preview")
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
 
                     Row(
                         modifier = Modifier
