@@ -90,4 +90,20 @@ parça seçimi, PiP davranışı, güncelleme sistemi, imza, CI.
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`:
+    1. `release()` metoduna `mediaSession?.release()` ve `mediaSession = null` eklendi (ExoPlayer'dan önce medya oturumu doğru şekilde serbest bırakılıyor).
+    2. `initializePlayer()` içindeki `MediaSession` oluşturma mantığı güvenli hale getirildi:
+       - Tekil oturum kimliği (`vega_${System.identityHashCode(this)}_${SystemClock.elapsedRealtime()}`) tanımlandı.
+       - Blok `try-catch` içine alındı, olası oturum oluşturma hataları sadece `Log.w` ile loglanarak oynatmanın engellenmesi önlendi.
+       - Eğer oturum önceden varsa ve yeni bir player açılmışsa `session.player = player` ile yeni ExoPlayer örneğine bağlandı.
+    3. `playInternal()` içindeki hata durumunda İngilizce teknik istisna (`e.localizedMessage`) yerine `AGENTS.md` arayüz kurallarına uygun genel Türkçe mesaj `"Yayın başlatılamadı. Lütfen tekrar dene."` atandı.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`
+  - `docs/gorevler/G-020-medya-oturumu-hatasi.md`
+  - `YAPILACAKLAR.md`
+- **Test ve doğrulama:**
+  - `./gradlew compileDebugKotlin` çalıştırıldı: BUILD SUCCESSFUL (44s).
+  - Canlı cihaz/emülatörde çoklu çıkış-giriş ve kilit ekranı oynatma kontrolleri test edilemedi (derleme seviyesinde doğrulandı, APK üretilmedi).
+- **Karşılaşılan sorunlar / Notlar:**
+  - Kapsam dışındaki hiçbir dosyaya ve dual view/yüzey yönetimi mantığına dokunulmadı.
