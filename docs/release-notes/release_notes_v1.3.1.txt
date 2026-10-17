@@ -1,0 +1,22 @@
+# Vega IPTV v1.3.1 (Build 53) - Canlı Yayın Kartı, Teşhis İyileştirmeleri ve Kararlılık
+
+### 📺 Kompakt Canlı Yayın Bilgi Kartı (G-002):
+- Yatay modda tek satır kompakt yerleşim (hedef <= 72dp) ve dikey modda iki satır yerleşim (hedef <= 104dp).
+- Sahte EPG ilerleme verisi (0.45f) ve uydurma "Canlı Yayın" metni kaldırıldı.
+- Aksiyon butonları 44x44dp ikon formatına getirildi, uzun basıldığında isim gösteren ipucu balonları eklendi.
+- Üst sağ düğme grubu (saat, uyku, pip, döndür, kilit) tek bir yarı saydam hap içinde toplandı.
+
+### 🎛️ Oynatıcı Ayarlar Paneli ve Uyku Zamanlayıcısı (G-010):
+- Ayarlar paneli içeriğinin görünürlüğü güvenceye alındı, TV kumanda odaklanması iyileştirildi.
+- Geri sayımlı uyku zamanlayıcısı eklendi.
+
+### ⏱️ TV Altyazı Gecikmesi Entegrasyonu (G-003):
+- TV canlı yayın tam ekran oynatıcısında (TvPlayerOverlay) altyazı gecikmesi ayarlarının anında uygulanması için DelayedSubtitleController bağlandı.
+
+### 🔄 Önizleme Yüzey Devri İyileştirmesi (G-009):
+- TV modunda tam ekrandan çıkarken önizleme görünümü henüz pencereye eklenmemişse doOnAttach ile pencereye bağlandığında yüzey devri sağlandı, siyah ekran önlendi.
+
+### 📊 Gerçek Yayın Teşhis Verileri (G-011):
+- StreamDiagnostics varsayılanları boşaltıldı; updateDiagnostics() içindeki uydurma FHD 1080p, 50 FPS, H.264, AAC, 4.8 Mbps sahte değerleri kaldırıldı.
+- Kanal geçişlerinde eski yayının teşhis verilerinin yeni yayına sızmaması için playInternal() içinde teşhis durumu sıfırlandı.
+- Ayarlar paneli ve TV bilgi şeridindeki yayın bilgisi alanlarında boş değerlerin temiz biçimlendirilmesi sağlandı.
