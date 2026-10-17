@@ -414,9 +414,15 @@ fun TvPlayerOverlay(
 
                                 // Rozetler
                                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    TechBadge(text = streamDiagnostics.resolutionBadge.ifBlank { "FHD 1080p" }, isHighlight = true)
-                                    TechBadge(text = streamDiagnostics.frameRateBadge.ifBlank { "50 FPS" })
-                                    TechBadge(text = "Buffer: ${streamDiagnostics.bufferHealthSecs}")
+                                    if (streamDiagnostics.resolutionBadge.isNotBlank()) {
+                                        TechBadge(text = streamDiagnostics.resolutionBadge, isHighlight = true)
+                                    }
+                                    if (streamDiagnostics.frameRateBadge.isNotBlank()) {
+                                        TechBadge(text = streamDiagnostics.frameRateBadge)
+                                    }
+                                    if (streamDiagnostics.bufferHealthSecs.isNotBlank()) {
+                                        TechBadge(text = "Buffer: ${streamDiagnostics.bufferHealthSecs}")
+                                    }
                                 }
                             }
 

@@ -849,6 +849,27 @@ private fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
     var isExpanded by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
 
+    val resBadge = diagnostics.resolutionBadge.ifBlank { diagnostics.resolution }.trim()
+    val headerParts = listOf(resBadge, diagnostics.bitrate.trim()).filter { it.isNotBlank() }
+    val headerText = if (headerParts.isNotEmpty()) {
+        headerParts.joinToString(" • ")
+    } else {
+        "Bilgi bekleniyor…"
+    }
+
+    val videoDetail = when {
+        diagnostics.videoCodec.isNotBlank() && diagnostics.frameRate.isNotBlank() ->
+            "${diagnostics.videoCodec} (${diagnostics.frameRate})"
+        diagnostics.videoCodec.isNotBlank() -> diagnostics.videoCodec
+        diagnostics.frameRate.isNotBlank() -> diagnostics.frameRate
+        else -> ""
+    }
+    val videoText = if (videoDetail.isNotBlank()) "Video: $videoDetail" else ""
+
+    val audioPart = if (diagnostics.audioCodec.isNotBlank()) "Ses: ${diagnostics.audioCodec}" else ""
+    val bufferPart = if (diagnostics.bufferHealthSecs.isNotBlank()) "Tampon: ${diagnostics.bufferHealthSecs}" else ""
+    val audioBufferText = listOf(audioPart, bufferPart).filter { it.isNotBlank() }.joinToString(" | ")
+
     Surface(
         onClick = { isExpanded = !isExpanded },
         shape = RoundedCornerShape(8.dp),
@@ -873,7 +894,7 @@ private fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "${diagnostics.resolutionBadge} • ${diagnostics.bitrate}",
+                        text = headerText,
                         fontSize = 11.sp,
                         color = OpusCyan
                     )
@@ -887,17 +908,23 @@ private fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
                 }
             }
             if (isExpanded) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Video: ${diagnostics.videoCodec} (${diagnostics.frameRate})",
-                    fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-                Text(
-                    text = "Ses: ${diagnostics.audioCodec} | Tampon: ${diagnostics.bufferHealthSecs}",
-                    fontSize = 11.sp,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
+                if (videoText.isNotBlank() || audioBufferText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    if (videoText.isNotBlank()) {
+                        Text(
+                            text = videoText,
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                    }
+                    if (audioBufferText.isNotBlank()) {
+                        Text(
+                            text = audioBufferText,
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                    }
+                }
             }
         }
     }
