@@ -1845,7 +1845,7 @@ private fun RenderSelectedSection(
                         } else {
                             Icon(imageVector = Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Güncellemeleri Kontrol Et (GitHub)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Güncellemeleri Kontrol Et", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
