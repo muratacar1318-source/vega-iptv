@@ -115,4 +115,34 @@ Raporu aşağıya "Düzeltme turu 1 — Agent raporu" olarak ekle, `YAPILACAKLAR
 
 ### Düzeltme turu 1 — Agent raporu
 
-_(Agent doldurur.)_
+1. **Token ve Import Düzeltmeleri:**
+   - `PlayerSettingsPanel.kt`: `Icons.Default.Info` için `import androidx.compose.material.icons.filled.Info` eklendi.
+   - `VegaModernMobilePlayerOverlay.kt`:
+     * `VegaSizes.SpacingMd` -> `12.dp`
+     * `VegaSizes.SpacingSm` -> `8.dp`
+     * `VegaSizes.SpacingXs` -> `4.dp`
+     * `VegaText.HeadlineSmall` -> `VegaText.BodyProminent`
+     * `VegaText.BodyMedium` -> `VegaText.Body`
+     * `VegaText.BodySmall` -> `VegaText.Secondary`
+     * Kullanılmayan `VegaSizes` importu kaldırıldı.
+   - `TiviPlayerComponents.kt`:
+     * `VegaText.HeadlineSmall` (3 yer) -> `VegaText.BodyProminent`
+     * `VegaText.BodyMedium` (4 yer) -> `VegaText.Body`
+     * `VegaText.BodySmall` (12 yer) -> `VegaText.Secondary`
+     * "REHBER" başlığı "Rehber"e, "Geçiş yapmak için dokunun" metni "Geçiş yapmak için dokun"a güncellendi.
+   - `PlayerScreen.kt`:
+     * `VegaText.HeadlineSmall` (1 yer) -> `VegaText.BodyProminent`
+     * `VegaText.BodyMedium` (1 yer) -> `VegaText.Body`
+     * `VegaText.BodySmall` (7 yer) -> `VegaText.Secondary`
+
+2. **Dokunulan Dosyalar:**
+   - `app/src/main/java/com/tivimax/player/ui/player/components/PlayerSettingsPanel.kt`
+   - `app/src/main/java/com/tivimax/player/ui/player/components/VegaModernMobilePlayerOverlay.kt`
+   - `app/src/main/java/com/tivimax/player/ui/player/components/TiviPlayerComponents.kt`
+   - `app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt`
+
+3. **Derleme ve Doğrulama:**
+   - `ui/player/**` dışındaki hiçbir kod dosyasına (özellikle `ui/design/*` ve `theme/*`) dokunulmadı.
+   - Tüm `VegaColors`, `VegaShapes`, `VegaSizes`, `VegaText` token adları kontrol edildi, tamamının `VegaDesign.kt` ile tam uyumlu olduğu doğrulandı.
+   - `./gradlew compileDebugKotlin` çalıştırıldı ve **BUILD SUCCESSFUL** ile derleme doğrulandı.
+

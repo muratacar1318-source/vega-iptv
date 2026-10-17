@@ -40,8 +40,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-015 | [Oynatıcı ekranlarını tasarım kurallarına uydur](docs/gorevler/G-015-oynatici-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor — **Düzeltme turu 1** (aynı branch'te devam; derleme hatası) |
-| G-016 | [TV ekranlarını tasarım kurallarına uydur](docs/gorevler/G-016-tv-tasarim-uyumu.md) | 🟢 | 🔍 İncelemede (branch: ui/tv-tasarim-uyumu) |
+| G-020 | [İçerik ilk açılışta "Session ID must be unique" hatası (medya oturumu sızıntısı)](docs/gorevler/G-020-medya-oturumu-hatasi.md) | 🔴 | ⏳ Bekliyor |
+| G-016 | [TV ekranlarını tasarım kurallarına uydur](docs/gorevler/G-016-tv-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 | G-017 | [Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu](docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 | G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 
@@ -65,6 +65,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-012 | Hesap ekranı: gerçek abonelik bilgileri, içerik özeti, çıkış onayı — PR #18 | 18 Ekim |
 | G-013 | Ayarlar sadeleştirildi: işlevsiz ayarlar kaldırıldı, kategori ve metinler anlaşılır — PR #19 | 18 Ekim |
 | G-014 | Tasarım temeli: tek vurgu rengi, renk/şekil tokenları, ortak bileşenler — PR #20 | 18 Ekim |
+| G-015 | Oynatıcı ekranları tasarım kurallarına uyduruldu — PR #21 | 18 Ekim |
 
 ---
 
