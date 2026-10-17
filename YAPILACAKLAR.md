@@ -40,8 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-012 | ["Hesap ve Liste" ekranını detaylandır (gerçek abonelik bilgileri, içerik özeti, güvenli çıkış)](docs/gorevler/G-012-hesap-ekrani-detay.md) | 🟠 | ⏳ Bekliyor |
-| G-013 | [Ayarları sadeleştir: işe yaramayanları kaldır, isim ve açıklamaları anlaşılır yap](docs/gorevler/G-013-ayarlar-sadelestirme.md) | 🟠 | ⏳ Bekliyor (G-012'den sonra) |
+| G-013 | [Ayarları sadeleştir: işe yaramayanları kaldır, isim ve açıklamaları anlaşılır yap](docs/gorevler/G-013-ayarlar-sadelestirme.md) | 🟠 | ⏳ Bekliyor |
 
 ---
 
@@ -60,6 +59,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-002 | Kompakt canlı yayın kartı, sahte EPG/kalite verileri kaldırıldı, üst düğmeler tek hapta — PR #14 | 18 Ekim |
 | G-009 | Önizleme yüzey devri: görünüm pencereye eklenince devrediliyor — PR #16 | 18 Ekim |
 | G-011 | Yayın bilgisi sadece gerçek değerleri gösteriyor (uydurma FHD/50 FPS kaldırıldı) — PR #17 | 18 Ekim |
+| G-012 | Hesap ekranı: gerçek abonelik bilgileri, içerik özeti, çıkış onayı — PR #18 | 18 Ekim |
 
 ---
 
