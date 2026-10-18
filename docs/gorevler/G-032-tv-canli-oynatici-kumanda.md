@@ -240,4 +240,23 @@ ekranları, rakamla kanal seçme (zapper), güncelleme sistemi (AutoUpdateManage
 
 ## Agent raporu
 
-_(Agent doldurur: her adım için ne yaptın, test sonucu, test edemediklerin.)_
+- **Yapılan değişiklikler:**
+  - **Adım 1:** `guideFocusRequester`, `trackSheetFocusRequester`, `guideListState` ve aktif kanal index'ini hesaplayan `guideFocusIndex` tanımlandı.
+  - **Adım 2:** `LaunchedEffect(showOverlayGuide)` ve `LaunchedEffect(showTrackSheet)` blokları eklenerek kanal listesi açıldığında aktif kanala kaydırma + odaklanma, ses/altyazı paneli açıldığında panele, kapandığında menüye odak geçişi sağlandı.
+  - **Adım 3:** Dış `onPreviewKeyEvent` güncellendi:
+    - Kanal listesi açıkken `KEYCODE_DPAD_RIGHT` ile rehberin kapatılması sağlandı.
+    - Menü (`showActionTray`) açıkken tuşların menü içine iletilmesi ve `KEYCODE_BACK` ile menünün kapanması sağlandı.
+    - OK tuşunda `repeatCount > 0` durumunda tuş yutuldu, hatalı hızlı ayarlar açılışı kaldırıldı.
+    - `KEYCODE_DPAD_DOWN` her zaman önceki kanala geçecek şekilde sadeleştirildi.
+    - `KEYCODE_DPAD_RIGHT` menüyü (`showActionTray`) açıp odağı ilk düğmeye (`actionDockFocusRequester`) verecek şekilde eklendi.
+  - **Adım 4:** Yayın üstü kanal listesinde `LazyColumn`'a `state = guideListState` verildi, `itemsIndexed` kullanılarak oynayan kanala `guideFocusRequester` atandı ve kanal tıklandığında listenin kapatılması (`showOverlayGuide = false`) sağlandı.
+  - **Adım 5:** Ses ve altyazı panelindeki Kapat butonuna `trackSheetFocusRequester` atandı.
+  - **Adım 6:** Bilgi kartına `▲▼ Kanal değiştir   ◀ Kanal listesi   ▶ Menü` ipucu metni eklendi.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt`
+  - `docs/gorevler/G-032-tv-canli-oynatici-kumanda.md`
+  - `YAPILACAKLAR.md`
+- **Test sonuçları:**
+  - `./gradlew compileDebugKotlin`: Başarılı (BUILD SUCCESSFUL in 19s).
+  - `./gradlew testDebugUnitTest`: Başarılı (BUILD SUCCESSFUL in 6s, 28 actionable tasks, tüm testler geçti).
+  - Canlı TV/emülatör bağlı olmadığı için fiziksel kumanda üzerinde manuel test edilemedi.

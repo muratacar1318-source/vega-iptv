@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,6 +58,7 @@ import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.player.components.PlayerPillButton
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -120,6 +122,13 @@ fun TvPlayerOverlay(
 
     val overlayFocusRequester = remember { FocusRequester() }
     val actionDockFocusRequester = remember { FocusRequester() }
+    // G-032: Kanal listesi ve ses/altyazı paneli için odak + kaydırma
+    val guideFocusRequester = remember { FocusRequester() }
+    val trackSheetFocusRequester = remember { FocusRequester() }
+    val guideListState = rememberLazyListState()
+    val guideFocusIndex = remember(allStreams, activeChannel.streamId) {
+        allStreams.indexOfFirst { it.streamId == activeChannel.streamId }.coerceAtLeast(0)
+    }
 
     // Rakam Tuşlaması & Saat
     var clockText by remember { mutableStateOf("") }
@@ -140,6 +149,26 @@ fun TvPlayerOverlay(
         if (!showActionTray && !showOverlayGuide && !showQuickSettings && !showTrackSheet) {
             delay(50)
             try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
+        }
+    }
+
+    // G-032: Kanal listesi açılınca oynayan kanala kaydır ve odakla
+    LaunchedEffect(showOverlayGuide) {
+        if (showOverlayGuide && allStreams.isNotEmpty()) {
+            try { guideListState.scrollToItem(guideFocusIndex) } catch (_: Exception) {}
+            delay(120)
+            try { guideFocusRequester.requestFocus() } catch (_: Exception) {}
+        }
+    }
+
+    // G-032: Ses/altyazı paneli açılınca panele, kapanınca menüye odak
+    LaunchedEffect(showTrackSheet) {
+        if (showTrackSheet) {
+            delay(150)
+            try { trackSheetFocusRequester.requestFocus() } catch (_: Exception) {}
+        } else if (showActionTray) {
+            delay(80)
+            try { actionDockFocusRequester.requestFocus() } catch (_: Exception) {}
         }
     }
 
@@ -204,13 +233,26 @@ fun TvPlayerOverlay(
                         showTrackSheet = false
                         return@onPreviewKeyEvent true
                     }
+                    // G-032: Kanal listesi açıkken ▶ listeyi kapatır
+                    if (showOverlayGuide && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                        showOverlayGuide = false
+                        return@onPreviewKeyEvent true
+                    }
+                    return@onPreviewKeyEvent false
+                }
+
+                // G-032: Menü (alt tepsi) açıkken tuşlar menünün içinde çalışsın; Geri menüyü kapatır
+                if (showActionTray) {
+                    if (keyCode == KeyEvent.KEYCODE_BACK) {
+                        showActionTray = false
+                        return@onPreviewKeyEvent true
+                    }
                     return@onPreviewKeyEvent false
                 }
 
                 when (keyCode) {
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                        if (keyEvent.nativeKeyEvent.isLongPress) {
-                            showQuickSettings = true
+                        if (keyEvent.nativeKeyEvent.repeatCount > 0) {
                             return@onPreviewKeyEvent true
                         }
                         if (!showInfoCard) {
@@ -229,13 +271,19 @@ fun TvPlayerOverlay(
                     }
 
                     KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> {
-                        if (showInfoCard && !showActionTray) {
-                            showActionTray = true
+                        val prev = viewModel.zapPreviousChannel(activeChannel.streamId)
+                        if (prev != null) seekRippleMessage = "⏮ ${prev.name}"
+                        showInfoCard = true
+                        return@onPreviewKeyEvent true
+                    }
+
+                    // G-032: ▶ menüyü açar ve odağı ilk düğmeye verir
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        showInfoCard = true
+                        showActionTray = true
+                        coroutineScope.launch {
+                            delay(150)
                             try { actionDockFocusRequester.requestFocus() } catch (_: Exception) {}
-                        } else {
-                            val prev = viewModel.zapPreviousChannel(activeChannel.streamId)
-                            if (prev != null) seekRippleMessage = "⏮ ${prev.name}"
-                            showInfoCard = true
                         }
                         return@onPreviewKeyEvent true
                     }
@@ -472,7 +520,17 @@ fun TvPlayerOverlay(
                         }
                     }
 
-                    // 4. KATMAN A & B: RECENT CHANNELS & ACTION CHIPS (DPAD_DOWN BASILINCA AÇILIR)
+                    if (!showActionTray) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "▲▼ Kanal değiştir   ◀ Kanal listesi   ▶ Menü",
+                            color = VegaColors.TextMuted,
+                            fontSize = VegaText.Caption,
+                            maxLines = 1
+                        )
+                    }
+
+                    // 4. KATMAN A & B: RECENT CHANNELS & ACTION CHIPS (▶ TUŞU İLE AÇILIR)
                     AnimatedVisibility(
                         visible = showActionTray,
                         enter = expandVertically() + fadeIn(),
@@ -587,20 +645,26 @@ fun TvPlayerOverlay(
                     Text("Rehber", color = VegaColors.Accent, fontSize = VegaText.Secondary, fontWeight = FontWeight.ExtraBold)
                     Spacer(modifier = Modifier.height(10.dp))
                     LazyColumn(
+                        state = guideListState,
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        items(allStreams, key = { "guide_${it.streamId}" }) { st ->
+                        itemsIndexed(allStreams, key = { _, it -> "guide_${it.streamId}" }) { index, st ->
                             val isSel = st.streamId == activeChannel.streamId
                             Surface(
                                 shape = VegaShapes.Small,
                                 color = if (isSel) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .then(if (index == guideFocusIndex) Modifier.focusRequester(guideFocusRequester) else Modifier)
                                     .dpadFocusable(
                                         focusedBorderColor = VegaColors.Accent,
                                         shape = VegaShapes.Small,
-                                        onClick = { viewModel.playLiveChannel(st) }
+                                        onClick = {
+                                            viewModel.playLiveChannel(st)
+                                            showOverlayGuide = false
+                                            showInfoCard = true
+                                        }
                                     )
                             ) {
                                 Row(
@@ -649,7 +713,9 @@ fun TvPlayerOverlay(
                         )
                         IconButton(
                             onClick = { showTrackSheet = false },
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier
+                                .size(32.dp)
+                                .focusRequester(trackSheetFocusRequester)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
