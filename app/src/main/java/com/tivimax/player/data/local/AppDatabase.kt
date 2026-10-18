@@ -26,15 +26,31 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun seriesDao(): SeriesDao
 
     companion object {
+        const val DEFAULT_DB_NAME = "vega_iptv.db"
+
         @Volatile
         private var instance: AppDatabase? = null
 
+        @Volatile
+        private var currentDbName: String = DEFAULT_DB_NAME
+
         fun getInstance(context: Context): AppDatabase {
             return instance ?: synchronized(this) {
-                instance ?: Room.databaseBuilder(
+                instance ?: open(context, currentDbName)
+            }
+        }
+
+        fun open(context: Context, dbName: String): AppDatabase {
+            return synchronized(this) {
+                if (instance != null && currentDbName == dbName && instance?.isOpen == true) {
+                    return instance!!
+                }
+                close()
+                currentDbName = dbName
+                Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "vega_iptv.db"
+                    dbName
                 )
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .fallbackToDestructiveMigration()
@@ -42,5 +58,18 @@ abstract class AppDatabase : RoomDatabase() {
                 .also { instance = it }
             }
         }
+
+        fun close() {
+            synchronized(this) {
+                try {
+                    if (instance?.isOpen == true) {
+                        instance?.close()
+                    }
+                } catch (_: Exception) {}
+                instance = null
+            }
+        }
+
+        fun getCurrentDbName(): String = currentDbName
     }
 }

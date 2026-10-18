@@ -4,8 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivimax.player.data.config.AppConfig
+import com.tivimax.player.data.local.AppDatabase
 import com.tivimax.player.data.local.entity.*
 import com.tivimax.player.data.model.*
+import com.tivimax.player.data.playlist.Playlist
+import com.tivimax.player.data.playlist.PlaylistRepository
 import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.data.repository.XtreamRepository
 import com.tivimax.player.player.AspectRatioMode
@@ -108,6 +111,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val repository = XtreamRepository(application)
     val preferences = UserPreferences(application)
+    val playlistRepository = PlaylistRepository(application)
+    val playlists: StateFlow<List<Playlist>> = playlistRepository.playlistsFlow.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        emptyList()
+    )
+    val activePlaylist: StateFlow<Playlist?> = playlistRepository.activePlaylistFlow.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        null
+    )
     val playerManager = TiviPlayerManager(application)
     val autoUpdateManager = com.tivimax.player.data.update.AutoUpdateManager(application)
     val vodPrewarmer = com.tivimax.player.player.VodPrewarmer(
@@ -923,36 +937,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun checkUserLoginAndNavigate() {
         viewModelScope.launch {
-            val user = preferences.usernameFlow.first()
-            val pass = preferences.passwordFlow.first()
-            val rawServer = preferences.serverUrlFlow.first()
-            val loggedIn = preferences.isLoggedInFlow.first()
-            val expDate = preferences.expDateFlow.first()
-            val maxCons = preferences.maxConnectionsFlow.first()
-            val activeCons = preferences.activeConnectionsFlow.first()
-            val status = preferences.statusFlow.first()
-            val isTrial = preferences.isTrialFlow.first()
-            val createdAt = preferences.createdAtFlow.first()
+            // G-025 Tek seferlik geçiş (Migration)
+            val activePl = playlistRepository.migrateIfNeeded(preferences)
 
-            // Tek seferlik geçiş: kayıtlı serverUrl AppConfig.SERVER_URL_HTTPS ile aynıysa SERVER_URL_HTTP yap
-            val server = if (rawServer.equals(AppConfig.SERVER_URL_HTTPS, ignoreCase = true)) {
-                val httpUrl = AppConfig.SERVER_URL_HTTP
-                preferences.setServerUrl(httpUrl)
-                repository.serverUrl = httpUrl
-                httpUrl
-            } else {
-                rawServer
-            }
+            if (activePl != null) {
+                repository.updateCredentials(activePl.serverUrl, activePl.username, activePl.password)
+                repository.switchDatabase(activePl.dbName)
+                _isLoggedIn.value = true
 
-            val effectiveServer = if (server.isBlank() || server.contains("my-iptv-server")) {
-                AppConfig.DEFAULT_SERVER_URL
-            } else {
-                server
-            }
+                val expDate = preferences.expDateFlow.first()
+                val maxCons = preferences.maxConnectionsFlow.first()
+                val activeCons = preferences.activeConnectionsFlow.first()
+                val status = preferences.statusFlow.first()
+                val isTrial = preferences.isTrialFlow.first()
+                val createdAt = preferences.createdAtFlow.first()
 
-            if (loggedIn && user.isNotBlank() && pass.isNotBlank()) {
                 userInfo.value = XtreamUserInfo(
-                    username = user,
+                    username = activePl.username,
                     status = status,
                     expDate = expDate,
                     isTrial = isTrial,
@@ -961,11 +962,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     activeCons = activeCons,
                     auth = 1
                 )
-                repository.updateCredentials(effectiveServer, user, pass)
-                _isLoggedIn.value = true
 
-                val isSynced = preferences.isPlaylistSyncedFlow.first()
-                if (isSynced) {
+                if (activePl.isSynced) {
                     _currentScreen.value = Screen.Home
                     loadInitialData()
                 } else {
@@ -973,96 +971,242 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     startPlaylistSync(fromStep = 1)
                 }
 
-                val result = repository.authenticate(effectiveServer, user, pass)
-                result.onSuccess { authResp ->
-                    userInfo.value = authResp.userInfo
-                    preferences.saveAuth(
-                        username = user,
-                        password = pass,
-                        serverUrl = effectiveServer,
-                        expDate = authResp.userInfo?.expDate ?: expDate,
-                        maxCons = authResp.userInfo?.maxConnections ?: maxCons,
-                        activeCons = authResp.userInfo?.activeCons ?: activeCons,
-                        status = authResp.userInfo?.status ?: status,
-                        isTrial = authResp.userInfo?.isTrial ?: isTrial,
-                        createdAt = authResp.userInfo?.createdAt ?: createdAt
-                    )
-                }
+                refreshAccountInfo(silent = true)
             } else {
                 _currentScreen.value = Screen.Login
             }
         }
     }
 
-    fun login(user: String, pass: String, serverUrl: String = AppConfig.DEFAULT_SERVER_URL, isAutoLogin: Boolean = false) {
-        val cleanServer = if (serverUrl.isBlank() || serverUrl.contains("my-iptv-server")) {
-            AppConfig.DEFAULT_SERVER_URL
-        } else {
-            serverUrl.trimEnd('/')
-        }
+    fun resetSessionState() {
+        detachMiniPlayer()
+        playerManager.closeDualView()
+        activePreviewChannel.value = null
 
+        liveStreamJob?.cancel()
+        vodStreamJob?.cancel()
+        seriesStreamJob?.cancel()
+        universalSearchJob?.cancel()
+
+        liveCategories.value = emptyList()
+        liveStreams.value = emptyList()
+        selectedLiveCategory.value = "all"
+        liveSearchQuery.value = ""
+        currentEpgList.value = emptyList()
+
+        vodCategories.value = emptyList()
+        vodStreams.value = emptyList()
+        selectedVodCategory.value = "all"
+        vodSearchQuery.value = ""
+        currentVodDetail.value = null
+
+        seriesCategories.value = emptyList()
+        seriesStreams.value = emptyList()
+        selectedSeriesCategory.value = "all"
+        seriesSearchQuery.value = ""
+        currentSeriesInfo.value = null
+
+        universalSearchQuery.value = ""
+        universalLiveResults.value = emptyList()
+        universalVodResults.value = emptyList()
+        universalSeriesResults.value = emptyList()
+        isUniversalSearching.value = false
+
+        userInfo.value = null
+        backStack.clear()
+        selectedHomeTab.value = HomeTab.DASHBOARD
+    }
+
+    fun switchPlaylist(targetId: String, onComplete: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch {
+            val previousActive = playlistRepository.getActivePlaylist()
+            val targetPlaylist = playlistRepository.getPlaylists().find { it.id == targetId }
+            if (targetPlaylist == null) {
+                onComplete?.invoke(false)
+                return@launch
+            }
+
+            try {
+                // 1. Oynatıcıyı kapat
+                playerManager.release()
+
+                // 2. Senkron/arama/EPG iptal et ve bellekteki tüm liste verisini sıfırla
+                cancelPlaylistSync()
+                resetSessionState()
+
+                // 3. Aktif listeyi değiştir
+                playlistRepository.setActive(targetPlaylist.id)
+
+                // 4. Kimlik bilgilerini ve veritabanını güncelle
+                repository.updateCredentials(targetPlaylist.serverUrl, targetPlaylist.username, targetPlaylist.password)
+                repository.switchDatabase(targetPlaylist.dbName)
+                _isLoggedIn.value = true
+
+                // 5. Yönlendir
+                if (targetPlaylist.isSynced) {
+                    _currentScreen.value = Screen.Home
+                    loadInitialData()
+                } else {
+                    _currentScreen.value = Screen.PlaylistSync
+                    startPlaylistSync(fromStep = 1)
+                }
+
+                // 6. Arka planda hesap bilgisini tazele
+                lastAccountRefreshTimeMs = 0L
+                refreshAccountInfo(silent = true)
+
+                onComplete?.invoke(true)
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "switchPlaylist error: ${e.message}", e)
+                // Güvenlik ağı: Hata durumunda önceki listeye geri dön
+                if (previousActive != null && previousActive.id != targetId) {
+                    try {
+                        playlistRepository.setActive(previousActive.id)
+                        repository.updateCredentials(previousActive.serverUrl, previousActive.username, previousActive.password)
+                        repository.switchDatabase(previousActive.dbName)
+                    } catch (_: Exception) {}
+                }
+                onComplete?.invoke(false)
+            }
+        }
+    }
+
+    fun addPlaylist(
+        name: String,
+        serverUrl: String,
+        username: String,
+        password: String,
+        onResult: ((Result<Playlist>) -> Unit)? = null
+    ) {
         viewModelScope.launch {
             _loginLoading.value = true
             _loginError.value = null
 
-            val result = repository.authenticate(cleanServer, user, pass)
-            result.fold(
+            val cleanServer = if (serverUrl.isBlank() || serverUrl.contains("my-iptv-server")) {
+                AppConfig.DEFAULT_SERVER_URL
+            } else {
+                serverUrl.trimEnd('/')
+            }
+
+            val authResult = repository.authenticate(cleanServer, username, password)
+            authResult.fold(
                 onSuccess = { authResp ->
-                    _loginLoading.value = false
-                    _isLoggedIn.value = true
-                    userInfo.value = authResp.userInfo
+                    val existingPlaylists = playlistRepository.getPlaylists()
+                    val newId = if (existingPlaylists.isEmpty()) {
+                        PlaylistRepository.DEFAULT_PLAYLIST_ID
+                    } else {
+                        java.util.UUID.randomUUID().toString()
+                    }
+                    val playlistName = name.trim().ifBlank {
+                        if (username.isNotBlank()) username else "Oynatma Listesi"
+                    }
+                    val dbName = PlaylistRepository.dbNameFor(newId)
+
+                    val newPlaylist = Playlist(
+                        id = newId,
+                        name = playlistName,
+                        serverUrl = cleanServer,
+                        username = username,
+                        password = password,
+                        dbName = dbName,
+                        createdAt = System.currentTimeMillis(),
+                        isSynced = false,
+                        lastSyncAt = ""
+                    )
+
+                    playlistRepository.add(newPlaylist)
 
                     preferences.saveAuth(
-                        username = user,
-                        password = pass,
+                        username = username,
+                        password = password,
                         serverUrl = cleanServer,
                         expDate = authResp.userInfo?.expDate ?: "",
                         maxCons = authResp.userInfo?.maxConnections ?: "1",
                         activeCons = authResp.userInfo?.activeCons ?: "1",
                         status = authResp.userInfo?.status ?: "",
                         isTrial = authResp.userInfo?.isTrial ?: "",
-                        createdAt = authResp.userInfo?.createdAt ?: ""
+                        createdAt = authResp.userInfo?.createdAt ?: "",
+                        playlistId = newId
                     )
 
-                    val isSynced = preferences.isPlaylistSyncedFlow.first()
-                    if (isSynced) {
-                        _currentScreen.value = Screen.Home
-                        loadInitialData()
-                    } else {
-                        _currentScreen.value = Screen.PlaylistSync
-                        startPlaylistSync(fromStep = 1)
-                    }
+                    _loginLoading.value = false
+                    onResult?.invoke(Result.success(newPlaylist))
+
+                    switchPlaylist(newId)
                 },
                 onFailure = { err ->
                     _loginLoading.value = false
-                    _loginError.value = err.message ?: "Giriş yapılamadı"
-                    if (isAutoLogin) {
-                        _currentScreen.value = Screen.Login
-                    }
+                    val errorMsg = err.message ?: "Sunucuya bağlanılamadı. Bilgilerinizi kontrol ediniz."
+                    _loginError.value = errorMsg
+                    onResult?.invoke(Result.failure(err))
                 }
             )
         }
     }
 
+    fun login(user: String, pass: String, serverUrl: String = AppConfig.DEFAULT_SERVER_URL, isAutoLogin: Boolean = false) {
+        val playlistName = if (user.isNotBlank()) user else "Ana liste"
+        addPlaylist(
+            name = playlistName,
+            serverUrl = serverUrl,
+            username = user,
+            password = pass
+        ) { result ->
+            result.onFailure {
+                if (isAutoLogin) {
+                    _currentScreen.value = Screen.Login
+                }
+            }
+        }
+    }
+
+    fun removePlaylist(id: String, onComplete: (() -> Unit)? = null) {
+        viewModelScope.launch {
+            val playlists = playlistRepository.getPlaylists()
+            val toRemove = playlists.find { it.id == id } ?: return@launch
+            val activeId = playlistRepository.getActivePlaylistId()
+            val isRemovingActive = (id == activeId)
+
+            if (isRemovingActive) {
+                playerManager.release()
+                cancelPlaylistSync()
+                resetSessionState()
+            }
+
+            // 1. Veritabanı dosyasını sil
+            try {
+                if (isRemovingActive) {
+                    AppDatabase.close()
+                }
+                getApplication<Application>().deleteDatabase(toRemove.dbName)
+            } catch (e: Exception) {
+                Log.w("MainViewModel", "deleteDatabase failed: ${e.message}")
+            }
+
+            // 2. Tercihleri sil
+            preferences.removePlaylistPreferences(id)
+
+            // 3. PlaylistRepository'den kaldır
+            val nextActive = playlistRepository.remove(id)
+
+            // 4. Yönlendirme
+            if (isRemovingActive) {
+                if (nextActive != null) {
+                    switchPlaylist(nextActive.id)
+                } else {
+                    preferences.logout()
+                    _isLoggedIn.value = false
+                    _currentScreen.value = Screen.Login
+                }
+            }
+            onComplete?.invoke()
+        }
+    }
+
     fun logout() {
         viewModelScope.launch {
-            preferences.logout()
-            playerManager.release()
-            userInfo.value = null
-            backStack.clear()
-            liveStreamJob?.cancel()
-            vodStreamJob?.cancel()
-            seriesStreamJob?.cancel()
-            withContext(Dispatchers.IO) {
-                repository.database?.clearAllTables()
-            }
-            liveStreams.value = emptyList()
-            vodStreams.value = emptyList()
-            seriesStreams.value = emptyList()
-            globalSearchQuery.value = ""
-            selectedHomeTab.value = HomeTab.LIVE_TV
-            _isLoggedIn.value = false
-            _currentScreen.value = Screen.Login
+            val activeId = playlistRepository.getActivePlaylistId()
+            removePlaylist(activeId)
         }
     }
 
@@ -1177,6 +1321,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Canlı TV kanalları hazır olduğunda ilk kurulumu geçerli say ve Canlı TV'yi yükle
                 val nowStr = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
                 preferences.setPlaylistSynced(true, nowStr)
+                val activeId = playlistRepository.getActivePlaylistId()
+                playlistRepository.markSynced(activeId, nowStr)
                 loadLiveCategories()
                 loadLiveStreams("all")
             }
@@ -1253,6 +1399,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // Başarıyla tamamlandı
             val nowStr = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
             preferences.setPlaylistSynced(true, nowStr)
+            val activeId = playlistRepository.getActivePlaylistId()
+            playlistRepository.markSynced(activeId, nowStr)
             loadInitialData()
 
             playlistSyncState.value = playlistSyncState.value.copy(

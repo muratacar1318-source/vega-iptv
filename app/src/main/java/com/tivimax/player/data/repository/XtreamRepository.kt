@@ -42,11 +42,26 @@ data class CategorySyncResult(
     val seriesCount: Int,
     val totalCount: Int
 )
-
 class XtreamRepository(private val context: Context? = null) {
-
     private val gson = Gson()
-    val database: AppDatabase? = context?.let { AppDatabase.getInstance(it) }
+
+    var database: AppDatabase? = context?.let { AppDatabase.getInstance(it) }
+        private set
+
+    fun switchDatabase(dbName: String) {
+        val ctx = context ?: return
+        database = AppDatabase.open(ctx, dbName)
+        clearMemoryCaches()
+    }
+
+    fun clearMemoryCaches() {
+        liveStreamsCache.clear()
+        vodStreamsCache.clear()
+        seriesStreamsCache.clear()
+        liveCategoriesCache.clear()
+        vodCategoriesCache.clear()
+        seriesCategoriesCache.clear()
+    }
 
     // 0ms gecikme için Bellek İçi Önbellek (In-Memory Cache)
     private val liveStreamsCache = ConcurrentHashMap<String, List<LiveStream>>()

@@ -82,4 +82,15 @@ sürüm numarası. Bu görevde **arayüz eklenmez** (G-026) — sadece giriş ek
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Durum:** Tamamlandı
+- **Değişiklikler:**
+  - `app/src/main/java/com/tivimax/player/data/playlist/Playlist.kt`: `Playlist` veri modeli eklendi.
+  - `app/src/main/java/com/tivimax/player/data/playlist/PlaylistRepository.kt`: DataStore tabanlı çoklu oynatma listesi yönetimi (`playlistsFlow`, `activePlaylistFlow`, `add`, `update`, `remove`, `setActive`, `markSynced`, `migrateIfNeeded`, `computeMigration`, `selectNextActive`, `dbNameFor`) oluşturuldu.
+  - `app/src/main/java/com/tivimax/player/data/local/AppDatabase.kt`: Liste başına veritabanı açıp kapatabilmek için `open(context, dbName)` ve `close()` eklendi; `getInstance(context)` geriye dönük uyumlulukla aktif veritabanını döndürür hale getirildi.
+  - `app/src/main/java/com/tivimax/player/data/repository/XtreamRepository.kt`: `database` değişkeni dinamik hale getirildi, `switchDatabase(dbName)` ve `clearMemoryCaches()` eklendi.
+  - `app/src/main/java/com/tivimax/player/data/preferences/UserPreferences.kt`: `keyFor(base, playlistId)` deseni entegre edildi. İlk liste (`default`) için anahtar isimleri birebir korundu (mevcut kullanıcılar için sıfır veri kaybı). Favoriler, izleme ilerlemesi, son kanallar, son aramalar, senkronizasyon durumu ve hesap bilgileri `activePlaylistIdFlow.flatMapLatest` üzerinden dinamik sağlandı; global ayarlar (tema, cihaz modu, altyazı vb.) korundu. Liste silindiğinde tercihleri temizleyen `removePlaylistPreferences` eklendi.
+  - `app/src/main/java/com/tivimax/player/ui/MainViewModel.kt`: `checkUserLoginAndNavigate` içinde tek seferlik migration çağrısı eklendi. `switchPlaylist(id)`, `addPlaylist(...)`, `removePlaylist(id)` ve oturum sıfırlama (`resetSessionState()`) fonksiyonları eklendi. `login(...)` artık `addPlaylist` üzerinden çalışıyor.
+  - `app/src/test/java/com/tivimax/player/data/playlist/PlaylistArchitectureTest.kt`: `keyFor`, migration, sonraki aktif liste seçimi ve veritabanı adı kuralları için birim testleri eklendi.
+- **Doğrulama:**
+  - `compileDebugKotlin` ve `testDebugUnitTest` başarıyla çalıştı ve tüm testler geçti.
+  - APK üretilmedi (`assembleRelease` çalıştırılmadı).
