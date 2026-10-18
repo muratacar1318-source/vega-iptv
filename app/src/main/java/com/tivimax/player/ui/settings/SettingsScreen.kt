@@ -44,6 +44,8 @@ import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.CategoryManagementDialog
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 import kotlinx.coroutines.launch
 import com.tivimax.player.util.DeviceMode
 
@@ -88,7 +90,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .background(VegaColors.Background)
     ) {
         if (isWideScreen) {
             // ==========================================
@@ -100,16 +102,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     modifier = Modifier
                         .width(260.dp)
                         .fillMaxHeight()
-                        .background(TiviCardDark)
+                        .background(VegaColors.Surface)
                         .padding(horizontal = 12.dp, vertical = 16.dp)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Settings, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(22.dp))
+                        Icon(imageVector = Icons.Default.Settings, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(22.dp))
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text(text = "Ayarlar", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                        Text(text = "Ayarlar", color = VegaColors.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -118,15 +120,15 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         val isSelected = selectedSection == section
                         Surface(
                             onClick = { selectedSection = section },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) OpusCyan.copy(alpha = 0.16f) else Color.Transparent,
-                            border = if (isSelected) BorderStroke(1.dp, OpusCyan.copy(alpha = 0.6f)) else null,
+                            shape = VegaShapes.Medium,
+                            color = if (isSelected) VegaColors.Accent.copy(alpha = 0.16f) else Color.Transparent,
+                            border = if (isSelected) BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.6f)) else null,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
                                 .dpadFocusable(
-                                    focusedBorderColor = OpusCyan,
-                                    shape = RoundedCornerShape(12.dp),
+                                    focusedBorderColor = VegaColors.Accent,
+                                    shape = VegaShapes.Medium,
                                     onClick = { selectedSection = section }
                                 )
                         ) {
@@ -137,21 +139,21 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 Icon(
                                     imageVector = section.icon,
                                     contentDescription = null,
-                                    tint = if (isSelected) OpusCyan else TiviTextSecondary,
+                                    tint = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
                                         text = section.title,
-                                        color = if (isSelected) Color.White else TiviTextPrimary,
+                                        color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
                                         fontSize = 13.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     )
                                     Text(
                                         text = section.subtitle,
-                                        color = if (isSelected) OpusCyan.copy(alpha = 0.8f) else TiviTextSecondary,
-                                        fontSize = 10.sp,
+                                        color = if (isSelected) VegaColors.Accent.copy(alpha = 0.8f) else VegaColors.TextSecondary,
+                                        fontSize = 11.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -162,7 +164,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
 
                 // AYIRAÇ ÇİZGİSİ
-                VerticalDivider(color = TiviCardBorder, thickness = 1.dp)
+                VerticalDivider(color = VegaColors.Border, thickness = 1.dp)
 
                 // SAĞ PANEL: Seçili Kategori Ayarları
                 Column(
@@ -220,22 +222,22 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         modifier = Modifier.padding(bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.Settings, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(24.dp))
+                        Icon(imageVector = Icons.Default.Settings, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(24.dp))
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text(text = "Ayarlar", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                        Text(text = "Ayarlar", color = VegaColors.TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
                     }
 
                     SettingsSection.values().forEach { section ->
                         Card(
                             onClick = { activeSubPage = section },
-                            shape = RoundedCornerShape(14.dp),
-                            colors = CardDefaults.cardColors(containerColor = TiviCard),
-                            border = BorderStroke(1.dp, TiviCardBorder),
+                            shape = VegaShapes.Medium,
+                            colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+                            border = BorderStroke(1.dp, VegaColors.Border),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .dpadFocusable(
-                                    shape = RoundedCornerShape(14.dp),
-                                    focusedBorderColor = OpusCyan,
+                                    shape = VegaShapes.Medium,
+                                    focusedBorderColor = VegaColors.Accent,
                                     onClick = { activeSubPage = section }
                                 )
                         ) {
@@ -253,14 +255,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                     Box(
                                         modifier = Modifier
                                             .size(40.dp)
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(OpusCyan.copy(alpha = 0.15f)),
+                                            .clip(VegaShapes.Small)
+                                            .background(VegaColors.Accent.copy(alpha = 0.15f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = section.icon,
                                             contentDescription = null,
-                                            tint = OpusCyan,
+                                            tint = VegaColors.Accent,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -268,13 +270,13 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                     Column {
                                         Text(
                                             text = section.title,
-                                            color = Color.White,
+                                            color = VegaColors.TextPrimary,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                         Text(
                                             text = section.subtitle,
-                                            color = TiviTextSecondary,
+                                            color = VegaColors.TextSecondary,
                                             fontSize = 11.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -284,7 +286,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 Icon(
                                     imageVector = Icons.Default.ChevronRight,
                                     contentDescription = null,
-                                    tint = TiviTextMuted,
+                                    tint = VegaColors.TextMuted,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -302,15 +304,15 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     // GERİ DÖNÜŞ BAŞLIĞI
                     Surface(
                         onClick = { activeSubPage = null },
-                        shape = RoundedCornerShape(10.dp),
-                        color = TiviCard,
-                        border = BorderStroke(1.dp, TiviCardBorder),
+                        shape = VegaShapes.Medium,
+                        color = VegaColors.Card,
+                        border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 14.dp)
                             .dpadFocusable(
-                                shape = RoundedCornerShape(10.dp),
-                                focusedBorderColor = OpusCyan,
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.Accent,
                                 onClick = { activeSubPage = null }
                             )
                     ) {
@@ -321,13 +323,13 @@ fun SettingsScreen(viewModel: MainViewModel) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Geri",
-                                tint = OpusCyan,
+                                tint = VegaColors.Accent,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = activeSubPage!!.title,
-                                color = Color.White,
+                                color = VegaColors.TextPrimary,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -1684,19 +1686,20 @@ fun DeviceModeSelectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = TiviSurface,
+        containerColor = VegaColors.Surface,
+        shape = VegaShapes.Large,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Tv,
                     contentDescription = null,
-                    tint = OpusCyan,
+                    tint = VegaColors.Accent,
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Cihaz türünü değiştir",
-                    color = TiviTextPrimary,
+                    color = VegaColors.TextPrimary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -1709,8 +1712,8 @@ fun DeviceModeSelectionDialog(
             ) {
                 Text(
                     text = "Uygulamayı hangi cihazda kullanıyorsun?",
-                    color = TiviTextSecondary,
-                    fontSize = 12.5.sp
+                    color = VegaColors.TextSecondary,
+                    fontSize = 13.sp
                 )
 
                 DeviceMode.values().forEach { mode ->
@@ -1722,14 +1725,14 @@ fun DeviceModeSelectionDialog(
                     }
                     Surface(
                         onClick = { selectedMode = mode },
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isSelected) OpusCyan.copy(alpha = 0.15f) else TiviCard,
-                        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                        shape = VegaShapes.Medium,
+                        color = if (isSelected) VegaColors.Accent.copy(alpha = 0.15f) else VegaColors.Card,
+                        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, if (isSelected) VegaColors.Accent else VegaColors.Border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .dpadFocusable(
-                                shape = RoundedCornerShape(12.dp),
-                                focusedBorderColor = OpusCyan,
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.Accent,
                                 onClick = { selectedMode = mode }
                             )
                     ) {
@@ -1742,14 +1745,14 @@ fun DeviceModeSelectionDialog(
                             Box(
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) OpusCyan.copy(alpha = 0.25f) else TiviSurfaceVariant),
+                                    .clip(VegaShapes.Small)
+                                    .background(if (isSelected) VegaColors.Accent.copy(alpha = 0.25f) else VegaColors.SurfaceVariant),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = null,
-                                    tint = if (isSelected) OpusCyan else Color.White,
+                                    tint = if (isSelected) VegaColors.Accent else Color.White,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1757,13 +1760,13 @@ fun DeviceModeSelectionDialog(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = mode.badgeText,
-                                    color = if (isSelected) OpusCyan else Color.White,
-                                    fontSize = 13.5.sp,
+                                    color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     text = mode.description,
-                                    color = TiviTextSecondary,
+                                    color = VegaColors.TextSecondary,
                                     fontSize = 11.sp,
                                     lineHeight = 14.sp
                                 )
@@ -1772,7 +1775,7 @@ fun DeviceModeSelectionDialog(
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
                                     contentDescription = null,
-                                    tint = OpusCyan,
+                                    tint = VegaColors.Accent,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -1797,14 +1800,14 @@ fun DeviceModeSelectionDialog(
                     Icon(
                         imageVector = Icons.Default.RestartAlt,
                         contentDescription = null,
-                        tint = TiviAccentLive,
+                        tint = VegaColors.Danger,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "İlk kurulum ekranını tekrar göster",
-                        color = TiviAccentLive,
-                        fontSize = 11.5.sp,
+                        color = VegaColors.Danger,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -1817,15 +1820,15 @@ fun DeviceModeSelectionDialog(
                     Toast.makeText(context, "Cihaz türü: ${selectedMode.badgeText}", Toast.LENGTH_SHORT).show()
                     onDismiss()
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                shape = RoundedCornerShape(10.dp)
+                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                shape = VegaShapes.Medium
             ) {
                 Text("Uygula", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("İptal", color = TiviTextSecondary)
+                Text("İptal", color = VegaColors.TextSecondary)
             }
         }
     )
