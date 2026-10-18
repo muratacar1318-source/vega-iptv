@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-040 | [Canlı yayın açılışta doğrudan ~8 sn gecikme (eski yığın atılır), hızlandırma kaldırılır](docs/gorevler/G-040-canli-8sn-acilis-kirpma.md) | 🔴 | 🔍 İncelemede (branch: fix/canli-8sn-kirpma) |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -50,6 +49,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-040 | Canlı açılışta sunucu yığını kırpılıyor → doğrudan ~8 sn gecikme; hızlandırma kaldırıldı; Canlıya geç = yeniden bağlan — PR #49 | 18 Ekim |
 | G-039 | Canlı gecikme hedefi 8 sn (1,5×/2× hızlanarak yetişme), "Canlıya geç" en solda, canlı durum rozeti — PR #48 | 18 Ekim |
 | G-038 | TV canlı: OK duraklatmıyor, saat bilgi kartıyla gizleniyor, tampon canlı, "Canlıya geç" (3→8 sn), HEVC açılış ölçümü (debug) — PR #47 | 18 Ekim |
 | G-037 | Hızlı kanal değiştirmede sadece son kanala bağlanılıyor (TV), eski yeniden deneme işleri iptal — PR #46 | 18 Ekim |
