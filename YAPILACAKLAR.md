@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| R-1.4.0 | [Sürüm yayını v1.4.0 — kullanıcı onayladı](docs/gorevler/R-1.4.0-surum-yayini.md) | 🔴 | ⏳ Sıradaki |
+| R-1.4.0 | [Sürüm yayını v1.4.0 — kullanıcı onayladı](docs/gorevler/R-1.4.0-surum-yayini.md) | 🔴 | 🔍 İncelemede (branch: chore/surum-1.4.0) |
 
 ---
 
