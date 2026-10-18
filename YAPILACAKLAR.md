@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-023 | [Oynatıcıdaki alttan açılan sayfaları kompakt yan panele çevir (Daha fazla, Bölümler, Çift ekran)](docs/gorevler/G-023-oynatici-yan-paneller.md) | 🟠 | ⏳ Bekliyor |
+| G-023 | [Oynatıcıdaki alttan açılan sayfaları kompakt yan panele çevir (Daha fazla, Bölümler, Çift ekran)](docs/gorevler/G-023-oynatici-yan-paneller.md) | 🟠 | ⏳ Bekliyor — **Düzeltme turu 1** (aynı branch, 2 satır) |
 | G-017 | [Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu](docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 | G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 
