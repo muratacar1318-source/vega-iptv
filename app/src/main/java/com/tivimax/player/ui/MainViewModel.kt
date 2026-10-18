@@ -2199,6 +2199,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // G-037: TV'de hızlı kanal değiştirme — bilgi hemen değişir, bağlantı son kanal için kurulur
+    private var tvZapJob: Job? = null
+
+    private fun scheduleTvZap(channel: LiveStream) {
+        activePreviewChannel.value = channel
+        tvZapJob?.cancel()
+        playerManager.stopAndClear()
+        tvZapJob = viewModelScope.launch {
+            delay(450L)
+            previewChannel(channel)
+        }
+    }
+
     fun zapNextChannel(currentStreamId: Int): LiveStream? {
         val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
             liveStreams.value
@@ -2210,7 +2223,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val nextIndex = if (currentIndex != -1) (currentIndex + 1) % list.size else 0
         val nextChannel = list[nextIndex]
         if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-            previewChannel(nextChannel)
+            scheduleTvZap(nextChannel)
         } else {
             playLiveChannel(nextChannel)
         }
@@ -2228,7 +2241,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val prevIndex = if (currentIndex > 0) currentIndex - 1 else if (currentIndex == 0) list.size - 1 else 0
         val prevChannel = list[prevIndex]
         if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-            previewChannel(prevChannel)
+            scheduleTvZap(prevChannel)
         } else {
             playLiveChannel(prevChannel)
         }
@@ -2238,7 +2251,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun zapRecall(): LiveStream? {
         val prev = lastPlayedLiveChannel.value ?: return null
         if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-            previewChannel(prev)
+            scheduleTvZap(prev)
         } else {
             playLiveChannel(prev)
         }
