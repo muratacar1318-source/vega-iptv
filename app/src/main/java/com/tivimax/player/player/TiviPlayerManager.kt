@@ -1124,6 +1124,95 @@ class TiviPlayerManager(private val context: Context) {
 
         _audioTracks.value = audios
         _subtitleTracks.value = subtitles
+
+        // Akıllı Altyazı Eşleme Mantığı:
+        // 1. Ses dili ve altyazı dili aynı ise altyazıyı kapat.
+        // 2. Türkçe ses/dublajda altyazı kapalı gelsin.
+        // 3. İngilizce ses seçiliyse Türkçe altyazı otomatik seçilsin.
+        applySmartSubtitleLogic(audios, subtitles)
+    }
+
+    private fun normalizeLanguageCode(lang: String?, label: String?): String {
+        val cleanLang = lang?.trim()?.lowercase() ?: ""
+        val cleanLabel = label?.trim()?.lowercase() ?: ""
+        return when {
+            cleanLang in listOf("tr", "tur", "turkish") || cleanLabel.contains("türk") || cleanLabel.contains("turk") -> "tr"
+            cleanLang in listOf("en", "eng", "english") || cleanLabel.contains("ing") || cleanLabel.contains("eng") -> "en"
+            cleanLang in listOf("de", "deu", "ger", "german") || cleanLabel.contains("alm") || cleanLabel.contains("ger") -> "de"
+            cleanLang in listOf("fr", "fra", "fre", "french") || cleanLabel.contains("fran") || cleanLabel.contains("fren") -> "fr"
+            cleanLang in listOf("es", "spa", "spanish") || cleanLabel.contains("ispan") || cleanLabel.contains("span") -> "es"
+            cleanLang in listOf("it", "ita", "italian") || cleanLabel.contains("ital") -> "it"
+            cleanLang in listOf("ru", "rus", "russian") || cleanLabel.contains("rus") -> "ru"
+            cleanLang in listOf("ar", "ara", "arabic") || cleanLabel.contains("arap") || cleanLabel.contains("arab") -> "ar"
+            cleanLang.isNotBlank() && cleanLang !in listOf("und", "default") -> cleanLang
+            else -> ""
+        }
+    }
+
+    private fun applySmartSubtitleLogic(audios: List<TrackInfo>, subtitles: List<TrackInfo>) {
+        if (subtitles.isEmpty()) return
+
+        val selectedAudio = audios.firstOrNull { it.isSelected } ?: audios.firstOrNull() ?: return
+        val audioNorm = normalizeLanguageCode(selectedAudio.language, selectedAudio.name)
+
+        // 1 & 2. Ses dili Türkçe ise veya seçili altyazı ile aynı dilde ise altyazıyı kapat
+        if (audioNorm == "tr") {
+            // Türkçe dublaj veya Türkçe ses: Altyazı kapalı gelsin
+            val anySubSelected = subtitles.any { it.isSelected }
+            if (anySubSelected) {
+                disableSubtitles()
+            }
+            return
+        }
+
+        // 3. İngilizce ses seçiliyse Türkçe altyazı otomatik seçilsin
+        if (audioNorm == "en") {
+            val selectedSub = subtitles.firstOrNull { it.isSelected }
+            val subNorm = selectedSub?.let { normalizeLanguageCode(it.language, it.name) }
+            if (subNorm != "tr") {
+                // Türkçe altyazıyı bul ve seç
+                val trSubtitle = subtitles.firstOrNull { normalizeLanguageCode(it.language, it.name) == "tr" }
+                if (trSubtitle != null) {
+                    selectTrackInternal(trSubtitle, C.TRACK_TYPE_TEXT)
+                    return
+                }
+            }
+        }
+
+        // Genel kural: Ses dili ve altyazı dili aynı ise altyazıyı kapat
+        val selectedSub = subtitles.firstOrNull { it.isSelected }
+        if (selectedSub != null) {
+            val subNorm = normalizeLanguageCode(selectedSub.language, selectedSub.name)
+            if (audioNorm.isNotBlank() && audioNorm == subNorm) {
+                disableSubtitles()
+            }
+        }
+    }
+
+    private fun selectTrackInternal(trackInfo: TrackInfo, trackType: Int) {
+        val player = exoPlayer ?: return
+        val tracks = player.currentTracks
+        if (trackInfo.groupIndex < tracks.groups.size) {
+            val group = tracks.groups[trackInfo.groupIndex]
+            trackSelector.setParameters(
+                trackSelector.buildUponParameters()
+                    .setTrackTypeDisabled(trackType, false)
+                    .clearOverridesOfType(trackType)
+                    .setOverrideForType(
+                        TrackSelectionOverride(group.mediaTrackGroup, listOf(trackInfo.formatIndex))
+                    )
+            )
+
+            if (trackType == C.TRACK_TYPE_TEXT) {
+                _subtitleTracks.value = _subtitleTracks.value.map {
+                    it.copy(isSelected = (it.groupIndex == trackInfo.groupIndex && it.formatIndex == trackInfo.formatIndex))
+                }
+            } else if (trackType == C.TRACK_TYPE_AUDIO) {
+                _audioTracks.value = _audioTracks.value.map {
+                    it.copy(isSelected = (it.groupIndex == trackInfo.groupIndex && it.formatIndex == trackInfo.formatIndex))
+                }
+            }
+        }
     }
 
     fun selectTrack(trackInfo: TrackInfo, trackType: Int) {
@@ -1144,6 +1233,8 @@ class TiviPlayerManager(private val context: Context) {
                 _audioTracks.value = _audioTracks.value.map {
                     it.copy(isSelected = (it.groupIndex == trackInfo.groupIndex && it.formatIndex == trackInfo.formatIndex))
                 }
+                // Kullanıcı ses dilini değiştirdiğinde akıllı altyazı kuralını hemen uygula
+                applySmartSubtitleLogic(_audioTracks.value, _subtitleTracks.value)
             } else if (trackType == C.TRACK_TYPE_TEXT) {
                 if (BuildConfig.DEBUG) {
                     val format = group.mediaTrackGroup.getFormat(trackInfo.formatIndex)
