@@ -40,12 +40,35 @@ fun Context.isTvDevice(): Boolean {
  * 3. Diğer standart mobil cihazlar -> PHONE
  */
 fun Context.detectRecommendedDeviceMode(): DeviceMode {
-    if (isTvDevice()) {
-        return DeviceMode.TV
-    }
-    val swDp = resources.configuration.smallestScreenWidthDp
-    if (swDp >= 600) {
-        return DeviceMode.TABLET
-    }
-    return DeviceMode.PHONE
+    val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
+    @Suppress("DEPRECATION")
+    return recommendDeviceMode(
+        isTvUiMode = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION,
+        hasLeanback = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
+        hasTvFeature = packageManager.hasSystemFeature("android.hardware.type.television") ||
+            packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION),
+        hasTouchscreen = packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN),
+        hasAccelerometer = packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_ACCELEROMETER),
+        hasTelephony = packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY),
+        smallestWidthDp = resources.configuration.smallestScreenWidthDp
+    )
+}
+
+/**
+ * G-036: Cihaz türü önerisi (saf fonksiyon — test edilebilir).
+ * Sertifikasız TV kutuları dokunmatik ekran bildirebiliyor; hareket sensörü ve SIM özelliği olmaması
+ * TV kutusunun güçlü işaretidir (telefon/tabletlerin neredeyse hepsinde ivmeölçer var).
+ */
+internal fun recommendDeviceMode(
+    isTvUiMode: Boolean,
+    hasLeanback: Boolean,
+    hasTvFeature: Boolean,
+    hasTouchscreen: Boolean,
+    hasAccelerometer: Boolean,
+    hasTelephony: Boolean,
+    smallestWidthDp: Int
+): DeviceMode {
+    if (isTvUiMode || hasLeanback || hasTvFeature || !hasTouchscreen) return DeviceMode.TV
+    if (!hasAccelerometer && !hasTelephony) return DeviceMode.TV
+    return if (smallestWidthDp >= 600) DeviceMode.TABLET else DeviceMode.PHONE
 }

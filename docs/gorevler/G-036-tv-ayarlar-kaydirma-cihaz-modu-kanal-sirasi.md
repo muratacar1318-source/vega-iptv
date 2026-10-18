@@ -161,4 +161,21 @@ güncelleme sistemi (AutoUpdateManager), imza, CI, sürüm numarası.
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - **Adım 1:** `SettingsScreen.kt` dosyasında geniş ekran / TV modundaki sol kategori menüsü `Column`'una `.verticalScroll(rememberScrollState())` eklendi.
+  - **Adım 2:** `DeviceTypeUtil.kt` dosyasına test edilebilir saf `recommendDeviceMode` fonksiyonu eklendi; ivmeölçer ve telefon modülü bulunmayan sertifikasız kutuların TV olarak algılanması sağlandı; `detectRecommendedDeviceMode()` gövdesi bu fonksiyonu çağıracak şekilde güncellendi (`isTvDevice()` korunarak).
+  - **Adım 3:** `MainViewModel.kt` dosyasında `preferences.deviceModeFlow` dinlenirken kaydedilen mod değiştiğinde `OrientationManager` hızlı önbelleği eşitlendi.
+  - **Adım 4:** `Daos.kt` içinde `LiveDao` arayüzündeki `live_streams` tablosunu okuyan 5 sorgu ve `getStreamsFiltered` varsayılan sıralaması `CASE WHEN num > 0 THEN 0 ELSE 1 END, num ASC, rowid ASC` haline getirildi.
+  - **Adım 5:** `DeviceModeRecommendTest.kt` dosyası oluşturularak 5 farklı cihaz senaryosu (Resmi TV, sertifikasız kutu, Wi-Fi tablet, telefon, dokunmatiksiz cihaz) test edildi.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/ui/settings/SettingsScreen.kt`
+  - `app/src/main/java/com/tivimax/player/util/DeviceTypeUtil.kt`
+  - `app/src/main/java/com/tivimax/player/ui/MainViewModel.kt`
+  - `app/src/main/java/com/tivimax/player/data/local/dao/Daos.kt`
+  - `app/src/test/java/com/tivimax/player/util/DeviceModeRecommendTest.kt`
+  - `docs/gorevler/G-036-tv-ayarlar-kaydirma-cihaz-modu-kanal-sirasi.md`
+  - `YAPILACAKLAR.md`
+- **Test sonuçları:**
+  - `./gradlew compileDebugKotlin`: Başarılı (`BUILD SUCCESSFUL in 32s`).
+  - `./gradlew testDebugUnitTest`: Başarılı (`BUILD SUCCESSFUL in 8s`, 28 görev, yeni eklenen test dahil tüm testler geçti).
+  - Fiziksel TV / emülatör bağlı olmadığı için ekran üzerinde manuel test yapılamadı.
