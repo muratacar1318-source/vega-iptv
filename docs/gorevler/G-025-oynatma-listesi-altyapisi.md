@@ -141,4 +141,22 @@ Bunu bir kez çalışan, saf bir yardımcıyla yap ve birim testine ekle.
 
 ### Düzeltme turu 1 — Agent raporu
 
-_(Agent doldurur.)_
+- **Durum:** Tamamlandı
+- **Yapılan Düzeltmeler:**
+  1. **Veritabanı Akışları (`XtreamRepository.kt` & `MainViewModel.kt`):**
+     - `XtreamRepository` içerisine `_activeDb: MutableStateFlow<AppDatabase?>` ve `activeDbFlow: StateFlow<AppDatabase?>` eklendi.
+     - `switchDatabase(dbName)` sıralaması düzeltildi: Önce `_activeDb.value = null` yapılarak toplayıcılar durduruldu, ardından `AppDatabase.close()`, `AppDatabase.open(...)`, `_activeDb.value = database` ve `clearMemoryCaches()` çalıştırıldı.
+     - `getLiveCategoriesFlow`, `getLiveStreamsFlow`, `getLiveStreamsByIdsFlow`, `searchLiveStreamsFlow`, `getLiveStreamsFilteredFlow` ve tüm VOD / Dizi karşılıkları `activeDbFlow.flatMapLatest` yapısına bağlandı.
+     - `MainViewModel` init içerisindeki `combine` filtreleme akışlarına `repository.activeDbFlow` parametresi eklendi ve tüm akışlar `.catch { Log.w(...) }` ile korundu.
+     - `loadLiveCategories`, `loadVodCategories` ve `loadSeriesCategories` fonksiyonları için Job referansları (`liveCategoriesJob`, `vodCategoriesJob`, `seriesCategoriesJob`) eklendi, her çağrıda önceki iş iptal edildi ve `.catch { Log.w(...) }` eklendi. `resetSessionState()` içinde bu job'lar iptal edildi.
+     - `getPaged*` (PagingSource) fonksiyonlarının UI veya ViewModel katmanında hiçbir yerde kullanılmadığı doğrulandı.
+  2. **Hesap Yenileme (`MainViewModel.kt`):**
+     - `refreshAccountInfo()` global tercihler yerine `playlistRepository.getActivePlaylist()` üzerinden aktif listenin kimlik bilgilerini (`active.username`, `active.password`, `active.serverUrl`) kullanacak şekilde güncellendi; aktif liste yoksa işlem sonlandırıldı.
+     - `preferences.saveAuth` çağrısına `playlistId = active.id` parametresi verildi.
+  3. **HTTPS -> HTTP Geçişi (`PlaylistRepository.kt` & `MainViewModel.kt`):**
+     - `PlaylistRepository.migrateHttpsToHttp` saf fonksiyonu eklendi; `computeMigration` içinde ve `migrateHttpsUrls` metodu ile tüm listelerdeki HTTPS URL'leri HTTP'ye dönüştürüldü.
+     - `MainViewModel.checkUserLoginAndNavigate()` içinde migration sonrası `migrateHttpsUrls` çalıştırıldı ve global `serverUrl` HTTPS ise HTTP'ye güncellendi.
+     - `PlaylistArchitectureTest.kt` içine `migrateHttpsToHttp` ve `computeMigration` testleri eklendi.
+- **Doğrulama:**
+  - `compileDebugKotlin` ve `testDebugUnitTest` başarıyla geçti.
+  - APK üretilmedi (`assembleRelease` çalıştırılmadı).

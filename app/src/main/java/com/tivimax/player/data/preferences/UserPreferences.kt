@@ -13,11 +13,13 @@ import com.google.gson.reflect.TypeToken
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.OrientationManager
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
-private val Context.dataStore by preferencesDataStore(name = "tivimax_preferences")
+val Context.appDataStore by preferencesDataStore(name = "tivimax_preferences")
 
 data class WatchProgress(
     val streamId: Int,
@@ -33,6 +35,16 @@ class UserPreferences(private val context: Context) {
     private val gson = Gson()
 
     companion object {
+        fun keyFor(base: String, playlistId: String): String {
+            return if (playlistId == "default" || playlistId.isBlank()) {
+                base
+            } else {
+                "${base}__${playlistId}"
+            }
+        }
+
+        val KEY_ACTIVE_PLAYLIST_ID = stringPreferencesKey("active_playlist_id")
+
         val KEY_USERNAME = stringPreferencesKey("username")
         val KEY_PASSWORD = stringPreferencesKey("password")
         val KEY_SERVER_URL = stringPreferencesKey("server_url")
@@ -144,9 +156,15 @@ class UserPreferences(private val context: Context) {
         val KEY_VOD_PREWARM_DISABLED = booleanPreferencesKey("vod_prewarm_disabled")
     }
 
-    val usernameFlow: Flow<String> = context.dataStore.data.map { it[KEY_USERNAME] ?: "" }
-    val passwordFlow: Flow<String> = context.dataStore.data.map { it[KEY_PASSWORD] ?: "" }
-    val serverUrlFlow: Flow<String> = context.dataStore.data.map { 
+    val activePlaylistIdFlow: Flow<String> = context.appDataStore.data.map { prefs ->
+        prefs[KEY_ACTIVE_PLAYLIST_ID] ?: "default"
+    }
+
+    suspend fun getActivePlaylistId(): String = activePlaylistIdFlow.first()
+
+    val usernameFlow: Flow<String> = context.appDataStore.data.map { it[KEY_USERNAME] ?: "" }
+    val passwordFlow: Flow<String> = context.appDataStore.data.map { it[KEY_PASSWORD] ?: "" }
+    val serverUrlFlow: Flow<String> = context.appDataStore.data.map { 
         val saved = it[KEY_SERVER_URL]
         if (saved.isNullOrBlank() || saved.contains("my-iptv-server")) {
             AppConfig.DEFAULT_SERVER_URL
@@ -154,96 +172,151 @@ class UserPreferences(private val context: Context) {
             saved
         }
     }
-    val isLoggedInFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_IS_LOGGED_IN] ?: false }
-    val expDateFlow: Flow<String> = context.dataStore.data.map { it[KEY_EXP_DATE] ?: "" }
-    val maxConnectionsFlow: Flow<String> = context.dataStore.data.map { it[KEY_MAX_CONNECTIONS] ?: "1" }
-    val activeConnectionsFlow: Flow<String> = context.dataStore.data.map { it[KEY_ACTIVE_CONNECTIONS] ?: "1" }
-    val statusFlow: Flow<String> = context.dataStore.data.map { it[KEY_STATUS] ?: "" }
-    val isTrialFlow: Flow<String> = context.dataStore.data.map { it[KEY_IS_TRIAL] ?: "" }
-    val createdAtFlow: Flow<String> = context.dataStore.data.map { it[KEY_CREATED_AT] ?: "" }
+    val isLoggedInFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_IS_LOGGED_IN] ?: false }
 
-    val favoriteLiveFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_FAVORITE_LIVE] ?: emptySet() }
-    val favoriteVodFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_FAVORITE_VOD] ?: emptySet() }
-    val favoriteSeriesFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_FAVORITE_SERIES] ?: emptySet() }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val expDateFlow: Flow<String> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringPreferencesKey(keyFor("exp_date", id))] ?: "" }
+    }
 
-    val parentalPinFlow: Flow<String> = context.dataStore.data.map { it[KEY_PARENTAL_PIN] ?: "0000" }
-    val streamFormatFlow: Flow<String> = context.dataStore.data.map { it[KEY_STREAM_FORMAT] ?: "TS" }
-    val fastZappingFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_FAST_ZAPPING] ?: true }
-    val aspectRatioFlow: Flow<String> = context.dataStore.data.map { it[KEY_ASPECT_RATIO] ?: "FIT" }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val maxConnectionsFlow: Flow<String> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringPreferencesKey(keyFor("max_connections", id))] ?: "1" }
+    }
 
-    val liveSortFlow: Flow<String> = context.dataStore.data.map { it[KEY_LIVE_SORT] ?: "DEFAULT" }
-    val vodSortFlow: Flow<String> = context.dataStore.data.map { it[KEY_VOD_SORT] ?: "ADDED_DESC" }
-    val seriesSortFlow: Flow<String> = context.dataStore.data.map { it[KEY_SERIES_SORT] ?: "ADDED_DESC" }
-    val autoSyncLiveFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_AUTO_SYNC_LIVE] ?: true }
-    val autoPipFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_AUTO_PIP] ?: true }
-    val vodBufferSecondsFlow: Flow<Int> = context.dataStore.data.map { it[KEY_VOD_BUFFER_SECONDS] ?: 60 }
-    val liveBufferSecondsFlow: Flow<Int> = context.dataStore.data.map { it[KEY_LIVE_BUFFER_SECONDS] ?: 2 }
-    val decoderModeFlow: Flow<String> = context.dataStore.data.map { it[KEY_DECODER_MODE] ?: "HARDWARE" }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val activeConnectionsFlow: Flow<String> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringPreferencesKey(keyFor("active_connections", id))] ?: "1" }
+    }
 
-    val isPlaylistSyncedFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_IS_PLAYLIST_SYNCED] ?: false }
-    val lastSyncTimestampFlow: Flow<String> = context.dataStore.data.map { it[KEY_LAST_SYNC_TIMESTAMP] ?: "" }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val statusFlow: Flow<String> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringPreferencesKey(keyFor("status", id))] ?: "" }
+    }
 
-    suspend fun setPlaylistSynced(synced: Boolean, timestamp: String = "") {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_IS_PLAYLIST_SYNCED] = synced
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val isTrialFlow: Flow<String> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringPreferencesKey(keyFor("is_trial", id))] ?: "" }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val createdAtFlow: Flow<String> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringPreferencesKey(keyFor("created_at", id))] ?: "" }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val favoriteLiveFlow: Flow<Set<String>> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringSetPreferencesKey(keyFor("fav_live", id))] ?: emptySet() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val favoriteVodFlow: Flow<Set<String>> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringSetPreferencesKey(keyFor("fav_vod", id))] ?: emptySet() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val favoriteSeriesFlow: Flow<Set<String>> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringSetPreferencesKey(keyFor("fav_series", id))] ?: emptySet() }
+    }
+
+    val parentalPinFlow: Flow<String> = context.appDataStore.data.map { it[KEY_PARENTAL_PIN] ?: "0000" }
+    val streamFormatFlow: Flow<String> = context.appDataStore.data.map { it[KEY_STREAM_FORMAT] ?: "TS" }
+    val fastZappingFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_FAST_ZAPPING] ?: true }
+    val aspectRatioFlow: Flow<String> = context.appDataStore.data.map { it[KEY_ASPECT_RATIO] ?: "FIT" }
+
+    val liveSortFlow: Flow<String> = context.appDataStore.data.map { it[KEY_LIVE_SORT] ?: "DEFAULT" }
+    val vodSortFlow: Flow<String> = context.appDataStore.data.map { it[KEY_VOD_SORT] ?: "ADDED_DESC" }
+    val seriesSortFlow: Flow<String> = context.appDataStore.data.map { it[KEY_SERIES_SORT] ?: "ADDED_DESC" }
+    val autoSyncLiveFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_SYNC_LIVE] ?: true }
+    val autoPipFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_PIP] ?: true }
+    val vodBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_VOD_BUFFER_SECONDS] ?: 60 }
+    val liveBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_LIVE_BUFFER_SECONDS] ?: 2 }
+    val decoderModeFlow: Flow<String> = context.appDataStore.data.map { it[KEY_DECODER_MODE] ?: "HARDWARE" }
+
+    suspend fun setLiveSort(sort: String) {
+        context.appDataStore.edit { it[KEY_LIVE_SORT] = sort }
+    }
+
+    suspend fun setVodSort(sort: String) {
+        context.appDataStore.edit { it[KEY_VOD_SORT] = sort }
+    }
+
+    suspend fun setSeriesSort(sort: String) {
+        context.appDataStore.edit { it[KEY_SERIES_SORT] = sort }
+    }
+
+    suspend fun setAutoSyncLive(enabled: Boolean) {
+        context.appDataStore.edit { it[KEY_AUTO_SYNC_LIVE] = enabled }
+    }
+
+    suspend fun setAutoPip(enabled: Boolean) {
+        context.appDataStore.edit { it[KEY_AUTO_PIP] = enabled }
+    }
+
+    suspend fun setVodBufferSeconds(seconds: Int) {
+        context.appDataStore.edit { it[KEY_VOD_BUFFER_SECONDS] = seconds }
+    }
+
+    suspend fun setLiveBufferSeconds(seconds: Int) {
+        context.appDataStore.edit { it[KEY_LIVE_BUFFER_SECONDS] = seconds }
+    }
+
+    suspend fun setDecoderMode(mode: String) {
+        context.appDataStore.edit { it[KEY_DECODER_MODE] = mode }
+    }
+
+    suspend fun setStreamFormat(format: String) {
+        context.appDataStore.edit { it[KEY_STREAM_FORMAT] = format }
+    }
+
+    suspend fun setFastZapping(enabled: Boolean) {
+        context.appDataStore.edit { it[KEY_FAST_ZAPPING] = enabled }
+    }
+
+    suspend fun setServerUrl(url: String) {
+        context.appDataStore.edit { it[KEY_SERVER_URL] = url }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val isPlaylistSyncedFlow: Flow<Boolean> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[booleanPreferencesKey(keyFor("is_playlist_synced", id))] ?: false }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val lastSyncTimestampFlow: Flow<String> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringPreferencesKey(keyFor("last_sync_timestamp", id))] ?: "" }
+    }
+
+    suspend fun setPlaylistSynced(synced: Boolean, timestamp: String = "", playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        context.appDataStore.edit { prefs ->
+            prefs[booleanPreferencesKey(keyFor("is_playlist_synced", plId))] = synced
             if (timestamp.isNotEmpty()) {
-                prefs[KEY_LAST_SYNC_TIMESTAMP] = timestamp
+                prefs[stringPreferencesKey(keyFor("last_sync_timestamp", plId))] = timestamp
             }
         }
     }
 
-    val watchProgressMapFlow: Flow<Map<String, WatchProgress>> = context.dataStore.data.map { prefs ->
-        val json = prefs[KEY_WATCH_PROGRESS] ?: "{}"
-        val type = object : TypeToken<Map<String, WatchProgress>>() {}.type
-        try {
-            gson.fromJson(json, type) ?: emptyMap()
-        } catch (e: Exception) {
-            emptyMap()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val watchProgressMapFlow: Flow<Map<String, WatchProgress>> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { prefs ->
+            val json = prefs[stringPreferencesKey(keyFor("watch_progress_json", id))] ?: "{}"
+            val type = object : TypeToken<Map<String, WatchProgress>>() {}.type
+            try {
+                gson.fromJson(json, type) ?: emptyMap()
+            } catch (e: Exception) {
+                emptyMap()
+            }
         }
     }
 
-    suspend fun setLiveSort(sort: String) {
-        context.dataStore.edit { it[KEY_LIVE_SORT] = sort }
-    }
-
-    suspend fun setVodSort(sort: String) {
-        context.dataStore.edit { it[KEY_VOD_SORT] = sort }
-    }
-
-    suspend fun setSeriesSort(sort: String) {
-        context.dataStore.edit { it[KEY_SERIES_SORT] = sort }
-    }
-
-    suspend fun setAutoSyncLive(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_AUTO_SYNC_LIVE] = enabled }
-    }
-
-    suspend fun setAutoPip(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_AUTO_PIP] = enabled }
-    }
-
-    suspend fun setVodBufferSeconds(seconds: Int) {
-        context.dataStore.edit { it[KEY_VOD_BUFFER_SECONDS] = seconds }
-    }
-
-    suspend fun setLiveBufferSeconds(seconds: Int) {
-        context.dataStore.edit { it[KEY_LIVE_BUFFER_SECONDS] = seconds }
-    }
-
-    suspend fun setDecoderMode(mode: String) {
-        context.dataStore.edit { it[KEY_DECODER_MODE] = mode }
-    }
-
-    suspend fun setStreamFormat(format: String) {
-        context.dataStore.edit { it[KEY_STREAM_FORMAT] = format }
-    }
-
-    suspend fun setFastZapping(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_FAST_ZAPPING] = enabled }
-    }
-
-    suspend fun setServerUrl(url: String) {
-        context.dataStore.edit { it[KEY_SERVER_URL] = url }
+    suspend fun saveCredentials(username: String, pass: String, serverUrl: String) {
+        context.appDataStore.edit { prefs ->
+            prefs[KEY_USERNAME] = username
+            prefs[KEY_PASSWORD] = pass
+            prefs[KEY_SERVER_URL] = serverUrl
+            prefs[KEY_IS_LOGGED_IN] = true
+        }
     }
 
     suspend fun saveAuth(
@@ -255,69 +328,80 @@ class UserPreferences(private val context: Context) {
         activeCons: String = "1",
         status: String = "",
         isTrial: String = "",
-        createdAt: String = ""
+        createdAt: String = "",
+        playlistId: String? = null
     ) {
-        context.dataStore.edit { prefs ->
+        val plId = playlistId ?: getActivePlaylistId()
+        context.appDataStore.edit { prefs ->
             prefs[KEY_USERNAME] = username
             prefs[KEY_PASSWORD] = password
             prefs[KEY_SERVER_URL] = serverUrl
             prefs[KEY_IS_LOGGED_IN] = true
-            prefs[KEY_EXP_DATE] = expDate
-            prefs[KEY_MAX_CONNECTIONS] = maxCons
-            prefs[KEY_ACTIVE_CONNECTIONS] = activeCons
-            prefs[KEY_STATUS] = status
-            prefs[KEY_IS_TRIAL] = isTrial
-            prefs[KEY_CREATED_AT] = createdAt
+
+            prefs[stringPreferencesKey(keyFor("exp_date", plId))] = expDate
+            prefs[stringPreferencesKey(keyFor("max_connections", plId))] = maxCons
+            prefs[stringPreferencesKey(keyFor("active_connections", plId))] = activeCons
+            prefs[stringPreferencesKey(keyFor("status", plId))] = status
+            prefs[stringPreferencesKey(keyFor("is_trial", plId))] = isTrial
+            prefs[stringPreferencesKey(keyFor("created_at", plId))] = createdAt
         }
     }
 
     suspend fun logout() {
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             prefs[KEY_IS_LOGGED_IN] = false
             prefs[KEY_PASSWORD] = ""
             prefs[KEY_IS_PLAYLIST_SYNCED] = false
         }
     }
 
-    suspend fun toggleFavoriteLive(streamId: String) {
-        context.dataStore.edit { prefs ->
-            val current = (prefs[KEY_FAVORITE_LIVE] ?: emptySet()).toMutableSet()
+    suspend fun toggleFavoriteLive(streamId: String, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringSetPreferencesKey(keyFor("fav_live", plId))
+        context.appDataStore.edit { prefs ->
+            val current = (prefs[key] ?: emptySet()).toMutableSet()
             if (current.contains(streamId)) {
                 current.remove(streamId)
             } else {
                 current.add(streamId)
             }
-            prefs[KEY_FAVORITE_LIVE] = current
+            prefs[key] = current
         }
     }
 
-    suspend fun toggleFavoriteVod(streamId: String) {
-        context.dataStore.edit { prefs ->
-            val current = (prefs[KEY_FAVORITE_VOD] ?: emptySet()).toMutableSet()
+    suspend fun toggleFavoriteVod(streamId: String, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringSetPreferencesKey(keyFor("fav_vod", plId))
+        context.appDataStore.edit { prefs ->
+            val current = (prefs[key] ?: emptySet()).toMutableSet()
             if (current.contains(streamId)) {
                 current.remove(streamId)
             } else {
                 current.add(streamId)
             }
-            prefs[KEY_FAVORITE_VOD] = current
+            prefs[key] = current
         }
     }
 
-    suspend fun toggleFavoriteSeries(seriesId: String) {
-        context.dataStore.edit { prefs ->
-            val current = (prefs[KEY_FAVORITE_SERIES] ?: emptySet()).toMutableSet()
+    suspend fun toggleFavoriteSeries(seriesId: String, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringSetPreferencesKey(keyFor("fav_series", plId))
+        context.appDataStore.edit { prefs ->
+            val current = (prefs[key] ?: emptySet()).toMutableSet()
             if (current.contains(seriesId)) {
                 current.remove(seriesId)
             } else {
                 current.add(seriesId)
             }
-            prefs[KEY_FAVORITE_SERIES] = current
+            prefs[key] = current
         }
     }
 
-    suspend fun saveWatchProgress(streamId: Int, positionMs: Long, durationMs: Long) {
-        context.dataStore.edit { prefs ->
-            val json = prefs[KEY_WATCH_PROGRESS] ?: "{}"
+    suspend fun saveWatchProgress(streamId: Int, positionMs: Long, durationMs: Long, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringPreferencesKey(keyFor("watch_progress_json", plId))
+        context.appDataStore.edit { prefs ->
+            val json = prefs[key] ?: "{}"
             val type = object : TypeToken<MutableMap<String, WatchProgress>>() {}.type
             val map: MutableMap<String, WatchProgress> = try {
                 gson.fromJson(json, type) ?: mutableMapOf()
@@ -325,13 +409,15 @@ class UserPreferences(private val context: Context) {
                 mutableMapOf()
             }
             map[streamId.toString()] = WatchProgress(streamId, positionMs, durationMs)
-            prefs[KEY_WATCH_PROGRESS] = gson.toJson(map)
+            prefs[key] = gson.toJson(map)
         }
     }
 
-    suspend fun getWatchProgress(streamId: Int): WatchProgress? {
-        val prefs = context.dataStore.data.first()
-        val json = prefs[KEY_WATCH_PROGRESS] ?: return null
+    suspend fun getWatchProgress(streamId: Int, playlistId: String? = null): WatchProgress? {
+        val plId = playlistId ?: getActivePlaylistId()
+        val prefs = context.appDataStore.data.first()
+        val key = stringPreferencesKey(keyFor("watch_progress_json", plId))
+        val json = prefs[key] ?: return null
         val type = object : TypeToken<Map<String, WatchProgress>>() {}.type
         val map: Map<String, WatchProgress> = try {
             gson.fromJson(json, type) ?: emptyMap()
@@ -341,50 +427,86 @@ class UserPreferences(private val context: Context) {
         return map[streamId.toString()]
     }
 
+    suspend fun removeWatchProgress(streamId: Int, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringPreferencesKey(keyFor("watch_progress_json", plId))
+        context.appDataStore.edit { prefs ->
+            val json = prefs[key] ?: "{}"
+            val type = object : TypeToken<MutableMap<String, WatchProgress>>() {}.type
+            val map: MutableMap<String, WatchProgress> = try {
+                gson.fromJson(json, type) ?: mutableMapOf()
+            } catch (e: Exception) {
+                mutableMapOf()
+            }
+            map.remove(streamId.toString())
+            prefs[key] = gson.toJson(map)
+        }
+    }
+
+    suspend fun clearAllWatchProgress(playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringPreferencesKey(keyFor("watch_progress_json", plId))
+        context.appDataStore.edit { prefs ->
+            prefs.remove(key)
+        }
+    }
+
     suspend fun setAspectRatio(ratio: String) {
-        context.dataStore.edit { it[KEY_ASPECT_RATIO] = ratio }
+        context.appDataStore.edit { it[KEY_ASPECT_RATIO] = ratio }
     }
 
     suspend fun getAspectRatio(): String {
-        return context.dataStore.data.first()[KEY_ASPECT_RATIO] ?: "FIT"
+        return context.appDataStore.data.first()[KEY_ASPECT_RATIO] ?: "FIT"
     }
 
     suspend fun setParentalPin(pin: String) {
-        context.dataStore.edit { it[KEY_PARENTAL_PIN] = pin }
+        context.appDataStore.edit { it[KEY_PARENTAL_PIN] = pin }
     }
 
     suspend fun toggleCategoryHidden(categoryId: String) {
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             val current = (prefs[KEY_LOCKED_CATEGORIES] ?: emptySet()).toMutableSet()
             if (current.contains(categoryId)) current.remove(categoryId) else current.add(categoryId)
             prefs[KEY_LOCKED_CATEGORIES] = current
         }
     }
 
-    val lockedCategoriesFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_LOCKED_CATEGORIES] ?: emptySet() }
-    val pinnedCategoriesFlow: Flow<Set<String>> = context.dataStore.data.map { it[KEY_PINNED_CATEGORIES] ?: emptySet() }
-    val recentLiveChannelsFlow: Flow<String> = context.dataStore.data.map { it[KEY_RECENT_LIVE_CHANNELS] ?: "[]" }
+    val lockedCategoriesFlow: Flow<Set<String>> = context.appDataStore.data.map { it[KEY_LOCKED_CATEGORIES] ?: emptySet() }
 
-    suspend fun saveRecentLiveChannels(streamIds: List<Int>) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_RECENT_LIVE_CHANNELS] = gson.toJson(streamIds)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pinnedCategoriesFlow: Flow<Set<String>> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringSetPreferencesKey(keyFor("pinned_categories", id))] ?: emptySet() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val recentLiveChannelsFlow: Flow<String> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringPreferencesKey(keyFor("recent_live_channels_json", id))] ?: "[]" }
+    }
+
+    suspend fun saveRecentLiveChannels(streamIds: List<Int>, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringPreferencesKey(keyFor("recent_live_channels_json", plId))
+        context.appDataStore.edit { prefs ->
+            prefs[key] = gson.toJson(streamIds)
         }
     }
 
-    suspend fun toggleCategoryPinned(categoryId: String) {
-        context.dataStore.edit { prefs ->
-            val current = (prefs[KEY_PINNED_CATEGORIES] ?: emptySet()).toMutableSet()
+    suspend fun toggleCategoryPinned(categoryId: String, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringSetPreferencesKey(keyFor("pinned_categories", plId))
+        context.appDataStore.edit { prefs ->
+            val current = (prefs[key] ?: emptySet()).toMutableSet()
             if (current.contains(categoryId)) {
                 current.remove(categoryId)
             } else {
                 current.add(categoryId)
             }
-            prefs[KEY_PINNED_CATEGORIES] = current
+            prefs[key] = current
         }
     }
 
     suspend fun setCategoryHidden(categoryId: String, isHidden: Boolean) {
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             val current = (prefs[KEY_LOCKED_CATEGORIES] ?: emptySet()).toMutableSet()
             if (isHidden) {
                 current.add(categoryId)
@@ -396,7 +518,7 @@ class UserPreferences(private val context: Context) {
     }
 
     suspend fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) {
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             val current = (prefs[KEY_LOCKED_CATEGORIES] ?: emptySet()).toMutableSet()
             if (isHidden) {
                 current.addAll(categoryIds)
@@ -407,61 +529,67 @@ class UserPreferences(private val context: Context) {
         }
     }
 
-    val subtitleSizeFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_SIZE] ?: "ORTA" }
-    val subtitleColorFlow: Flow<String> = context.dataStore.data.map { it[KEY_SUBTITLE_COLOR] ?: "BEYAZ" }
-    val subtitleDelayMsFlow: Flow<Long> = context.dataStore.data.map { it[KEY_SUBTITLE_DELAY_MS] ?: 0L }
+    val subtitleSizeFlow: Flow<String> = context.appDataStore.data.map { it[KEY_SUBTITLE_SIZE] ?: "ORTA" }
+    val subtitleColorFlow: Flow<String> = context.appDataStore.data.map { it[KEY_SUBTITLE_COLOR] ?: "BEYAZ" }
+    val subtitleDelayMsFlow: Flow<Long> = context.appDataStore.data.map { it[KEY_SUBTITLE_DELAY_MS] ?: 0L }
 
-    val defaultAudioLangFlow: Flow<String> = context.dataStore.data.map { it[KEY_DEFAULT_AUDIO_LANG] ?: "tr" }
-    val defaultSubtitleLangFlow: Flow<String> = context.dataStore.data.map { it[KEY_DEFAULT_SUBTITLE_LANG] ?: "tr" }
-    val playerEngineFlow: Flow<String> = context.dataStore.data.map { it[KEY_PLAYER_ENGINE] ?: "EXOPLAYER" }
+    val defaultAudioLangFlow: Flow<String> = context.appDataStore.data.map { it[KEY_DEFAULT_AUDIO_LANG] ?: "tr" }
+    val defaultSubtitleLangFlow: Flow<String> = context.appDataStore.data.map { it[KEY_DEFAULT_SUBTITLE_LANG] ?: "tr" }
+    val playerEngineFlow: Flow<String> = context.appDataStore.data.map { it[KEY_PLAYER_ENGINE] ?: "EXOPLAYER" }
 
-    val appThemeFlow: Flow<String> = context.dataStore.data.map { it[KEY_APP_THEME] ?: "MIDNIGHT" }
+    val appThemeFlow: Flow<String> = context.appDataStore.data.map { it[KEY_APP_THEME] ?: "MIDNIGHT" }
 
-    val autoFrameRateFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_AUTO_FRAME_RATE] ?: true }
-    val autoStartLastChannelFlow: Flow<Boolean> = context.dataStore.data.map { it[KEY_AUTO_START_LAST_CHANNEL] ?: false }
-    val lastPlayedStreamIdFlow: Flow<Int> = context.dataStore.data.map { it[KEY_LAST_PLAYED_STREAM_ID] ?: 0 }
+    val autoFrameRateFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_FRAME_RATE] ?: true }
+    val autoStartLastChannelFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_START_LAST_CHANNEL] ?: false }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val lastPlayedStreamIdFlow: Flow<Int> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[intPreferencesKey(keyFor("last_played_stream_id", id))] ?: 0 }
+    }
 
     suspend fun setAppTheme(themeName: String) {
-        context.dataStore.edit { it[KEY_APP_THEME] = themeName }
+        context.appDataStore.edit { it[KEY_APP_THEME] = themeName }
     }
 
     suspend fun setSubtitleSize(size: String) {
-        context.dataStore.edit { it[KEY_SUBTITLE_SIZE] = size }
+        context.appDataStore.edit { it[KEY_SUBTITLE_SIZE] = size }
     }
 
     suspend fun setSubtitleColor(color: String) {
-        context.dataStore.edit { it[KEY_SUBTITLE_COLOR] = color }
+        context.appDataStore.edit { it[KEY_SUBTITLE_COLOR] = color }
     }
 
     suspend fun setSubtitleDelayMs(delayMs: Long) {
-        context.dataStore.edit { it[KEY_SUBTITLE_DELAY_MS] = delayMs.coerceIn(0L, 5000L) }
+        context.appDataStore.edit { it[KEY_SUBTITLE_DELAY_MS] = delayMs.coerceIn(0L, 5000L) }
     }
 
     suspend fun setDefaultAudioLang(lang: String) {
-        context.dataStore.edit { it[KEY_DEFAULT_AUDIO_LANG] = lang }
+        context.appDataStore.edit { it[KEY_DEFAULT_AUDIO_LANG] = lang }
     }
 
     suspend fun setDefaultSubtitleLang(lang: String) {
-        context.dataStore.edit { it[KEY_DEFAULT_SUBTITLE_LANG] = lang }
+        context.appDataStore.edit { it[KEY_DEFAULT_SUBTITLE_LANG] = lang }
     }
 
     suspend fun setPlayerEngine(engine: String) {
-        context.dataStore.edit { it[KEY_PLAYER_ENGINE] = engine }
+        context.appDataStore.edit { it[KEY_PLAYER_ENGINE] = engine }
     }
 
     suspend fun setAutoFrameRate(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_AUTO_FRAME_RATE] = enabled }
+        context.appDataStore.edit { it[KEY_AUTO_FRAME_RATE] = enabled }
     }
 
     suspend fun setAutoStartLastChannel(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_AUTO_START_LAST_CHANNEL] = enabled }
+        context.appDataStore.edit { it[KEY_AUTO_START_LAST_CHANNEL] = enabled }
     }
 
-    suspend fun setLastPlayedStreamId(streamId: Int) {
-        context.dataStore.edit { it[KEY_LAST_PLAYED_STREAM_ID] = streamId }
+    suspend fun setLastPlayedStreamId(streamId: Int, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = intPreferencesKey(keyFor("last_played_stream_id", plId))
+        context.appDataStore.edit { it[key] = streamId }
     }
 
-    val deviceModeFlow: Flow<DeviceMode?> = context.dataStore.data.map { prefs ->
+    val deviceModeFlow: Flow<DeviceMode?> = context.appDataStore.data.map { prefs ->
         val modeStr = prefs[KEY_DEVICE_MODE]
         if (modeStr.isNullOrEmpty()) null
         else {
@@ -473,13 +601,13 @@ class UserPreferences(private val context: Context) {
         }
     }
 
-    val isDeviceModeSetFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val isDeviceModeSetFlow: Flow<Boolean> = context.appDataStore.data.map { prefs ->
         prefs[KEY_DEVICE_MODE_SET] ?: false
     }
 
     suspend fun setDeviceMode(mode: DeviceMode) {
         OrientationManager.saveFastCache(context, mode)
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             prefs[KEY_DEVICE_MODE] = mode.name
             prefs[KEY_DEVICE_MODE_SET] = true
         }
@@ -487,52 +615,42 @@ class UserPreferences(private val context: Context) {
 
     suspend fun resetDeviceMode() {
         OrientationManager.clearFastCache(context)
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             prefs.remove(KEY_DEVICE_MODE)
             prefs[KEY_DEVICE_MODE_SET] = false
         }
     }
 
-    val liveLayoutModeFlow: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_LIVE_LAYOUT_MODE] ?: LIVE_LAYOUT_CLASSIC
-    }
+    val liveLayoutModeFlow: Flow<String> = context.appDataStore.data.map { it[KEY_LIVE_LAYOUT_MODE] ?: LIVE_LAYOUT_CLASSIC }
 
     suspend fun setLiveLayoutMode(mode: String) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_LIVE_LAYOUT_MODE] = mode
-        }
+        context.appDataStore.edit { it[KEY_LIVE_LAYOUT_MODE] = mode }
     }
 
-    val liveViewModeFlow: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_LIVE_VIEW_MODE] ?: LIVE_VIEW_DETAILED
-    }
+    val liveViewModeFlow: Flow<String> = context.appDataStore.data.map { it[KEY_LIVE_VIEW_MODE] ?: LIVE_VIEW_DETAILED }
 
     suspend fun setLiveViewMode(mode: String) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_LIVE_VIEW_MODE] = mode
-        }
+        context.appDataStore.edit { it[KEY_LIVE_VIEW_MODE] = mode }
     }
 
-    val portraitCategoryNavStyleFlow: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_PORTRAIT_CATEGORY_NAV_STYLE] ?: PORTRAIT_CAT_NAV_DROPDOWN
-    }
+    val portraitCategoryNavStyleFlow: Flow<String> = context.appDataStore.data.map { it[KEY_PORTRAIT_CATEGORY_NAV_STYLE] ?: PORTRAIT_CAT_NAV_CHIPS }
 
     suspend fun setPortraitCategoryNavStyle(style: String) {
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             prefs[KEY_PORTRAIT_CATEGORY_NAV_STYLE] = style
         }
     }
 
     suspend fun snoozeUpdate(tagName: String, durationHours: Int = 24) {
         val until = System.currentTimeMillis() + (durationHours * 60 * 60 * 1000L)
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             prefs[KEY_SNOOZED_UPDATE_TAG] = tagName
             prefs[KEY_SNOOZE_UPDATE_UNTIL] = until
         }
     }
 
     suspend fun isUpdateSnoozed(tagName: String): Boolean {
-        val prefs = context.dataStore.data.first()
+        val prefs = context.appDataStore.data.first()
         val snoozedTag = prefs[KEY_SNOOZED_UPDATE_TAG]
         val until = prefs[KEY_SNOOZE_UPDATE_UNTIL] ?: 0L
         val now = System.currentTimeMillis()
@@ -540,18 +658,18 @@ class UserPreferences(private val context: Context) {
     }
 
     suspend fun clearUpdateSnooze() {
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             prefs.remove(KEY_SNOOZED_UPDATE_TAG)
             prefs.remove(KEY_SNOOZE_UPDATE_UNTIL)
         }
     }
 
-    val vodPrewarmDisabledFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val vodPrewarmDisabledFlow: Flow<Boolean> = context.appDataStore.data.map { prefs ->
         prefs[KEY_VOD_PREWARM_DISABLED] ?: false
     }
 
     suspend fun setVodPrewarmDisabled(disabled: Boolean) {
-        context.dataStore.edit { prefs ->
+        context.appDataStore.edit { prefs ->
             prefs[KEY_VOD_PREWARM_DISABLED] = disabled
         }
     }
@@ -560,21 +678,26 @@ class UserPreferences(private val context: Context) {
     // EVRENSEL ARAMA: SON ARAMALAR (EN FAZLA 8)
     // ============================================================================
 
-    val recentSearchesFlow: Flow<List<String>> = context.dataStore.data.map { prefs ->
-        val json = prefs[KEY_RECENT_SEARCHES] ?: return@map emptyList()
-        try {
-            val type = object : TypeToken<List<String>>() {}.type
-            gson.fromJson<List<String>>(json, type) ?: emptyList()
-        } catch (_: Exception) {
-            emptyList()
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val recentSearchesFlow: Flow<List<String>> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { prefs ->
+            val json = prefs[stringPreferencesKey(keyFor("recent_searches_json", id))] ?: return@map emptyList()
+            try {
+                val type = object : TypeToken<List<String>>() {}.type
+                gson.fromJson<List<String>>(json, type) ?: emptyList()
+            } catch (_: Exception) {
+                emptyList()
+            }
         }
     }
 
-    suspend fun addRecentSearch(query: String) {
+    suspend fun addRecentSearch(query: String, playlistId: String? = null) {
         val clean = query.trim()
         if (clean.length < 2) return
-        context.dataStore.edit { prefs ->
-            val currentJson = prefs[KEY_RECENT_SEARCHES]
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringPreferencesKey(keyFor("recent_searches_json", plId))
+        context.appDataStore.edit { prefs ->
+            val currentJson = prefs[key]
             val currentList: MutableList<String> = try {
                 if (currentJson != null) {
                     val type = object : TypeToken<List<String>>() {}.type
@@ -586,14 +709,16 @@ class UserPreferences(private val context: Context) {
             currentList.removeAll { it.equals(clean, ignoreCase = true) }
             currentList.add(0, clean)
             val trimmed = currentList.take(8)
-            prefs[KEY_RECENT_SEARCHES] = gson.toJson(trimmed)
+            prefs[key] = gson.toJson(trimmed)
         }
     }
 
-    suspend fun removeRecentSearch(query: String) {
+    suspend fun removeRecentSearch(query: String, playlistId: String? = null) {
         val clean = query.trim()
-        context.dataStore.edit { prefs ->
-            val currentJson = prefs[KEY_RECENT_SEARCHES] ?: return@edit
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringPreferencesKey(keyFor("recent_searches_json", plId))
+        context.appDataStore.edit { prefs ->
+            val currentJson = prefs[key] ?: return@edit
             val currentList: MutableList<String> = try {
                 val type = object : TypeToken<List<String>>() {}.type
                 (gson.fromJson<List<String>>(currentJson, type) ?: emptyList()).toMutableList()
@@ -601,13 +726,40 @@ class UserPreferences(private val context: Context) {
                 return@edit
             }
             currentList.removeAll { it.equals(clean, ignoreCase = true) }
-            prefs[KEY_RECENT_SEARCHES] = gson.toJson(currentList)
+            prefs[key] = gson.toJson(currentList)
         }
     }
 
-    suspend fun clearRecentSearches() {
-        context.dataStore.edit { prefs ->
-            prefs.remove(KEY_RECENT_SEARCHES)
+    suspend fun clearRecentSearches(playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringPreferencesKey(keyFor("recent_searches_json", plId))
+        context.appDataStore.edit { prefs ->
+            prefs.remove(key)
+        }
+    }
+
+    /**
+     * Bir oynatma listesi silindiğinde o listeye ait tüm özel tercihleri temizler.
+     */
+    suspend fun removePlaylistPreferences(playlistId: String) {
+        val baseKeys = listOf(
+            "fav_live", "fav_vod", "fav_series",
+            "watch_progress_json",
+            "pinned_categories",
+            "recent_live_channels_json",
+            "recent_searches_json",
+            "last_played_stream_id",
+            "is_playlist_synced", "last_sync_timestamp",
+            "exp_date", "max_connections", "active_connections", "status", "is_trial", "created_at"
+        )
+        context.appDataStore.edit { prefs ->
+            for (base in baseKeys) {
+                val targetName = keyFor(base, playlistId)
+                val matching = prefs.asMap().keys.filter { it.name == targetName }
+                for (k in matching) {
+                    prefs.remove(k)
+                }
+            }
         }
     }
 }
