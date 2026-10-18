@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-028 | [Liste indirme: önce dosyaya indir, sonra işle](docs/gorevler/G-028-liste-indirme-once-dosyaya.md) | 🟠 | 🔍 İncelemede (branch: perf/liste-indirme-dosyaya) |
 | G-029 | Sonraki liste güncellemeleri arka planda (ana ekran şeridi) | 🟡 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 
 ---
@@ -49,6 +48,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-028 | Listeler önce dosyaya indiriliyor, sonra işleniyor (bağlantı kısa sürüyor) — PR #39 | 18 Ekim |
 | G-026 | Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş, TV "Listeler" — PR #38 | 18 Ekim |
 | G-025 | Oynatma listesi altyapısı: çoklu liste, liste başına ayrı veritabanı, güvenli geçiş — PR #35 | 18 Ekim |
 | G-027 | Film/dizide anahtar kareye sarma, 429/5xx için yerinde kısa yeniden deneme, ölçüm logları — PR #37 | 18 Ekim |
