@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-024 | [Sabit http sunucu, "Şifreli bağlantı" kaldırıldı, güncelleme ekranı geri tuşu, 429 ve eski içerik temizliği](docs/gorevler/G-024-sunucu-ve-senkron-duzeltmeleri.md) | 🔴 | ⏳ Bekliyor |
+| G-024 | [Sabit http sunucu, "Şifreli bağlantı" kaldırıldı, güncelleme ekranı geri tuşu, 429 ve eski içerik temizliği](docs/gorevler/G-024-sunucu-ve-senkron-duzeltmeleri.md) | 🔴 | ⏳ Bekliyor — **Düzeltme turu 1** (aynı branch; silmede veri kaybı riski) |
 | G-025 | [Oynatma listesi altyapısı (çoklu liste, liste başına ayrı veri)](docs/gorevler/G-025-oynatma-listesi-altyapisi.md) | 🟠 | ⏳ Bekliyor (G-024'ten sonra) |
 | G-026 | [Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş](docs/gorevler/G-026-oynatma-listesi-arayuzu.md) | 🟠 | ⏳ Bekliyor (G-025'ten sonra) |
 | G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |

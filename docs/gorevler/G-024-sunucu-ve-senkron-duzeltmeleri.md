@@ -96,4 +96,69 @@ Kullanıcının kayıtlı favorileri / izleme geçmişi.
 
 ## Agent raporu
 
+### Değişiklik Özeti
+1. **Sabit HTTP Sunucu & Şifreli Bağlantı Ayarının Kaldırılması:**
+   - `AppConfig.kt`: `DEFAULT_SERVER_URL = SERVER_URL_HTTP` yapıldı, `FALLBACK_DOMAINS` sadece HTTP domain içerecek şekilde düzenlendi.
+   - `SettingsScreen.kt`: "Şifreli bağlantı" satırı, ilgili durum ve import'lar arayüzden kaldırıldı.
+   - `MainViewModel.kt`: Uygulama açılışında (`checkUserLoginAndNavigate`) kayıtlı sunucu adresi HTTPS ise tek seferlik `SERVER_URL_HTTP`'ye geçiş eklendi (kullanıcının elle girdiği özel sunuculara dokunulmadı).
+2. **Kategori Hatası Gizlenmesi Düzeltildi:**
+   - `XtreamRepository.syncAllCategories()`: Üç kategori isteği (canlı, VOD, dizi) birden başarısız olursa `Result.failure` dönecek şekilde güncellendi; biri dahi başarılıysa başarı dönülüyor.
+3. **HTTP 429 / 502 / 503 ve Ağ Zaman Aşımı Retry Mekanizması:**
+   - `XtreamRepository.executeWithRetry()`: 429, 502, 503 ve `SocketTimeoutException`/`IOException` durumunda 3 denemeye kadar bekleme (`Retry-After` saniyesi veya 2s, 5s, 10s).
+   - Senkronizasyon isteklerine `executeWithRetry` entegre edildi.
+   - `MainViewModel.startPlaylistSync()`: Senkronizasyon başında `closeMiniPlayer()`, `playerManager.release()`, `vodPrewarmer.cancelAll("Playlist sync")` ile bağlantılar serbest bırakıldı.
+   - Yeniden deneme anında adım alt metni güncellendi: `"Sunucu yoğun, tekrar deneniyor… ($attempt/$max)"`.
+   - Hata mesajları kullanıcı dostu sade Türkçe formatına dönüştürüldü (429/503 -> "Sunucu şu an yoğun...", 401/403 -> "Hesap bilgileri reddedildi...", ağ/zaman aşımı -> "Bağlantı kurulamadı...", diğer -> "İçerik alınamadı..."). Teknik hata kodları `Log.w` ile loglandı.
+4. **Sunucuda Olmayan Eski İçeriklerin Temizlenmesi (Stale Data Deletion):**
+   - `Daos.kt`: `LiveDao`, `VodDao` ve `SeriesDao` içine `getAllStreamIds()` / `getAllSeriesIds()`, `deleteStreamsByIds()` / `deleteSeriesByIds()`, `getAllCategoryIds()` ve `deleteCategoriesByIds()` metotları eklendi.
+   - `syncLiveStreams`, `syncVodStreams`, `syncSeriesStreams` ve `fetchAndSave*Categories` adımlarında görülen ID'ler toplandı; adım tamamen başarılı bittiğinde sunucuda artık bulunmayan ID'ler Room veritabanından 900'lük parçalar halinde silindi. Hata durumunda silme yapılmayarak mevcut liste korundu.
+   - Senkron bitiminde `XtreamRepository.clearCache()` bellek önbelleklerini temizledi; `MainViewModel` evrensel arama sonuçlarını sıfırladı ve sorgu varsa yeniden çalıştırdı.
+5. **Güncelleme Ekranında Geri Tuşu & Durdurma Diyaloğu:**
+   - `PlaylistSyncScreen.kt`: `BackHandler` eklendi. Senkron sürerken "Güncelleme durdurulsun mu?" diyalogu ("Devam et" varsayılan odak, "Durdur" senkronu iptal edip çıkış yapar).
+   - Tamamlanmış liste varsa `navigateBack()` (veya `Screen.Home`), yoksa `Screen.Login` ekranına yönlendirme sağlandı.
+   - Hata durumunda "Kaldığı Yerden Yeniden Dene" butonunun altına ikincil "Geri dön" butonu eklendi.
+
+### Test Durumu
+- `./gradlew compileDebugKotlin`: Başarılı (BUILD SUCCESSFUL).
+- Ayarlar -> Şifreli bağlantı kaldırıldı: Kod seviyesinde doğrulandı.
+- Geri tuşu ve durdurma akışı: Kod seviyesinde doğrulandı; fiziki cihaz testi test edilemedi.
+- 429 yeniden deneme ve hata mesajları: Kod seviyesinde doğrulandı; fiziki cihaz testi test edilemedi.
+- Eski sunucu/içerik temizleme: Kod seviyesinde doğrulandı; fiziki cihaz testi test edilemedi.
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 18 Ekim)
+
+**Durum:** Madde 1–4 doğru (http, ayar kaldırıldı, geri tuşu + iptal diyaloğu, `executeWithRetry`, sade hata metinleri,
+senkron öncesi oynatıcı/prewarmer durduruluyor). **Madde 5'te (eski içerik silme) veri kaybı riski var** — tam da 429
+yaşanan senaryoda kullanıcının film/dizi listesi silinebilir. Kural "adım hata ile biterse silme yapma" idi.
+
+### Sorunlar
+1. **Film/dizi kategori bazlı yedek indirme** (`syncVodStreams` ~496-566, `syncSeriesStreams` aynısı): tek tek kategori
+   istekleri hata verirse `catch` yutuyor; sonra yine `staleIds` siliniyor → **başarısız kategorilerin bütün filmleri/dizileri
+   silinir.** Bütün kategoriler 429 alırsa `seenIds` boş kalır, adım "başarılı" döner ve **tüm film arşivi silinir.**
+2. **Yanıt dizi değilse** (sunucu 200 ile `{"user_info":…}` / hata JSON'u / boş gövde dönerse) `peek() != BEGIN_ARRAY` →
+   hiçbir şey eklenmez, `seenIds` boş, adım başarılı → **hepsi silinir.** (Canlı, film, dizi, kategoriler — hepsinde.)
+
+### Yapılacaklar (`XtreamRepository.kt`)
+1. Kategori bazlı yedek modda başarısız kategori sayısını say (`AtomicInteger failedCategories`, `catch`'te ve
+   `!catResponse.isSuccessful` durumunda artır).
+   - `failedCategories == totalCategories` → `Result.failure(Exception("HTTP Hatası: …"))` (son hata kodunu taşı) — **silme yok**.
+   - `failedCategories > 0` → içerikleri kaydet ama **silme adımını atla** (Log.w ile "kısmi senkron, eski içerik korunuyor").
+   - Sadece `bulkSucceeded == true` ya da `failedCategories == 0` iken silme yapılsın.
+2. **Ortak güvenlik kuralı** — tüm silme noktalarında (canlı/film/dizi akışları ve 3 kategori türü) silmeden önce:
+   - Yanıt gövdesi **dizi değilse** (`peek() != BEGIN_ARRAY`) → o istek **başarısız** sayılsın (`Result.failure`, metin
+     "HTTP Hatası: geçersiz yanıt"), silme yok.
+   - `seenIds.isEmpty()` ise silme YOK.
+   - `seenIds.size < existingIds.size / 2` ise silme YOK (Log.w: "yeni liste mevcut listenin yarısından az, silme atlandı").
+     (Sunucu değişimi gibi meşru durumlarda yeni liste genelde büyüktür; kullanıcı gerekirse listeyi silip yeniden ekler — G-025.)
+   Bu kontrolü tek bir yardımcıda topla: `private fun <T> safeStaleIds(existing: Collection<T>, seen: Set<T>, label: String): List<T>`
+   (boş liste dönerse silme yapılmaz).
+3. `app/src/test` altına `safeStaleIds` birim testi: boş seen → boş; seen < yarısı → boş; normal → fark.
+
+**AYNI BRANCH:** `git checkout fix/sunucu-ve-senkron && git pull && git merge origin/main` (`YAPILACAKLAR.md` çakışırsa
+main'deki hali). `compileDebugKotlin` + `testDebugUnitTest`, push, rapor, dur. APK üretme.
+
+### Düzeltme turu 1 — Agent raporu
+
 _(Agent doldurur.)_
