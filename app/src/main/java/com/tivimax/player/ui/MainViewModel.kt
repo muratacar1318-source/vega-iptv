@@ -754,6 +754,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     init {
+        repository.cleanupSyncTempFiles()
         playerManager.onVodAuthErrorCallback = { httpCode ->
             vodPrewarmer.onPlaybackAuthError(httpCode)
         }

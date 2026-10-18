@@ -209,4 +209,18 @@ altyapısı, ekranlar/tasarım, güncelleme sistemi (AutoUpdateManager), imza, C
 
 ## Agent raporu
 
-_(Agent doldurur: her adım için ne yaptın, hangi satırlar, test sonucu, test edemediklerin.)_
+- **Durum:** Tamamlandı, Claude'un incelemesine hazır.
+- **Değişiklikler:**
+  - `XtreamRepository.kt`:
+    - Adım 1: Sınıf dışına `downloadBodyToFile`, `formatMegabytes`, `clearSyncTempDir` yardımcı fonksiyonları eklendi. `downloadBodyToFile`, yanıt gövdesini `cacheDir/sync` geçici klasörüne `64 KB` tampon kullanarak indirir, indirme sırasında ilerlemeyi her `512 KB` bir bildirir, eksik indirme/iptal durumunda geçici dosyayı temizler.
+    - Adım 2: `XtreamRepository` sınıfına `syncTempDir` ve uygulama açılışında kalan geçici dosyaları silen `cleanupSyncTempFiles()` eklendi.
+    - Adım 3: 5 noktada (`syncLiveStreams`, `syncVodStreams` bulk, `syncVodStreams` category fallback, `syncSeriesStreams` bulk, `syncSeriesStreams` category fallback) ağ akışı doğrudan okunmak yerine yanıt önce `downloadBodyToFile` ile geçici dosyaya yazıldı, ardından dosyadan okuma yapılarak `finally` bloğunda geçici dosya silindi.
+    - Adım 4: Toplu VOD ve Dizi indirmelerinde indirme sonrasında `SyncTiming` etiketiyle debug log eklendi.
+  - `MainViewModel.kt`:
+    - Adım 5: `init` bloğunun en başına `repository.cleanupSyncTempFiles()` çağrısı eklendi.
+  - `SyncDownloadTest.kt` (Yeni Test):
+    - Adım 6: Tam indirme, eksik indirmede `IOException` ve dosya temizliği, `formatMegabytes` Türkçe metin biçimlendirmesi, `clearSyncTempDir` klasör temizliği için 4 adet birim testi yazıldı.
+- **Doğrulama:**
+  - `./gradlew compileDebugKotlin` başarıyla tamamlandı.
+  - `./gradlew testDebugUnitTest` başarıyla tamamlandı (60 test geçti, 0 hata).
+  - Fiziksel cihaz / emülatör bağlı olmadığı için canlı cihazda UI indirme akışı test edilemedi (birim testleri ve derleme ile doğrulandı).
