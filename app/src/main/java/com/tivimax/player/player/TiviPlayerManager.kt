@@ -367,6 +367,9 @@ class TiviPlayerManager(private val context: Context) {
     private val _subtitleTracks = MutableStateFlow<List<TrackInfo>>(emptyList())
     val subtitleTracks: StateFlow<List<TrackInfo>> = _subtitleTracks.asStateFlow()
 
+    private var smartSubtitleAppliedForUrl: String? = null
+    private var preferredSubtitleLang: String = "auto"
+
     // Stream Diagnostics HUD (TiviMate Bilgi Paneli)
     private val _streamDiagnostics = MutableStateFlow(StreamDiagnostics())
     val streamDiagnostics: StateFlow<StreamDiagnostics> = _streamDiagnostics.asStateFlow()
@@ -813,6 +816,7 @@ class TiviPlayerManager(private val context: Context) {
         this.currentUrl = url
         this.currentPlayingUrl = url
         this.isLiveStream = isLive
+        this.smartSubtitleAppliedForUrl = null
         _errorMessage.value = null
         _streamDiagnostics.value = StreamDiagnostics()
 
@@ -1126,10 +1130,13 @@ class TiviPlayerManager(private val context: Context) {
         _subtitleTracks.value = subtitles
 
         // Akıllı Altyazı Eşleme Mantığı:
-        // 1. Ses dili ve altyazı dili aynı ise altyazıyı kapat.
-        // 2. Türkçe ses/dublajda altyazı kapalı gelsin.
-        // 3. İngilizce ses seçiliyse Türkçe altyazı otomatik seçilsin.
-        applySmartSubtitleLogic(audios, subtitles)
+        // İçerik başına sadece BİR KEZ uygulanır (currentPlayingUrl != null && smartSubtitleAppliedForUrl != currentPlayingUrl).
+        // Böylece kullanıcının sonradan yaptığı altyazı açma/kapama/değiştirme seçimleri asla ezilmez.
+        val currentUrl = currentPlayingUrl
+        if (currentUrl != null && smartSubtitleAppliedForUrl != currentUrl && audios.isNotEmpty()) {
+            smartSubtitleAppliedForUrl = currentUrl
+            applySmartSubtitleLogic(audios, subtitles)
+        }
     }
 
     private fun normalizeLanguageCode(lang: String?, label: String?): String {
@@ -1152,6 +1159,9 @@ class TiviPlayerManager(private val context: Context) {
     private fun applySmartSubtitleLogic(audios: List<TrackInfo>, subtitles: List<TrackInfo>) {
         if (subtitles.isEmpty()) return
 
+        // Tercih "none" (Kapalı) ise akıllı kural altyazıyı AÇMASIN (sadece kapatma yönündeki kurallar çalışabilir)
+        val prefNone = (preferredSubtitleLang == "none")
+
         val selectedAudio = audios.firstOrNull { it.isSelected } ?: audios.firstOrNull() ?: return
         val audioNorm = normalizeLanguageCode(selectedAudio.language, selectedAudio.name)
 
@@ -1165,15 +1175,23 @@ class TiviPlayerManager(private val context: Context) {
             return
         }
 
-        // 3. İngilizce ses seçiliyse Türkçe altyazı otomatik seçilsin
-        if (audioNorm == "en") {
+        // 3. İngilizce ses seçiliyse:
+        // Eğer kullanıcı ayarlarında altyazı "none" (kapalı) değilse Türkçe altyazıyı otomatik seç
+        if (audioNorm == "en" && !prefNone) {
+            val prefNorm = if (preferredSubtitleLang.isNotBlank() && preferredSubtitleLang != "auto") {
+                normalizeLanguageCode(preferredSubtitleLang, null)
+            } else {
+                null
+            }
+
+            // Eğer ayarda özel bir dil istenmişse (ör. Almanca vb.) onu ara, yoksa varsayılan Türkçe
+            val targetLang = if (!prefNorm.isNullOrBlank()) prefNorm else "tr"
             val selectedSub = subtitles.firstOrNull { it.isSelected }
             val subNorm = selectedSub?.let { normalizeLanguageCode(it.language, it.name) }
-            if (subNorm != "tr") {
-                // Türkçe altyazıyı bul ve seç
-                val trSubtitle = subtitles.firstOrNull { normalizeLanguageCode(it.language, it.name) == "tr" }
-                if (trSubtitle != null) {
-                    selectTrackInternal(trSubtitle, C.TRACK_TYPE_TEXT)
+            if (subNorm != targetLang) {
+                val targetSubtitle = subtitles.firstOrNull { normalizeLanguageCode(it.language, it.name) == targetLang }
+                if (targetSubtitle != null) {
+                    selectTrackInternal(targetSubtitle, C.TRACK_TYPE_TEXT)
                     return
                 }
             }
@@ -1257,6 +1275,7 @@ class TiviPlayerManager(private val context: Context) {
     }
 
     fun setDefaultTrackLanguages(audioLang: String, subtitleLang: String) {
+        this.preferredSubtitleLang = subtitleLang
         val builder = trackSelector.buildUponParameters()
         
         if (audioLang.isNotBlank() && audioLang != "auto") {

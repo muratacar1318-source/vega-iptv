@@ -57,4 +57,20 @@ Kullanıcı Antigravity'ye doğrudan istedi; branch'te ilk sürüm var (`7dd75f3
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`:
+    1. `smartSubtitleAppliedForUrl: String?` bayrağı eklendi.
+    2. `extractTracks()` içinde akıllı altyazı kuralı sadece içerik açılışında bir kez (`currentUrl != null && smartSubtitleAppliedForUrl != currentUrl && audios.isNotEmpty()`) tetiklenecek şekilde sınırlandırıldı.
+    3. `playInternal()` başında `smartSubtitleAppliedForUrl = null` yapılarak yeni içeriğe geçildiğinde kuralın tekrar bir kez çalışabilmesi sağlandı.
+    4. Kullanıcı altyazıyı elle seçtiğinde (`selectTrack(..., TRACK_TYPE_TEXT)`) veya kapattığında (`disableSubtitles()`), `onTracksChanged` tetiklense bile bayrak set edilmiş olduğu için kullanıcının seçimi ezilmez.
+    5. Kullanıcı ses dilini değiştirdiğinde (`selectTrack(..., TRACK_TYPE_AUDIO)`) kural bir kez tetiklenir ve sonrasında bayrak güncel URL üzerinde kaldığı için sonraki track değişimlerinde tekrar ezilmez.
+    6. Ayarlardaki "Tercih edilen altyazı dili" (`preferredSubtitleLang`) saklandı; eğer ayar `"none"` (Kapalı) ise akıllı kural altyazıyı zorla açmaz. Ayarda özel bir dil istenmişse o dil tercih edilir.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`
+  - `docs/gorevler/G-022-akilli-altyazi.md`
+  - `YAPILACAKLAR.md`
+- **Test ve doğrulama:**
+  - `./gradlew compileDebugKotlin` çalıştırıldı: BUILD SUCCESSFUL (34s).
+  - Canlı içerik üzerinde manuel altyazı açma/kapama döngüleri cihazda test edilemedi (derleme seviyesinde doğrulandı, APK üretilmedi).
+- **Karşılaşılan sorunlar / Notlar:**
+  - Sürüm numarası ve release yapılmadı (v1.3.4 zamanı gelince çıkarılacak). Kapsam dışı dosyalara dokunulmadı.
