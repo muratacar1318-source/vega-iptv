@@ -35,7 +35,9 @@ class LiveBurstTrimDataSource(
         val trim = !trimDisabled && try { shouldTrim(dataSpec) } catch (_: Throwable) { false }
         if (!trim) return length
         try {
-            pending = LiveBurstTrimmer().preRead { b, o, l -> upstream.read(b, o, l) }
+            val trimmer = LiveBurstTrimmer()
+            pending = trimmer.preRead { b, o, l -> upstream.read(b, o, l) }
+            lastStatsText = trimmer.lastStats
         } catch (e: IOException) {
             throw e
         } catch (e: Throwable) {
@@ -87,5 +89,9 @@ class LiveBurstTrimDataSource(
     companion object {
         @Volatile
         var trimDisabled: Boolean = false
+
+        /** G-041: Son kırpmanın teşhis özeti (geliştirici ekranı). */
+        @Volatile
+        var lastStatsText: String = ""
     }
 }

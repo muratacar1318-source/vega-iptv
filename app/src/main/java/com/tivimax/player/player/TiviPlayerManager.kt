@@ -666,6 +666,7 @@ class TiviPlayerManager(private val context: Context) {
         if (dbgFormatMs >= 0) parts.add("biçim +${dbgFormatMs}ms ${dbgCodec.substringAfter('/')}")
         if (dbgDecoder.isNotBlank()) parts.add("çözücü $dbgDecoder")
         if (dbgFirstFrameMs >= 0) parts.add("ilk kare +${dbgFirstFrameMs}ms")
+        if (LiveBurstTrimDataSource.lastStatsText.isNotBlank()) parts.add(LiveBurstTrimDataSource.lastStatsText)
         _startupDebugInfo.value = parts.joinToString(" · ")
     }
 
@@ -957,6 +958,7 @@ class TiviPlayerManager(private val context: Context) {
         dbgDecoder = ""
         dbgFirstFrameMs = -1L
         _startupDebugInfo.value = ""
+        LiveBurstTrimDataSource.lastStatsText = ""
         if (BuildConfig.DEBUG) {
             val masked = urls.map { maskUrl(it) }
             Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] playWithFallbacks: isLive=$isLive, urlCount=${urls.size}, startPositionMs=$startPositionMs, urls=$masked")

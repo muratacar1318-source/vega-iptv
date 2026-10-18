@@ -262,4 +262,17 @@ Kırpma algoritmasının kararları (sadece teşhis metni eklendi), diğer tüm 
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - **Adım 1:** `LiveBurstTrimmer.kt` sınıfına `lastStats` özelliği ve teşhis mantığı eklendi (`stopReason` takibi: "akış bitti", "TS değil", "saat sıçraması", "yığın bitti", "saat bilgisi yok", "süre doldu", "boyut sınırı"; geçen süre, gelen sn/KB ve atılan KB formatı).
+  - **Adım 2:** `LiveBurstTrimDataSource.kt` içinde `open()` metodunda `trimmer.lastStats` değeri `lastStatsText` alanına kaydedildi; `companion object` içine `@Volatile var lastStatsText: String = ""` eklendi.
+  - **Adım 3:** `TiviPlayerManager.kt` içinde `publishStartupDebug()` metodunda `lastStatsText` teşhis satırına eklendi; `playWithFallbacks` başında `lastStatsText = ""` ile sıfırlanması sağlandı.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/player/LiveBurstTrimmer.kt`
+  - `app/src/main/java/com/tivimax/player/player/LiveBurstTrimDataSource.kt`
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`
+  - `docs/gorevler/G-041-kirpma-teshis.md`
+  - `YAPILACAKLAR.md`
+- **Test sonuçları:**
+  - `./gradlew compileDebugKotlin`: Başarılı (`BUILD SUCCESSFUL in 12s`).
+  - `./gradlew testDebugUnitTest`: Başarılı (`BUILD SUCCESSFUL in 9s`, tüm 28 test geçti).
+  - Emülatör / fiziksel TV testi geliştirici kurulumunda teşhis satırının doğrulanması için kullanıcı / Claude incelemesine bırakıldı.

@@ -24,6 +24,10 @@ class LiveBurstTrimmer(
     var lastDroppedBytes: Long = 0L
         private set
 
+    /** G-041: Son ön okumanın teşhis özeti (geliştirici ekranı için). */
+    var lastStats: String = ""
+        private set
+
     /**
      * [read] upstream'den okur (DataSource.read gibi: okunan bayt sayısı ya da -1 = akış bitti).
      * Dönüş: çıkışa verilecek baytlar (sırayla). Sonrası doğrudan upstream'den okunur.
@@ -47,6 +51,7 @@ class LiveBurstTrimmer(
         var lastLeadGrowAt = start
         var total = 0L
         var droppedDuringRead = 0L
+        var stopReason = "akış bitti"
 
         while (true) {
             val n = read(buf, 0, buf.size)
@@ -59,6 +64,7 @@ class LiveBurstTrimmer(
                 val s = findSync(data)
                 if (s < 0) {
                     if (data.size >= 4096) {
+                        stopReason = "TS değil"
                         notTs = true
                         leftover = data
                         break
@@ -98,7 +104,10 @@ class LiveBurstTrimmer(
                 }
             }
             leftover = if (i < data.size) data.copyOfRange(i, data.size) else ByteArray(0)
-            if (discontinuity) break
+            if (discontinuity) {
+                stopReason = "saat sıçraması"
+                break
+            }
 
             val now = clockMs()
             val wall = now - start
@@ -109,11 +118,22 @@ class LiveBurstTrimmer(
                     lastLeadGrowAt = now
                 }
                 // Burst bitti: yayın artık gerçek zamanlı akıyor (öne geçiş 400 ms'dir büyümüyor)
-                if (wall >= 300L && now - lastLeadGrowAt >= 400L) break
+                if (wall >= 300L && now - lastLeadGrowAt >= 400L) {
+                    stopReason = "yığın bitti"
+                    break
+                }
             } else if (wall >= 1_500L || total >= 2L * 1024 * 1024) {
+                stopReason = "saat bilgisi yok"
                 break // saat bilgisi yok → kırpma yapılmaz
             }
-            if (wall >= maxPreReadMs || total >= maxPreReadBytes) break
+            if (wall >= maxPreReadMs) {
+                stopReason = "süre doldu"
+                break
+            }
+            if (total >= maxPreReadBytes) {
+                stopReason = "boyut sınırı"
+                break
+            }
         }
 
         val out = ArrayDeque<ByteArray>()
@@ -139,6 +159,8 @@ class LiveBurstTrimmer(
             if (packetBuf.size() > 0) out.addLast(packetBuf.toByteArray())
         }
         if (leftover.isNotEmpty()) out.addLast(leftover)
+        val spanSec = if (firstPcr >= 0 && lastPcr >= firstPcr) (lastPcr - firstPcr) / 1000 else 0
+        lastStats = "kırpma: $stopReason, ön okuma ${clockMs() - start}ms, gelen ${spanSec}sn/${total / 1024}KB, atılan ${lastDroppedBytes / 1024}KB"
         return out
     }
 
