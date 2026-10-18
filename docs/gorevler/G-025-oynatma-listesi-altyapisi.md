@@ -94,3 +94,52 @@ sürüm numarası. Bu görevde **arayüz eklenmez** (G-026) — sadece giriş ek
 - **Doğrulama:**
   - `compileDebugKotlin` ve `testDebugUnitTest` başarıyla çalıştı ve tüm testler geçti.
   - APK üretilmedi (`assembleRelease` çalıştırılmadı).
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 18 Ekim)
+
+**İyi olanlar:** `Playlist`/`PlaylistRepository`, `keyFor` (anahtar adları eskileriyle birebir aynı — kontrol edildi),
+ilk listenin `vega_iptv.db` ve eski anahtarları kullanması, `switchPlaylist`/`addPlaylist`/`removePlaylist`, birim testleri.
+
+**Ama 3 hata var — ikisi çökme / yanlış veri riski:**
+
+### 1) 🔴 Veritabanı değişince eski veritabanına bağlı kalan akışlar (çökme + boş/eski liste)
+`MainViewModel` init'teki (~795-840) `combine(selectedLiveCategory, liveSearchQuery, liveSortOption)…collectLatest {
+repository.getLiveStreamsFilteredFlow(...).collect {...} }` (film ve dizi aynısı) ve `loadLiveCategories/loadVodCategories/
+loadSeriesCategories` içindeki `repository.get*CategoriesFlow().collect` akışları, **toplandıkları andaki DAO'ya** bağlı.
+`switchDatabase` eski veritabanını kapatınca:
+- Kapatılmış veritabanına sorgu giderse `IllegalStateException` → `viewModelScope` içinde yakalanmadığı için **uygulama çöker**.
+- Çökmese bile `resetSessionState()` kategori/sorgu değerlerini zaten aynı olan değerlere ("all", "") set ettiği için
+  `combine` yeniden tetiklenmez → **yeni listenin kanalları gelmez**, ekran boş/eski kalır.
+`loadXCategories()` her çağrıda yeni, hiç iptal edilmeyen bir toplayıcı açıyor (birikir).
+
+**Çözüm:**
+- `XtreamRepository`: `private val _activeDb = MutableStateFlow<AppDatabase?>(database)`; `val activeDbFlow: StateFlow<AppDatabase?>`.
+  `switchDatabase(dbName)` sırası: **önce `_activeDb.value = null`** (toplayıcılar iptal olsun) → eski DB'yi kapat →
+  yenisini aç → `database = yeni; _activeDb.value = yeni`.
+- `get*FilteredFlow` ve `get*CategoriesFlow`: `activeDbFlow.flatMapLatest { db -> db?.xDao()?.... ?: flowOf(emptyList()) }`
+  şeklinde aktif veritabanını izlesin. (Diğer tek seferlik `suspend` sorgular `database` alanını kullanmaya devam edebilir.)
+- `loadLive/Vod/SeriesCategories()`: toplayıcıyı bir `Job` alanında tut, yeniden çağrılınca önceki işi iptal et.
+- Bu akışların `collect`'lerini `.catch { Log.w(...) }` ile koru (kapatılmış DB hatası çökertmesin).
+- `getPaged*` (PagingSource) kullanılıyorsa aynı şekilde aktif DB'den alınsın; kullanılmıyorsa raporla.
+
+### 2) 🔴 Hesap yenileme yanlış kimlikle çalışıyor
+`refreshAccountInfo()` (~612) `preferences.usernameFlow/passwordFlow/serverUrlFlow`'u (global, **son eklenen listenin**
+bilgileri) kullanıyor. Başka listeye geçince yanlış hesapla doğrulayıp sonucu aktif listenin anahtarlarına yazar.
+**Çözüm:** `playlistRepository.getActivePlaylist()`'in `serverUrl/username/password`'ünü kullan; aktif liste yoksa çık.
+`saveAuth(..., playlistId = active.id)`.
+
+### 3) 🟠 G-024'teki https → http geçişi kayboldu
+`checkUserLoginAndNavigate()` yeniden yazılırken G-024'teki tek seferlik geçiş silinmiş; eski kurulumda https kayıtlıysa
+"Ana liste" https ile oluşturuluyor. **Çözüm:** `migrateIfNeeded` sonrası, **her** listede `serverUrl` ==
+`AppConfig.SERVER_URL_HTTPS` ise `SERVER_URL_HTTP` yap (`playlistRepository.update`) ve global `setServerUrl`'i de güncelle.
+Bunu bir kez çalışan, saf bir yardımcıyla yap ve birim testine ekle.
+
+**AYNI BRANCH:** `git checkout feat/oynatma-listesi-altyapi && git pull && git merge origin/main`
+(`YAPILACAKLAR.md` çakışırsa main'deki hali). `compileDebugKotlin` + `testDebugUnitTest`, push, rapor, dur. APK üretme.
+
+### Düzeltme turu 1 — Agent raporu
+
+_(Agent doldurur.)_
+>>>>>>> origin/main
