@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| R-1.4.0 | [Sürüm yayını v1.4.0 — kullanıcı onayladı](docs/gorevler/R-1.4.0-surum-yayini.md) | 🔴 | ⏳ Sıradaki |
 
 ---
 
@@ -48,6 +47,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| R-1.4.0 | v1.4.0 (build 60) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 18 Ekim |
 | G-029 | Kurulu listede içerik güncellemesi arka planda, ana ekranda şerit — PR #40 | 18 Ekim |
 | G-028 | Listeler önce dosyaya indiriliyor, sonra işleniyor (bağlantı kısa sürüyor) — PR #39 | 18 Ekim |
 | G-026 | Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş, TV "Listeler" — PR #38 | 18 Ekim |
