@@ -207,8 +207,12 @@ fun PlayerScreen(
         if (showControls) {
             delay(120)
             try {
-                firstButtonFocusRequester.requestFocus()
-            } catch (e: Exception) { }
+                // G-033: TV'de film/dizide odak zaman çubuğuna: ◀▶ sarar, OK duraklatır, ▼ alt düğmeler
+                if (isTvDevice && !isLive) sliderFocusRequester.requestFocus()
+                else firstButtonFocusRequester.requestFocus()
+            } catch (e: Exception) {
+                try { firstButtonFocusRequester.requestFocus() } catch (_: Exception) { }
+            }
         } else {
             delay(50)
             try {
@@ -731,6 +735,11 @@ fun PlayerScreen(
                                 registerInteraction()
                                 return@onPreviewKeyEvent true
                             }
+                            if (isTvDevice) {
+                                showControls = true
+                                registerInteraction()
+                                return@onPreviewKeyEvent true
+                            }
                             false
                         }
                         KeyEvent.KEYCODE_DPAD_DOWN,
@@ -738,6 +747,11 @@ fun PlayerScreen(
                         if (isLive) {
                             showRecentChannelsBar = true
                             showBottomInfoCard = true
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
+                        }
+                        if (isTvDevice) {
+                            showControls = true
                             registerInteraction()
                             return@onPreviewKeyEvent true
                         }

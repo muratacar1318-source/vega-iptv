@@ -50,8 +50,12 @@ import com.tivimax.player.ui.live.LiveTvScreen
 import com.tivimax.player.ui.settings.SettingsScreen
 import com.tivimax.player.ui.series.SeriesScreen
 import com.tivimax.player.ui.vod.VodScreen
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.text.TextStyle
 import kotlinx.coroutines.delay
 
@@ -68,7 +72,7 @@ enum class HomeTab(val title: String, val icon: androidx.compose.ui.graphics.vec
     SETTINGS("Ayarlar", Icons.Default.Settings)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun HomeScreen(viewModel: MainViewModel) {
     val isTvDevice = LocalIsTvDevice.current
@@ -181,6 +185,19 @@ fun HomeScreen(viewModel: MainViewModel) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    // G-033: ▲▼ ile sol menüye kaçma yok (menüye sadece ◀ ile girilir)
+                    .focusProperties {
+                        onExit = {
+                            if (requestedFocusDirection == FocusDirection.Up ||
+                                requestedFocusDirection == FocusDirection.Down
+                            ) {
+                                cancelFocusChange()
+                            }
+                        }
+                    }
+                    // G-033: menüden ▶ ile dönünce en son odaklanan öğeye gel
+                    .focusRestorer()
+                    .focusGroup()
             ) {
                 if (selectedTab == HomeTab.LIVE_TV) {
                     TvTiviMateScreen(

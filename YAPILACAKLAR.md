@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-033 | [TV: menü ↔ içerik geçişleri, film/dizi oynatıcıda kumanda](docs/gorevler/G-033-tv-menu-gecisleri-film-kumanda.md) | 🔴 | ⏳ Sıradaki |
+| G-033 | [TV: menü ↔ içerik geçişleri, film/dizi oynatıcıda kumanda](docs/gorevler/G-033-tv-menu-gecisleri-film-kumanda.md) | 🔴 | 🔍 İncelemede (branch: fix/tv-menu-gecis) |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 

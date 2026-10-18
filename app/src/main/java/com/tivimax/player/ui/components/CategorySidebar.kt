@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -33,6 +34,7 @@ data class CategoryUiItem(
     val iconTint: Color = VegaColors.Accent
 )
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun CategorySidebar(
     categories: List<CategoryUiItem>,
@@ -101,7 +103,7 @@ fun CategorySidebar(
         Spacer(modifier = Modifier.height(4.dp))
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().focusRestorer(),
             contentPadding = PaddingValues(bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
