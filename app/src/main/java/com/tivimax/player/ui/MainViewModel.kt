@@ -925,7 +925,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val user = preferences.usernameFlow.first()
             val pass = preferences.passwordFlow.first()
-            val server = preferences.serverUrlFlow.first()
+            val rawServer = preferences.serverUrlFlow.first()
             val loggedIn = preferences.isLoggedInFlow.first()
             val expDate = preferences.expDateFlow.first()
             val maxCons = preferences.maxConnectionsFlow.first()
@@ -933,6 +933,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val status = preferences.statusFlow.first()
             val isTrial = preferences.isTrialFlow.first()
             val createdAt = preferences.createdAtFlow.first()
+
+            // Tek seferlik geçiş: kayıtlı serverUrl AppConfig.SERVER_URL_HTTPS ile aynıysa SERVER_URL_HTTP yap
+            val server = if (rawServer.equals(AppConfig.SERVER_URL_HTTPS, ignoreCase = true)) {
+                val httpUrl = AppConfig.SERVER_URL_HTTP
+                preferences.setServerUrl(httpUrl)
+                repository.serverUrl = httpUrl
+                httpUrl
+            } else {
+                rawServer
+            }
 
             val effectiveServer = if (server.isBlank() || server.contains("my-iptv-server")) {
                 AppConfig.DEFAULT_SERVER_URL
@@ -1061,6 +1071,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ============================================================================
 
     val playlistSyncState = MutableStateFlow(PlaylistSyncState())
+    private var syncJob: Job? = null
 
     fun openPlaylistSync() {
         startPlaylistSync(fromStep = 1)
@@ -1072,8 +1083,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         startPlaylistSync(fromStep = failed)
     }
 
+    fun cancelPlaylistSync() {
+        syncJob?.cancel()
+        syncJob = null
+        playlistSyncState.value = playlistSyncState.value.copy(
+            isSyncing = false
+        )
+    }
+
+    private fun mapSyncErrorToUserMessage(error: Throwable?): String {
+        val rawMsg = error?.message ?: error?.localizedMessage ?: ""
+        val is429or503 = rawMsg.contains("429") || rawMsg.contains("503") || rawMsg.contains("502")
+        val isAuthError = rawMsg.contains("401") || rawMsg.contains("403")
+        val isNetworkOrTimeout = error is java.net.SocketTimeoutException ||
+                error is java.io.IOException ||
+                rawMsg.contains("timeout", ignoreCase = true) ||
+                rawMsg.contains("connect", ignoreCase = true)
+
+        return when {
+            is429or503 -> "Sunucu şu an yoğun. Birkaç dakika sonra tekrar dene."
+            isAuthError -> "Hesap bilgileri reddedildi. Aboneliğini kontrol et."
+            isNetworkOrTimeout -> "Bağlantı kurulamadı. İnternetini kontrol et."
+            else -> "İçerik alınamadı. Tekrar dene."
+        }
+    }
+
     fun startPlaylistSync(fromStep: Int = 1) {
-        viewModelScope.launch(Dispatchers.IO) {
+        syncJob?.cancel()
+
+        // Senkron başlarken bağlantı tutan oynatıcıları ve prewarmer'ı durdur
+        closeMiniPlayer()
+        playerManager.release()
+        vodPrewarmer.cancelAll("Playlist sync")
+
+        syncJob = viewModelScope.launch(Dispatchers.IO) {
             val baseSteps = playlistSyncState.value.steps
             val initialSteps = baseSteps.mapIndexed { index, step ->
                 val num = index + 1
@@ -1093,13 +1136,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 errorMessage = null
             )
 
+            val onRetryCallback: (Int, Int, Int) -> Unit = { attempt, max, _ ->
+                val curStep = playlistSyncState.value.currentStepIndex
+                updateStep(curStep, SyncStepStatus.IN_PROGRESS, "Sunucu yoğun, tekrar deneniyor… ($attempt/$max)", -1f)
+            }
+
             // 1. Adım: Kategoriler
             if (fromStep <= 1) {
                 updateStep(1, SyncStepStatus.IN_PROGRESS, "Kategoriler taranıyor (Canlı TV, Film ve Dizi)...", -1f)
-                val catRes = repository.syncAllCategories()
+                val catRes = repository.syncAllCategories(onRetry = onRetryCallback)
                 if (catRes.isFailure) {
-                    val err = catRes.exceptionOrNull()?.localizedMessage ?: "Kategoriler alınamadı"
-                    failStep(1, err)
+                    val ex = catRes.exceptionOrNull()
+                    Log.w("MainViewModel", "Kategori senkronizasyon hatası: ${ex?.message}")
+                    failStep(1, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
                 val catData = catRes.getOrNull()
@@ -1110,12 +1159,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // 2. Adım: Canlı TV Kanalları
             if (fromStep <= 2) {
                 updateStep(2, SyncStepStatus.IN_PROGRESS, "Canlı TV kanalları kaydediliyor...", -1f)
-                val liveRes = repository.syncLiveStreams { count ->
-                    updateStep(2, SyncStepStatus.IN_PROGRESS, "$count kanal kaydedildi", -1f)
-                }
+                val liveRes = repository.syncLiveStreams(
+                    onProgress = { count ->
+                        updateStep(2, SyncStepStatus.IN_PROGRESS, "$count kanal kaydedildi", -1f)
+                    },
+                    onRetry = onRetryCallback
+                )
                 if (liveRes.isFailure) {
-                    val err = liveRes.exceptionOrNull()?.localizedMessage ?: "Canlı TV kanalları kaydedilemedi"
-                    failStep(2, err)
+                    val ex = liveRes.exceptionOrNull()
+                    Log.w("MainViewModel", "Canlı TV senkronizasyon hatası: ${ex?.message}")
+                    failStep(2, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
                 val liveCount = liveRes.getOrNull() ?: 0
@@ -1134,12 +1187,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // 3. Adım: VOD (Film)
             if (fromStep <= 3) {
                 updateStep(3, SyncStepStatus.IN_PROGRESS, "VOD (Film) arşivi taranıyor...", -1f)
-                val vodRes = repository.syncVodStreams { count, status ->
-                    updateStep(3, SyncStepStatus.IN_PROGRESS, status, -1f)
-                }
+                val vodRes = repository.syncVodStreams(
+                    onProgress = { count, status ->
+                        updateStep(3, SyncStepStatus.IN_PROGRESS, status, -1f)
+                    },
+                    onRetry = onRetryCallback
+                )
                 if (vodRes.isFailure) {
-                    val err = vodRes.exceptionOrNull()?.localizedMessage ?: "Film arşivi kaydedilemedi"
-                    failStep(3, err)
+                    val ex = vodRes.exceptionOrNull()
+                    Log.w("MainViewModel", "Film senkronizasyon hatası: ${ex?.message}")
+                    failStep(3, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
                 val vodCount = vodRes.getOrNull() ?: 0
@@ -1152,12 +1209,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // 4. Adım: Diziler
             if (fromStep <= 4) {
                 updateStep(4, SyncStepStatus.IN_PROGRESS, "Diziler ve bölümler taranıyor...", -1f)
-                val seriesRes = repository.syncSeriesStreams { count, status ->
-                    updateStep(4, SyncStepStatus.IN_PROGRESS, status, -1f)
-                }
+                val seriesRes = repository.syncSeriesStreams(
+                    onProgress = { count, status ->
+                        updateStep(4, SyncStepStatus.IN_PROGRESS, status, -1f)
+                    },
+                    onRetry = onRetryCallback
+                )
                 if (seriesRes.isFailure) {
-                    val err = seriesRes.exceptionOrNull()?.localizedMessage ?: "Diziler kaydedilemedi"
-                    failStep(4, err)
+                    val ex = seriesRes.exceptionOrNull()
+                    Log.w("MainViewModel", "Dizi senkronizasyon hatası: ${ex?.message}")
+                    failStep(4, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
                 val seriesCount = seriesRes.getOrNull() ?: 0
@@ -1169,11 +1230,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 updateStep(5, SyncStepStatus.IN_PROGRESS, "Veritabanı indeksleniyor ve hızlı önbellek hazırlanıyor...", -1f)
                 val optRes = repository.optimizeAndPreload()
                 if (optRes.isFailure) {
-                    val err = optRes.exceptionOrNull()?.localizedMessage ?: "Optimizasyon tamamlanamadı"
-                    failStep(5, err)
+                    val ex = optRes.exceptionOrNull()
+                    Log.w("MainViewModel", "Optimizasyon hatası: ${ex?.message}")
+                    failStep(5, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
                 updateStep(5, SyncStepStatus.COMPLETED, "Tüm içerikler anında açılmaya hazır!", 1f)
+            }
+
+            // Bellek önbelleklerini temizle ve yenile
+            repository.clearCache()
+
+            // Arama sonuçlarını temizle; sorgu varsa yeniden çalıştır
+            universalLiveResults.value = emptyList()
+            universalVodResults.value = emptyList()
+            universalSeriesResults.value = emptyList()
+            val activeUniversalQuery = universalSearchQuery.value
+            if (activeUniversalQuery.isNotBlank()) {
+                setUniversalSearchQuery(activeUniversalQuery)
             }
 
             // Başarıyla tamamlandı

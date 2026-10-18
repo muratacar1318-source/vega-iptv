@@ -1611,39 +1611,7 @@ private fun RenderSelectedSection(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
-                    // 3. Şifreli Bağlantı
-                    val isHttps = serverUrl.startsWith("https://", ignoreCase = true)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                            Text(text = "Şifreli bağlantı", color = TiviTextPrimary, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Açıkken bağlantın şifrelenir. Yayınlar açılmazsa kapatmayı dene.",
-                                color = TiviTextSecondary,
-                                fontSize = 11.sp
-                            )
-                        }
-                        Switch(
-                            checked = isHttps,
-                            onCheckedChange = { checked ->
-                                val newUrl = if (checked) AppConfig.SERVER_URL_HTTPS else AppConfig.SERVER_URL_HTTP
-                                scope.launch {
-                                    viewModel.preferences.setServerUrl(newUrl)
-                                    viewModel.repository.serverUrl = newUrl
-                                    Toast.makeText(context, "Bağlantı ayarı değiştirildi", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = SwitchDefaults.colors(checkedThumbColor = TiviGreen, checkedTrackColor = TiviGreen.copy(alpha = 0.35f))
-                        )
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
-
-                    // 4. Önbelleği Temizle
+                    // 3. Önbelleği Temizle
                     Text(text = "Önbelleği temizle", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(

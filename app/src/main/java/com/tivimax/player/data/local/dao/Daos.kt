@@ -68,6 +68,18 @@ interface LiveDao {
     @Query("SELECT COUNT(*) FROM live_streams")
     suspend fun getTotalStreamCount(): Int
 
+    @Query("SELECT streamId FROM live_streams")
+    suspend fun getAllStreamIds(): List<Int>
+
+    @Query("DELETE FROM live_streams WHERE streamId IN (:ids)")
+    suspend fun deleteStreamsByIds(ids: List<Int>)
+
+    @Query("SELECT categoryId FROM live_categories")
+    suspend fun getAllCategoryIds(): List<String>
+
+    @Query("DELETE FROM live_categories WHERE categoryId IN (:ids)")
+    suspend fun deleteCategoriesByIds(ids: List<String>)
+
     @Query("DELETE FROM live_streams WHERE categoryId = :categoryId")
     suspend fun clearStreamsByCategory(categoryId: String)
 
@@ -146,6 +158,18 @@ interface VodDao {
     @Query("SELECT COUNT(*) FROM vod_streams")
     suspend fun getTotalStreamCount(): Int
 
+    @Query("SELECT streamId FROM vod_streams")
+    suspend fun getAllStreamIds(): List<Int>
+
+    @Query("DELETE FROM vod_streams WHERE streamId IN (:ids)")
+    suspend fun deleteStreamsByIds(ids: List<Int>)
+
+    @Query("SELECT categoryId FROM vod_categories")
+    suspend fun getAllCategoryIds(): List<String>
+
+    @Query("DELETE FROM vod_categories WHERE categoryId IN (:ids)")
+    suspend fun deleteCategoriesByIds(ids: List<String>)
+
     @Query("DELETE FROM vod_streams WHERE categoryId = :categoryId")
     suspend fun clearStreamsByCategory(categoryId: String)
 
@@ -223,6 +247,18 @@ interface SeriesDao {
 
     @Query("SELECT COUNT(*) FROM series_streams")
     suspend fun getTotalStreamCount(): Int
+
+    @Query("SELECT seriesId FROM series_streams")
+    suspend fun getAllSeriesIds(): List<Int>
+
+    @Query("DELETE FROM series_streams WHERE seriesId IN (:ids)")
+    suspend fun deleteSeriesByIds(ids: List<Int>)
+
+    @Query("SELECT categoryId FROM series_categories")
+    suspend fun getAllCategoryIds(): List<String>
+
+    @Query("DELETE FROM series_categories WHERE categoryId IN (:ids)")
+    suspend fun deleteCategoriesByIds(ids: List<String>)
 
     @Query("DELETE FROM series_streams WHERE categoryId = :categoryId")
     suspend fun clearStreamsByCategory(categoryId: String)
