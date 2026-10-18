@@ -37,6 +37,7 @@ import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
+import com.tivimax.player.ui.components.BackgroundSyncBanner
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaSizes
@@ -98,6 +99,7 @@ fun HomeScreen(viewModel: MainViewModel) {
     }
 
     val playlistSyncState by viewModel.playlistSyncState.collectAsState()
+    val backgroundSyncStatus by viewModel.backgroundSyncStatus.collectAsState()
     val updateInfo by viewModel.autoUpdateManager.updateInfo.collectAsState()
     val downloadProgress by viewModel.autoUpdateManager.downloadProgress.collectAsState()
 
@@ -191,6 +193,17 @@ fun HomeScreen(viewModel: MainViewModel) {
                 } else {
                     HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
                 }
+                if (!tvLiveFullScreen) {
+                    BackgroundSyncBanner(
+                        status = backgroundSyncStatus,
+                        percentage = playlistSyncState.overallPercentage,
+                        isTv = true,
+                        onRetry = { },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(16.dp)
+                    )
+                }
             }
         }
     } else Scaffold(
@@ -236,6 +249,15 @@ fun HomeScreen(viewModel: MainViewModel) {
                     }
                 )
             }
+        },
+        snackbarHost = {
+            BackgroundSyncBanner(
+                status = backgroundSyncStatus,
+                percentage = playlistSyncState.overallPercentage,
+                isTv = false,
+                onRetry = { viewModel.refreshPlaylistContent() },
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
         },
         containerColor = VegaColors.Background
     ) { innerPadding ->
@@ -451,7 +473,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                 Button(
                     onClick = {
                         showSyncConfirmationDialog = false
-                        viewModel.openPlaylistSync()
+                        viewModel.refreshPlaylistContent()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
                     shape = VegaShapes.Medium

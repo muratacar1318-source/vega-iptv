@@ -511,7 +511,7 @@ private fun RenderSelectedSection(
                         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     }
                 },
-                onSyncClick = { viewModel.openPlaylistSync() },
+                onSyncClick = { viewModel.refreshPlaylistContent() },
                 onLogoutClick = { viewModel.logout() },
                 activePlaylistName = activePlaylist?.name ?: "Ana liste"
             )

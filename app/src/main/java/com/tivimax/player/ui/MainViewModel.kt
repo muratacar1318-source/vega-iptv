@@ -107,6 +107,9 @@ data class PlaylistSyncState(
         }
 }
 
+/** G-029: Ana ekrandaki arka plan güncelleme şeridinin durumu. */
+enum class BackgroundSyncStatus { HIDDEN, RUNNING, DONE, FAILED, STOPPED }
+
 @OptIn(kotlinx.coroutines.FlowPreview::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -1355,9 +1358,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val playlistSyncState = MutableStateFlow(PlaylistSyncState())
     private var syncJob: Job? = null
 
+    /** G-029: Şu anki senkron arka planda mı çalışıyor? */
+    private var isBackgroundSyncRun = false
+
+    /** G-029: Ana ekran şeridi için durum. */
+    val backgroundSyncStatus = MutableStateFlow(BackgroundSyncStatus.HIDDEN)
+
     fun openPlaylistSync() {
         startPlaylistSync(fromStep = 1)
         navigateTo(Screen.PlaylistSync, addToBackStack = true)
+    }
+
+    /**
+     * G-029: "İçerikleri güncelle" düğmesi bunu çağırır.
+     * Liste daha önce kurulduysa arka planda günceller; kurulmadıysa bugünkü tam ekran akışı açar.
+     */
+    fun refreshPlaylistContent() {
+        viewModelScope.launch {
+            val active = playlistRepository.getActivePlaylist()
+            if (active != null && active.isSynced) {
+                startPlaylistSync(fromStep = 1, background = true)
+            } else {
+                openPlaylistSync()
+            }
+        }
+    }
+
+    /** G-029: Oynatma başlarken çağrılır. Arka plan güncellemesi sürüyorsa durdurur. */
+    private fun stopBackgroundSyncForPlayback() {
+        if (isBackgroundSyncRun && syncJob?.isActive == true) {
+            syncJob?.cancel()
+            syncJob = null
+            isBackgroundSyncRun = false
+            playlistSyncState.value = playlistSyncState.value.copy(isSyncing = false)
+            backgroundSyncStatus.value = BackgroundSyncStatus.STOPPED
+        }
+    }
+
+    /** G-029: Şeritteki "Tekrar dene" / kapatma. */
+    fun dismissBackgroundSyncBanner() {
+        backgroundSyncStatus.value = BackgroundSyncStatus.HIDDEN
     }
 
     fun retryFailedSyncStep() {
@@ -1371,6 +1411,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         playlistSyncState.value = playlistSyncState.value.copy(
             isSyncing = false
         )
+        isBackgroundSyncRun = false
+        backgroundSyncStatus.value = BackgroundSyncStatus.HIDDEN
     }
 
     private fun mapSyncErrorToUserMessage(error: Throwable?): String {
@@ -1390,8 +1432,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun startPlaylistSync(fromStep: Int = 1) {
+    fun startPlaylistSync(fromStep: Int = 1, background: Boolean = false) {
         syncJob?.cancel()
+
+        isBackgroundSyncRun = background
+        backgroundSyncStatus.value = if (background) BackgroundSyncStatus.RUNNING else BackgroundSyncStatus.HIDDEN
 
         // Senkron başlarken bağlantı tutan oynatıcıları ve prewarmer'ı durdur
         closeMiniPlayer()
@@ -1461,8 +1506,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 preferences.setPlaylistSynced(true, nowStr)
                 val activeId = playlistRepository.getActivePlaylistId()
                 playlistRepository.markSynced(activeId, nowStr)
-                loadLiveCategories()
-                loadLiveStreams("all")
+                if (!background) {
+                    loadLiveCategories()
+                    loadLiveStreams("all")
+                }
             }
 
             // PHP-FPM / Nginx worker'larının rahatlaması için dinlenme payı
@@ -1539,13 +1586,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             preferences.setPlaylistSynced(true, nowStr)
             val activeId = playlistRepository.getActivePlaylistId()
             playlistRepository.markSynced(activeId, nowStr)
-            loadInitialData()
+            if (background) {
+                loadAccountContentCounts()
+            } else {
+                loadInitialData()
+            }
 
             playlistSyncState.value = playlistSyncState.value.copy(
                 isSyncing = false,
                 isCompleted = true,
                 currentStepIndex = 5
             )
+
+            if (background) {
+                isBackgroundSyncRun = false
+                backgroundSyncStatus.value = BackgroundSyncStatus.DONE
+                kotlinx.coroutines.delay(3000)
+                if (backgroundSyncStatus.value == BackgroundSyncStatus.DONE) {
+                    backgroundSyncStatus.value = BackgroundSyncStatus.HIDDEN
+                }
+                return@launch
+            }
 
             // 1.5 saniye sonra kullanıcıyı otomatik olarak Ana Ekrana yönlendir
             kotlinx.coroutines.delay(1500)
@@ -1579,6 +1640,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             errorMessage = error,
             steps = updatedSteps
         )
+        if (isBackgroundSyncRun) {
+            isBackgroundSyncRun = false
+            backgroundSyncStatus.value = BackgroundSyncStatus.FAILED
+        }
     }
 
     fun checkAndAutoStartLastChannel() {
@@ -2053,6 +2118,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playLiveChannel(channel: LiveStream) {
+        stopBackgroundSyncForPlayback()
         val t0 = SystemClock.elapsedRealtime()
         if (BuildConfig.DEBUG) {
             Log.d(TAG_TIMING, "[+0ms] MainViewModel.playLiveChannel: Başladı. streamId=${channel.streamId}, name='${channel.name}'")
@@ -2094,6 +2160,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startDualView(channel: LiveStream) {
+        stopBackgroundSyncForPlayback()
         val preferHls = streamFormat.value == "HLS"
         val urls = if (!channel.directSource.isNullOrBlank()) {
             listOf(channel.directSource)
@@ -2153,6 +2220,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playVod(vod: VodStream, resume: Boolean = false) {
+        stopBackgroundSyncForPlayback()
         vodPrewarmer.cancelAll("oynat basıldı")
         val t0 = SystemClock.elapsedRealtime()
         if (BuildConfig.DEBUG) {
@@ -2192,6 +2260,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playSeriesEpisode(episode: SeriesEpisode, seriesTitle: String, resume: Boolean = true) {
+        stopBackgroundSyncForPlayback()
         vodPrewarmer.cancelAll("oynat basıldı")
         val t0 = SystemClock.elapsedRealtime()
         if (BuildConfig.DEBUG) {
