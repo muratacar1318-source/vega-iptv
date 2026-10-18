@@ -577,6 +577,8 @@ class TiviPlayerManager(private val context: Context) {
     private var decoderRecoveryAttempt = 0
     private var networkRecoveryAttempt = 0
     private var isReconnecting = false
+    // G-037: Planlanmış yeniden deneme işi (yeni kanal başlarken iptal edilir)
+    private var pendingRetryJob: Job? = null
 
     fun initializePlayer(isLive: Boolean = isLiveStream): ExoPlayer {
         if (exoPlayer != null) {
@@ -705,7 +707,7 @@ class TiviPlayerManager(private val context: Context) {
                         if (BuildConfig.DEBUG) {
                             Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] İlk VOD URL'si HTTP $httpStatusCode aldı (tek bağlantı emniyeti). 1500ms beklenip aynı URL tekrar deneniyor...")
                         }
-                        scope.launch {
+                        pendingRetryJob = scope.launch {
                             delay(1500L)
                             playInternal(sameUrl, isLive = false, startPositionMs = currentPos)
                         }
@@ -750,10 +752,20 @@ class TiviPlayerManager(private val context: Context) {
                             else -> 5000L
                         }
                         
-                        _errorMessage.value = "Yayın yeniden bağlanıyor... ($networkRecoveryAttempt/3)"
-                        
-                        scope.launch {
+                        _errorMessage.value = if (isLiveStream && httpStatusCode != null && httpStatusCode in listOf(403, 429, 456, 458, 509)) {
+                            "Sağlayıcı meşgul, kanal açılıyor... ($networkRecoveryAttempt/3)"
+                        } else {
+                            "Yayın yeniden bağlanıyor... ($networkRecoveryAttempt/3)"
+                        }
+                        val urlAtSchedule = currentPlayingUrl
+
+                        pendingRetryJob = scope.launch {
                             delay(backoffDelay)
+                            // G-037: Bu arada başka kanala geçildiyse eski denemeyi yapma
+                            if (currentPlayingUrl != urlAtSchedule) {
+                                isReconnecting = false
+                                return@launch
+                            }
                             android.util.Log.w("VegaIPTV", "Ağ koptu, yeniden bağlanılıyor (Deneme $networkRecoveryAttempt)...")
                             player.stop()
                             player.seekTo(currentPos)
@@ -830,6 +842,12 @@ class TiviPlayerManager(private val context: Context) {
         rebufferCount = 0
         hasRenderedFirstFrameOrReady = false
         firstUrlAuthRetried = false
+        // G-037: Önceki kanaldan kalan yeniden deneme işlerini iptal et, sayaçları sıfırla
+        pendingRetryJob?.cancel()
+        pendingRetryJob = null
+        networkRecoveryAttempt = 0
+        decoderRecoveryAttempt = 0
+        isReconnecting = false
         if (BuildConfig.DEBUG) {
             val masked = urls.map { maskUrl(it) }
             Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] playWithFallbacks: isLive=$isLive, urlCount=${urls.size}, startPositionMs=$startPositionMs, urls=$masked")

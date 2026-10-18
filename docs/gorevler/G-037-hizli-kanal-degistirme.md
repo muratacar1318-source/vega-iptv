@@ -141,4 +141,17 @@ telefon/tablet kanal geçişi, güncelleme sistemi (AutoUpdateManager), imza, CI
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - **Adım 1:** `TiviPlayerManager.kt` dosyasında `pendingRetryJob: Job? = null` değişkeni tanımlandı.
+  - **Adım 2:** `TiviPlayerManager.kt` içindeki `playWithFallbacks` fonksiyonunun başında bekleyen `pendingRetryJob` iptal edilip temizlendi ve yeniden deneme sayaçları (`networkRecoveryAttempt = 0`, `decoderRecoveryAttempt = 0`, `isReconnecting = false`) sıfırlandı.
+  - **Adım 3:** `TiviPlayerManager.kt` içindeki `onPlayerError` fonksiyonunda VOD için auth retry ve canlı/ağ yeniden bağlanma işleri `pendingRetryJob` olarak kaydedildi. Sağlayıcı meşgul hata kodları (403, 429, 456, 458, 509) için kullanıcı dostu mesaj ("Sağlayıcı meşgul, kanal açılıyor... ($networkRecoveryAttempt/3)") eklendi ve gecikme süresi sonunda URL değişmişse eski denemenin çalışması engellendi.
+  - **Adım 4:** `MainViewModel.kt` dosyasına `tvZapJob` ve `scheduleTvZap` debouncing (450ms) fonksiyonu eklendi; TV modundaki `zapNextChannel`, `zapPreviousChannel` ve `zapRecall` fonksiyonları `previewChannel` yerine `scheduleTvZap` çağıracak şekilde güncellendi.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`
+  - `app/src/main/java/com/tivimax/player/ui/MainViewModel.kt`
+  - `docs/gorevler/G-037-hizli-kanal-degistirme.md`
+  - `YAPILACAKLAR.md`
+- **Test sonuçları:**
+  - `./gradlew compileDebugKotlin`: Başarılı (BUILD SUCCESSFUL).
+  - `./gradlew testDebugUnitTest`: Başarılı (BUILD SUCCESSFUL, tüm birim testleri geçti).
+  - Fiziksel TV / emülatör bağlı olmadığı için ekran üzerinde manuel TV testi yapılamadı (test edilemedi).
