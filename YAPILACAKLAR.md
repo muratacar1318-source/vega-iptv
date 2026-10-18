@@ -48,7 +48,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
-| G-017 | Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu — PR #31 | 18 Ekim |
 | G-004 | Canlı TV'de kanal ilk açıldığında siyah ekran (video yüzeyi tek sahipli) — PR #7 | 17 Ekim |
 | G-001 | Tam ekranda durum ve gezinme çubukları gizleniyor (tüm tam ekran yolları) — PR #8 | 17 Ekim |
 | G-005 | Canlı TV varsayılan detaylı liste, EPG saatleri yerel saat, sahte ilerleme kaldırıldı — PR #9 | 17 Ekim |
@@ -69,6 +68,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-021 | v1.3.2 doğru anahtarla yeniden imzalandı (güncelleme kurulabiliyor) | 18 Ekim |
 | G-022 | Akıllı altyazı içerik başına bir kez uygulanıyor, kullanıcı seçimi korunuyor | 18 Ekim |
 | G-023 | Oynatıcıdaki alttan açılan sayfalar kompakt yan panele çevrildi (Daha fazla, Bölümler, Çift ekran) — PR #29 | 18 Ekim |
+| G-017 | Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler tasarım kurallarına uyduruldu — PR #31 | 18 Ekim |
 
 ---
 
