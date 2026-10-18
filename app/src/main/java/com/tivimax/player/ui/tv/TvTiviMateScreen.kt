@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -50,7 +51,7 @@ import kotlinx.coroutines.delay
 /**
  * 3-BÖLGELİ OTANTİK TIVIMATE ANA REHBER VE CANLI TV DÜZENİ (SADECE ANDROID TV)
  */
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun TvTiviMateScreen(
     viewModel: MainViewModel,
@@ -281,7 +282,8 @@ fun TvTiviMateScreen(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
+                            .weight(1f)
+                            .focusRestorer(),
                         verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         items(categories, key = { it.categoryId }) { category ->
@@ -401,7 +403,7 @@ fun TvTiviMateScreen(
                     } else {
                         LazyColumn(
                             state = channelListState,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().focusRestorer(),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             items(displayedChannels, key = { "${it.streamId}_${it.num}" }) { channel ->

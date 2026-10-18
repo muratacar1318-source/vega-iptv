@@ -189,4 +189,19 @@ Import: `androidx.compose.ui.focus.focusRestorer`. (Dokunmatik ekranda odak olma
 
 ## Agent raporu
 
-_(Agent doldurur: her adım için ne yaptın, Adım 1'de hangi yazımı kullandın, test sonucu, test edemediklerin.)_
+- **Yapılan değişiklikler:**
+  - **Adım 1:** `HomeScreen.kt`'de `HomeScreen` bileşenine `@OptIn(..., ExperimentalComposeUiApi::class)` eklendi. TV içerik alanındaki `Box`'a `.focusProperties { onExit = { ... } }` ile ▲/▼ basıldığında menüye kaçma engellendi, `.focusRestorer()` ve `.focusGroup()` ile menüden dönüldüğünde en son odaklanan öğeye gelinmesi sağlandı (Adım 1'de yeni `onExit`/`requestedFocusDirection`/`cancelFocusChange` API'si kullanıldı).
+  - **Adım 2:** `TvTiviMateScreen.kt`'de `@OptIn` güncellendi, hem dinamik kategoriler hem de kanal listesi `LazyColumn`'larına `.focusRestorer()` eklendi.
+  - **Adım 3:** `CategorySidebar.kt`'de `@OptIn` eklendi ve kategori listesi `LazyColumn`'una `.focusRestorer()` eklendi.
+  - **Adım 4:** `PlayerScreen.kt`'de TV modunda (`isTvDevice && !isLive`) HUD açıldığında odak `sliderFocusRequester`'a verildi; HUD kapalıyken ▲ ve ▼ tuşlarının kontrolleri açması sağlandı.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/ui/main/HomeScreen.kt`
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvTiviMateScreen.kt`
+  - `app/src/main/java/com/tivimax/player/ui/components/CategorySidebar.kt`
+  - `app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt`
+  - `docs/gorevler/G-033-tv-menu-gecisleri-film-kumanda.md`
+  - `YAPILACAKLAR.md`
+- **Test sonuçları:**
+  - `./gradlew compileDebugKotlin`: Başarılı (`BUILD SUCCESSFUL in 15s`).
+  - `./gradlew testDebugUnitTest`: Başarılı (`BUILD SUCCESSFUL in 3s`, 28 görev, tüm birim testler geçti).
+  - Fiziksel TV cihazı / emülatör bağlı olmadığı için kumanda ile manuel test edilemedi.
