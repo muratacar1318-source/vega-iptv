@@ -40,6 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
+| G-031 | [Film/dizi arka planda duraklasın (küçük pencere yok), canlı küçük pencerede devam](docs/gorevler/G-031-film-dizi-arka-planda-duraklat.md) | 🟠 | ⏳ Sıradaki |
 
 ---
 
