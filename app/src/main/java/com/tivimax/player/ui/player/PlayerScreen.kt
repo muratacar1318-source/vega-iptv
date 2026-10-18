@@ -519,7 +519,6 @@ fun PlayerScreen(
     }
 
     // Lifecycle Observer (Arka plana atıldığında PiP açık değilse videoyu duraklat)
-    // Lifecycle Observer (Arka plana atıldığında PiP açık değilse videoyu duraklat)
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, isInPipMode) {
         val observer = LifecycleEventObserver { _, event ->
@@ -528,7 +527,7 @@ fun PlayerScreen(
                     playerManager.pause()
                 }
             } else if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
-                if (!isControlsLocked && !isInPipMode) {
+                if (!isControlsLocked && !isInPipMode && isLive) {
                     playerManager.play()
                 }
             }
@@ -552,7 +551,7 @@ fun PlayerScreen(
     }
 
     // Android 12+ (API 31+) için Otomatik PiP Kaydı (Sistem Seviyesi Akıcı Animasyon)
-    DisposableEffect(isPlaying, autoPipEnabled) {
+    DisposableEffect(isPlaying, autoPipEnabled, isLive) {
         val isTv = activity?.let { act ->
             val uiModeManager = act.getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager
             val isTvMode = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
@@ -567,7 +566,7 @@ fun PlayerScreen(
                 if (hasPip) {
                     val params = PictureInPictureParams.Builder()
                         .setAspectRatio(Rational(16, 9))
-                        .setAutoEnterEnabled(!isTv && autoPipEnabled && isPlaying)
+                        .setAutoEnterEnabled(!isTv && autoPipEnabled && isPlaying && isLive)
                         .build()
                     activity.setPictureInPictureParams(params)
                 }

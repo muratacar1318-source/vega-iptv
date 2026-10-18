@@ -727,7 +727,7 @@ private fun RenderSelectedSection(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(text = "Küçük pencerede devam et", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             Text(
-                                text = if (autoPipEnabled) "Uygulamadan çıkınca video köşede küçük pencerede oynamaya devam eder." else "Kapalı.",
+                                text = if (autoPipEnabled) "Uygulamadan çıkınca canlı yayın köşede küçük pencerede oynamaya devam eder. Film ve diziler duraklatılır." else "Kapalı.",
                                 color = TiviTextSecondary,
                                 fontSize = 11.sp
                             )

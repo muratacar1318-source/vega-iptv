@@ -138,4 +138,18 @@ text = if (autoPipEnabled) "Uygulamadan çıkınca canlı yayın köşede küç�
 
 ## Agent raporu
 
-_(Agent doldurur: her adım için ne yaptın, test sonucu, test edemediklerin.)_
+- **Durum:** Tamamlandı, Claude'un incelemesine hazır.
+- **Değişiklikler:**
+  - `MainActivity.kt`:
+    - Adım 1 (`onUserLeaveHint`): Otomatik PiP kontrolüne `isLive` şartı eklendi. Uygulama arka plana alındığında küçük pencereye (PiP) geçiş sadece canlı yayınlarda çalışıyor; film ve dizilerde PiP tetiklenmiyor.
+    - Adım 2 (`onResume`): `onResume()` sırasında uygulamanın otomatik oynatma başlatması (`play()`) sadece canlı yayınlar ile sınırlandırıldı. Film ve dizi içeriklerinde uygulamaya dönüldüğünde video duraklatılmış olarak kalıyor, kullanıcının oynat düğmesine basması bekleniyor.
+    - Adım 3 (`onPictureInPictureModeChanged`): PiP penceresi X butonuyla kapatıldığında (`!isInPictureInPictureMode` ve yaşam döngüsü `STARTED` seviyesinin altında kaldığında) oynatıcı duraklatılıp `wasPlayingBeforeStop = false` yapıldı, böylece sesin arka planda devam etmesi engellendi.
+  - `PlayerScreen.kt`:
+    - Adım 4 (Lifecycle Observer): `ON_START` / `ON_RESUME` yaşam döngüsü olaylarında `playerManager.play()` çağrısı sadece `isLive == true` durumu için geçerli kılındı.
+    - Adım 5 (Android 12+ Otomatik PiP Kaydı): `DisposableEffect` bağımlılıklarına `isLive` eklendi ve `setAutoEnterEnabled(!isTv && autoPipEnabled && isPlaying && isLive)` şeklinde güncellenerek Android 12+ sistem seviyesi PiP kaydının da sadece canlı yayınlarda aktif olması sağlandı. Manuel PiP düğmelerine dokunulmadı.
+  - `SettingsScreen.kt`:
+    - Adım 6 (Ayar Açıklaması): PiP ayar açıklaması `"Uygulamadan çıkınca canlı yayın köşede küçük pencerede oynamaya devam eder. Film ve diziler duraklatılır."` olarak güncellendi.
+- **Doğrulama:**
+  - `./gradlew compileDebugKotlin` başarıyla tamamlandı.
+  - `./gradlew testDebugUnitTest` başarıyla tamamlandı (60 test geçti, 0 hata).
+  - Fiziksel cihaz / emülatör bağlı olmadığı için PiP canlı testi yapılamadı (derleme ve birim testleri ile doğrulandı).

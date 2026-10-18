@@ -95,6 +95,13 @@ class MainActivity : ComponentActivity() {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         if (::viewModel.isInitialized) {
             viewModel.isInPipMode.value = isInPictureInPictureMode
+            // G-031: Küçük pencere X ile kapatıldıysa (aktivite artık görünür değil) oynatmayı durdur
+            if (!isInPictureInPictureMode &&
+                !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+            ) {
+                viewModel.playerManager.pause()
+                wasPlayingBeforeStop = false
+            }
             if (!isInPictureInPictureMode && ::orientationManager.isInitialized) {
                 orientationManager.applyOrientation(
                     viewModel.deviceMode.value,
@@ -148,7 +155,8 @@ class MainActivity : ComponentActivity() {
                 val isPlaying = viewModel.playerManager.isPlaying.value
                 val isPlayerScreen = viewModel.currentScreen.value is Screen.Player
                 val autoPip = viewModel.autoPipEnabled.value
-                if (hasPip && autoPip && isPlayerScreen && isPlaying) {
+                val isLive = viewModel.playerManager.isLiveStream
+                if (hasPip && autoPip && isPlayerScreen && isPlaying && isLive) {
                     val params = PictureInPictureParams.Builder()
                         .setAspectRatio(Rational(16, 9))
                         .build()
@@ -200,12 +208,10 @@ class MainActivity : ComponentActivity() {
             wasPlayingBeforeStop = false
             val isPlayerScreen = viewModel.currentScreen.value is Screen.Player
             val isHomeScreen = viewModel.currentScreen.value is Screen.Home
-            if (isPlayerScreen || isHomeScreen) {
-                if (viewModel.playerManager.isLiveStream) {
-                    try {
-                        viewModel.playerManager.player?.seekToDefaultPosition()
-                    } catch (_: Throwable) {}
-                }
+            if ((isPlayerScreen || isHomeScreen) && viewModel.playerManager.isLiveStream) {
+                try {
+                    viewModel.playerManager.player?.seekToDefaultPosition()
+                } catch (_: Throwable) {}
                 viewModel.playerManager.play()
             }
         }
