@@ -1,0 +1,6 @@
+# Vega IPTV v1.3.4 (Build 56) - Akıllı Altyazı Düzeltmesi
+
+### 🎬 Akıllı Altyazı ve Tercih İyileştirmesi (G-022):
+- Akıllı altyazı kuralı artık sadece video ilk açıldığında uygulanır, kullanıcının sonradan yaptığı manuel seçimler korunur.
+- Ayarlarda altyazı tercihi "Kapalı" olduğunda altyazı zorla açılmaz.
+- Ses dili oynatıcı içinden değiştirildiğinde akıllı altyazı kuralı bir kez uygulanır.
