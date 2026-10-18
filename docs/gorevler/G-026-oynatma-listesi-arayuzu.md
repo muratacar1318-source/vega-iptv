@@ -106,3 +106,22 @@ Güncelleme sistemi (AutoUpdateManager), imza/sürüm numarası, oynatıcı, sen
 
 ### Bitince
 `./gradlew compileDebugKotlin testDebugUnitTest` → commit → aynı dala push. Agent raporuna "Düzeltme turu 1" başlığıyla ne yaptığını ekle.
+
+### Düzeltme turu 1 Raporu
+
+- **Durum:** Düzeltmeler tamamlandı, Claude incelemesine hazır.
+- **Yapılanlar:**
+  1. **Hata mesajlarında sunucu adresi gizlendi:**
+     - `XtreamRepository.kt` içerisine saf `toUserMessage(Throwable)` yardımcısı eklendi. `UnknownHostException`, `ConnectException`, `SocketTimeoutException`, `IOException` ve türevleri için `"Sunucuya ulaşılamadı. İnternetini kontrol et."`, diğer istisnalar için `"Bağlanılamadı. Bilgilerini kontrol edip tekrar dene."` döndürülmesi sağlandı.
+     - `authenticate` catch bloğundaki `e.localizedMessage` kaldırıldı, `toUserMessage(e)` kullanıldı. `!resp.isSuccessful` durumundaki HTTP kodu kullanıcı metninden çıkarılıp loga alındı, kullanıcıya `"Sunucu şu an yanıt vermiyor. Biraz sonra tekrar dene."` metni sunuldu.
+     - `toUserMessage` için istisna mesajında host/ip adı bulunsa dahi kullanıcıya gösterilen metinde sunucu adresinin geçmediğini doğrulayan birim testi eklendi.
+  2. **Ayarlar varsayılan alt sayfa sıfırlandı:**
+     - `MainViewModel.targetSettingsSection` başlangıç değeri `null` yapıldı. Ayarlar ilk açıldığında doğrudan "Listelerim" alt sayfasına atlama sorunu giderildi.
+  3. **Vega sunucu adresi kontrolü esnekleştirildi:**
+     - `AppConfig.kt` dosyasına `isVegaServer(url: String?): Boolean` yardımcısı eklendi. URL `trim()` ve `trimEnd('/')` temizliği yapılarak `SERVER_URL_HTTP` ve `SERVER_URL_HTTPS` ile `ignoreCase` karşılaştırılıyor.
+     - `SettingsPlaylistsSection.kt` (`PlaylistFormDialog`) içerisinde `playlist.serverUrl != AppConfig.DEFAULT_SERVER_URL` kontrolü `!AppConfig.isVegaServer(playlist.serverUrl)` ile değiştirildi. Vega sunucusu adresleri sonda `/`, büyük harf veya HTTPS olsa dahi "Başka sunucu" kutusuna düşmüyor ve Vega adresi kutuda görünmüyor.
+     - `isVegaServer` için sonda `/`, büyük/küçük harf, https/http varyantları ve özel sunucu adreslerini kapsayan birim testleri eklendi.
+- **Doğrulama:**
+  - `./gradlew compileDebugKotlin` başarıyla derlendi (0 hata, 0 uyarı).
+  - `./gradlew testDebugUnitTest` çalıştırıldı, tüm testler (56 passed) başarıyla geçti.
+

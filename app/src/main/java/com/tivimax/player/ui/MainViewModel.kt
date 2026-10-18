@@ -1051,7 +1051,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isSwitchingPlaylist = MutableStateFlow(false)
     val isSwitchingPlaylist: StateFlow<Boolean> = _isSwitchingPlaylist.asStateFlow()
 
-    val targetSettingsSection = MutableStateFlow<String?>("PLAYLISTS")
+    val targetSettingsSection = MutableStateFlow<String?>(null)
 
     fun openPlaylistsSettings() {
         targetSettingsSection.value = "PLAYLISTS"

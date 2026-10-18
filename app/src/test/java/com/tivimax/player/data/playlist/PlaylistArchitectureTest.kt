@@ -1,9 +1,13 @@
 package com.tivimax.player.data.playlist
 
+import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.data.preferences.UserPreferences
+import com.tivimax.player.data.repository.toUserMessage
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaylistArchitectureTest {
@@ -186,5 +190,36 @@ class PlaylistArchitectureTest {
         )
         assertEquals(false, updated.isSynced)
         assertEquals("", updated.lastSyncAt)
+    }
+
+    @Test
+    fun `toUserMessage hides host name and returns safe message`() {
+        val exc = java.net.UnknownHostException("Unable to resolve host \"http://secret-iptv-server.com:8080\": No address")
+        val msg = toUserMessage(exc)
+        assertEquals("Sunucuya ulaşılamadı. İnternetini kontrol et.", msg)
+        assertFalse(msg.contains("secret-iptv-server"))
+        assertFalse(msg.contains("http"))
+
+        val genericExc = RuntimeException("Failed to connect to http://192.168.1.100:8080")
+        val msg2 = toUserMessage(genericExc)
+        assertEquals("Bağlanılamadı. Bilgilerini kontrol edip tekrar dene.", msg2)
+        assertFalse(msg2.contains("192.168.1.100"))
+    }
+
+    @Test
+    fun `isVegaServer returns true for http, https, trailing slash, and case variations`() {
+        val http = AppConfig.SERVER_URL_HTTP
+        val https = AppConfig.SERVER_URL_HTTPS
+
+        assertTrue(AppConfig.isVegaServer(http))
+        assertTrue(AppConfig.isVegaServer("$http/"))
+        assertTrue(AppConfig.isVegaServer(https))
+        assertTrue(AppConfig.isVegaServer("$https/"))
+        assertTrue(AppConfig.isVegaServer(http.uppercase()))
+        assertTrue(AppConfig.isVegaServer("  $http/  "))
+
+        assertFalse(AppConfig.isVegaServer("http://custom-iptv-server.com:8080"))
+        assertFalse(AppConfig.isVegaServer(""))
+        assertFalse(AppConfig.isVegaServer(null))
     }
 }

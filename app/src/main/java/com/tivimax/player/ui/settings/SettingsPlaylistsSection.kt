@@ -299,10 +299,10 @@ fun PlaylistFormDialog(
     var username by remember { mutableStateOf(playlist?.username ?: "") }
     var password by remember { mutableStateOf(playlist?.password ?: "") }
     var isCustomServer by remember {
-        mutableStateOf(playlist != null && playlist.serverUrl.isNotBlank() && playlist.serverUrl != AppConfig.DEFAULT_SERVER_URL)
+        mutableStateOf(playlist != null && playlist.serverUrl.isNotBlank() && !AppConfig.isVegaServer(playlist.serverUrl))
     }
     var customServerUrl by remember {
-        mutableStateOf(if (playlist != null && playlist.serverUrl != AppConfig.DEFAULT_SERVER_URL) playlist.serverUrl else "")
+        mutableStateOf(if (playlist != null && !AppConfig.isVegaServer(playlist.serverUrl)) playlist.serverUrl else "")
     }
     var passwordVisible by remember { mutableStateOf(false) }
     var isChecking by remember { mutableStateOf(false) }
