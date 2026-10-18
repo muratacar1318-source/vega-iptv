@@ -2,7 +2,6 @@ package com.tivimax.player.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,34 +22,36 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 
 @Composable
 fun CategoryItem(
     name: String,
     count: Int,
-    iconTint: Color = Color(0xFF7C4DFF),
+    iconTint: Color = VegaColors.Accent,
     icon: ImageVector = Icons.Default.Folder,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
     val backgroundModifier = if (isSelected) {
         Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(VegaShapes.Small)
             .background(
                 Brush.horizontalGradient(
                     colors = listOf(
-                        Color(0xFF7C4DFF).copy(alpha = 0.28f),
-                        Color(0xFF00E5FF).copy(alpha = 0.10f)
+                        VegaColors.Accent.copy(alpha = 0.22f),
+                        VegaColors.Accent.copy(alpha = 0.08f)
                     )
                 )
             )
             .border(
                 width = 1.dp,
-                color = Color(0xFF7C4DFF).copy(alpha = 0.6f),
-                shape = RoundedCornerShape(10.dp)
+                color = VegaColors.Accent.copy(alpha = 0.6f),
+                shape = VegaShapes.Small
             )
     } else {
-        Modifier.clip(RoundedCornerShape(10.dp))
+        Modifier.clip(VegaShapes.Small)
     }
 
     Row(
@@ -59,8 +60,8 @@ fun CategoryItem(
             .padding(horizontal = 4.dp, vertical = 2.dp)
             .then(backgroundModifier)
             .dpadFocusable(
-                focusedBorderColor = Color(0xFF00E5FF),
-                shape = RoundedCornerShape(10.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Small,
                 onClick = onClick
             )
             .padding(horizontal = 6.dp, vertical = 6.dp),
@@ -72,7 +73,7 @@ fun CategoryItem(
                     .width(2.5.dp)
                     .height(16.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Color(0xFF00E5FF))
+                    .background(VegaColors.Accent)
             )
             Spacer(modifier = Modifier.width(4.dp))
         }
@@ -80,7 +81,7 @@ fun CategoryItem(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (isSelected) Color(0xFF00E5FF) else iconTint,
+            tint = if (isSelected) VegaColors.Accent else iconTint,
             modifier = Modifier.size(16.dp)
         )
 
@@ -91,7 +92,7 @@ fun CategoryItem(
             text = buildAnnotatedString {
                 withStyle(
                     style = SpanStyle(
-                        color = if (isSelected) Color.White else Color(0xFFE0E0E0),
+                        color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                     )
                 ) {
@@ -100,7 +101,7 @@ fun CategoryItem(
                 if (count > 0) {
                     withStyle(
                         style = SpanStyle(
-                            color = Color(0xFF8E92AA),
+                            color = VegaColors.TextMuted,
                             fontWeight = FontWeight.Normal
                         )
                     ) {

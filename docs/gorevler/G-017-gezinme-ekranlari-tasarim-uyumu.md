@@ -44,4 +44,41 @@ güncelleme sistemi, imza, CI. `ui/design/*` ve `theme/*` dosyalarını değişt
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+### Yapılan İşler
+- **Renk ve Vurgu:** Kapsam dahilindeki tüm dosyalarda (`ui/main/**`, `ui/live/**`, `ui/catalog/**`, `ui/vod/**`, `ui/series/**`, `ui/search/**`, `ui/favorites/**`, `ui/components/**`) sabit `Color(0x...)` ve `Tivi...` renkleri yerine `VegaColors` (`Accent`, `Background`, `Surface`, `SurfaceVariant`, `Card`, `Border`, `TextPrimary`, `TextSecondary`, `TextMuted`, `Live`, `Gold`, `Success`, `Danger`, `OverlayPanel`) tokenları bağlandı.
+- **Köşe ve Şekil:** Sabit `RoundedCornerShape(x.dp)` değerleri `VegaShapes` (`Small`, `Medium`, `Large`, `Pill`) tokenlarına uyarlandı.
+- **Odak Çerçevesi:** TV ve D-Pad odağı için `focusedBorderColor = VegaColors.Accent` yapıldı (birincil dolgulu butonlarda `Color.White`).
+- **Yazı Ölçeği:** Metin boyutları 22, 17, 15, 14, 13, 11 sp basamaklarına yuvarlandı.
+- **Dil ve Metin Kuralları:**
+  - "Siz" dili "sen" diline çevrildi ("eklemediniz" -> "eklemedin", "ekleyebilirsiniz" -> "ekleyebilirsin", "arama terimi deneyebilirsiniz" -> "arama terimi deneyebilirsin", "kategorileri gizleyin veya sabitleyin" -> "kategorileri gizle veya sabitle").
+  - Başlık ve menü kilit büyük harfleri cümle düzenine geçirildi ("CANLI TV" -> "Canlı TV", "FİLMLER" -> "Filmler", "DİZİLER" -> "Diziler", "KATEGORİLER" -> "Kategoriler", "TÜMÜNÜ GÖSTER" -> "Tümünü göster", "TÜMÜNÜ GİZLE" -> "Tümünü gizle", "Kanalı Gizle" -> "Kanalı gizle").
+  - Butonlardaki emojili/simgeli metinler Icon + Metin olarak ayrıştırıldı (`SeriesDetailScreen.kt`: "★ Listemden Kaldır" -> Icon + "Listemden kaldır", "☆ Listeme Ekle" -> Icon + "Listeme ekle", "▶ S1 B2 Başlat" -> Icon + "Sezon X, Y. bölümü başlat", `VodDetailScreen.kt`: "▶ Hemen İzle" -> Icon + "Filmi izle").
+
+### Değiştirilen Dosyalar
+1. `app/src/main/java/com/tivimax/player/ui/main/HomeScreen.kt`
+2. `app/src/main/java/com/tivimax/player/ui/main/OpusDashboardScreen.kt`
+3. `app/src/main/java/com/tivimax/player/ui/vod/VodScreen.kt`
+4. `app/src/main/java/com/tivimax/player/ui/vod/VodDetailScreen.kt`
+5. `app/src/main/java/com/tivimax/player/ui/series/SeriesScreen.kt`
+6. `app/src/main/java/com/tivimax/player/ui/series/SeriesDetailScreen.kt`
+7. `app/src/main/java/com/tivimax/player/ui/search/UniversalSearchScreen.kt`
+8. `app/src/main/java/com/tivimax/player/ui/favorites/FavoritesScreen.kt`
+9. `app/src/main/java/com/tivimax/player/ui/catalog/VegaMediaCatalogScreen.kt`
+10. `app/src/main/java/com/tivimax/player/ui/components/MediaPosterCard.kt`
+11. `app/src/main/java/com/tivimax/player/ui/components/CategoryManagementDialog.kt`
+12. `app/src/main/java/com/tivimax/player/ui/components/ActionChipButton.kt`
+13. `app/src/main/java/com/tivimax/player/ui/components/CategoryItem.kt`
+14. `app/src/main/java/com/tivimax/player/ui/components/CategorySidebar.kt`
+15. `app/src/main/java/com/tivimax/player/ui/components/MediaCategoryNavigationBar.kt`
+16. `app/src/main/java/com/tivimax/player/ui/live/modern/ChannelDetailedCard.kt`
+17. `app/src/main/java/com/tivimax/player/ui/live/modern/ChannelGridCard.kt`
+18. `app/src/main/java/com/tivimax/player/ui/live/modern/ChannelRowCard.kt`
+19. `app/src/main/java/com/tivimax/player/ui/live/modern/LiveShelvesSection.kt`
+20. `app/src/main/java/com/tivimax/player/ui/live/shelf/HeroCard.kt`
+21. `app/src/main/java/com/tivimax/player/ui/live/shelf/ShelfChannelCard.kt`
+22. `docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md`
+23. `YAPILACAKLAR.md`
+
+### Test Sonuçları
+- `./gradlew compileDebugKotlin`: Başarılı (`BUILD SUCCESSFUL in 43s`, sıfır hata).
+- Görsel ve cihaz testleri: APK üretilmedi (kural gereği test edilemedi, CI doğrulayacak).

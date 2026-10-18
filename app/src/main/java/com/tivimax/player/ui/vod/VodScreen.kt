@@ -43,6 +43,8 @@ import com.tivimax.player.data.model.VodStream
 import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 
@@ -104,7 +106,7 @@ fun VodScreen(viewModel: MainViewModel) {
                     name = it.categoryName,
                     count = it.itemCount,
                     icon = Icons.Default.Movie,
-                    iconTint = Color(0xFF7C4DFF)
+                    iconTint = VegaColors.Accent
                 )
             }
     }
@@ -272,9 +274,9 @@ private fun VodMediaContentGrid(
                 ) {
                     if (searchQuery.isNotBlank()) {
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = TiviSecondary.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, TiviSecondary.copy(alpha = 0.5f))
+                            shape = VegaShapes.Small,
+                            color = VegaColors.Accent.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.5f))
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -283,14 +285,14 @@ private fun VodMediaContentGrid(
                                 Icon(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = null,
-                                    tint = TiviSecondary,
+                                    tint = VegaColors.Accent,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "\"$searchQuery\" (${filteredMovies.size} film)",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -303,7 +305,7 @@ private fun VodMediaContentGrid(
                                     Icon(
                                         imageVector = Icons.Default.Close,
                                         contentDescription = "Filtreyi Temizle",
-                                        tint = TiviTextSecondary,
+                                        tint = VegaColors.TextSecondary,
                                         modifier = Modifier.size(14.dp)
                                     )
                                 }
@@ -312,8 +314,8 @@ private fun VodMediaContentGrid(
                     } else {
                         Text(
                             text = "${filteredMovies.size} Film",
-                            color = TiviTextSecondary,
-                            fontSize = 12.sp,
+                            color = VegaColors.TextSecondary,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -346,43 +348,43 @@ private fun VodMediaContentGrid(
                             DropdownMenu(
                                 expanded = isSortMenuOpen,
                                 onDismissRequest = { isSortMenuOpen = false },
-                                modifier = Modifier.background(TiviSurface)
+                                modifier = Modifier.background(VegaColors.Surface)
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Eklenme Tarihi (Yeni)", color = if (currentSort == SortOption.ADDED_DESC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                    leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = TiviSecondary, modifier = Modifier.size(16.dp)) },
+                                    text = { Text("Eklenme tarihi (yeni)", color = if (currentSort == SortOption.ADDED_DESC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+                                    leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(16.dp)) },
                                     onClick = {
                                         viewModel.setVodSort(SortOption.ADDED_DESC)
                                         isSortMenuOpen = false
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Puan Sıralaması (En Yüksek)", color = if (currentSort == SortOption.RATING_DESC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                    leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(16.dp)) },
+                                    text = { Text("Puan sıralaması (en yüksek)", color = if (currentSort == SortOption.RATING_DESC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+                                    leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(16.dp)) },
                                     onClick = {
                                         viewModel.setVodSort(SortOption.RATING_DESC)
                                         isSortMenuOpen = false
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("A - Z (İsme Göre)", color = if (currentSort == SortOption.NAME_ASC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                    leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
+                                    text = { Text("A - Z (İsme göre)", color = if (currentSort == SortOption.NAME_ASC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+                                    leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(16.dp)) },
                                     onClick = {
                                         viewModel.setVodSort(SortOption.NAME_ASC)
                                         isSortMenuOpen = false
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Z - A (İsme Göre Ters)", color = if (currentSort == SortOption.NAME_DESC) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                    leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
+                                    text = { Text("Z - A (İsme göre ters)", color = if (currentSort == SortOption.NAME_DESC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+                                    leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(16.dp)) },
                                     onClick = {
                                         viewModel.setVodSort(SortOption.NAME_DESC)
                                         isSortMenuOpen = false
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Varsayılan Sıra", color = if (currentSort == SortOption.DEFAULT) TiviSecondary else TiviTextPrimary, fontSize = 12.sp) },
-                                    leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = TiviTextSecondary, modifier = Modifier.size(16.dp)) },
+                                    text = { Text("Varsayılan sıra", color = if (currentSort == SortOption.DEFAULT) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+                                    leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(16.dp)) },
                                     onClick = {
                                         viewModel.setVodSort(SortOption.DEFAULT)
                                         isSortMenuOpen = false
@@ -400,7 +402,7 @@ private fun VodMediaContentGrid(
                 ) {
                     if (isLoading) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = TiviSecondary)
+                            CircularProgressIndicator(color = VegaColors.Accent)
                         }
                     } else if (filteredMovies.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -412,7 +414,7 @@ private fun VodMediaContentGrid(
                             ) {
                                 Text(
                                     text = if (searchQuery.isNotEmpty()) "\"$searchQuery\" için film bulunamadı." else "Bu kategoride film yok.",
-                                    color = TiviTextSecondary,
+                                    color = VegaColors.TextSecondary,
                                     fontSize = 13.sp
                                 )
                                 if (searchQuery.isNotBlank()) {
@@ -435,9 +437,9 @@ private fun VodMediaContentGrid(
                             // OPUS IPTV HERO BANNER (Yatay Modda Öne Çıkan / Odaklanılan Film)
                             if (isWideScreen && heroMovie != null && searchQuery.isBlank()) {
                                 Card(
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = CardDefaults.cardColors(containerColor = TiviCardDark),
-                                    border = BorderStroke(1.dp, TiviCardBorder),
+                                    shape = VegaShapes.Medium,
+                                    colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+                                    border = BorderStroke(1.dp, VegaColors.Border),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(180.dp)
@@ -457,15 +459,15 @@ private fun VodMediaContentGrid(
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .background(
-                                                    Brush.horizontalGradient(
-                                                        listOf(
-                                                            Color.Black,
-                                                            Color.Black.copy(alpha = 0.9f),
-                                                            Color.Black.copy(alpha = 0.5f),
-                                                            Color.Transparent
-                                                        )
+                                                Brush.horizontalGradient(
+                                                    listOf(
+                                                        Color.Black,
+                                                        Color.Black.copy(alpha = 0.9f),
+                                                        Color.Black.copy(alpha = 0.5f),
+                                                        Color.Transparent
                                                     )
                                                 )
+                                            )
                                         )
 
                                         Column(
@@ -479,28 +481,28 @@ private fun VodMediaContentGrid(
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Box(
                                                         modifier = Modifier
-                                                            .clip(RoundedCornerShape(4.dp))
-                                                            .background(OpusCyan)
+                                                            .clip(VegaShapes.Small)
+                                                            .background(VegaColors.Accent)
                                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                                     ) {
-                                                        Text("ÖNE ÇIKAN", color = Color.Black, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold)
+                                                        Text("Öne çıkan", color = VegaColors.OnAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                                     }
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     val rating = heroMovie.rating ?: heroMovie.rating5Based?.let { String.format("%.1f", it * 2) } ?: "8.2"
                                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(13.dp))
+                                                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(13.dp))
                                                         Spacer(modifier = Modifier.width(3.dp))
                                                         Text(rating, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                                     }
                                                     Spacer(modifier = Modifier.width(8.dp))
-                                                    Text(heroMovie.containerExtension?.uppercase() ?: "MP4", color = TiviTextSecondary, fontSize = 11.sp)
+                                                    Text(heroMovie.containerExtension?.uppercase() ?: "MP4", color = VegaColors.TextSecondary, fontSize = 11.sp)
                                                 }
 
                                                 Spacer(modifier = Modifier.height(6.dp))
 
                                                 Text(
                                                     text = heroMovie.name,
-                                                    color = Color.White,
+                                                    color = VegaColors.TextPrimary,
                                                     fontSize = 17.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     maxLines = 1,
@@ -510,7 +512,7 @@ private fun VodMediaContentGrid(
                                                 Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
                                                     text = "Ultra HD yüksek kaliteli yayın ve kesintisiz sinema deneyimi.",
-                                                    color = TiviTextSecondary,
+                                                    color = VegaColors.TextSecondary,
                                                     fontSize = 11.sp,
                                                     maxLines = 2,
                                                     overflow = TextOverflow.Ellipsis
@@ -519,15 +521,19 @@ private fun VodMediaContentGrid(
 
                                             Button(
                                                 onClick = { viewModel.loadVodDetail(heroMovie) },
-                                                colors = ButtonDefaults.buttonColors(containerColor = OpusCyan),
-                                                shape = RoundedCornerShape(10.dp),
+                                                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                                                shape = VegaShapes.Medium,
                                                 modifier = Modifier
                                                     .height(38.dp)
-                                                    .dpadFocusable(focusedBorderColor = Color.White)
+                                                    .dpadFocusable(
+                                                        focusedBorderColor = Color.White,
+                                                        shape = VegaShapes.Medium,
+                                                        onClick = { viewModel.loadVodDetail(heroMovie) }
+                                                    )
                                             ) {
-                                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(18.dp))
                                                 Spacer(modifier = Modifier.width(6.dp))
-                                                Text("Hemen İzle", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                Text("Hemen izle", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                             }
                                         }
                                     }
@@ -568,7 +574,7 @@ private fun VodMediaContentGrid(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             CircularProgressIndicator(
-                                                color = OpusCyan,
+                                                color = VegaColors.Accent,
                                                 modifier = Modifier.size(24.dp),
                                                 strokeWidth = 2.dp
                                             )
@@ -608,8 +614,8 @@ fun MoviePosterCard(
         modifier = Modifier
             .fillMaxWidth()
             .dpadFocusable(
-                focusedBorderColor = OpusCyan,
-                shape = RoundedCornerShape(12.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Medium,
                 onClick = onClick,
                 onFocusStateChange = { if (it) onFocused?.invoke() }
             )
@@ -618,8 +624,8 @@ fun MoviePosterCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.68f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(TiviCard)
+                .clip(VegaShapes.Medium)
+                .background(VegaColors.Card)
         ) {
             AsyncShimmerImage(
                 model = movie.streamIcon,
@@ -651,7 +657,7 @@ fun MoviePosterCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(6.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(VegaShapes.Small)
                         .background(Color.Black.copy(alpha = 0.75f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
@@ -659,7 +665,7 @@ fun MoviePosterCard(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
-                            tint = TiviGold,
+                            tint = VegaColors.Gold,
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(3.dp))
@@ -673,7 +679,7 @@ fun MoviePosterCard(
                 }
             }
 
-            // Kaldığı Yer İlerleme Çubuğu (Netflix/TiviMate Tarzı Kırmızı/Altın İlerleme Çizgisi)
+            // Kaldığı Yer İlerleme Çubuğu
             if (watchProgress != null && watchProgress.durationMs > 0 && watchProgress.positionMs > 10_000L) {
                 val progressFraction = (watchProgress.positionMs.toFloat() / watchProgress.durationMs.toFloat()).coerceIn(0f, 1f)
                 Box(
@@ -687,7 +693,7 @@ fun MoviePosterCard(
                         modifier = Modifier
                             .fillMaxWidth(progressFraction)
                             .fillMaxHeight()
-                            .background(TiviGold)
+                            .background(VegaColors.Gold)
                     )
                 }
             }
@@ -697,8 +703,8 @@ fun MoviePosterCard(
 
         Text(
             text = movie.name,
-            color = Color.White,
-            fontSize = 11.5.sp,
+            color = VegaColors.TextPrimary,
+            fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             minLines = 2,
             maxLines = 2,
@@ -708,11 +714,11 @@ fun MoviePosterCard(
 
         Spacer(modifier = Modifier.height(2.dp))
 
-        val extText = movie.containerExtension.uppercase().ifBlank { "FILM" }
+        val extText = movie.containerExtension.uppercase().ifBlank { "Film" }
         Text(
             text = extText,
-            color = Color(0xFF9E9E9E),
-            fontSize = 10.sp,
+            color = VegaColors.TextSecondary,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Normal,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis

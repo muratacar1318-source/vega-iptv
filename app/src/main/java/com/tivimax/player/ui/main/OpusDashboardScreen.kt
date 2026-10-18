@@ -30,6 +30,8 @@ import com.tivimax.player.data.model.VodStream
 import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 
@@ -78,7 +80,7 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .background(VegaColors.Background)
             .padding(horizontal = 16.dp, vertical = 10.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -87,9 +89,9 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
         // 1. KULLANICI & HESAP BİLGİ KARTI (HERO BANNER)
         // ==========================================
         Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = TiviCard),
-            border = BorderStroke(1.dp, TiviCardBorder),
+            shape = VegaShapes.Large,
+            colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+            border = BorderStroke(1.dp, VegaColors.Border),
             modifier = Modifier.fillMaxWidth()
         ) {
             Box(
@@ -98,8 +100,8 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                     .background(
                         Brush.horizontalGradient(
                             listOf(
-                                OpusCyan.copy(alpha = 0.12f),
-                                TiviPrimary.copy(alpha = 0.18f),
+                                VegaColors.Accent.copy(alpha = 0.12f),
+                                VegaColors.Accent.copy(alpha = 0.05f),
                                 Color.Transparent
                             )
                         )
@@ -116,17 +118,17 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                             modifier = Modifier
                                 .size(46.dp)
                                 .clip(CircleShape)
-                                .background(OpusCyan.copy(alpha = 0.25f)),
+                                .background(VegaColors.Accent.copy(alpha = 0.25f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.AccountCircle, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(28.dp))
+                            Icon(Icons.Default.AccountCircle, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(28.dp))
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = userInfo?.username ?: "Hoş Geldiniz",
-                                color = Color.White,
-                                fontSize = 16.sp,
+                                text = userInfo?.username ?: "Hoş geldin",
+                                color = VegaColors.TextPrimary,
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -134,12 +136,12 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                                     modifier = Modifier
                                         .size(7.dp)
                                         .clip(CircleShape)
-                                        .background(TiviGreen)
+                                        .background(VegaColors.Success)
                                 )
                                 Spacer(modifier = Modifier.width(5.dp))
                                 Text(
                                     text = "Abonelik Aktif",
-                                    color = TiviGreen,
+                                    color = VegaColors.Success,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -148,19 +150,19 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = TiviSurfaceVariant,
-                        border = BorderStroke(1.dp, TiviCardBorder)
+                        shape = VegaShapes.Medium,
+                        color = VegaColors.SurfaceVariant,
+                        border = BorderStroke(1.dp, VegaColors.Border)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Devices, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Default.Devices, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = "${userInfo?.activeCons ?: "1"}/${userInfo?.maxConnections ?: "1"} Bağlantı",
-                                color = Color.White,
+                                color = VegaColors.TextPrimary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -174,8 +176,8 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
         // 2. OPUS STYLE ANA KATEGORİ IZGARASI (GRID)
         // ==========================================
         Text(
-            text = "KATEGORİLER",
-            color = TiviTextMuted,
+            text = "Kategoriler",
+            color = VegaColors.TextMuted,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.sp
@@ -186,19 +188,19 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             OpusTileCard(
-                title = "CANLI TV",
+                title = "Canlı TV",
                 subtitle = if (totalLiveCount > 0) "$totalLiveCount Kanal" else "Canlı Yayınlar",
                 icon = Icons.Default.LiveTv,
-                accentColor = OpusCyan,
+                accentColor = VegaColors.Accent,
                 modifier = Modifier.weight(1f),
                 onClick = { viewModel.setSelectedHomeTab(HomeTab.LIVE_TV) }
             )
 
             OpusTileCard(
-                title = "FİLMLER",
+                title = "Filmler",
                 subtitle = if (totalVodCount > 0) "$totalVodCount Film" else "Seç İzle",
                 icon = Icons.Default.Movie,
-                accentColor = TiviPrimary,
+                accentColor = VegaColors.Accent,
                 modifier = Modifier.weight(1f),
                 onClick = { viewModel.setSelectedHomeTab(HomeTab.MOVIES) }
             )
@@ -209,28 +211,28 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             OpusTileCard(
-                title = "DİZİLER",
+                title = "Diziler",
                 subtitle = if (totalSeriesCount > 0) "$totalSeriesCount Dizi" else "Tüm Sezonlar",
                 icon = Icons.Default.VideoLibrary,
-                accentColor = Color(0xFFA855F7),
+                accentColor = VegaColors.Accent,
                 modifier = Modifier.weight(1f),
                 onClick = { viewModel.setSelectedHomeTab(HomeTab.SERIES) }
             )
 
             OpusTileCard(
-                title = "FAVORİLER",
-                subtitle = if (totalFavCount > 0) "$totalFavCount Kayıtlı" else "Favori Listem",
+                title = "Favoriler",
+                subtitle = if (totalFavCount > 0) "$totalFavCount Kayıtlı" else "Favori listem",
                 icon = Icons.Default.Star,
-                accentColor = TiviGold,
+                accentColor = VegaColors.Gold,
                 modifier = Modifier.weight(1f),
                 onClick = { viewModel.setSelectedHomeTab(HomeTab.FAVORITES) }
             )
 
             OpusTileCard(
-                title = "AYARLAR",
-                subtitle = "Sistem & Tercihler",
+                title = "Ayarlar",
+                subtitle = "Sistem ve tercihler",
                 icon = Icons.Default.Settings,
-                accentColor = TiviTextSecondary,
+                accentColor = VegaColors.TextSecondary,
                 modifier = Modifier.weight(1f),
                 onClick = { viewModel.setSelectedHomeTab(HomeTab.SETTINGS) }
             )
@@ -245,13 +247,13 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.History, contentDescription = null, tint = OpusCyan, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.History, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Kaldığın Yerden Devam Et (Film & Dizi)",
+                    text = "Kaldığın Yerden Devam Et (Film ve Dizi)",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = VegaColors.TextPrimary
                 )
             }
 
@@ -284,13 +286,13 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Whatshot, contentDescription = null, tint = TiviAccentLive, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Whatshot, contentDescription = null, tint = VegaColors.Live, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Son Eklenen Filmler",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = VegaColors.TextPrimary
                 )
             }
 
@@ -316,13 +318,13 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = Color(0xFFA855F7), modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.VideoLibrary, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Son Eklenen Diziler",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = VegaColors.TextPrimary
                 )
             }
 
@@ -340,7 +342,7 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
         }
 
         // ==========================================
-        // 5. SON İZLENEN CANLI KANALLAR
+        // 6. SON İZLENEN CANLI KANALLAR
         // ==========================================
         if (recentChannels.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
@@ -348,13 +350,13 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Tv, contentDescription = null, tint = TiviGold, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Tv, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Son İzlenen Canlı Kanallar",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = VegaColors.TextPrimary
                 )
             }
 
@@ -383,14 +385,14 @@ private fun OpusTileCard(
     onClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCard),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Medium,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = modifier
             .height(84.dp)
             .dpadFocusable(
                 focusedBorderColor = accentColor,
-                shape = RoundedCornerShape(14.dp),
+                shape = VegaShapes.Medium,
                 onClick = onClick
             )
     ) {
@@ -417,27 +419,27 @@ private fun OpusTileCard(
                     Box(
                         modifier = Modifier
                             .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(VegaShapes.Small)
                             .background(accentColor.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
                     }
-                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TiviTextMuted, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.ChevronRight, contentDescription = null, tint = VegaColors.TextMuted, modifier = Modifier.size(16.dp))
                 }
 
                 Column {
                     Text(
                         text = title,
-                        color = Color.White,
+                        color = VegaColors.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1
                     )
                     Text(
                         text = subtitle,
-                        color = TiviTextSecondary,
-                        fontSize = 10.sp,
+                        color = VegaColors.TextSecondary,
+                        fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -458,15 +460,15 @@ private fun DashboardProgressCard(
     } else 0f
 
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCardDark),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Medium,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .width(130.dp)
             .height(175.dp)
             .dpadFocusable(
-                focusedBorderColor = OpusCyan,
-                shape = RoundedCornerShape(12.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Medium,
                 onClick = onClick
             )
     ) {
@@ -496,17 +498,17 @@ private fun DashboardProgressCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(OpusCyan)
+                        .clip(VegaShapes.Small)
+                        .background(VegaColors.Accent)
                         .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    Text("KALAN", color = Color.Black, fontSize = 8.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Kalan", color = VegaColors.OnAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Column {
                     Text(
                         text = movie.name,
-                        color = Color.White,
+                        color = VegaColors.TextPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -515,12 +517,12 @@ private fun DashboardProgressCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     LinearProgressIndicator(
                         progress = { progressFraction },
-                        color = OpusCyan,
+                        color = VegaColors.Accent,
                         trackColor = Color.White.copy(alpha = 0.2f),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(3.dp)
-                            .clip(RoundedCornerShape(1.5.dp))
+                            .clip(VegaShapes.Small)
                     )
                 }
             }
@@ -537,15 +539,15 @@ private fun NewlyAddedVodCard(
     onClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCardDark),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Medium,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .width(120.dp)
             .height(165.dp)
             .dpadFocusable(
-                focusedBorderColor = OpusCyan,
-                shape = RoundedCornerShape(12.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Medium,
                 onClick = onClick
             )
     ) {
@@ -572,14 +574,14 @@ private fun NewlyAddedVodCard(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .clip(RoundedCornerShape(bottomEnd = 8.dp))
-                    .background(TiviAccentLive)
+                    .background(VegaColors.Live)
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = "YENİ",
+                    text = "Yeni",
                     color = Color.White,
-                    fontSize = 7.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp
                 )
             }
@@ -588,7 +590,7 @@ private fun NewlyAddedVodCard(
             val rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
             if (!rating.isNullOrBlank()) {
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
+                    shape = VegaShapes.Small,
                     color = Color.Black.copy(alpha = 0.65f),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -598,9 +600,9 @@ private fun NewlyAddedVodCard(
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(10.dp))
+                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(10.dp))
                         Spacer(modifier = Modifier.width(2.dp))
-                        Text(rating, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text(rating, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -608,7 +610,7 @@ private fun NewlyAddedVodCard(
             // Film İsmi - Alt
             Text(
                 text = movie.name,
-                color = Color.White,
+                color = VegaColors.TextPrimary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -628,15 +630,15 @@ private fun NewlyAddedSeriesCard(
     onClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCardDark),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Medium,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .width(120.dp)
             .height(165.dp)
             .dpadFocusable(
-                focusedBorderColor = Color(0xFFA855F7),
-                shape = RoundedCornerShape(12.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Medium,
                 onClick = onClick
             )
     ) {
@@ -663,14 +665,14 @@ private fun NewlyAddedSeriesCard(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .clip(RoundedCornerShape(bottomEnd = 8.dp))
-                    .background(Color(0xFFA855F7))
+                    .background(VegaColors.Accent)
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = "DİZİ",
-                    color = Color.White,
-                    fontSize = 7.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
+                    text = "Dizi",
+                    color = VegaColors.OnAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp
                 )
             }
@@ -679,7 +681,7 @@ private fun NewlyAddedSeriesCard(
             val rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
             if (!rating.isNullOrBlank()) {
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
+                    shape = VegaShapes.Small,
                     color = Color.Black.copy(alpha = 0.65f),
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -689,9 +691,9 @@ private fun NewlyAddedSeriesCard(
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(10.dp))
+                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(10.dp))
                         Spacer(modifier = Modifier.width(2.dp))
-                        Text(rating, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                        Text(rating, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -699,7 +701,7 @@ private fun NewlyAddedSeriesCard(
             // Dizi İsmi - Alt
             Text(
                 text = series.name,
-                color = Color.White,
+                color = VegaColors.TextPrimary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -719,15 +721,15 @@ private fun DashboardRecentChannelCard(
     onClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCardDark),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Medium,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .width(110.dp)
             .height(72.dp)
             .dpadFocusable(
-                focusedBorderColor = TiviGold,
-                shape = RoundedCornerShape(12.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Medium,
                 onClick = onClick
             )
     ) {
@@ -744,13 +746,13 @@ private fun DashboardRecentChannelCard(
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .size(28.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(VegaShapes.Small)
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = channel.name,
-                color = Color.White,
-                fontSize = 10.sp,
+                color = VegaColors.TextPrimary,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

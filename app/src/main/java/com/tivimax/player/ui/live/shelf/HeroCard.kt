@@ -31,6 +31,8 @@ import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 import kotlinx.coroutines.delay
 
 /**
@@ -150,10 +152,10 @@ fun HeroCard(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // Kırmızı CANLI Hapı
+                        // Kırmızı Canlı Hapı
                         Row(
                             modifier = Modifier
-                                .background(Color(0xFFFF1744).copy(alpha = 0.9f), RoundedCornerShape(6.dp))
+                                .background(VegaColors.Live.copy(alpha = 0.9f), VegaShapes.Small)
                                 .padding(horizontal = 7.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)

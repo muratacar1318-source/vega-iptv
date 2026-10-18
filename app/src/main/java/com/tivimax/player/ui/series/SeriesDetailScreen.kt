@@ -39,6 +39,8 @@ import com.tivimax.player.data.model.SeriesStream
 import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import kotlinx.coroutines.delay
@@ -106,7 +108,7 @@ fun SeriesDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .background(VegaColors.Background)
     ) {
         // Arka Plan Afiş Resmi (Backdrop - Netflix Ambient Blur)
         AsyncShimmerImage(
@@ -134,19 +136,19 @@ fun SeriesDetailScreen(
                     if (isWideScreen) {
                         Brush.horizontalGradient(
                             colors = listOf(
-                                TiviBackground.copy(alpha = 0.95f),
-                                TiviBackground.copy(alpha = 0.88f),
-                                TiviBackground.copy(alpha = 0.70f),
-                                TiviBackground.copy(alpha = 0.90f)
+                                VegaColors.Background.copy(alpha = 0.95f),
+                                VegaColors.Background.copy(alpha = 0.88f),
+                                VegaColors.Background.copy(alpha = 0.70f),
+                                VegaColors.Background.copy(alpha = 0.90f)
                             )
                         )
                     } else {
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                TiviBackground.copy(alpha = 0.4f),
-                                TiviBackground.copy(alpha = 0.85f),
-                                TiviBackground
+                                VegaColors.Background.copy(alpha = 0.4f),
+                                VegaColors.Background.copy(alpha = 0.85f),
+                                VegaColors.Background
                             )
                         )
                     }
@@ -165,7 +167,7 @@ fun SeriesDetailScreen(
                 .size(44.dp)
                 .zIndex(10f)
                 .dpadFocusable(
-                    focusedBorderColor = OpusCyan,
+                    focusedBorderColor = VegaColors.Accent,
                     shape = CircleShape,
                     scale = 1.08f,
                     onClick = onBack
@@ -203,9 +205,9 @@ fun SeriesDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(TiviCard)
-                            .border(1.dp, TiviCardBorder, RoundedCornerShape(14.dp))
+                            .clip(VegaShapes.Large)
+                            .background(VegaColors.Card)
+                            .border(1.dp, VegaColors.Border, VegaShapes.Large)
                     ) {
                         AsyncShimmerImage(
                             model = info?.cover ?: series.cover,
@@ -225,27 +227,27 @@ fun SeriesDetailScreen(
                         val hasNextProgress = nextEpProgress != null && nextEpProgress.positionMs > 10_000L && nextEpProgress.durationMs > 0
                         Button(
                             onClick = { viewModel.playSeriesEpisode(nextEp, series.name, resume = true) },
-                            colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                            shape = VegaShapes.Medium,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(46.dp)
                                 .focusRequester(playButtonFocusRequester)
                                 .dpadFocusable(
                                     focusedBorderColor = Color.White,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = VegaShapes.Medium,
                                     onClick = { viewModel.playSeriesEpisode(nextEp, series.name, resume = true) }
                                 )
                         ) {
-                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = if (hasNextProgress) {
                                     val mins = (nextEpProgress.positionMs / 60000)
                                     val secs = ((nextEpProgress.positionMs % 60000) / 1000)
-                                    "Devam Et (${String.format("%02d:%02d", mins, secs)})"
+                                    "Devam et (${String.format("%02d:%02d", mins, secs)})"
                                 } else {
-                                    "▶ S$selectedSeason B${nextEp.episodeNum} Başlat"
+                                    "Sezon $selectedSeason, ${nextEp.episodeNum}. bölümü başlat"
                                 },
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
@@ -259,26 +261,26 @@ fun SeriesDetailScreen(
                     // Favori Butonu
                     OutlinedButton(
                         onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) },
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, TiviCardBorder),
+                        shape = VegaShapes.Medium,
+                        border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
                             .dpadFocusable(
-                                focusedBorderColor = OpusCyan,
-                                shape = RoundedCornerShape(12.dp),
+                                focusedBorderColor = VegaColors.Accent,
+                                shape = VegaShapes.Medium,
                                 onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) }
                             )
                     ) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                             contentDescription = null,
-                            tint = if (isFavorite) TiviGold else TiviTextSecondary
+                            tint = if (isFavorite) VegaColors.Gold else VegaColors.TextSecondary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isFavorite) "★ Listemden Kaldır" else "☆ Listeme Ekle",
-                            color = TiviTextPrimary,
+                            text = if (isFavorite) "Listemden kaldır" else "Listeme ekle",
+                            color = VegaColors.TextPrimary,
                             fontSize = 13.sp
                         )
                     }
@@ -294,15 +296,15 @@ fun SeriesDetailScreen(
                     ) {
                         val plot = info?.plot ?: series.plot
                         if (!plot.isNullOrEmpty()) {
-                            Text(text = "Dizi Konusu", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Dizi Konusu", color = VegaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = plot, color = TiviTextSecondary, fontSize = 12.sp, lineHeight = 18.sp)
+                            Text(text = plot, color = VegaColors.TextSecondary, fontSize = 13.sp, lineHeight = 18.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
                         val cast = info?.cast
                         if (!cast.isNullOrEmpty()) {
-                            Text(text = "Oyuncular: $cast", color = TiviTextSecondary, fontSize = 11.sp)
+                            Text(text = "Oyuncular: $cast", color = VegaColors.TextSecondary, fontSize = 11.sp)
                         }
                     }
                 }
@@ -316,9 +318,9 @@ fun SeriesDetailScreen(
                     // Dizi Başlığı
                     Text(
                         text = info?.name ?: series.name,
-                        fontSize = 26.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = TiviTextPrimary,
+                        color = VegaColors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -334,26 +336,26 @@ fun SeriesDetailScreen(
                         if (!rating.isNullOrEmpty()) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(TiviGold.copy(alpha = 0.2f))
+                                    .clip(VegaShapes.Small)
+                                    .background(VegaColors.Gold.copy(alpha = 0.2f))
                                     .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(14.dp))
+                                    Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text(text = "IMDb $rating", color = TiviGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = "IMDb $rating", color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
 
                         info?.genre?.let { genre ->
                             if (genre.isNotBlank()) {
-                                Text(text = genre, color = OpusCyan, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                Text(text = genre, color = VegaColors.Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             }
                         }
 
                         if (seasonKeys.isNotEmpty()) {
-                            Text(text = "• ${seasonKeys.size} Sezon", color = TiviTextSecondary, fontSize = 12.sp)
+                            Text(text = "• ${seasonKeys.size} Sezon", color = VegaColors.TextSecondary, fontSize = 13.sp)
                         }
                     }
 
@@ -368,19 +370,19 @@ fun SeriesDetailScreen(
                             items(seasonKeys) { seasonNum ->
                                 val isSelected = seasonNum == selectedSeason
                                 Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviCard,
-                                    border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                    shape = VegaShapes.Medium,
+                                    color = if (isSelected) VegaColors.Accent.copy(alpha = 0.2f) else VegaColors.Card,
+                                    border = BorderStroke(1.dp, if (isSelected) VegaColors.Accent else VegaColors.Border),
                                     modifier = Modifier.dpadFocusable(
-                                        focusedBorderColor = OpusCyan,
-                                        shape = RoundedCornerShape(10.dp),
+                                        focusedBorderColor = VegaColors.Accent,
+                                        shape = VegaShapes.Medium,
                                         onClick = { selectedSeason = seasonNum }
                                     )
                                 ) {
                                     Text(
                                         text = "Sezon $seasonNum",
-                                        color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                        fontSize = 12.sp,
+                                        color = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
+                                        fontSize = 13.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                                     )
@@ -401,7 +403,7 @@ fun SeriesDetailScreen(
                         ) {
                             Text(
                                 text = "Bölümler yükleniyor...",
-                                color = TiviTextSecondary,
+                                color = VegaColors.TextSecondary,
                                 fontSize = 14.sp
                             )
                         }
@@ -438,10 +440,10 @@ fun SeriesDetailScreen(
 
                     Text(
                         text = info?.name ?: series.name,
-                        fontSize = 24.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = TiviTextPrimary,
-                        lineHeight = 32.sp
+                        color = VegaColors.TextPrimary,
+                        lineHeight = 28.sp
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -454,21 +456,21 @@ fun SeriesDetailScreen(
                         if (!rating.isNullOrEmpty()) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(TiviGold.copy(alpha = 0.2f))
+                                    .clip(VegaShapes.Small)
+                                    .background(VegaColors.Gold.copy(alpha = 0.2f))
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(14.dp))
+                                    Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text(text = "IMDb $rating", color = TiviGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = "IMDb $rating", color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
 
                         info?.genre?.let { genre ->
                             if (genre.isNotBlank()) {
-                                Text(text = genre, color = OpusCyan, fontSize = 13.sp)
+                                Text(text = genre, color = VegaColors.Accent, fontSize = 13.sp)
                             }
                         }
                     }
@@ -477,7 +479,7 @@ fun SeriesDetailScreen(
 
                     val plot = info?.plot ?: series.plot
                     if (!plot.isNullOrEmpty()) {
-                        Text(text = plot, color = TiviTextSecondary, fontSize = 14.sp, lineHeight = 22.sp)
+                        Text(text = plot, color = VegaColors.TextSecondary, fontSize = 14.sp, lineHeight = 22.sp)
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
@@ -489,27 +491,27 @@ fun SeriesDetailScreen(
                         val hasNextProgress = nextEpProgress != null && nextEpProgress.positionMs > 10_000L && nextEpProgress.durationMs > 0
                         Button(
                             onClick = { viewModel.playSeriesEpisode(nextEp, series.name, resume = true) },
-                            colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                            shape = VegaShapes.Medium,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
                                 .focusRequester(playButtonFocusRequester)
                                 .dpadFocusable(
                                     focusedBorderColor = Color.White,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = VegaShapes.Medium,
                                     onClick = { viewModel.playSeriesEpisode(nextEp, series.name, resume = true) }
                                 )
                         ) {
-                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = if (hasNextProgress) {
                                     val mins = (nextEpProgress.positionMs / 60000)
                                     val secs = ((nextEpProgress.positionMs % 60000) / 1000)
-                                    "Kaldığın Yerden Devam Et (${String.format("%02d:%02d", mins, secs)})"
+                                    "Devam et (${String.format("%02d:%02d", mins, secs)})"
                                 } else {
-                                    "Sezon $selectedSeason, ${nextEp.episodeNum}. Bölümü Başlat"
+                                    "Sezon $selectedSeason, ${nextEp.episodeNum}. bölümü başlat"
                                 },
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
@@ -520,26 +522,26 @@ fun SeriesDetailScreen(
 
                     OutlinedButton(
                         onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) },
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, TiviCardBorder),
+                        shape = VegaShapes.Medium,
+                        border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(46.dp)
                             .dpadFocusable(
-                                focusedBorderColor = OpusCyan,
-                                shape = RoundedCornerShape(12.dp),
+                                focusedBorderColor = VegaColors.Accent,
+                                shape = VegaShapes.Medium,
                                 onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) }
                             )
                     ) {
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                             contentDescription = null,
-                            tint = if (isFavorite) TiviGold else TiviTextSecondary
+                            tint = if (isFavorite) VegaColors.Gold else VegaColors.TextSecondary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isFavorite) "Diziyi Favorilerimden Çıkar" else "Diziyi Favorilerime Ekle",
-                            color = TiviTextPrimary,
+                            text = if (isFavorite) "Listemden kaldır" else "Listeme ekle",
+                            color = VegaColors.TextPrimary,
                             fontSize = 13.sp
                         )
                     }
@@ -548,8 +550,8 @@ fun SeriesDetailScreen(
 
                     Text(
                         text = "Bölümler",
-                        color = TiviTextPrimary,
-                        fontSize = 18.sp,
+                        color = VegaColors.TextPrimary,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
 
@@ -563,19 +565,19 @@ fun SeriesDetailScreen(
                             items(seasonKeys) { seasonNum ->
                                 val isSelected = seasonNum == selectedSeason
                                 Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviCard,
-                                    border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                    shape = VegaShapes.Medium,
+                                    color = if (isSelected) VegaColors.Accent.copy(alpha = 0.2f) else VegaColors.Card,
+                                    border = BorderStroke(1.dp, if (isSelected) VegaColors.Accent else VegaColors.Border),
                                     modifier = Modifier.dpadFocusable(
-                                        focusedBorderColor = OpusCyan,
-                                        shape = RoundedCornerShape(10.dp),
+                                        focusedBorderColor = VegaColors.Accent,
+                                        shape = VegaShapes.Medium,
                                         onClick = { selectedSeason = seasonNum }
                                     )
                                 ) {
                                     Text(
                                         text = "Sezon $seasonNum",
-                                        color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                        fontSize = 12.sp,
+                                        color = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
+                                        fontSize = 13.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                                     )
@@ -591,7 +593,7 @@ fun SeriesDetailScreen(
                     item {
                         Text(
                             text = "Bölümler yükleniyor...",
-                            color = TiviTextSecondary,
+                            color = VegaColors.TextSecondary,
                             fontSize = 14.sp,
                             modifier = Modifier.padding(vertical = 16.dp)
                         )
@@ -618,13 +620,13 @@ fun EpisodeCard(
     onEpisodeClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = TiviCard),
-        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        shape = VegaShapes.Medium,
         modifier = Modifier
             .fillMaxWidth()
             .dpadFocusable(
-                focusedBorderColor = OpusCyan,
-                shape = RoundedCornerShape(12.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Medium,
                 onClick = onEpisodeClick
             )
     ) {
@@ -638,8 +640,8 @@ fun EpisodeCard(
             Box(
                 modifier = Modifier
                     .size(width = 84.dp, height = 54.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF0F141F)),
+                    .clip(VegaShapes.Small)
+                    .background(VegaColors.Surface),
                 contentAlignment = Alignment.Center
             ) {
                 if (!episode.info?.movieImage.isNullOrEmpty()) {
@@ -653,7 +655,7 @@ fun EpisodeCard(
                 Icon(
                     imageVector = Icons.Default.PlayCircle,
                     contentDescription = "Oynat",
-                    tint = OpusCyan,
+                    tint = VegaColors.Accent,
                     modifier = Modifier.size(26.dp)
                 )
 
@@ -671,7 +673,7 @@ fun EpisodeCard(
                             modifier = Modifier
                                 .fillMaxWidth(progressFraction)
                                 .fillMaxHeight()
-                                .background(TiviGold)
+                                .background(VegaColors.Gold)
                         )
                     }
                 }
@@ -682,7 +684,7 @@ fun EpisodeCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "${episode.episodeNum}. Bölüm: ${episode.title.ifEmpty { "Bölüm ${episode.episodeNum}" }}",
-                    color = TiviTextPrimary,
+                    color = VegaColors.TextPrimary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -691,17 +693,17 @@ fun EpisodeCard(
                 Spacer(modifier = Modifier.height(3.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     episode.info?.duration?.let { dur ->
-                        Text(text = dur, color = TiviTextSecondary, fontSize = 11.sp)
+                        Text(text = dur, color = VegaColors.TextSecondary, fontSize = 11.sp)
                     }
                     if (watchProgress != null && watchProgress.durationMs > 0 && watchProgress.positionMs > 10_000L) {
                         if (episode.info?.duration != null) {
-                            Text(text = " • ", color = TiviTextSecondary, fontSize = 11.sp)
+                            Text(text = " • ", color = VegaColors.TextSecondary, fontSize = 11.sp)
                         }
                         val mins = (watchProgress.positionMs / 60000)
                         val secs = ((watchProgress.positionMs % 60000) / 1000)
                         Text(
-                            text = "Kaldığın Yer: ${String.format("%02d:%02d", mins, secs)}",
-                            color = TiviGold,
+                            text = "Kaldığın yer: ${String.format("%02d:%02d", mins, secs)}",
+                            color = VegaColors.Gold,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold
                         )

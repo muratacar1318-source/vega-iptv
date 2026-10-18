@@ -28,6 +28,7 @@ import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
 
 /**
  * Netflix tarzı "Devam Et" ve "Favoriler" üst yatay rafları.
@@ -174,7 +175,7 @@ private fun ShelfBlock(
                                     )
                                 }
 
-                                // Kırmızı CANLI Noktası
+                                // Kırmızı Canlı Noktası
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(3.dp)
@@ -182,11 +183,11 @@ private fun ShelfBlock(
                                     Box(
                                         modifier = Modifier
                                             .size(5.dp)
-                                            .background(Color(0xFFFF1744), CircleShape)
+                                            .background(VegaColors.Live, CircleShape)
                                     )
                                     Text(
-                                        text = "CANLI",
-                                        color = Color(0xFFFF1744),
+                                        text = "Canlı",
+                                        color = VegaColors.Live,
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.ExtraBold
                                     )

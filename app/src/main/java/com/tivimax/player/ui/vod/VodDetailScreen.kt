@@ -36,6 +36,8 @@ import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 import kotlinx.coroutines.delay
 
 @Composable
@@ -89,7 +91,7 @@ fun VodDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .background(VegaColors.Background)
     ) {
         // Arka Plan Afiş Resmi (Backdrop - Ambient Blur)
         AsyncShimmerImage(
@@ -117,19 +119,19 @@ fun VodDetailScreen(
                     if (isWideScreen) {
                         Brush.horizontalGradient(
                             colors = listOf(
-                                TiviBackground.copy(alpha = 0.95f),
-                                TiviBackground.copy(alpha = 0.85f),
-                                TiviBackground.copy(alpha = 0.65f),
-                                TiviBackground.copy(alpha = 0.85f)
+                                VegaColors.Background.copy(alpha = 0.95f),
+                                VegaColors.Background.copy(alpha = 0.85f),
+                                VegaColors.Background.copy(alpha = 0.65f),
+                                VegaColors.Background.copy(alpha = 0.85f)
                             )
                         )
                     } else {
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                TiviBackground.copy(alpha = 0.4f),
-                                TiviBackground.copy(alpha = 0.85f),
-                                TiviBackground
+                                VegaColors.Background.copy(alpha = 0.4f),
+                                VegaColors.Background.copy(alpha = 0.85f),
+                                VegaColors.Background
                             )
                         )
                     }
@@ -148,7 +150,7 @@ fun VodDetailScreen(
                 .size(44.dp)
                 .zIndex(10f)
                 .dpadFocusable(
-                    focusedBorderColor = OpusCyan,
+                    focusedBorderColor = VegaColors.Accent,
                     shape = CircleShape,
                     scale = 1.08f,
                     onClick = onBack
@@ -181,9 +183,9 @@ fun VodDetailScreen(
                     modifier = Modifier
                         .fillMaxHeight(0.88f)
                         .aspectRatio(0.68f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(TiviCard)
-                        .border(1.dp, TiviCardBorder, RoundedCornerShape(16.dp))
+                        .clip(VegaShapes.Large)
+                        .background(VegaColors.Card)
+                        .border(1.dp, VegaColors.Border, VegaShapes.Large)
                 ) {
                     AsyncShimmerImage(
                         model = info?.movieImage ?: movie.streamIcon,
@@ -204,12 +206,12 @@ fun VodDetailScreen(
                     // Film Başlığı
                     Text(
                         text = info?.name ?: movie.name,
-                        fontSize = 26.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = TiviTextPrimary,
+                        color = VegaColors.TextPrimary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        lineHeight = 32.sp
+                        lineHeight = 28.sp
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -223,31 +225,31 @@ fun VodDetailScreen(
                         if (!rating.isNullOrEmpty()) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(TiviGold.copy(alpha = 0.2f))
+                                    .clip(VegaShapes.Small)
+                                    .background(VegaColors.Gold.copy(alpha = 0.2f))
                                     .padding(horizontal = 8.dp, vertical = 3.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(14.dp))
+                                    Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(14.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text(text = "IMDb $rating", color = TiviGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = "IMDb $rating", color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
 
                         val duration = info?.duration ?: info?.durationMinutes?.let { "$it dk" }
                         if (!duration.isNullOrEmpty()) {
-                            Text(text = duration, color = TiviTextSecondary, fontSize = 13.sp)
+                            Text(text = duration, color = VegaColors.TextSecondary, fontSize = 13.sp)
                         }
 
                         val year = info?.releaseDate?.take(4)
                         if (!year.isNullOrEmpty()) {
-                            Text(text = year, color = TiviTextSecondary, fontSize = 13.sp)
+                            Text(text = year, color = VegaColors.TextSecondary, fontSize = 13.sp)
                         }
 
                         info?.genre?.let { genre ->
                             if (genre.isNotBlank()) {
-                                Text(text = "• $genre", color = OpusCyan, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                Text(text = "• $genre", color = VegaColors.Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
@@ -265,80 +267,80 @@ fun VodDetailScreen(
                             val resumeTimeStr = formatDuration(watchProgress!!.positionMs)
                             Button(
                                 onClick = { viewModel.playVod(movie, resume = true) },
-                                colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                                shape = VegaShapes.Medium,
                                 modifier = Modifier
                                     .height(46.dp)
                                     .focusRequester(playButtonFocusRequester)
                                     .dpadFocusable(
                                         focusedBorderColor = Color.White,
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = VegaShapes.Medium,
                                         onClick = { viewModel.playVod(movie, resume = true) }
                                     )
                             ) {
-                                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "$resumeTimeStr Devam Et", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "$resumeTimeStr Devam et", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
 
                             OutlinedButton(
                                 onClick = { viewModel.playVod(movie, resume = false) },
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, TiviCardBorder),
+                                shape = VegaShapes.Medium,
+                                border = BorderStroke(1.dp, VegaColors.Border),
                                 modifier = Modifier
                                     .height(46.dp)
                                     .dpadFocusable(
-                                        focusedBorderColor = OpusCyan,
-                                        shape = RoundedCornerShape(12.dp),
+                                        focusedBorderColor = VegaColors.Accent,
+                                        shape = VegaShapes.Medium,
                                         onClick = { viewModel.playVod(movie, resume = false) }
                                     )
                             ) {
-                                Icon(imageVector = Icons.Default.Replay, contentDescription = null, tint = TiviTextPrimary)
+                                Icon(imageVector = Icons.Default.Replay, contentDescription = null, tint = VegaColors.TextPrimary)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "Baştan İzle", color = TiviTextPrimary, fontSize = 13.sp)
+                                Text(text = "Baştan izle", color = VegaColors.TextPrimary, fontSize = 13.sp)
                             }
                         } else {
                             Button(
                                 onClick = { viewModel.playVod(movie, resume = false) },
-                                colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                                shape = VegaShapes.Medium,
                                 modifier = Modifier
                                     .height(46.dp)
                                     .focusRequester(playButtonFocusRequester)
                                     .dpadFocusable(
                                         focusedBorderColor = Color.White,
-                                        shape = RoundedCornerShape(12.dp),
+                                        shape = VegaShapes.Medium,
                                         onClick = { viewModel.playVod(movie, resume = false) }
                                     )
                             ) {
-                                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                                Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = "▶ Filmi İzle", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "Filmi izle", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
 
                         // Listeme Ekle / Favori Butonu
                         OutlinedButton(
                             onClick = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, TiviCardBorder),
+                            shape = VegaShapes.Medium,
+                            border = BorderStroke(1.dp, VegaColors.Border),
                             modifier = Modifier
                                 .height(46.dp)
                                 .dpadFocusable(
-                                    focusedBorderColor = OpusCyan,
-                                    shape = RoundedCornerShape(12.dp),
+                                    focusedBorderColor = VegaColors.Accent,
+                                    shape = VegaShapes.Medium,
                                     onClick = { viewModel.toggleFavoriteVod(movie.streamId.toString()) }
                                 )
                         ) {
                             Icon(
                                 imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                                 contentDescription = null,
-                                tint = if (isFavorite) TiviGold else TiviTextSecondary
+                                tint = if (isFavorite) VegaColors.Gold else VegaColors.TextSecondary
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = if (isFavorite) "★ Listemden Kaldır" else "☆ Listeme Ekle",
-                                color = TiviTextPrimary,
+                                text = if (isFavorite) "Listemden kaldır" else "Listeme ekle",
+                                color = VegaColors.TextPrimary,
                                 fontSize = 13.sp
                             )
                         }
@@ -355,22 +357,22 @@ fun VodDetailScreen(
                     ) {
                         val plot = info?.plot ?: info?.description
                         if (!plot.isNullOrEmpty()) {
-                            Text(text = "Özet", color = TiviTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Özet", color = VegaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = plot, color = TiviTextSecondary, fontSize = 13.sp, lineHeight = 19.sp)
+                            Text(text = plot, color = VegaColors.TextSecondary, fontSize = 13.sp, lineHeight = 19.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
                         info?.director?.let { dir ->
                             if (dir.isNotBlank()) {
-                                Text(text = "Yönetmen: $dir", color = TiviTextSecondary, fontSize = 12.sp)
+                                Text(text = "Yönetmen: $dir", color = VegaColors.TextSecondary, fontSize = 11.sp)
                                 Spacer(modifier = Modifier.height(2.dp))
                             }
                         }
 
                         val cast = info?.cast ?: info?.actors
                         if (!cast.isNullOrEmpty()) {
-                            Text(text = "Oyuncular: $cast", color = TiviTextSecondary, fontSize = 12.sp)
+                            Text(text = "Oyuncular: $cast", color = VegaColors.TextSecondary, fontSize = 11.sp)
                         }
                     }
                 }
@@ -389,10 +391,10 @@ fun VodDetailScreen(
                 // Film Başlığı
                 Text(
                     text = info?.name ?: movie.name,
-                    fontSize = 24.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = TiviTextPrimary,
-                    lineHeight = 32.sp
+                    color = VegaColors.TextPrimary,
+                    lineHeight = 28.sp
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -406,26 +408,26 @@ fun VodDetailScreen(
                     if (!rating.isNullOrEmpty()) {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(TiviGold.copy(alpha = 0.2f))
+                                .clip(VegaShapes.Small)
+                                .background(VegaColors.Gold.copy(alpha = 0.2f))
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = TiviGold, modifier = Modifier.size(14.dp))
+                                Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = "IMDb $rating", color = TiviGold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "IMDb $rating", color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
 
                     val duration = info?.duration ?: info?.durationMinutes?.let { "$it dk" }
                     if (!duration.isNullOrEmpty()) {
-                        Text(text = duration, color = TiviTextSecondary, fontSize = 13.sp)
+                        Text(text = duration, color = VegaColors.TextSecondary, fontSize = 13.sp)
                     }
 
                     val year = info?.releaseDate?.take(4)
                     if (!year.isNullOrEmpty()) {
-                        Text(text = year, color = TiviTextSecondary, fontSize = 13.sp)
+                        Text(text = year, color = VegaColors.TextSecondary, fontSize = 13.sp)
                     }
                 }
 
@@ -436,60 +438,60 @@ fun VodDetailScreen(
                     val resumeTimeStr = formatDuration(watchProgress!!.positionMs)
                     Button(
                         onClick = { viewModel.playVod(movie, resume = true) },
-                        colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                        shape = VegaShapes.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
                             .focusRequester(playButtonFocusRequester)
                             .dpadFocusable(
                                 focusedBorderColor = Color.White,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = VegaShapes.Medium,
                                 onClick = { viewModel.playVod(movie, resume = true) }
                             )
                     ) {
-                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "$resumeTimeStr Kaldığın Yerden Devam Et", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "$resumeTimeStr Devam et", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
                     OutlinedButton(
                         onClick = { viewModel.playVod(movie, resume = false) },
-                        shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, TiviCardBorder),
+                        shape = VegaShapes.Medium,
+                        border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
                             .dpadFocusable(
-                                focusedBorderColor = OpusCyan,
-                                shape = RoundedCornerShape(14.dp),
+                                focusedBorderColor = VegaColors.Accent,
+                                shape = VegaShapes.Medium,
                                 onClick = { viewModel.playVod(movie, resume = false) }
                             )
                     ) {
-                        Icon(imageVector = Icons.Default.Replay, contentDescription = null, tint = TiviTextPrimary)
+                        Icon(imageVector = Icons.Default.Replay, contentDescription = null, tint = VegaColors.TextPrimary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Baştan İzle", color = TiviTextPrimary, fontSize = 14.sp)
+                        Text(text = "Baştan izle", color = VegaColors.TextPrimary, fontSize = 14.sp)
                     }
                 } else {
                     Button(
                         onClick = { viewModel.playVod(movie, resume = false) },
-                        colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                        shape = VegaShapes.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
                             .focusRequester(playButtonFocusRequester)
                             .dpadFocusable(
                                 focusedBorderColor = Color.White,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = VegaShapes.Medium,
                                 onClick = { viewModel.playVod(movie, resume = false) }
                             )
                     ) {
-                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
+                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Filmi İzle", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Filmi izle", fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -497,26 +499,26 @@ fun VodDetailScreen(
 
                 OutlinedButton(
                     onClick = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, TiviCardBorder),
+                    shape = VegaShapes.Medium,
+                    border = BorderStroke(1.dp, VegaColors.Border),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
                         .dpadFocusable(
-                            focusedBorderColor = OpusCyan,
-                            shape = RoundedCornerShape(14.dp),
+                            focusedBorderColor = VegaColors.Accent,
+                            shape = VegaShapes.Medium,
                             onClick = { viewModel.toggleFavoriteVod(movie.streamId.toString()) }
                         )
                 ) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                         contentDescription = null,
-                        tint = if (isFavorite) TiviGold else TiviTextSecondary
+                        tint = if (isFavorite) VegaColors.Gold else VegaColors.TextSecondary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (isFavorite) "Favorilerimden Kaldır" else "Listeme Ekle",
-                        color = TiviTextPrimary,
+                        text = if (isFavorite) "Listemden kaldır" else "Listeme ekle",
+                        color = VegaColors.TextPrimary,
                         fontSize = 14.sp
                     )
                 }
@@ -525,29 +527,29 @@ fun VodDetailScreen(
 
                 val plot = info?.plot ?: info?.description
                 if (!plot.isNullOrEmpty()) {
-                    Text(text = "Özet", color = TiviTextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Özet", color = VegaColors.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = plot, color = TiviTextSecondary, fontSize = 14.sp, lineHeight = 22.sp)
+                    Text(text = plot, color = VegaColors.TextSecondary, fontSize = 14.sp, lineHeight = 22.sp)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 info?.director?.let { dir ->
                     if (dir.isNotBlank()) {
-                        Text(text = "Yönetmen: $dir", color = TiviTextSecondary, fontSize = 13.sp)
+                        Text(text = "Yönetmen: $dir", color = VegaColors.TextSecondary, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
 
                 val cast = info?.cast ?: info?.actors
                 if (!cast.isNullOrEmpty()) {
-                    Text(text = "Oyuncular: $cast", color = TiviTextSecondary, fontSize = 13.sp)
+                    Text(text = "Oyuncular: $cast", color = VegaColors.TextSecondary, fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(4.dp))
                 }
 
                 info?.genre?.let { genre ->
                     if (genre.isNotBlank()) {
-                        Text(text = "Tür: $genre", color = TiviPrimary, fontSize = 13.sp)
+                        Text(text = "Tür: $genre", color = VegaColors.Accent, fontSize = 13.sp)
                     }
                 }
 
