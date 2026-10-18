@@ -110,212 +110,108 @@ fun PlayerSettingsPanel(
 ) {
     if (!visible) return
 
-    BackHandler(enabled = visible) {
-        onClose()
-    }
-
     val firstFocus = remember { FocusRequester() }
 
-    LaunchedEffect(visible) {
-        if (visible) {
-            delay(100)
-            runCatching { firstFocus.requestFocus() }
-        }
-    }
-
     var selectedTab by remember(visible, initialTab) {
-        mutableStateOf(if (isLive && (initialTab == SettingsTab.ASPECT_RATIO || initialTab == SettingsTab.SPEED)) SettingsTab.AUDIO else initialTab)
+        mutableStateOf(if (isLive && initialTab == SettingsTab.SPEED) SettingsTab.AUDIO else initialTab)
     }
 
     val availableTabs = remember(isLive) {
         if (isLive) {
-            listOf(SettingsTab.AUDIO, SettingsTab.SUBTITLE)
+            listOf(SettingsTab.AUDIO, SettingsTab.SUBTITLE, SettingsTab.ASPECT_RATIO)
         } else {
             listOf(SettingsTab.AUDIO, SettingsTab.SUBTITLE, SettingsTab.ASPECT_RATIO, SettingsTab.SPEED)
         }
     }
 
-    val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .displayCutoutPadding()
+    PlayerSidePanel(
+        visible = visible,
+        title = "Ayarlar",
+        onClose = onClose,
+        modifier = modifier,
+        isPortrait = isPortrait,
+        firstFocusRequester = firstFocus
     ) {
-        // Karartma / Scrim (Dış alana dokununca kapat)
-        Box(
+        // SEKME BUTONLARI (Tabs)
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    onClose()
-                }
-        )
-
-        // Panel Gövdesi
-        AnimatedVisibility(
-            visible = visible,
-            enter = if (isPortrait) {
-                slideInVertically(initialOffsetY = { it }) + fadeIn()
-            } else {
-                slideInHorizontally(initialOffsetX = { it }) + fadeIn()
-            },
-            exit = if (isPortrait) {
-                slideOutVertically(targetOffsetY = { it }) + fadeOut()
-            } else {
-                slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
-            },
-            modifier = Modifier.align(if (isPortrait) Alignment.BottomCenter else Alignment.CenterEnd)
+                .fillMaxWidth()
+                .height(40.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Surface(
-                modifier = if (isPortrait) {
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = screenHeightDp * 0.55f)
-                } else {
-                    Modifier
-                        .width(340.dp)
-                        .fillMaxHeight()
-                }
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { /* Dokunmayı panel içinde yut */ },
-                shape = if (isPortrait) {
-                    RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                } else {
-                    RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
-                },
-                color = VegaColors.OverlayPanel,
-                border = BorderStroke(1.dp, VegaColors.Border),
-                shadowElevation = 16.dp
-            ) {
-                Column(
+            availableTabs.forEach { tab ->
+                val isSelected = (selectedTab == tab)
+                var isFocused by remember { mutableStateOf(false) }
+                Surface(
+                    onClick = { selectedTab = tab },
+                    shape = VegaShapes.Small,
+                    color = if (isFocused) VegaColors.Accent.copy(alpha = 0.25f)
+                    else if (isSelected) VegaColors.Accent.copy(alpha = 0.18f)
+                    else VegaColors.SurfaceVariant,
+                    border = if (isFocused) BorderStroke(2.dp, VegaColors.Accent)
+                    else if (isSelected) BorderStroke(1.dp, VegaColors.Accent)
+                    else BorderStroke(1.dp, VegaColors.Border),
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .weight(1f)
+                        .height(40.dp)
+                        .then(if (isSelected) Modifier.focusRequester(firstFocus) else Modifier)
+                        .onFocusChanged { isFocused = it.isFocused }
                 ) {
-                    // ÜST BAR: Başlık ve Kapat Butonu
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Ayarlar",
-                            fontSize = VegaText.SectionTitle,
-                            fontWeight = FontWeight.Bold,
-                            color = VegaColors.TextPrimary
-                        )
-                        var isCloseFocused by remember { mutableStateOf(false) }
-                        IconButton(
-                            onClick = onClose,
-                            modifier = Modifier
-                                .size(VegaSizes.IconButton)
-                                .onFocusChanged { isCloseFocused = it.isFocused }
-                                .then(
-                                    if (isCloseFocused) {
-                                        Modifier.border(2.dp, VegaColors.Accent, CircleShape)
-                                    } else Modifier
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Kapat",
-                                tint = if (isCloseFocused) VegaColors.Accent else VegaColors.TextSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // SEKME BUTONLARI (Tabs)
-                    Row(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(40.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        contentAlignment = Alignment.Center
                     ) {
-                        availableTabs.forEach { tab ->
-                            val isSelected = (selectedTab == tab)
-                            var isFocused by remember { mutableStateOf(false) }
-                            Surface(
-                                onClick = { selectedTab = tab },
-                                shape = VegaShapes.Small,
-                                color = if (isFocused) VegaColors.Accent.copy(alpha = 0.25f)
-                                else if (isSelected) VegaColors.Accent.copy(alpha = 0.18f)
-                                else VegaColors.SurfaceVariant,
-                                border = if (isFocused) BorderStroke(2.dp, VegaColors.Accent)
-                                else if (isSelected) BorderStroke(1.dp, VegaColors.Accent)
-                                else BorderStroke(1.dp, VegaColors.Border),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp)
-                                    .then(if (isSelected) Modifier.focusRequester(firstFocus) else Modifier)
-                                    .onFocusChanged { isFocused = it.isFocused }
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(40.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = tab.title,
-                                        fontSize = VegaText.Secondary,
-                                        fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected || isFocused) VegaColors.Accent else VegaColors.TextSecondary
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // AKTİF SEKME İÇERİĞİ (Kaydırmasız kompakt alan)
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                    ) {
-                        when (selectedTab) {
-                            SettingsTab.AUDIO -> AudioTabContent(
-                                audioTracks = audioTracks,
-                                onSelectAudioTrack = onSelectAudioTrack
-                            )
-                            SettingsTab.SUBTITLE -> SubtitleTabContent(
-                                subtitleTracks = subtitleTracks,
-                                onSelectSubtitleTrack = onSelectSubtitleTrack,
-                                onDisableSubtitles = onDisableSubtitles,
-                                subtitleDelayMs = subtitleDelayMs,
-                                onSubtitleDelayChange = onSubtitleDelayChange,
-                                subtitleSize = subtitleSize,
-                                onSubtitleSizeChange = onSubtitleSizeChange,
-                                subtitleColor = subtitleColor,
-                                onSubtitleColorChange = onSubtitleColorChange
-                            )
-                            SettingsTab.ASPECT_RATIO -> AspectRatioTabContent(
-                                aspectRatio = aspectRatio,
-                                onAspectRatioChange = onAspectRatioChange
-                            )
-                            SettingsTab.SPEED -> SpeedTabContent(
-                                playbackSpeed = playbackSpeed,
-                                onPlaybackSpeedChange = onPlaybackSpeedChange
-                            )
-                        }
-                    }
-
-                    // YAYIN TEŞHİS BİLGİSİ (Stream Diagnostics)
-                    if (diagnostics != null) {
-                        DiagnosticsFooter(diagnostics = diagnostics)
+                        Text(
+                            text = tab.title,
+                            fontSize = VegaText.Secondary,
+                            fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected || isFocused) VegaColors.Accent else VegaColors.TextSecondary
+                        )
                     }
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // AKTİF SEKME İÇERİĞİ (Kaydırmasız kompakt alan)
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            when (selectedTab) {
+                SettingsTab.AUDIO -> AudioTabContent(
+                    audioTracks = audioTracks,
+                    onSelectAudioTrack = onSelectAudioTrack
+                )
+                SettingsTab.SUBTITLE -> SubtitleTabContent(
+                    subtitleTracks = subtitleTracks,
+                    onSelectSubtitleTrack = onSelectSubtitleTrack,
+                    onDisableSubtitles = onDisableSubtitles,
+                    subtitleDelayMs = subtitleDelayMs,
+                    onSubtitleDelayChange = onSubtitleDelayChange,
+                    subtitleSize = subtitleSize,
+                    onSubtitleSizeChange = onSubtitleSizeChange,
+                    subtitleColor = subtitleColor,
+                    onSubtitleColorChange = onSubtitleColorChange
+                )
+                SettingsTab.ASPECT_RATIO -> AspectRatioTabContent(
+                    aspectRatio = aspectRatio,
+                    onAspectRatioChange = onAspectRatioChange
+                )
+                SettingsTab.SPEED -> SpeedTabContent(
+                    playbackSpeed = playbackSpeed,
+                    onPlaybackSpeedChange = onPlaybackSpeedChange
+                )
+            }
+        }
+
+        // YAYIN TEŞHİS BİLGİSİ (Stream Diagnostics)
+        if (diagnostics != null) {
+            DiagnosticsFooter(diagnostics = diagnostics)
         }
     }
 }
@@ -846,7 +742,7 @@ private fun SpeedTabContent(
 // YAYIN TEŞHİS BİLGİSİ ALT ALANI (Stream Diagnostics)
 // ----------------------------------------------------------------------------
 @Composable
-private fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
+internal fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
     var isExpanded by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
 
