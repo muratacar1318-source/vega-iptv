@@ -57,7 +57,25 @@ G-025 altyapısının mantığı (eksik görürsen raporla), oynatıcı, senkron
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Durum:** Tamamlandı, Claude'un incelemesine hazır.
+- **Değişiklikler:**
+  - `app/src/main/java/com/tivimax/player/ui/settings/SettingsPlaylistsSection.kt`: Ayarlar için yeni "Listelerim" kategorisi eklendi. Her liste `VegaSectionCard` ile listeleniyor (liste adı, kullanıcı adı, son güncelleme zamanı `AccountInfoFormatter.formatLastSync` ile, "Şu an kullanılıyor" / "Hazır" / "İndirilmedi" rozetleri, Geç, Düzenle, Sil işlemleri). Silme işlemi için onay diyaloğu eklendi.
+  - `app/src/main/java/com/tivimax/player/ui/settings/SettingsPlaylistsSection.kt` (`PlaylistFormDialog`): Liste ekleme ve düzenleme formu eklendi. Liste adı, Vega sunucusu / Başka sunucu seçimi (`VegaChoiceChip`), kullanıcı adı, şifre alanları ve kontrol durumunda "Kontrol ediliyor…" gösterimi uygulandı.
+  - `app/src/main/java/com/tivimax/player/ui/components/QuickPlaylistSwitchDialog.kt`: Telefon ve TV için ortak hızlı geçiş paneli oluşturuldu. Aktif liste rozetli, D-Pad odaklı, altta "Listeleri yönet" butonu barındırıyor.
+  - `app/src/main/java/com/tivimax/player/ui/main/HomeScreen.kt`:
+    - `HomeTopBar` üzerinde logo yanına aktif liste adı hapı ("Ana liste ▾") eklendi. Tek listede doğrudan "Listelerim" ayarlarına yönlendiriyor, birden fazla listede hızlı seçim panelini açıyor.
+    - Liste geçişi sırasında tam ekran "Liste değiştiriliyor…" yükleme katmanı gösteriliyor.
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvNavigationRail.kt`: TV sol menüsüne "Listeler" öğesi eklendi ve hızlı geçiş diyaloğuna bağlandı.
+  - `app/src/main/java/com/tivimax/player/ui/login/LoginScreen.kt`: İlk oynatma listesi ekleme ekranına uyarlandı; alt başlık "İlk oynatma listeni ekle" yapıldı, liste adı alanı (varsayılan "Ana liste"), Vega sunucusu / Başka sunucu seçimi (`VegaChoiceChip`) eklendi, buton metni kontrol esnasında "Kontrol ediliyor…" olarak ayarlandı.
+  - `app/src/main/java/com/tivimax/player/ui/settings/SettingsAccountSection.kt`: Başlık "Hesabım · $activePlaylistName" yapıldı, çıkış butonu "Bu listeyi kaldır" olarak güncellendi ve silme onay metni "Bu listenin kanalları ve favorileri bu cihazdan silinir. Diğer listelerin etkilenmez." olarak düzenlendi.
+  - `app/src/main/java/com/tivimax/player/ui/settings/SettingsScreen.kt`: `SettingsSection.PLAYLISTS` ("Listelerim") ilk sıraya eklendi, yönlendirme ve alt sayfa yönetimi bağlandı.
+  - `app/src/main/java/com/tivimax/player/ui/MainViewModel.kt`: `isSwitchingPlaylist` state flow, `openPlaylistsSettings`, `updatePlaylist` (kimlik değiştiğinde doğrulama ve senkron tetikleme, ad değişiminde yerel güncelleme), `login` içine opsiyonel liste adı desteği ve `switchPlaylist` hata durumunda önceki listeye geri dönüp kullanıcıya Türkçe Toast mesajı verme eklendi.
+  - `app/src/test/java/com/tivimax/player/data/playlist/PlaylistArchitectureTest.kt`: Liste adı güncelleme ve kimlik değişikliğinde senkron sıfırlanma durumları için birim testleri eklendi.
+- **Doğrulama:**
+  - `./gradlew compileDebugKotlin` başarıyla derlendi (0 hata, 0 uyarı).
+  - `./gradlew testDebugUnitTest` başarıyla tamamlandı (tüm testler geçti).
+  - APK üretilmedi (`assembleRelease` çalıştırılmadı).
+  - Fiziksel cihaz / TV etkileşimi yerel ortamda test edilemedi (emülatör/cihaz bağlı değil).
 
 ---
 
@@ -88,3 +106,22 @@ Güncelleme sistemi (AutoUpdateManager), imza/sürüm numarası, oynatıcı, sen
 
 ### Bitince
 `./gradlew compileDebugKotlin testDebugUnitTest` → commit → aynı dala push. Agent raporuna "Düzeltme turu 1" başlığıyla ne yaptığını ekle.
+
+### Düzeltme turu 1 Raporu
+
+- **Durum:** Düzeltmeler tamamlandı, Claude incelemesine hazır.
+- **Yapılanlar:**
+  1. **Hata mesajlarında sunucu adresi gizlendi:**
+     - `XtreamRepository.kt` içerisine saf `toUserMessage(Throwable)` yardımcısı eklendi. `UnknownHostException`, `ConnectException`, `SocketTimeoutException`, `IOException` ve türevleri için `"Sunucuya ulaşılamadı. İnternetini kontrol et."`, diğer istisnalar için `"Bağlanılamadı. Bilgilerini kontrol edip tekrar dene."` döndürülmesi sağlandı.
+     - `authenticate` catch bloğundaki `e.localizedMessage` kaldırıldı, `toUserMessage(e)` kullanıldı. `!resp.isSuccessful` durumundaki HTTP kodu kullanıcı metninden çıkarılıp loga alındı, kullanıcıya `"Sunucu şu an yanıt vermiyor. Biraz sonra tekrar dene."` metni sunuldu.
+     - `toUserMessage` için istisna mesajında host/ip adı bulunsa dahi kullanıcıya gösterilen metinde sunucu adresinin geçmediğini doğrulayan birim testi eklendi.
+  2. **Ayarlar varsayılan alt sayfa sıfırlandı:**
+     - `MainViewModel.targetSettingsSection` başlangıç değeri `null` yapıldı. Ayarlar ilk açıldığında doğrudan "Listelerim" alt sayfasına atlama sorunu giderildi.
+  3. **Vega sunucu adresi kontrolü esnekleştirildi:**
+     - `AppConfig.kt` dosyasına `isVegaServer(url: String?): Boolean` yardımcısı eklendi. URL `trim()` ve `trimEnd('/')` temizliği yapılarak `SERVER_URL_HTTP` ve `SERVER_URL_HTTPS` ile `ignoreCase` karşılaştırılıyor.
+     - `SettingsPlaylistsSection.kt` (`PlaylistFormDialog`) içerisinde `playlist.serverUrl != AppConfig.DEFAULT_SERVER_URL` kontrolü `!AppConfig.isVegaServer(playlist.serverUrl)` ile değiştirildi. Vega sunucusu adresleri sonda `/`, büyük harf veya HTTPS olsa dahi "Başka sunucu" kutusuna düşmüyor ve Vega adresi kutuda görünmüyor.
+     - `isVegaServer` için sonda `/`, büyük/küçük harf, https/http varyantları ve özel sunucu adreslerini kapsayan birim testleri eklendi.
+- **Doğrulama:**
+  - `./gradlew compileDebugKotlin` başarıyla derlendi (0 hata, 0 uyarı).
+  - `./gradlew testDebugUnitTest` çalıştırıldı, tüm testler (56 passed) başarıyla geçti.
+

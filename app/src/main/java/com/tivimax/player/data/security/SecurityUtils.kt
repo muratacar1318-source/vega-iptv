@@ -21,7 +21,11 @@ object SecurityUtils {
         val xorBytes = ByteArray(bytes.size) { i ->
             (bytes[i].toInt() xor XOR_KEY).toByte()
         }
-        return Base64.encodeToString(xorBytes, Base64.NO_WRAP)
+        return try {
+            Base64.encodeToString(xorBytes, Base64.NO_WRAP)
+        } catch (_: Throwable) {
+            java.util.Base64.getEncoder().encodeToString(xorBytes)
+        }
     }
 
     /**
@@ -30,7 +34,11 @@ object SecurityUtils {
     fun deobfuscate(obfuscated: String): String {
         if (obfuscated.isEmpty()) return ""
         return try {
-            val decoded = Base64.decode(obfuscated, Base64.DEFAULT)
+            val decoded = try {
+                Base64.decode(obfuscated, Base64.DEFAULT)
+            } catch (_: Throwable) {
+                java.util.Base64.getDecoder().decode(obfuscated)
+            }
             val result = ByteArray(decoded.size) { i ->
                 (decoded[i].toInt() xor XOR_KEY).toByte()
             }

@@ -17,6 +17,14 @@ object AppConfig {
     val SERVER_URL_HTTP: String by lazy { SecurityUtils.deobfuscate(OBF_SERVER_URL_HTTP) }
     val DEFAULT_SERVER_URL: String by lazy { SERVER_URL_HTTP }
 
+    fun isVegaServer(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        val cleanUrl = url.trim().trimEnd('/')
+        val httpClean = SERVER_URL_HTTP.trim().trimEnd('/')
+        val httpsClean = SERVER_URL_HTTPS.trim().trimEnd('/')
+        return cleanUrl.equals(httpClean, ignoreCase = true) || cleanUrl.equals(httpsClean, ignoreCase = true)
+    }
+
     // Yedek Sunucu Domainleri (ISP engeli veya sunucu yoğunluğunda otomatik denenir)
     val FALLBACK_DOMAINS: List<String> by lazy {
         listOf(

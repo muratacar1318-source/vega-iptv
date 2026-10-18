@@ -225,7 +225,10 @@ class XtreamRepository(private val context: Context? = null) {
             val response = client.newCall(request).execute()
             val authResponse = response.use { resp ->
                 if (!resp.isSuccessful) {
-                    return@withContext Result.failure(Exception("Sunucu hatası: Kod ${resp.code}"))
+                    try {
+                        android.util.Log.w("XtreamRepository", "Authentication failed with HTTP code ${resp.code}")
+                    } catch (_: Throwable) {}
+                    return@withContext Result.failure(Exception("Sunucu şu an yanıt vermiyor. Biraz sonra tekrar dene."))
                 }
                 val body = resp.body?.string() ?: ""
                 gson.fromJson(body, XtreamAuthResponse::class.java)
@@ -238,7 +241,10 @@ class XtreamRepository(private val context: Context? = null) {
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
-            Result.failure(Exception("Bağlantı hatası: ${e.localizedMessage ?: "Sunucuya ulaşılamadı"}"))
+            try {
+                android.util.Log.w("XtreamRepository", "Authentication error", e)
+            } catch (_: Throwable) {}
+            Result.failure(Exception(toUserMessage(e)))
         }
     }
 
@@ -1566,5 +1572,16 @@ class XtreamRepository(private val context: Context? = null) {
                 // JVM birim test ortamında Android Log mock'lu olmayabilir
             }
         }
+    }
+}
+
+fun toUserMessage(e: Throwable): String {
+    val cause = e.cause ?: e
+    return when {
+        e is java.net.UnknownHostException || cause is java.net.UnknownHostException ||
+        e is java.net.ConnectException || cause is java.net.ConnectException ||
+        e is java.net.SocketTimeoutException || cause is java.net.SocketTimeoutException ||
+        e is java.io.IOException || cause is java.io.IOException -> "Sunucuya ulaşılamadı. İnternetini kontrol et."
+        else -> "Bağlanılamadı. Bilgilerini kontrol edip tekrar dene."
     }
 }

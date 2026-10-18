@@ -42,6 +42,7 @@ import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.QuickPlaylistSwitchDialog
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.favorites.FavoritesScreen
 import com.tivimax.player.ui.live.LiveTvScreen
@@ -75,6 +76,11 @@ fun HomeScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
     var showSyncConfirmationDialog by remember { mutableStateOf(false) }
+    var showQuickSwitchDialog by remember { mutableStateOf(false) }
+
+    val playlists by viewModel.playlists.collectAsState()
+    val activePlaylist by viewModel.activePlaylist.collectAsState()
+    val isSwitchingPlaylist by viewModel.isSwitchingPlaylist.collectAsState()
 
     // Android TV: sol menü odak durumu ve Canlı TV tam ekran oynatıcı durumu
     val tvRailFocusRequester = remember { FocusRequester() }
@@ -162,6 +168,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                         }
                     },
                     onSearchClick = { viewModel.navigateTo(Screen.Search) },
+                    onPlaylistsClick = { showQuickSwitchDialog = true },
                     selectedTabFocusRequester = tvRailFocusRequester,
                     onRailFocusChanged = { tvRailHasFocus = it },
                     activeCons = activeCons,
@@ -190,6 +197,14 @@ fun HomeScreen(viewModel: MainViewModel) {
         topBar = {
             HomeTopBar(
                 appName = AppConfig.APP_NAME,
+                activePlaylistName = activePlaylist?.name ?: "Ana liste",
+                onPlaylistClick = {
+                    if (playlists.size <= 1) {
+                        viewModel.openPlaylistsSettings()
+                    } else {
+                        showQuickSwitchDialog = true
+                    }
+                },
                 expDateFormatted = expDateFormatted,
                 activeCons = activeCons,
                 maxCons = maxCons,
@@ -451,11 +466,55 @@ fun HomeScreen(viewModel: MainViewModel) {
             }
         )
     }
+
+    if (showQuickSwitchDialog) {
+        QuickPlaylistSwitchDialog(
+            playlists = playlists,
+            activePlaylistId = activePlaylist?.id,
+            onSelectPlaylist = { pl ->
+                if (pl.id != activePlaylist?.id) {
+                    viewModel.switchPlaylist(pl.id)
+                }
+            },
+            onManagePlaylists = {
+                viewModel.openPlaylistsSettings()
+            },
+            onDismiss = { showQuickSwitchDialog = false }
+        )
+    }
+
+    if (isSwitchingPlaylist) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.85f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                CircularProgressIndicator(
+                    color = VegaColors.Accent,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(36.dp)
+                )
+                Text(
+                    text = "Liste değiştiriliyor…",
+                    color = VegaColors.TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
 }
 
 @Composable
 private fun HomeTopBar(
     appName: String,
+    activePlaylistName: String = "Ana liste",
+    onPlaylistClick: () -> Unit = {},
     expDateFormatted: String,
     activeCons: String,
     maxCons: String,
@@ -513,6 +572,44 @@ private fun HomeTopBar(
                     color = VegaColors.TextPrimary,
                     maxLines = 1
                 )
+            }
+
+            // Aktif Liste Rozeti / Hapı ("Ana liste ▾")
+            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+                shape = VegaShapes.Pill,
+                color = Color.White.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, VegaColors.Border),
+                modifier = Modifier
+                    .clip(VegaShapes.Pill)
+                    .clickable { onPlaylistClick() }
+                    .dpadFocusable(
+                        shape = VegaShapes.Pill,
+                        focusedBorderColor = VegaColors.Accent,
+                        onClick = onPlaylistClick
+                    )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = activePlaylistName,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = VegaColors.TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 100.dp)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = VegaColors.TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
 
             // Orta: Arama Butonu/Çubuğu

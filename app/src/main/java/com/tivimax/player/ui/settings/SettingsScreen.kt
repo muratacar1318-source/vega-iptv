@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.filled.ViewSidebar
 import androidx.compose.material.icons.filled.*
@@ -50,6 +51,7 @@ import kotlinx.coroutines.launch
 import com.tivimax.player.util.DeviceMode
 
 enum class SettingsSection(val title: String, val icon: ImageVector, val subtitle: String) {
+    PLAYLISTS("Listelerim", Icons.AutoMirrored.Filled.PlaylistPlay, "Oynatma listelerini ekle ve aralarında geç"),
     ACCOUNT("Hesabım", Icons.Default.AccountCircle, "Abonelik bilgileri ve içerik listesi"),
     PLAYER("Oynatıcı", Icons.Default.Tune, "Ses ve altyazı dili, görüntü ve akıcılık"),
     APPEARANCE("Görünüm", Icons.Default.Subtitles, "Tema, kanal listesi ve altyazı görünümü"),
@@ -61,6 +63,8 @@ enum class SettingsSection(val title: String, val icon: ImageVector, val subtitl
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
     val userInfo by viewModel.userInfo.collectAsState()
+    val activePlaylist by viewModel.activePlaylist.collectAsState()
+    val targetSectionStr by viewModel.targetSettingsSection.collectAsState()
     val speedTestResult by viewModel.speedTestResult.collectAsState()
     val isTestingSpeed by viewModel.isTestingSpeed.collectAsState()
 
@@ -77,7 +81,16 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var selectedSection by remember { mutableStateOf(SettingsSection.ACCOUNT) }
+    var selectedSection by remember { mutableStateOf(SettingsSection.PLAYLISTS) }
+    var activeSubPage by remember { mutableStateOf<SettingsSection?>(null) }
+
+    LaunchedEffect(targetSectionStr) {
+        if (targetSectionStr == "PLAYLISTS") {
+            selectedSection = SettingsSection.PLAYLISTS
+            activeSubPage = SettingsSection.PLAYLISTS
+            viewModel.targetSettingsSection.value = null
+        }
+    }
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
     var showDeviceModeDialog by remember { mutableStateOf(false) }
@@ -203,8 +216,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
             // ==========================================
             // DİKEY MOD (TELEFON / TABLET DİKEY) - DİKEY MENÜ & HER SEKMEYE ÖZEL SAYFA
             // ==========================================
-            var activeSubPage by remember { mutableStateOf<SettingsSection?>(null) }
-
             BackHandler(enabled = activeSubPage != null) {
                 activeSubPage = null
             }
@@ -471,11 +482,19 @@ private fun RenderSelectedSection(
 
     when (section) {
         // ==========================================
+        // 0. LİSTELERİM
+        // ==========================================
+        SettingsSection.PLAYLISTS -> {
+            SettingsPlaylistsSection(viewModel = viewModel)
+        }
+
+        // ==========================================
         // 1. HESAP VE OYNATMA LİSTESİ
         // ==========================================
         SettingsSection.ACCOUNT -> {
             val contentCounts by viewModel.accountContentCounts.collectAsState()
             val isRefreshing by viewModel.accountRefreshing.collectAsState()
+            val activePlaylist by viewModel.activePlaylist.collectAsState()
 
             LaunchedEffect(Unit) {
                 viewModel.loadAccountContentCounts()
@@ -493,7 +512,8 @@ private fun RenderSelectedSection(
                     }
                 },
                 onSyncClick = { viewModel.openPlaylistSync() },
-                onLogoutClick = { viewModel.logout() }
+                onLogoutClick = { viewModel.logout() },
+                activePlaylistName = activePlaylist?.name ?: "Ana liste"
             )
         }
 

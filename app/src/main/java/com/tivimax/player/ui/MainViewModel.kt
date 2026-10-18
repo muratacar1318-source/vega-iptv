@@ -1,6 +1,7 @@
 package com.tivimax.player.ui
 
 import android.app.Application
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tivimax.player.data.config.AppConfig
@@ -1047,6 +1048,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         selectedHomeTab.value = HomeTab.DASHBOARD
     }
 
+    private val _isSwitchingPlaylist = MutableStateFlow(false)
+    val isSwitchingPlaylist: StateFlow<Boolean> = _isSwitchingPlaylist.asStateFlow()
+
+    val targetSettingsSection = MutableStateFlow<String?>(null)
+
+    fun openPlaylistsSettings() {
+        targetSettingsSection.value = "PLAYLISTS"
+        setSelectedHomeTab(HomeTab.SETTINGS)
+    }
+
     fun switchPlaylist(targetId: String, onComplete: ((Boolean) -> Unit)? = null) {
         viewModelScope.launch {
             val previousActive = playlistRepository.getActivePlaylist()
@@ -1056,6 +1067,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
+            _isSwitchingPlaylist.value = true
             try {
                 // 1. Oynatıcıyı kapat
                 playerManager.release()
@@ -1096,7 +1108,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         repository.switchDatabase(previousActive.dbName)
                     } catch (_: Exception) {}
                 }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(getApplication(), "Liste değiştirilemedi, önceki listeye dönüldü.", Toast.LENGTH_LONG).show()
+                }
                 onComplete?.invoke(false)
+            } finally {
+                _isSwitchingPlaylist.value = false
             }
         }
     }
@@ -1174,10 +1191,100 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun login(user: String, pass: String, serverUrl: String = AppConfig.DEFAULT_SERVER_URL, isAutoLogin: Boolean = false) {
-        val playlistName = if (user.isNotBlank()) user else "Ana liste"
+    fun updatePlaylist(
+        id: String,
+        name: String,
+        serverUrl: String,
+        username: String,
+        password: String,
+        onResult: ((Result<Playlist>) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val playlists = playlistRepository.getPlaylists()
+            val target = playlists.find { it.id == id }
+            if (target == null) {
+                onResult?.invoke(Result.failure(Exception("Liste bulunamadı.")))
+                return@launch
+            }
+
+            val cleanServer = if (serverUrl.isBlank() || serverUrl.contains("my-iptv-server")) {
+                AppConfig.DEFAULT_SERVER_URL
+            } else {
+                serverUrl.trimEnd('/')
+            }
+            val newName = name.trim().ifBlank { target.name }
+            val newUsername = username.trim()
+            val newPassword = password.trim()
+
+            val credentialsChanged = (target.serverUrl != cleanServer ||
+                    target.username != newUsername ||
+                    target.password != newPassword)
+
+            if (!credentialsChanged) {
+                // Sadece liste adı değişti
+                val updated = target.copy(name = newName)
+                playlistRepository.update(updated)
+                onResult?.invoke(Result.success(updated))
+                return@launch
+            }
+
+            // Kimlik bilgileri veya sunucu değişti -> Doğrula
+            _loginLoading.value = true
+            val authResult = repository.authenticate(cleanServer, newUsername, newPassword)
+            authResult.fold(
+                onSuccess = { authResp ->
+                    _loginLoading.value = false
+                    val updated = target.copy(
+                        name = newName,
+                        serverUrl = cleanServer,
+                        username = newUsername,
+                        password = newPassword,
+                        isSynced = false,
+                        lastSyncAt = ""
+                    )
+                    playlistRepository.update(updated)
+
+                    preferences.saveAuth(
+                        username = newUsername,
+                        password = newPassword,
+                        serverUrl = cleanServer,
+                        expDate = authResp.userInfo?.expDate ?: "",
+                        maxCons = authResp.userInfo?.maxConnections ?: "1",
+                        activeCons = authResp.userInfo?.activeCons ?: "1",
+                        status = authResp.userInfo?.status ?: "",
+                        isTrial = authResp.userInfo?.isTrial ?: "",
+                        createdAt = authResp.userInfo?.createdAt ?: "",
+                        playlistId = id
+                    )
+
+                    val activeId = playlistRepository.getActivePlaylistId()
+                    if (id == activeId) {
+                        repository.updateCredentials(cleanServer, newUsername, newPassword)
+                        _currentScreen.value = Screen.PlaylistSync
+                        startPlaylistSync(fromStep = 1)
+                    }
+
+                    onResult?.invoke(Result.success(updated))
+                },
+                onFailure = { err ->
+                    _loginLoading.value = false
+                    val errorMsg = err.message ?: "Sunucuya bağlanılamadı. Bilgilerinizi kontrol ediniz."
+                    onResult?.invoke(Result.failure(Exception(errorMsg)))
+                }
+            )
+        }
+    }
+
+    fun login(
+        user: String,
+        pass: String,
+        serverUrl: String = AppConfig.DEFAULT_SERVER_URL,
+        isAutoLogin: Boolean = false,
+        playlistName: String? = null
+    ) {
+        val name = playlistName?.ifBlank { "Ana liste" } ?: if (user.isNotBlank()) user else "Ana liste"
         addPlaylist(
-            name = playlistName,
+            name = name,
             serverUrl = serverUrl,
             username = user,
             password = pass
