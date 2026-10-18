@@ -4,6 +4,8 @@
   bölümü ve o bölümün dosyalarını değiştir.
 - İş listesi YAPILACAKLAR.md'dedir. "Yapılacakları kontrol et ve uygula" denince oradaki
   "Agent için çalışma talimatı" bölümünü harfiyen uygula. Görev tarifleri docs/gorevler/ altındadır.
+- Kullanıcı listede olmayan bir işi doğrudan isterse: yine kendi branch'inde yap, main'e alma, sürüm numarasını
+  ARTIRMA, release YAPMA; işi bitirince kullanıcıya "Claude'un incelemesine gönderildi" de.
 - YAPILACAKLAR.md'ye kendi başına yeni görev EKLEME ve mevcut görevlerin tarifini DEĞİŞTİRME;
   sadece kendi görevinin durumunu ve rapor bölümünü güncelle.
 - Her iş için main'den yeni bir branch aç (fix/..., feat/..., chore/...). main'e doğrudan commit ATMA.
