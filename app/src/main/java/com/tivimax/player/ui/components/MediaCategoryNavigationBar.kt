@@ -29,11 +29,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.theme.*
+import com.tivimax.player.ui.design.VegaColors
 import kotlinx.coroutines.launch
 
-private val NeonCyan = Color(0xFF00E5FF)
-private val DarkChipBg = Color(0xFF14172B)
-private val DarkChipBorder = Color(0x33FFFFFF)
+private val NeonCyan = VegaColors.Accent
+private val DarkChipBg = VegaColors.Card
+private val DarkChipBorder = VegaColors.Border
 
 /**
  * Modern ve akıcı dikey konum kategori yatay gezinme çubuğu (Chips Row).
@@ -282,7 +283,7 @@ private fun MediaChipItem(
             )
             if (count > 0) {
                 val badgeBg = if (isSelected) Color.Black.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.12f)
-                val badgeText = if (isSelected) Color.Black else Color(0xFFB0B5C9)
+                val badgeText = if (isSelected) Color.Black else VegaColors.TextSecondary
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))

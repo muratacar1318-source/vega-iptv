@@ -1,12 +1,11 @@
 package com.tivimax.player.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,9 +20,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 
 @Composable
 fun CategoryManagementDialog(
@@ -64,9 +63,9 @@ fun CategoryManagementDialog(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .fillMaxHeight(0.88f),
-            shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF0F141C),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E2638))
+            shape = VegaShapes.Large,
+            color = VegaColors.OverlayPanel,
+            border = BorderStroke(1.dp, VegaColors.Border)
         ) {
             Column(
                 modifier = Modifier
@@ -83,25 +82,25 @@ fun CategoryManagementDialog(
                         Icon(
                             imageVector = Icons.Default.Tune,
                             contentDescription = null,
-                            tint = OpusCyan,
+                            tint = VegaColors.Accent,
                             modifier = Modifier.size(24.dp)
                         )
                         Column {
                             Text(
-                                text = "Kategori Yönetimi",
-                                color = Color.White,
-                                fontSize = 18.sp,
+                                text = "Kategori yönetimi",
+                                color = VegaColors.TextPrimary,
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "İstediğiniz kategorileri gizleyin veya en üste sabitleyin",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 12.sp
+                                text = "İstediğin kategorileri gizle veya en üste sabitle",
+                                color = VegaColors.TextSecondary,
+                                fontSize = 13.sp
                             )
                         }
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Kapat", tint = Color.White)
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Kapat", tint = VegaColors.TextPrimary)
                     }
                 }
 
@@ -110,29 +109,47 @@ fun CategoryManagementDialog(
                 // Sekmeler (Canlı TV, Film, Dizi)
                 TabRow(
                     selectedTabIndex = selectedTab,
-                    containerColor = Color(0xFF161D28),
-                    contentColor = TiviPrimary,
+                    containerColor = VegaColors.SurfaceVariant,
+                    contentColor = VegaColors.Accent,
                     indicator = { tabPositions ->
                         TabRowDefaults.SecondaryIndicator(
                             modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                            color = OpusCyan
+                            color = VegaColors.Accent
                         )
                     }
                 ) {
                     Tab(
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
-                        text = { Text("Canlı TV (${liveCats.size.coerceAtLeast(1) - 1})", fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal) }
+                        text = {
+                            Text(
+                                "Canlı TV (${liveCats.size.coerceAtLeast(1) - 1})",
+                                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTab == 0) VegaColors.Accent else VegaColors.TextSecondary
+                            )
+                        }
                     )
                     Tab(
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
-                        text = { Text("Filmler (${vodCats.size.coerceAtLeast(1) - 1})", fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal) }
+                        text = {
+                            Text(
+                                "Filmler (${vodCats.size.coerceAtLeast(1) - 1})",
+                                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTab == 1) VegaColors.Accent else VegaColors.TextSecondary
+                            )
+                        }
                     )
                     Tab(
                         selected = selectedTab == 2,
                         onClick = { selectedTab = 2 },
-                        text = { Text("Diziler (${seriesCats.size.coerceAtLeast(1) - 1})", fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal) }
+                        text = {
+                            Text(
+                                "Diziler (${seriesCats.size.coerceAtLeast(1) - 1})",
+                                fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selectedTab == 2) VegaColors.Accent else VegaColors.TextSecondary
+                            )
+                        }
                     )
                 }
 
@@ -147,50 +164,50 @@ fun CategoryManagementDialog(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = { Text("Kategori ara...", fontSize = 13.sp, color = Color(0xFF64748B)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF94A3B8)) },
+                        placeholder = { Text("Kategori ara...", fontSize = 13.sp, color = VegaColors.TextMuted) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = VegaColors.TextSecondary) },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Temizle", tint = Color(0xFF94A3B8))
+                                    Icon(Icons.Default.Clear, contentDescription = "Temizle", tint = VegaColors.TextSecondary)
                                 }
                             }
                         },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OpusCyan,
-                            unfocusedBorderColor = Color(0xFF1E2638),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedContainerColor = Color(0xFF121824),
-                            unfocusedContainerColor = Color(0xFF121824)
+                            focusedBorderColor = VegaColors.Accent,
+                            unfocusedBorderColor = VegaColors.Border,
+                            focusedTextColor = VegaColors.TextPrimary,
+                            unfocusedTextColor = VegaColors.TextPrimary,
+                            focusedContainerColor = VegaColors.Card,
+                            unfocusedContainerColor = VegaColors.Card
                         ),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = VegaShapes.Medium
                     )
 
                     Button(
                         onClick = {
                             viewModel.setAllCategoriesHidden(currentRawCategories.map { it.first }, isHidden = false)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E2638)),
-                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.SurfaceVariant),
+                        shape = VegaShapes.Medium,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("Tümünü Göster", fontSize = 11.sp, color = Color.White)
+                        Text("Tümünü göster", fontSize = 11.sp, color = VegaColors.TextPrimary)
                     }
 
                     Button(
                         onClick = {
                             viewModel.setAllCategoriesHidden(currentRawCategories.map { it.first }, isHidden = true)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A1B28)),
-                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.SurfaceVariant),
+                        shape = VegaShapes.Medium,
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("Tümünü Gizle", fontSize = 11.sp, color = Color(0xFFFF6B81))
+                        Text("Tümünü gizle", fontSize = 11.sp, color = VegaColors.Danger)
                     }
                 }
 
@@ -208,11 +225,11 @@ fun CategoryManagementDialog(
                         val isPinned = pinnedCats.contains(catId)
 
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isHidden) Color(0xFF12151B) else Color(0xFF161D28),
-                            border = androidx.compose.foundation.BorderStroke(
+                            shape = VegaShapes.Medium,
+                            color = if (isHidden) VegaColors.Background else VegaColors.Card,
+                            border = BorderStroke(
                                 1.dp,
-                                if (isPinned) OpusCyan.copy(alpha = 0.5f) else Color(0xFF1E2638)
+                                if (isPinned) VegaColors.Accent.copy(alpha = 0.5f) else VegaColors.Border
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -234,9 +251,9 @@ fun CategoryManagementDialog(
                                         modifier = Modifier.size(32.dp)
                                     ) {
                                         Icon(
-                                            imageVector = if (isPinned) Icons.Default.PushPin else Icons.Default.PushPin,
+                                            imageVector = Icons.Default.PushPin,
                                             contentDescription = "Sabitle",
-                                            tint = if (isPinned) OpusCyan else Color(0xFF475569),
+                                            tint = if (isPinned) VegaColors.Accent else VegaColors.TextMuted,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -244,7 +261,7 @@ fun CategoryManagementDialog(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = catName,
-                                            color = if (isHidden) Color(0xFF64748B) else Color.White,
+                                            color = if (isHidden) VegaColors.TextMuted else VegaColors.TextPrimary,
                                             fontSize = 14.sp,
                                             fontWeight = if (isPinned) FontWeight.Bold else FontWeight.Medium,
                                             maxLines = 1,
@@ -253,7 +270,7 @@ fun CategoryManagementDialog(
                                         if (count > 0) {
                                             Text(
                                                 text = "$count içerik",
-                                                color = Color(0xFF94A3B8),
+                                                color = VegaColors.TextSecondary,
                                                 fontSize = 11.sp
                                             )
                                         }
@@ -266,7 +283,7 @@ fun CategoryManagementDialog(
                                 ) {
                                     Text(
                                         text = if (isHidden) "Gizli" else "Görünür",
-                                        color = if (isHidden) Color(0xFFEF4444) else Color(0xFF10B981),
+                                        color = if (isHidden) VegaColors.Danger else VegaColors.Success,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -277,9 +294,9 @@ fun CategoryManagementDialog(
                                         },
                                         colors = SwitchDefaults.colors(
                                             checkedThumbColor = Color.White,
-                                            checkedTrackColor = OpusCyan,
-                                            uncheckedThumbColor = Color(0xFF64748B),
-                                            uncheckedTrackColor = Color(0xFF1E2638)
+                                            checkedTrackColor = VegaColors.Accent,
+                                            uncheckedThumbColor = VegaColors.TextMuted,
+                                            uncheckedTrackColor = VegaColors.Border
                                         )
                                     )
                                 }
@@ -293,13 +310,13 @@ fun CategoryManagementDialog(
                 // Alt Kapat Butonu
                 Button(
                     onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary),
-                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent),
+                    shape = VegaShapes.Medium,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(46.dp)
                 ) {
-                    Text("Kaydet ve Kapat", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = VegaColors.OnAccent)
+                    Text("Kaydet ve kapat", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = VegaColors.OnAccent)
                 }
             }
         }

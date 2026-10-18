@@ -37,6 +37,10 @@ import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaSizes
+import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.favorites.FavoritesScreen
@@ -144,7 +148,7 @@ fun HomeScreen(viewModel: MainViewModel) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0B0C1A))
+                .background(VegaColors.Background)
         ) {
             // Canlı TV tam ekran oynatılırken menü gizlenir
             if (!(selectedTab == HomeTab.LIVE_TV && tvLiveFullScreen)) {
@@ -218,7 +222,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                 )
             }
         },
-        containerColor = Color(0xFF0B0C1A)
+        containerColor = VegaColors.Background
     ) { innerPadding ->
         if (isWideScreen) {
             Row(
@@ -267,19 +271,20 @@ fun HomeScreen(viewModel: MainViewModel) {
 
         AlertDialog(
             onDismissRequest = { viewModel.snoozeUpdate(info, hours = 24) },
-            containerColor = TiviSurface,
+            containerColor = VegaColors.Surface,
+            shape = VegaShapes.Large,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.RocketLaunch,
                         contentDescription = null,
-                        tint = OpusCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "🚀 Yeni Güncelleme Mevcut (${info.tagName})",
-                        color = Color.White,
+                        color = VegaColors.TextPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -288,16 +293,16 @@ fun HomeScreen(viewModel: MainViewModel) {
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Vega IPTV'nin en son sürümü yayınlandı. Şimdi güncelleyebilir veya daha sonra güncellemek üzere erteleyebilirsiniz:",
-                        color = TiviTextSecondary,
+                        text = "Vega IPTV'nin en son sürümü yayınlandı. Şimdi güncelleyebilir veya daha sonra güncellemek üzere erteleyebilirsin:",
+                        color = VegaColors.TextSecondary,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = TiviCard,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+                        shape = VegaShapes.Small,
+                        color = VegaColors.Card,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 160.dp)
@@ -310,8 +315,8 @@ fun HomeScreen(viewModel: MainViewModel) {
                         ) {
                             Text(
                                 text = info.releaseNotes.ifBlank { "Performans iyileştirmeleri ve hata düzeltmeleri." },
-                                color = Color.White,
-                                fontSize = 12.sp,
+                                color = VegaColors.TextPrimary,
+                                fontSize = 13.sp,
                                 lineHeight = 18.sp
                             )
                         }
@@ -327,14 +332,14 @@ fun HomeScreen(viewModel: MainViewModel) {
                             ) {
                                 Text(
                                     text = if (downloadProgress == 100) "İndirme Tamamlandı, Kuruluyor..." else "APK İndiriliyor...",
-                                    color = OpusCyan,
-                                    fontSize = 12.sp,
+                                    color = VegaColors.Accent,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = "%$downloadProgress",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -344,9 +349,9 @@ fun HomeScreen(viewModel: MainViewModel) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(6.dp)
-                                    .clip(RoundedCornerShape(3.dp)),
-                                color = OpusCyan,
-                                trackColor = Color(0xFF1E2638)
+                                    .clip(VegaShapes.Small),
+                                color = VegaColors.Accent,
+                                trackColor = VegaColors.Border
                             )
                         }
                     }
@@ -356,12 +361,12 @@ fun HomeScreen(viewModel: MainViewModel) {
                 if (downloadProgress == null) {
                     Button(
                         onClick = { viewModel.downloadAndInstallUpdate(info) },
-                        colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black),
-                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                        shape = VegaShapes.Medium,
                         modifier = Modifier
                             .focusRequester(updateFocusRequester)
                             .dpadFocusable(
-                                shape = RoundedCornerShape(10.dp),
+                                shape = VegaShapes.Medium,
                                 focusedBorderColor = Color.White,
                                 onClick = { viewModel.downloadAndInstallUpdate(info) }
                             )
@@ -369,7 +374,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                         Icon(
                             imageVector = Icons.Default.Download,
                             contentDescription = null,
-                            tint = Color.Black,
+                            tint = VegaColors.OnAccent,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -386,10 +391,10 @@ fun HomeScreen(viewModel: MainViewModel) {
                             contentColor = Color.White
                         ),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = VegaShapes.Medium,
                         modifier = Modifier.dpadFocusable(
-                            shape = RoundedCornerShape(10.dp),
-                            focusedBorderColor = OpusCyan,
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.Accent,
                             onClick = { viewModel.snoozeUpdate(info, hours = 24) }
                         )
                     ) {
@@ -411,18 +416,19 @@ fun HomeScreen(viewModel: MainViewModel) {
     if (showSyncConfirmationDialog) {
         AlertDialog(
             onDismissRequest = { showSyncConfirmationDialog = false },
-            containerColor = TiviSurface,
+            containerColor = VegaColors.Surface,
+            shape = VegaShapes.Large,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = OpusCyan)
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = VegaColors.Accent)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "İçerik Senkronizasyonu", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "İçerik Senkronizasyonu", color = VegaColors.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
                 Text(
-                    text = "Tüm canlı kanallar, filmler, diziler ve EPG rehberi sunucudan güncellenecektir. Devam etmek istiyor musunuz?",
-                    color = TiviTextSecondary,
+                    text = "Tüm canlı kanallar, filmler, diziler ve EPG rehberi sunucudan güncellenecektir. Devam etmek istiyor musun?",
+                    color = VegaColors.TextSecondary,
                     fontSize = 13.sp
                 )
             },
@@ -432,14 +438,15 @@ fun HomeScreen(viewModel: MainViewModel) {
                         showSyncConfirmationDialog = false
                         viewModel.openPlaylistSync()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = OpusCyan, contentColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                    shape = VegaShapes.Medium
                 ) {
                     Text(text = "Güncelle", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showSyncConfirmationDialog = false }) {
-                    Text(text = "İptal", color = TiviTextSecondary)
+                    Text(text = "İptal", color = VegaColors.TextSecondary)
                 }
             }
         )
@@ -461,7 +468,7 @@ private fun HomeTopBar(
     onSearchClick: () -> Unit = {}
 ) {
     Surface(
-        color = Color(0xFF0B0C1A),
+        color = VegaColors.Background,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -476,54 +483,50 @@ private fun HomeTopBar(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(VegaShapes.Small)
                     .clickable { onLogoClick() }
                     .dpadFocusable(
-                        shape = RoundedCornerShape(8.dp),
-                        focusedBorderColor = Color(0xFF00E5FF),
+                        shape = VegaShapes.Small,
+                        focusedBorderColor = VegaColors.Accent,
                         onClick = onLogoClick
                     )
             ) {
                 Box(
                     modifier = Modifier
                         .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(Color(0xFF00E5FF), Color(0xFF7C4DFF))
-                            )
-                        ),
+                        .clip(VegaShapes.Small)
+                        .background(VegaColors.Accent),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Tv,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = VegaColors.OnAccent,
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = appName,
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = VegaColors.TextPrimary,
                     maxLines = 1
                 )
             }
 
             // Orta: Arama Butonu/Çubuğu
             Surface(
-                shape = RoundedCornerShape(50),
+                shape = VegaShapes.Pill,
                 color = Color.White.copy(alpha = 0.08f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                border = BorderStroke(1.dp, VegaColors.Border),
                 modifier = Modifier
                     .weight(1f)
                     .height(40.dp)
                     .padding(horizontal = 10.dp)
                     .dpadFocusable(
-                        shape = RoundedCornerShape(50),
-                        focusedBorderColor = Color(0xFF00E5FF),
+                        shape = VegaShapes.Pill,
+                        focusedBorderColor = VegaColors.Accent,
                         onClick = onSearchClick
                     )
             ) {
@@ -538,12 +541,12 @@ private fun HomeTopBar(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Arama",
-                        tint = Color(0xFF00E5FF),
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "İçerik ara...",
-                        color = Color(0xFF8E92AA),
+                        color = VegaColors.TextSecondary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -560,14 +563,14 @@ private fun HomeTopBar(
             ) {
                 if (isSyncing) {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFF7C4DFF).copy(alpha = 0.18f),
-                        border = BorderStroke(1.dp, Color(0xFF7C4DFF).copy(alpha = 0.4f)),
+                        shape = VegaShapes.Medium,
+                        color = VegaColors.Accent.copy(alpha = 0.18f),
+                        border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.4f)),
                         modifier = Modifier
                             .height(40.dp)
                             .dpadFocusable(
-                                shape = RoundedCornerShape(10.dp),
-                                focusedBorderColor = Color(0xFF00E5FF),
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.Accent,
                                 onClick = onSyncClick
                             )
                     ) {
@@ -581,12 +584,12 @@ private fun HomeTopBar(
                         ) {
                             CircularProgressIndicator(
                                 strokeWidth = 2.dp,
-                                color = Color(0xFF00E5FF),
+                                color = VegaColors.Accent,
                                 modifier = Modifier.size(14.dp)
                             )
                             Text(
                                 text = "%$syncPercentage",
-                                color = Color.White,
+                                color = VegaColors.TextPrimary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -594,17 +597,17 @@ private fun HomeTopBar(
                     }
                 }
 
-                // Yenile Butonu (40.dp, RoundedCornerShape(12.dp))
+                // Yenile Butonu
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = VegaShapes.Medium,
                     color = Color.White.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                    border = BorderStroke(1.dp, VegaColors.Border),
                     onClick = onSyncClick,
                     modifier = Modifier
                         .size(40.dp)
                         .dpadFocusable(
-                            shape = RoundedCornerShape(12.dp),
-                            focusedBorderColor = Color(0xFF00E5FF),
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.Accent,
                             onClick = onSyncClick
                         )
                 ) {
@@ -612,24 +615,24 @@ private fun HomeTopBar(
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Tüm İçeriği Senkronize Et",
-                            tint = Color.White,
+                            tint = VegaColors.TextPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                // Ayarlar Butonu (40.dp, RoundedCornerShape(12.dp))
+                // Ayarlar Butonu
                 if (showSettings) {
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = VegaShapes.Medium,
                         color = Color.White.copy(alpha = 0.08f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                        border = BorderStroke(1.dp, VegaColors.Border),
                         onClick = onSettingsClick,
                         modifier = Modifier
                             .size(40.dp)
                             .dpadFocusable(
-                                shape = RoundedCornerShape(12.dp),
-                                focusedBorderColor = Color(0xFF00E5FF),
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.Accent,
                                 onClick = onSettingsClick
                             )
                     ) {
@@ -637,7 +640,7 @@ private fun HomeTopBar(
                             Icon(
                                 imageVector = Icons.Default.Settings,
                                 contentDescription = "Ayarlar",
-                                tint = Color.White,
+                                tint = VegaColors.TextPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -662,8 +665,8 @@ fun VegaBottomNavigationBar(
     )
 
     Surface(
-        color = Color(0xFF0B0C1A),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
+        color = VegaColors.Background,
+        border = BorderStroke(0.5.dp, VegaColors.Border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -682,35 +685,33 @@ fun VegaBottomNavigationBar(
                         .fillMaxHeight()
                         .clickable { onTabSelected(tab) }
                         .dpadFocusable(
-                            shape = RoundedCornerShape(4.dp),
-                            focusedBorderColor = Color(0xFF00E5FF),
+                            shape = VegaShapes.Small,
+                            focusedBorderColor = VegaColors.Accent,
                             onClick = { onTabSelected(tab) }
                         ),
                     contentAlignment = Alignment.TopCenter
                 ) {
                     if (isSelected) {
-                        // Seçili sekmenin üst kenarına tam yapışık parlak çizgi
+                        // Seçili sekmenin üst kenarına çizgi
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .fillMaxWidth(0.65f)
                                 .height(2.5.dp)
                                 .background(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(Color(0xFF00E5FF), Color(0xFF7C4DFF))
-                                    ),
+                                    color = VegaColors.Accent,
                                     shape = RoundedCornerShape(bottomStart = 2.dp, bottomEnd = 2.dp)
                                 )
                         )
-                        // Arkasında yumuşak dikey mor gradyan parlama (glow) efekti
+                        // Arkasında yumuşak vurgu parlama efekti
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
                                     brush = Brush.verticalGradient(
                                         colors = listOf(
-                                            Color(0xFF7C4DFF).copy(alpha = 0.22f),
-                                            Color(0xFF7C4DFF).copy(alpha = 0.04f),
+                                            VegaColors.Accent.copy(alpha = 0.15f),
+                                            VegaColors.Accent.copy(alpha = 0.03f),
                                             Color.Transparent
                                         )
                                     )
@@ -728,7 +729,7 @@ fun VegaBottomNavigationBar(
                         Icon(
                             imageVector = tab.icon,
                             contentDescription = tab.title,
-                            tint = if (isSelected) Color(0xFF00E5FF) else Color(0xFF8E92AA),
+                            tint = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
@@ -736,7 +737,7 @@ fun VegaBottomNavigationBar(
                             text = tab.title,
                             fontSize = 11.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else Color(0xFF8E92AA),
+                            color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -766,8 +767,8 @@ private fun HomeNavigationRail(
         modifier = Modifier
             .width(76.dp)
             .fillMaxHeight(),
-        color = Color(0xFF0B0C1A),
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f))
+        color = VegaColors.Background,
+        border = BorderStroke(0.5.dp, VegaColors.Border)
     ) {
         Column(
             modifier = Modifier
@@ -785,13 +786,13 @@ private fun HomeNavigationRail(
                     Box(
                         modifier = Modifier
                             .size(54.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(VegaShapes.Medium)
                             .background(
                                 if (isSelected) {
                                     Brush.verticalGradient(
                                         listOf(
-                                            Color(0xFF7C4DFF).copy(alpha = 0.28f),
-                                            Color(0xFF7C4DFF).copy(alpha = 0.08f)
+                                            VegaColors.Accent.copy(alpha = 0.20f),
+                                            VegaColors.Accent.copy(alpha = 0.05f)
                                         )
                                     )
                                 } else {
@@ -800,8 +801,8 @@ private fun HomeNavigationRail(
                             )
                             .clickable { onTabSelected(tab) }
                             .dpadFocusable(
-                                shape = RoundedCornerShape(12.dp),
-                                focusedBorderColor = Color(0xFF00E5FF),
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.Accent,
                                 onClick = { onTabSelected(tab) }
                             ),
                         contentAlignment = Alignment.Center
@@ -813,9 +814,7 @@ private fun HomeNavigationRail(
                                     .width(3.dp)
                                     .height(28.dp)
                                     .background(
-                                        brush = Brush.verticalGradient(
-                                            colors = listOf(Color(0xFF00E5FF), Color(0xFF7C4DFF))
-                                        ),
+                                        color = VegaColors.Accent,
                                         shape = RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp)
                                     )
                             )
@@ -828,15 +827,15 @@ private fun HomeNavigationRail(
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = tab.title,
-                                tint = if (isSelected) Color(0xFF00E5FF) else Color(0xFF8E92AA),
+                                tint = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = tab.title,
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color.White else Color(0xFF8E92AA),
+                                color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -847,7 +846,7 @@ private fun HomeNavigationRail(
 
             Text(
                 text = "$activeCons/$maxCons",
-                color = Color(0xFF00E676),
+                color = VegaColors.Success,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -892,7 +891,7 @@ fun ResumeAndRecentDashboard(viewModel: MainViewModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(TiviSurfaceVariant.copy(alpha = 0.4f))
+            .background(VegaColors.SurfaceVariant.copy(alpha = 0.4f))
             .padding(vertical = 6.dp)
     ) {
         // 1. ŞERİT: KALDIĞIN YERDEN DEVAM ET
@@ -906,7 +905,7 @@ fun ResumeAndRecentDashboard(viewModel: MainViewModel) {
                 Icon(
                     imageVector = Icons.Default.History,
                     contentDescription = null,
-                    tint = TiviPrimary,
+                    tint = VegaColors.Accent,
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
@@ -914,7 +913,7 @@ fun ResumeAndRecentDashboard(viewModel: MainViewModel) {
                     text = "Kaldığın Yerden Devam Et",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TiviTextPrimary
+                    color = VegaColors.TextPrimary
                 )
             }
 
@@ -952,14 +951,14 @@ fun ResumeAndRecentDashboard(viewModel: MainViewModel) {
                     modifier = Modifier
                         .size(6.dp)
                         .clip(CircleShape)
-                        .background(TiviAccentLive)
+                        .background(VegaColors.Live)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Son İzlenen Canlı Kanallar",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TiviTextPrimary
+                    color = VegaColors.TextPrimary
                 )
             }
 
@@ -992,9 +991,9 @@ fun ResumeWatchingCard(
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = TiviCard,
-        border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Medium,
+        color = VegaColors.Card,
+        border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .width(170.dp)
             .height(64.dp)
@@ -1010,7 +1009,7 @@ fun ResumeWatchingCard(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(VegaShapes.Small)
                         .background(Color.Black),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1026,7 +1025,7 @@ fun ResumeWatchingCard(
                         Icon(
                             imageVector = Icons.Default.Movie,
                             contentDescription = null,
-                            tint = TiviPrimary,
+                            tint = VegaColors.Accent,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -1053,7 +1052,7 @@ fun ResumeWatchingCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = movie?.name ?: "İçerik #${progress.streamId}",
-                        color = TiviTextPrimary,
+                        color = VegaColors.TextPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -1063,8 +1062,8 @@ fun ResumeWatchingCard(
                     val mins = progress.positionMs / 60000
                     Text(
                         text = "$mins. dakikada kaldı",
-                        color = TiviTextSecondary,
-                        fontSize = 9.sp
+                        color = VegaColors.TextSecondary,
+                        fontSize = 11.sp
                     )
                 }
             }
@@ -1075,8 +1074,8 @@ fun ResumeWatchingCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(3.dp),
-                color = TiviPrimary,
-                trackColor = TiviCardBorder
+                color = VegaColors.Accent,
+                trackColor = VegaColors.Border
             )
         }
     }
@@ -1089,9 +1088,9 @@ fun RecentChannelCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = TiviCard,
-        border = androidx.compose.foundation.BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Medium,
+        color = VegaColors.Card,
+        border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .width(140.dp)
             .height(48.dp)
@@ -1105,7 +1104,7 @@ fun RecentChannelCard(
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .clip(RoundedCornerShape(6.dp))
+                    .clip(VegaShapes.Small)
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
@@ -1123,7 +1122,7 @@ fun RecentChannelCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = channel.name,
-                    color = TiviTextPrimary,
+                    color = VegaColors.TextPrimary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -1134,13 +1133,13 @@ fun RecentChannelCard(
                         modifier = Modifier
                             .size(5.dp)
                             .clip(CircleShape)
-                            .background(TiviAccentLive)
+                            .background(VegaColors.Live)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "CANLI",
-                        color = TiviAccentLive,
-                        fontSize = 8.sp,
+                        text = "Canlı",
+                        color = VegaColors.Live,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }

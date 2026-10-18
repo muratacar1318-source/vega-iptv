@@ -46,6 +46,8 @@ import com.tivimax.player.ui.SearchFilter
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.MediaPosterCard
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 import kotlinx.coroutines.delay
 
 @Composable
@@ -84,12 +86,12 @@ fun UniversalSearchScreen(
     val totalCount = liveResults.size + vodResults.size + seriesResults.size
 
     Scaffold(
-        containerColor = TiviBackground,
+        containerColor = VegaColors.Background,
         topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(TiviBackground)
+                    .background(VegaColors.Background)
                     .statusBarsPadding()
             ) {
                 // Üst Bar: Geri Butonu + Arama Kutusu
@@ -104,15 +106,15 @@ fun UniversalSearchScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .dpadFocusable(
-                                shape = RoundedCornerShape(10.dp),
-                                focusedBorderColor = OpusCyan,
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.Accent,
                                 onClick = onBack
                             )
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Geri",
-                            tint = Color.White
+                            tint = VegaColors.TextPrimary
                         )
                     }
 
@@ -120,9 +122,9 @@ fun UniversalSearchScreen(
 
                     // Arama Kutusu (BasicTextField tabanlı, kesintisiz ve şık)
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = TiviCard,
-                        border = BorderStroke(1.dp, TiviCardBorder),
+                        shape = VegaShapes.Medium,
+                        color = VegaColors.Card,
+                        border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
                             .weight(1f)
                             .height(44.dp)
@@ -136,7 +138,7 @@ fun UniversalSearchScreen(
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = "Ara",
-                                tint = OpusCyan,
+                                tint = VegaColors.Accent,
                                 modifier = Modifier.size(20.dp)
                             )
 
@@ -149,7 +151,7 @@ fun UniversalSearchScreen(
                                 if (searchQuery.isEmpty()) {
                                     Text(
                                         text = "Kanal, film veya dizi ara…",
-                                        color = TiviTextMuted,
+                                        color = VegaColors.TextMuted,
                                         fontSize = 14.sp,
                                         maxLines = 1
                                     )
@@ -159,10 +161,10 @@ fun UniversalSearchScreen(
                                     onValueChange = { viewModel.setUniversalSearchQuery(it) },
                                     singleLine = true,
                                     textStyle = TextStyle(
-                                        color = Color.White,
+                                        color = VegaColors.TextPrimary,
                                         fontSize = 14.sp
                                     ),
-                                    cursorBrush = SolidColor(OpusCyan),
+                                    cursorBrush = SolidColor(VegaColors.Accent),
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                     keyboardActions = KeyboardActions(
                                         onSearch = {
@@ -184,7 +186,7 @@ fun UniversalSearchScreen(
                                     Icon(
                                         imageVector = Icons.Default.Clear,
                                         contentDescription = "Temizle",
-                                        tint = TiviTextMuted,
+                                        tint = VegaColors.TextMuted,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -199,7 +201,7 @@ fun UniversalSearchScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(2.5.dp),
-                        color = OpusCyan,
+                        color = VegaColors.Accent,
                         trackColor = Color.Transparent
                     )
                 } else {
@@ -282,7 +284,7 @@ fun UniversalSearchScreen(
                     ) {
                         Text(
                             text = "En az 2 harf yazın",
-                            color = TiviTextSecondary,
+                            color = VegaColors.TextSecondary,
                             fontSize = 14.sp
                         )
                     }
@@ -300,20 +302,20 @@ fun UniversalSearchScreen(
                             Icon(
                                 imageVector = Icons.Default.SearchOff,
                                 contentDescription = null,
-                                tint = TiviTextMuted,
+                                tint = VegaColors.TextMuted,
                                 modifier = Modifier.size(56.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "'$searchQuery' için sonuç bulunamadı",
-                                color = Color.White,
-                                fontSize = 16.sp,
+                                color = VegaColors.TextPrimary,
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = "Yazımı kontrol edebilir veya farklı bir arama terimi deneyebilirsiniz.",
-                                color = TiviTextMuted,
+                                color = VegaColors.TextMuted,
                                 fontSize = 13.sp
                             )
                         }
@@ -373,13 +375,13 @@ private fun SearchFilterChip(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = if (isSelected) OpusCyan else TiviCard,
-        border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+        shape = VegaShapes.Pill,
+        color = if (isSelected) VegaColors.Accent else VegaColors.Card,
+        border = BorderStroke(1.dp, if (isSelected) VegaColors.Accent else VegaColors.Border),
         modifier = Modifier
             .dpadFocusable(
-                shape = RoundedCornerShape(20.dp),
-                focusedBorderColor = OpusCyan,
+                shape = VegaShapes.Pill,
+                focusedBorderColor = if (isSelected) Color.White else VegaColors.Accent,
                 onClick = onClick
             )
             .clickable(onClick = onClick)
@@ -390,16 +392,16 @@ private fun SearchFilterChip(
         ) {
             Text(
                 text = label,
-                color = if (isSelected) Color.Black else Color.White,
-                fontSize = 12.5.sp,
+                color = if (isSelected) VegaColors.OnAccent else VegaColors.TextPrimary,
+                fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
             if (count > 0) {
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "$count",
-                    color = if (isSelected) Color.Black.copy(alpha = 0.75f) else OpusCyan,
-                    fontSize = 11.5.sp,
+                    color = if (isSelected) VegaColors.OnAccent.copy(alpha = 0.75f) else VegaColors.Accent,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -428,15 +430,15 @@ private fun RecentSearchesSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Son Aramalar",
-                color = Color.White,
+                text = "Son aramalar",
+                color = VegaColors.TextPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
             TextButton(onClick = onClearAll) {
                 Text(
                     text = "Temizle",
-                    color = OpusCyan,
+                    color = VegaColors.Accent,
                     fontSize = 13.sp
                 )
             }
@@ -451,14 +453,14 @@ private fun RecentSearchesSection(
         ) {
             items(recentSearches, key = { it }) { query ->
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = TiviCard,
-                    border = BorderStroke(1.dp, TiviCardBorder),
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.Card,
+                    border = BorderStroke(1.dp, VegaColors.Border),
                     modifier = Modifier
                         .fillMaxWidth()
                         .dpadFocusable(
-                            shape = RoundedCornerShape(10.dp),
-                            focusedBorderColor = OpusCyan,
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.Accent,
                             onClick = { onSearchClick(query) }
                         )
                         .clickable { onSearchClick(query) }
@@ -477,13 +479,13 @@ private fun RecentSearchesSection(
                             Icon(
                                 imageVector = Icons.Default.History,
                                 contentDescription = null,
-                                tint = TiviTextMuted,
+                                tint = VegaColors.TextMuted,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = query,
-                                color = Color.White,
+                                color = VegaColors.TextPrimary,
                                 fontSize = 14.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -497,7 +499,7 @@ private fun RecentSearchesSection(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Sil",
-                                tint = TiviTextMuted,
+                                tint = VegaColors.TextMuted,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -521,13 +523,13 @@ private fun EmptyInitialState() {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = null,
-                tint = TiviTextMuted.copy(alpha = 0.35f),
+                tint = VegaColors.TextMuted.copy(alpha = 0.35f),
                 modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Kanal, film veya dizi arayın",
-                color = TiviTextMuted,
+                text = "Kanal, film veya dizi ara",
+                color = VegaColors.TextMuted,
                 fontSize = 14.sp
             )
         }
@@ -561,9 +563,9 @@ private fun SearchResultsContent(
                 if (liveResults.isNotEmpty()) {
                     item {
                         SectionHeader(
-                            title = "CANLI TV",
+                            title = "Canlı TV",
                             count = liveResults.size,
-                            titleColor = OpusCyan,
+                            titleColor = VegaColors.Accent,
                             onSeeAllClick = onSeeAllLive
                         )
                     }
@@ -579,9 +581,9 @@ private fun SearchResultsContent(
                 if (vodResults.isNotEmpty()) {
                     item {
                         SectionHeader(
-                            title = "FİLMLER",
+                            title = "Filmler",
                             count = vodResults.size,
-                            titleColor = TiviSecondary,
+                            titleColor = VegaColors.Accent,
                             onSeeAllClick = onSeeAllVod
                         )
                         LazyRow(
@@ -609,9 +611,9 @@ private fun SearchResultsContent(
                 if (seriesResults.isNotEmpty()) {
                     item {
                         SectionHeader(
-                            title = "DİZİLER",
+                            title = "Diziler",
                             count = seriesResults.size,
-                            titleColor = OpusCyan,
+                            titleColor = VegaColors.Accent,
                             onSeeAllClick = onSeeAllSeries
                         )
                         LazyRow(
@@ -694,7 +696,7 @@ private fun SearchResultsContent(
 }
 
 /**
- * Bölüm Başlığı (Örn: CANLI TV · 12   Tümünü gör ›)
+ * Bölüm Başlığı (Örn: Canlı TV · 12   Tümünü gör ›)
  */
 @Composable
 private fun SectionHeader(
@@ -714,8 +716,8 @@ private fun SectionHeader(
             Text(
                 text = "$title · $count",
                 color = titleColor,
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.ExtraBold,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
                 letterSpacing = 0.5.sp
             )
         }
@@ -727,14 +729,14 @@ private fun SectionHeader(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "Tümünü gör",
-                    color = TiviTextSecondary,
+                    color = VegaColors.TextSecondary,
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                     contentDescription = null,
-                    tint = TiviTextSecondary,
+                    tint = VegaColors.TextSecondary,
                     modifier = Modifier.size(10.dp)
                 )
             }
@@ -751,16 +753,16 @@ private fun UniversalSearchChannelRow(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = TiviCard,
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Medium,
+        color = VegaColors.Card,
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
             .padding(horizontal = 12.dp, vertical = 2.dp)
             .dpadFocusable(
-                shape = RoundedCornerShape(10.dp),
-                focusedBorderColor = OpusCyan,
+                shape = VegaShapes.Medium,
+                focusedBorderColor = VegaColors.Accent,
                 onClick = onClick
             )
             .clickable(onClick = onClick)
@@ -775,8 +777,8 @@ private fun UniversalSearchChannelRow(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(TiviSurfaceVariant),
+                    .clip(VegaShapes.Small)
+                    .background(VegaColors.SurfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncShimmerImage(
@@ -798,16 +800,16 @@ private fun UniversalSearchChannelRow(
                     if (channel.num > 0) {
                         Text(
                             text = "${channel.num}",
-                            color = TiviTextMuted,
-                            fontSize = 11.5.sp,
+                            color = VegaColors.TextMuted,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(end = 6.dp)
                         )
                     }
                     Text(
                         text = channel.name,
-                        color = Color.White,
-                        fontSize = 13.5.sp,
+                        color = VegaColors.TextPrimary,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -817,7 +819,7 @@ private fun UniversalSearchChannelRow(
                 val programInfo = channel.currentProgram ?: "Program bilgisi yok"
                 Text(
                     text = if (channel.currentProgram != null) "Şimdi: $programInfo" else programInfo,
-                    color = TiviTextSecondary,
+                    color = VegaColors.TextSecondary,
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -828,7 +830,7 @@ private fun UniversalSearchChannelRow(
             Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = "Oynat",
-                tint = OpusCyan,
+                tint = VegaColors.Accent,
                 modifier = Modifier.size(20.dp)
             )
         }

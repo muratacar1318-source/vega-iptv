@@ -23,13 +23,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tivimax.player.ui.design.VegaColors
 
 data class CategoryUiItem(
     val id: String,
     val name: String,
     val count: Int,
     val icon: ImageVector = Icons.Default.Folder,
-    val iconTint: Color = Color(0xFF7C4DFF)
+    val iconTint: Color = VegaColors.Accent
 )
 
 @Composable
@@ -37,7 +38,7 @@ fun CategorySidebar(
     categories: List<CategoryUiItem>,
     selectedCategoryId: String,
     onCategorySelected: (String) -> Unit,
-    title: String = "KATEGORİLER",
+    title: String = "Kategoriler",
     totalCount: Int = 0,
     allLabel: String = "Tümü",
     onFilterClick: (() -> Unit)? = null,
@@ -58,10 +59,10 @@ fun CategorySidebar(
             .fillMaxHeight()
             .widthIn(min = 110.dp)
             .fillMaxWidth(0.31f)
-            .background(Color(0xFF0E1022))
+            .background(VegaColors.Background)
             .padding(horizontal = 4.dp, vertical = 6.dp)
     ) {
-        // Üst Başlık: "KATEGORİLER" / "TÜRLER" + Filtre İkonu
+        // Üst Başlık: "Kategoriler" / "Türler" + Filtre İkonu
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -73,8 +74,8 @@ fun CategorySidebar(
                 text = title,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF8E92AA),
-                letterSpacing = 1.sp,
+                color = VegaColors.TextSecondary,
+                letterSpacing = 0.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -82,7 +83,7 @@ fun CategorySidebar(
                 Icon(
                     imageVector = Icons.Default.Tune,
                     contentDescription = "Filtrele",
-                    tint = Color(0xFF8E92AA),
+                    tint = VegaColors.TextSecondary,
                     modifier = Modifier
                         .size(16.dp)
                         .clickable { onFilterClick() }
@@ -91,7 +92,7 @@ fun CategorySidebar(
                 Icon(
                     imageVector = Icons.Default.Tune,
                     contentDescription = "Filtre",
-                    tint = Color(0xFF8E92AA),
+                    tint = VegaColors.TextSecondary,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -110,7 +111,7 @@ fun CategorySidebar(
                     name = allLabel,
                     count = effectiveTotalCount,
                     icon = Icons.Default.Folder,
-                    iconTint = Color(0xFF00E5FF),
+                    iconTint = VegaColors.Accent,
                     isSelected = isSelected,
                     onClick = { onCategorySelected("all") }
                 )

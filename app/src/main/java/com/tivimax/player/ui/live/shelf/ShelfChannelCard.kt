@@ -36,6 +36,7 @@ import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
 import kotlinx.coroutines.delay
 
 /**
@@ -162,7 +163,7 @@ fun ShelfChannelCard(
                     Box(
                         modifier = Modifier
                             .size(5.dp)
-                            .background(Color(0xFFFF1744), CircleShape)
+                            .background(VegaColors.Live, CircleShape)
                     )
                     Text(
                         text = stringResource(R.string.live_shelf_live_badge),
@@ -289,12 +290,12 @@ fun ShelfChannelCard(
             )
             if (onHideChannel != null) {
                 DropdownMenuItem(
-                    text = { Text("Kanalı Gizle", color = Color(0xFFEF5350), fontSize = 13.sp) },
+                    text = { Text("Kanalı gizle", color = VegaColors.Danger, fontSize = 13.sp) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.VisibilityOff,
                             contentDescription = null,
-                            tint = Color(0xFFEF5350)
+                            tint = VegaColors.Danger
                         )
                     },
                     onClick = {

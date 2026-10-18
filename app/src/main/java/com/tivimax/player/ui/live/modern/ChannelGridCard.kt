@@ -25,6 +25,7 @@ import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
 
 /**
  * 3 Sütunlu Izgara (Grid) Görünümü Kanal Kartı (~110dp yükseklik).
@@ -86,7 +87,7 @@ fun ChannelGridCard(
                     Box(
                         modifier = Modifier
                             .size(7.dp)
-                            .background(Color(0xFFFF1744), CircleShape)
+                            .background(VegaColors.Live, CircleShape)
                     )
 
                     IconButton(
@@ -96,7 +97,7 @@ fun ChannelGridCard(
                         Icon(
                             imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                             contentDescription = "Favori",
-                            tint = if (isFavorite) TiviGold else TiviTextMuted.copy(alpha = 0.7f),
+                            tint = if (isFavorite) VegaColors.Gold else VegaColors.TextMuted.copy(alpha = 0.7f),
                             modifier = Modifier.size(15.dp)
                         )
                     }
@@ -174,12 +175,12 @@ fun ChannelGridCard(
             )
             if (onHideChannel != null) {
                 DropdownMenuItem(
-                    text = { Text("Kanalı Gizle", color = Color(0xFFEF5350), fontSize = 13.sp) },
+                    text = { Text("Kanalı gizle", color = VegaColors.Danger, fontSize = 13.sp) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.VisibilityOff,
                             contentDescription = null,
-                            tint = Color(0xFFEF5350)
+                            tint = VegaColors.Danger
                         )
                     },
                     onClick = {

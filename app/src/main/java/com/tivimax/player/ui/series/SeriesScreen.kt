@@ -3,7 +3,6 @@ package com.tivimax.player.ui.series
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -20,6 +19,8 @@ import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.catalog.VegaMediaCatalogScreen
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 
 @Composable
 fun SeriesScreen(viewModel: MainViewModel) {
@@ -32,14 +33,14 @@ fun SeriesPosterCard(
     onClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCardDark),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Medium,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .fillMaxWidth()
             .dpadFocusable(
-                focusedBorderColor = OpusCyan,
-                shape = RoundedCornerShape(12.dp),
+                focusedBorderColor = VegaColors.Accent,
+                shape = VegaShapes.Medium,
                 onClick = onClick
             )
     ) {
@@ -48,7 +49,7 @@ fun SeriesPosterCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(2f / 3f)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(VegaShapes.Small)
             ) {
                 AsyncShimmerImage(
                     model = series.cover,
@@ -62,8 +63,8 @@ fun SeriesPosterCard(
 
             Text(
                 text = series.name,
-                color = Color.White,
-                fontSize = 11.5.sp,
+                color = VegaColors.TextPrimary,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 minLines = 2,
                 maxLines = 2,
@@ -78,8 +79,8 @@ fun SeriesPosterCard(
             val subText = if (releaseYear.isNotBlank()) "$releaseYear • $genreText" else genreText
             Text(
                 text = subText,
-                color = Color(0xFF9E9E9E),
-                fontSize = 10.sp,
+                color = VegaColors.TextSecondary,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

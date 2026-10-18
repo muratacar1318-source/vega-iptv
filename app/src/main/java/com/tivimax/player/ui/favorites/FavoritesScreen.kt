@@ -28,6 +28,8 @@ import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.MediaPosterCard
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 
 @Composable
 fun FavoritesScreen(viewModel: MainViewModel) {
@@ -53,7 +55,7 @@ fun FavoritesScreen(viewModel: MainViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .background(VegaColors.Background)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // ÜST KAPSÜL FİLTRE SEKMELERİ (SEGMENTED CONTROL)
@@ -62,9 +64,9 @@ fun FavoritesScreen(viewModel: MainViewModel) {
             horizontalArrangement = Arrangement.Center
         ) {
             Surface(
-                shape = RoundedCornerShape(50),
-                color = TiviSurface,
-                border = BorderStroke(1.dp, TiviCardBorder),
+                shape = VegaShapes.Pill,
+                color = VegaColors.Surface,
+                border = BorderStroke(1.dp, VegaColors.Border),
                 modifier = Modifier.padding(vertical = 4.dp)
             ) {
                 Row(
@@ -74,13 +76,13 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                     tabs.forEachIndexed { index, title ->
                         val isSelected = selectedTab == index
                         Surface(
-                            shape = RoundedCornerShape(50),
-                            color = if (isSelected) OpusCyan else Color.Transparent,
+                            shape = VegaShapes.Pill,
+                            color = if (isSelected) VegaColors.Accent else Color.Transparent,
                             modifier = Modifier
                                 .height(36.dp)
                                 .dpadFocusable(
-                                    shape = RoundedCornerShape(50),
-                                    focusedBorderColor = Color.White,
+                                    shape = VegaShapes.Pill,
+                                    focusedBorderColor = if (isSelected) Color.White else VegaColors.Accent,
                                     onClick = { selectedTab = index }
                                 )
                         ) {
@@ -92,9 +94,9 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                             ) {
                                 Text(
                                     text = title,
-                                    fontSize = 12.5.sp,
+                                    fontSize = 13.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.Black else Color.White
+                                    color = if (isSelected) VegaColors.OnAccent else VegaColors.TextPrimary
                                 )
                             }
                         }
@@ -125,21 +127,21 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                     Icon(
                         imageVector = Icons.Default.StarBorder,
                         contentDescription = null,
-                        tint = TiviTextMuted,
+                        tint = VegaColors.TextMuted,
                         modifier = Modifier.size(64.dp)
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Henüz favori içerik eklemediniz",
-                        color = Color.White,
-                        fontSize = 16.sp,
+                        text = "Henüz favori içerik eklemedin",
+                        color = VegaColors.TextPrimary,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Beğendiğiniz canlı kanal, film veya dizileri yıldız ikonasını kullanarak favorilerinize ekleyebilirsiniz.",
-                        color = TiviTextSecondary,
-                        fontSize = 12.5.sp,
+                        text = "Beğendiğin canlı kanal, film veya dizileri yıldız simgesini kullanarak favorilerine ekleyebilirsin.",
+                        color = VegaColors.TextSecondary,
+                        fontSize = 13.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 32.dp)
                     )

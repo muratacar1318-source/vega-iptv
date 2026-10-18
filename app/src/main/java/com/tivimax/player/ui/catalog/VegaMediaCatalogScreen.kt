@@ -32,11 +32,12 @@ import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.*
+import com.tivimax.player.ui.design.VegaColors
 
-private val NeonCyan = Color(0xFF00E5FF)
-private val GlassBorder = Color(0x33FFFFFF)
-private val GlassSurface = Color(0x261B1D36)
-private val GlassSurfaceLight = Color(0x4025284A)
+private val NeonCyan = VegaColors.Accent
+private val GlassBorder = VegaColors.Border
+private val GlassSurface = VegaColors.Card
+private val GlassSurfaceLight = VegaColors.SurfaceVariant
 
 @Composable
 fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
@@ -81,7 +82,7 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                     name = it.categoryName,
                     count = it.itemCount,
                     icon = Icons.Default.Folder,
-                    iconTint = Color(0xFF7C4DFF)
+                    iconTint = VegaColors.Accent
                 )
             }
     }
@@ -263,7 +264,7 @@ private fun VegaMediaContentGrid(
                     )
                     DropdownMenuItem(
                         text = { Text("Puan Sıralaması (En Yüksek)", color = if (currentSort == com.tivimax.player.data.model.SortOption.RATING_DESC) NeonCyan else Color.White, fontSize = 12.sp) },
-                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp)) },
+                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(16.dp)) },
                         onClick = {
                             onSortSelected(com.tivimax.player.data.model.SortOption.RATING_DESC)
                             isSortMenuOpen = false
@@ -416,7 +417,7 @@ private fun VegaMediaCard(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "Puan",
-                                tint = Color(0xFFFFD700),
+                                tint = VegaColors.Gold,
                                 modifier = Modifier.size(10.dp)
                             )
                             Text(
