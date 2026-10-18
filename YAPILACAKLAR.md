@@ -40,6 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
+| G-030 | [Üst çubuk sıkışması, sunucu sırası varsayılan, boş "Kaldığın yerden" başlığı, tekrar eden filmler](docs/gorevler/G-030-ust-cubuk-sunucu-sirasi.md) | 🟠 | ⏳ Sıradaki |
 
 ---
 
