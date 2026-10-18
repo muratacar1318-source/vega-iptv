@@ -237,4 +237,23 @@ Kanal geçişi (G-037), tampon ayarları (`createLoadControl`), VOD oynatma ve h
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - **Bölüm A (TiviPlayerManager.kt):**
+    - **A1:** `liveTargetAheadMs` (8 sn), `liveCatchUpSpeed`, `liveCatchUpStalls`, `liveCatchUpBoost`, `liveBehindSecs` ve `liveCatchingUp` akışları eklendi. `setCatchUpSpeed` ve `applyLiveCatchUp` fonksiyonları oluşturuldu. Tampon 8 sn'den büyükse (ve takılma sayısı < 2 ise) otomatik 1.5×, "Canlıya geç" tetiklenmişse 2.0× hızla fazla tampon eritilerek 8 sn'ye ulaşıldığında 1.0× normal hıza dönülmesi sağlandı.
+    - **A2:** `STATE_BUFFERING` dalında, görüntü geldikten sonra takılma meydana gelirse `liveCatchUpStalls` artırıldı; 2 takılmada otomatik hızlandırma durdurulup normal hıza çekildi.
+    - **A3:** `playWithFallbacks` başında hızlandırma durumu, takılma sayaçları ve boost bayrakları sıfırlandı.
+    - **A4:** `jumpToLive()` fonksiyonu, bağlantıyı gereksiz yenilemek yerine `liveCatchUpBoost = true` yaparak 2.0× hızla tamponu 8 saniyeye eritecek şekilde güncellendi.
+    - **A5:** `startPositionUpdates()` canlı dalında her 250 ms döngüde `applyLiveCatchUp(player)` çağrısı eklendi.
+  - **Bölüm B (TvPlayerOverlay.kt):**
+    - **B1:** `liveBehindSecs` ve `liveCatchingUp` akışları `collectAsState()` ile dinlendi.
+    - **B2:** Bilgi kartı rozetlerine canlı durumu rozeti eklendi: Canlıya yetişiliyorsa "⏩ Canlıya yetişiliyor", 10 sn'den fazla gerideyse "X sn geride", 10 sn altındaysa "● CANLI".
+    - **B3:** "Canlıya geç" düğmesi Action Dock menüsünün en soluna (1. sıraya) taşındı; `actionDockFocusRequester` odak isteyicisi ona bağlandı (menü açılınca ilk bu buton seçili gelir); yayın gerideyken (`liveBehindSecs > 10f`) aktif vurgu rengi (`VegaColors.Live`) eklendi.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt`
+  - `docs/gorevler/G-039-canli-gecikme-8sn-canliya-gec.md`
+  - `YAPILACAKLAR.md`
+- **Test sonuçları:**
+  - `./gradlew compileDebugKotlin`: Başarılı (`BUILD SUCCESSFUL in 14s`).
+  - `./gradlew testDebugUnitTest`: Başarılı (`BUILD SUCCESSFUL in 5s`, 28 testin tümü geçti).
+  - Fiziksel TV / emülatör bağlı olmadığı için ekran üzerinde manuel TV testi yapılamadı (test edilemedi).
