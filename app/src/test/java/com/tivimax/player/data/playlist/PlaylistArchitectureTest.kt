@@ -127,4 +127,39 @@ class PlaylistArchitectureTest {
         val nextActive = PlaylistRepository.selectNextActive(remaining, removedId = "pl_1", currentActiveId = "pl_1")
         assertNull(nextActive)
     }
+
+    @Test
+    fun `migrateHttpsToHttp converts matching https urls to http`() {
+        val list = listOf(
+            Playlist("pl_1", "Liste 1", "https://iptv.example.com", "u1", "p1", "db1"),
+            Playlist("pl_2", "Liste 2", "http://custom.example.com", "u2", "p2", "db2"),
+            Playlist("pl_3", "Liste 3", "https://iptv.example.com", "u3", "p3", "db3")
+        )
+
+        val updated = PlaylistRepository.migrateHttpsToHttp(
+            playlists = list,
+            httpsUrl = "https://iptv.example.com",
+            httpUrl = "http://iptv.example.com"
+        )
+
+        assertEquals("http://iptv.example.com", updated[0].serverUrl)
+        assertEquals("http://custom.example.com", updated[1].serverUrl)
+        assertEquals("http://iptv.example.com", updated[2].serverUrl)
+    }
+
+    @Test
+    fun `migration converts https serverUrl to default http serverUrl`() {
+        val migrated = PlaylistRepository.computeMigration(
+            hasExistingPlaylists = false,
+            isLoggedIn = true,
+            serverUrl = com.tivimax.player.data.config.AppConfig.SERVER_URL_HTTPS,
+            username = "testuser",
+            password = "testpassword",
+            isSynced = true,
+            lastSyncAt = "18.10.2026 14:00"
+        )
+
+        assertNotNull(migrated)
+        assertEquals(com.tivimax.player.data.config.AppConfig.SERVER_URL_HTTP, migrated!!.serverUrl)
+    }
 }

@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.data.preferences.appDataStore
 import kotlinx.coroutines.flow.Flow
@@ -48,6 +49,19 @@ class PlaylistRepository(private val context: Context) {
         }
 
         /**
+         * HTTPS serverUrl kayıtlarını HTTP'ye çeviren saf yardımcı.
+         */
+        fun migrateHttpsToHttp(playlists: List<Playlist>, httpsUrl: String, httpUrl: String): List<Playlist> {
+            return playlists.map { pl ->
+                if (pl.serverUrl.equals(httpsUrl, ignoreCase = true)) {
+                    pl.copy(serverUrl = httpUrl)
+                } else {
+                    pl
+                }
+            }
+        }
+
+        /**
          * Verilen durumlar için migration gerekip gerekmediğini ve oluşturulacak
          * playlist nesnesini belirler.
          */
@@ -63,10 +77,18 @@ class PlaylistRepository(private val context: Context) {
             if (hasExistingPlaylists) return null
             if (!isLoggedIn) return null
 
+            val effectiveUrl = if (serverUrl.equals(AppConfig.SERVER_URL_HTTPS, ignoreCase = true)) {
+                AppConfig.SERVER_URL_HTTP
+            } else if (serverUrl.isBlank() || serverUrl.contains("my-iptv-server")) {
+                AppConfig.DEFAULT_SERVER_URL
+            } else {
+                serverUrl
+            }
+
             return Playlist(
                 id = DEFAULT_PLAYLIST_ID,
                 name = "Ana liste",
-                serverUrl = serverUrl,
+                serverUrl = effectiveUrl,
                 username = username,
                 password = password,
                 dbName = DEFAULT_DB_NAME,
@@ -195,5 +217,24 @@ class PlaylistRepository(private val context: Context) {
         add(defaultPl)
         setActive(DEFAULT_PLAYLIST_ID)
         return defaultPl
+    }
+
+    /**
+     * Tüm listelerdeki HTTPS adreslerini HTTP adresine günceller (G-024 tek seferlik geçiş).
+     */
+    suspend fun migrateHttpsUrls(
+        httpsUrl: String = AppConfig.SERVER_URL_HTTPS,
+        httpUrl: String = AppConfig.SERVER_URL_HTTP
+    ): Boolean {
+        var changed = false
+        context.appDataStore.edit { prefs ->
+            val current = parsePlaylists(prefs[KEY_PLAYLISTS])
+            val updated = migrateHttpsToHttp(current, httpsUrl, httpUrl)
+            if (updated != current) {
+                prefs[KEY_PLAYLISTS] = gson.toJson(updated)
+                changed = true
+            }
+        }
+        return changed
     }
 }

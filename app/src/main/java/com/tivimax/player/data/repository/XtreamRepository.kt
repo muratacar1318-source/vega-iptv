@@ -20,6 +20,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
@@ -48,9 +52,15 @@ class XtreamRepository(private val context: Context? = null) {
     var database: AppDatabase? = context?.let { AppDatabase.getInstance(it) }
         private set
 
+    private val _activeDb = MutableStateFlow<AppDatabase?>(database)
+    val activeDbFlow: StateFlow<AppDatabase?> = _activeDb.asStateFlow()
+
     fun switchDatabase(dbName: String) {
         val ctx = context ?: return
+        _activeDb.value = null
+        AppDatabase.close()
         database = AppDatabase.open(ctx, dbName)
+        _activeDb.value = database
         clearMemoryCaches()
     }
 
@@ -942,42 +952,47 @@ class XtreamRepository(private val context: Context? = null) {
         }
     }
 
-    fun getLiveCategoriesFlow(): Flow<List<LiveCategory>> {
-        return database?.liveDao()?.getCategories()?.map { list ->
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getLiveCategoriesFlow(): Flow<List<LiveCategory>> = activeDbFlow.flatMapLatest { db ->
+        db?.liveDao()?.getCategories()?.map { list ->
             list.map { it.toModel() }
         } ?: flowOf(emptyList())
     }
 
-    fun getLiveStreamsFlow(categoryId: String? = null): Flow<List<LiveStream>> {
-        val dao = database?.liveDao() ?: return flowOf(emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getLiveStreamsFlow(categoryId: String? = null): Flow<List<LiveStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.liveDao() ?: return@flatMapLatest flowOf(emptyList())
         val sourceFlow = if (categoryId.isNullOrEmpty() || categoryId == "all") {
             dao.getAllStreams()
         } else {
             dao.getStreamsByCategory(categoryId)
         }
-        return sourceFlow.map { list -> list.map { it.toModel() } }
+        sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
-    fun getLiveStreamsByIdsFlow(ids: List<Int>): Flow<List<LiveStream>> {
-        val dao = database?.liveDao() ?: return flowOf(emptyList())
-        if (ids.isEmpty()) return flowOf(emptyList())
-        return dao.getStreamsByIds(ids).map { list -> list.map { it.toModel() } }
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getLiveStreamsByIdsFlow(ids: List<Int>): Flow<List<LiveStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.liveDao() ?: return@flatMapLatest flowOf(emptyList())
+        if (ids.isEmpty()) return@flatMapLatest flowOf(emptyList())
+        dao.getStreamsByIds(ids).map { list -> list.map { it.toModel() } }
     }
 
-    fun searchLiveStreamsFlow(query: String, categoryId: String? = null): Flow<List<LiveStream>> {
-        val dao = database?.liveDao() ?: return flowOf(emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun searchLiveStreamsFlow(query: String, categoryId: String? = null): Flow<List<LiveStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.liveDao() ?: return@flatMapLatest flowOf(emptyList())
         val sourceFlow = if (categoryId.isNullOrEmpty() || categoryId == "all") {
             dao.searchStreams(query)
         } else {
             dao.searchStreamsInCategory(categoryId, query)
         }
-        return sourceFlow.map { list -> list.map { it.toModel() } }
+        sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
-    fun getLiveStreamsFilteredFlow(categoryId: String? = null, query: String = "", sort: String = "DEFAULT"): Flow<List<LiveStream>> {
-        val dao = database?.liveDao() ?: return flowOf(emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getLiveStreamsFilteredFlow(categoryId: String? = null, query: String = "", sort: String = "DEFAULT"): Flow<List<LiveStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.liveDao() ?: return@flatMapLatest flowOf(emptyList())
         val cleanCat = if (categoryId.isNullOrEmpty() || categoryId == "all") null else categoryId
-        return dao.getStreamsFiltered(cleanCat, query, sort).map { list -> list.map { it.toModel() } }
+        dao.getStreamsFiltered(cleanCat, query, sort).map { list -> list.map { it.toModel() } }
     }
 
     fun getPagedLiveStreams(categoryId: String? = null): PagingSource<Int, LiveStreamEntity>? {
@@ -1109,42 +1124,47 @@ class XtreamRepository(private val context: Context? = null) {
         }
     }
 
-    fun getVodCategoriesFlow(): Flow<List<VodCategory>> {
-        return database?.vodDao()?.getCategories()?.map { list ->
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getVodCategoriesFlow(): Flow<List<VodCategory>> = activeDbFlow.flatMapLatest { db ->
+        db?.vodDao()?.getCategories()?.map { list ->
             list.map { it.toModel() }
         } ?: flowOf(emptyList())
     }
 
-    fun getVodStreamsFlow(categoryId: String? = null): Flow<List<VodStream>> {
-        val dao = database?.vodDao() ?: return flowOf(emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getVodStreamsFlow(categoryId: String? = null): Flow<List<VodStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.vodDao() ?: return@flatMapLatest flowOf(emptyList())
         val sourceFlow = if (categoryId.isNullOrEmpty() || categoryId == "all") {
             dao.getAllStreams()
         } else {
             dao.getStreamsByCategory(categoryId)
         }
-        return sourceFlow.map { list -> list.map { it.toModel() } }
+        sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
-    fun getVodStreamsByIdsFlow(ids: List<Int>): Flow<List<VodStream>> {
-        val dao = database?.vodDao() ?: return flowOf(emptyList())
-        if (ids.isEmpty()) return flowOf(emptyList())
-        return dao.getStreamsByIds(ids).map { list -> list.map { it.toModel() } }
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getVodStreamsByIdsFlow(ids: List<Int>): Flow<List<VodStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.vodDao() ?: return@flatMapLatest flowOf(emptyList())
+        if (ids.isEmpty()) return@flatMapLatest flowOf(emptyList())
+        dao.getStreamsByIds(ids).map { list -> list.map { it.toModel() } }
     }
 
-    fun searchVodStreamsFlow(query: String, categoryId: String? = null): Flow<List<VodStream>> {
-        val dao = database?.vodDao() ?: return flowOf(emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun searchVodStreamsFlow(query: String, categoryId: String? = null): Flow<List<VodStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.vodDao() ?: return@flatMapLatest flowOf(emptyList())
         val sourceFlow = if (categoryId.isNullOrEmpty() || categoryId == "all") {
             dao.searchStreams(query)
         } else {
             dao.searchStreamsInCategory(categoryId, query)
         }
-        return sourceFlow.map { list -> list.map { it.toModel() } }
+        sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
-    fun getVodStreamsFilteredFlow(categoryId: String? = null, query: String = "", sort: String = "DEFAULT"): Flow<List<VodStream>> {
-        val dao = database?.vodDao() ?: return flowOf(emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getVodStreamsFilteredFlow(categoryId: String? = null, query: String = "", sort: String = "DEFAULT"): Flow<List<VodStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.vodDao() ?: return@flatMapLatest flowOf(emptyList())
         val cleanCat = if (categoryId.isNullOrEmpty() || categoryId == "all") null else categoryId
-        return dao.getStreamsFiltered(cleanCat, query, sort).map { list -> list.map { it.toModel() } }
+        dao.getStreamsFiltered(cleanCat, query, sort).map { list -> list.map { it.toModel() } }
     }
 
     fun getPagedVodStreams(categoryId: String? = null): PagingSource<Int, VodStreamEntity>? {
@@ -1276,42 +1296,47 @@ class XtreamRepository(private val context: Context? = null) {
         }
     }
 
-    fun getSeriesCategoriesFlow(): Flow<List<SeriesCategory>> {
-        return database?.seriesDao()?.getCategories()?.map { list ->
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getSeriesCategoriesFlow(): Flow<List<SeriesCategory>> = activeDbFlow.flatMapLatest { db ->
+        db?.seriesDao()?.getCategories()?.map { list ->
             list.map { it.toModel() }
         } ?: flowOf(emptyList())
     }
 
-    fun getSeriesStreamsFlow(categoryId: String? = null): Flow<List<SeriesStream>> {
-        val dao = database?.seriesDao() ?: return flowOf(emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getSeriesStreamsFlow(categoryId: String? = null): Flow<List<SeriesStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.seriesDao() ?: return@flatMapLatest flowOf(emptyList())
         val sourceFlow = if (categoryId.isNullOrEmpty() || categoryId == "all") {
             dao.getAllStreams()
         } else {
             dao.getStreamsByCategory(categoryId)
         }
-        return sourceFlow.map { list -> list.map { it.toModel() } }
+        sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
-    fun getSeriesStreamsByIdsFlow(ids: List<Int>): Flow<List<SeriesStream>> {
-        val dao = database?.seriesDao() ?: return flowOf(emptyList())
-        if (ids.isEmpty()) return flowOf(emptyList())
-        return dao.getSeriesByIds(ids).map { list -> list.map { it.toModel() } }
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getSeriesStreamsByIdsFlow(ids: List<Int>): Flow<List<SeriesStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.seriesDao() ?: return@flatMapLatest flowOf(emptyList())
+        if (ids.isEmpty()) return@flatMapLatest flowOf(emptyList())
+        dao.getSeriesByIds(ids).map { list -> list.map { it.toModel() } }
     }
 
-    fun searchSeriesStreamsFlow(query: String, categoryId: String? = null): Flow<List<SeriesStream>> {
-        val dao = database?.seriesDao() ?: return flowOf(emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun searchSeriesStreamsFlow(query: String, categoryId: String? = null): Flow<List<SeriesStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.seriesDao() ?: return@flatMapLatest flowOf(emptyList())
         val sourceFlow = if (categoryId.isNullOrEmpty() || categoryId == "all") {
             dao.searchStreams(query)
         } else {
             dao.searchStreamsInCategory(categoryId, query)
         }
-        return sourceFlow.map { list -> list.map { it.toModel() } }
+        sourceFlow.map { list -> list.map { it.toModel() } }
     }
 
-    fun getSeriesStreamsFilteredFlow(categoryId: String? = null, query: String = "", sort: String = "DEFAULT"): Flow<List<SeriesStream>> {
-        val dao = database?.seriesDao() ?: return flowOf(emptyList())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    fun getSeriesStreamsFilteredFlow(categoryId: String? = null, query: String = "", sort: String = "DEFAULT"): Flow<List<SeriesStream>> = activeDbFlow.flatMapLatest { db ->
+        val dao = db?.seriesDao() ?: return@flatMapLatest flowOf(emptyList())
         val cleanCat = if (categoryId.isNullOrEmpty() || categoryId == "all") null else categoryId
-        return dao.getStreamsFiltered(cleanCat, query, sort).map { list -> list.map { it.toModel() } }
+        dao.getStreamsFiltered(cleanCat, query, sort).map { list -> list.map { it.toModel() } }
     }
 
     fun getPagedSeriesStreams(categoryId: String? = null): PagingSource<Int, SeriesStreamEntity>? {

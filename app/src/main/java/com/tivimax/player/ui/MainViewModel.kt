@@ -245,19 +245,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val favoriteLiveStreams: StateFlow<List<LiveStream>> = favoriteLiveIds.flatMapLatest { ids ->
         val intIds = ids.mapNotNull { it.toIntOrNull() }
-        repository.getLiveStreamsByIdsFlow(intIds)
+        repository.getLiveStreamsByIdsFlow(intIds).catch { emit(emptyList()) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val favoriteVodStreams: StateFlow<List<VodStream>> = favoriteVodIds.flatMapLatest { ids ->
         val intIds = ids.mapNotNull { it.toIntOrNull() }
-        repository.getVodStreamsByIdsFlow(intIds)
+        repository.getVodStreamsByIdsFlow(intIds).catch { emit(emptyList()) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val favoriteSeriesStreams: StateFlow<List<SeriesStream>> = favoriteSeriesIds.flatMapLatest { ids ->
         val intIds = ids.mapNotNull { it.toIntOrNull() }
-        repository.getSeriesStreamsByIdsFlow(intIds)
+        repository.getSeriesStreamsByIdsFlow(intIds).catch { emit(emptyList()) }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val recentChannels = MutableStateFlow<List<LiveStream>>(emptyList())
@@ -266,6 +266,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var liveStreamJob: Job? = null
     private var vodStreamJob: Job? = null
     private var seriesStreamJob: Job? = null
+    private var liveCategoriesJob: Job? = null
+    private var vodCategoriesJob: Job? = null
+    private var seriesCategoriesJob: Job? = null
 
     // Genel Arama Durumu (Tüm kategoriler/bölümler arası arama aktarımı)
     val globalSearchQuery = MutableStateFlow("")
@@ -609,9 +612,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _accountRefreshing.value = true
             try {
-                val user = preferences.usernameFlow.first()
-                val pass = preferences.passwordFlow.first()
-                val server = preferences.serverUrlFlow.first()
+                val active = playlistRepository.getActivePlaylist()
+                if (active == null) {
+                    _accountRefreshing.value = false
+                    if (!silent) {
+                        onResult?.invoke(false, "Aktif liste bulunamadı")
+                    }
+                    return@launch
+                }
+
+                val user = active.username
+                val pass = active.password
+                val server = active.serverUrl
                 val effectiveServer = if (server.isBlank() || server.contains("my-iptv-server")) {
                     AppConfig.DEFAULT_SERVER_URL
                 } else {
@@ -649,7 +661,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 activeCons = uInfo.activeCons ?: currentActive,
                                 status = uInfo.status ?: currentStatus,
                                 isTrial = uInfo.isTrial ?: currentTrial,
-                                createdAt = uInfo.createdAt ?: currentCreated
+                                createdAt = uInfo.createdAt ?: currentCreated,
+                                playlistId = active.id
                             )
                         }
                         if (!silent) {
@@ -793,50 +806,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         // Reaktif Room DB Akışları (Arama & Kategori & Sıralama Değişimlerinde SQL Index Tabanlı Anlık Filtreleme)
         viewModelScope.launch {
-            combine(selectedLiveCategory, liveSearchQuery, liveSortOption) { cat, q, sort ->
+            combine(selectedLiveCategory, liveSearchQuery, liveSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
             .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all" || cat == "favorites" || cat == "recents") null else cat
-                repository.getLiveStreamsFilteredFlow(filterCat, q, sort.name).collect { streams ->
-                    liveStreams.value = streams
-                    if (streams.isNotEmpty()) {
-                        liveLoading.value = false
+                repository.getLiveStreamsFilteredFlow(filterCat, q, sort.name)
+                    .catch { e -> Log.w("MainViewModel", "Live streams filtered flow error", e) }
+                    .collect { streams ->
+                        liveStreams.value = streams
+                        if (streams.isNotEmpty()) {
+                            liveLoading.value = false
+                        }
                     }
-                }
             }
         }
 
         viewModelScope.launch {
-            combine(selectedVodCategory, vodSearchQuery, vodSortOption) { cat, q, sort ->
+            combine(selectedVodCategory, vodSearchQuery, vodSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
             .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all") null else cat
-                repository.getVodStreamsFilteredFlow(filterCat, q, sort.name).collect { streams ->
-                    vodStreams.value = streams
-                    if (streams.isNotEmpty()) {
-                        vodLoading.value = false
+                repository.getVodStreamsFilteredFlow(filterCat, q, sort.name)
+                    .catch { e -> Log.w("MainViewModel", "Vod streams filtered flow error", e) }
+                    .collect { streams ->
+                        vodStreams.value = streams
+                        if (streams.isNotEmpty()) {
+                            vodLoading.value = false
+                        }
                     }
-                }
             }
         }
 
         viewModelScope.launch {
-            combine(selectedSeriesCategory, seriesSearchQuery, seriesSortOption) { cat, q, sort ->
+            combine(selectedSeriesCategory, seriesSearchQuery, seriesSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
             .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all") null else cat
-                repository.getSeriesStreamsFilteredFlow(filterCat, q, sort.name).collect { streams ->
-                    seriesStreams.value = streams
-                    if (streams.isNotEmpty()) {
-                        seriesLoading.value = false
+                repository.getSeriesStreamsFilteredFlow(filterCat, q, sort.name)
+                    .catch { e -> Log.w("MainViewModel", "Series streams filtered flow error", e) }
+                    .collect { streams ->
+                        seriesStreams.value = streams
+                        if (streams.isNotEmpty()) {
+                            seriesLoading.value = false
+                        }
                     }
-                }
             }
         }
 
@@ -938,7 +957,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun checkUserLoginAndNavigate() {
         viewModelScope.launch {
             // G-025 Tek seferlik geçiş (Migration)
-            val activePl = playlistRepository.migrateIfNeeded(preferences)
+            playlistRepository.migrateIfNeeded(preferences)
+            // G-024 HTTPS -> HTTP tek seferlik geçiş
+            playlistRepository.migrateHttpsUrls(AppConfig.SERVER_URL_HTTPS, AppConfig.SERVER_URL_HTTP)
+            val currentGlobalUrl = preferences.serverUrlFlow.first()
+            if (currentGlobalUrl.equals(AppConfig.SERVER_URL_HTTPS, ignoreCase = true)) {
+                preferences.setServerUrl(AppConfig.SERVER_URL_HTTP)
+            }
+
+            val activePl = playlistRepository.getActivePlaylist()
 
             if (activePl != null) {
                 repository.updateCredentials(activePl.serverUrl, activePl.username, activePl.password)
@@ -986,6 +1013,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         liveStreamJob?.cancel()
         vodStreamJob?.cancel()
         seriesStreamJob?.cancel()
+        liveCategoriesJob?.cancel()
+        vodCategoriesJob?.cancel()
+        seriesCategoriesJob?.cancel()
         universalSearchJob?.cancel()
 
         liveCategories.value = emptyList()
@@ -1474,14 +1504,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadLiveCategories() {
-        viewModelScope.launch {
-            repository.getLiveCategoriesFlow().collect { cats ->
-                if (cats.isNotEmpty()) {
-                    val totalLive = cats.sumOf { it.itemCount }
-                    val allCat = LiveCategory(categoryId = "all", categoryName = "Tüm Kanallar", itemCount = totalLive)
-                    liveCategories.value = listOf(allCat) + cats
+        liveCategoriesJob?.cancel()
+        liveCategoriesJob = viewModelScope.launch {
+            repository.getLiveCategoriesFlow()
+                .catch { e -> Log.w("MainViewModel", "Live categories flow error", e) }
+                .collect { cats ->
+                    if (cats.isNotEmpty()) {
+                        val totalLive = cats.sumOf { it.itemCount }
+                        val allCat = LiveCategory(categoryId = "all", categoryName = "Tüm Kanallar", itemCount = totalLive)
+                        liveCategories.value = listOf(allCat) + cats
+                    }
                 }
-            }
         }
     }
 
@@ -1520,14 +1553,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadVodCategories() {
-        viewModelScope.launch {
-            repository.getVodCategoriesFlow().collect { cats ->
-                if (cats.isNotEmpty()) {
-                    val totalVod = cats.sumOf { it.itemCount }
-                    val allCat = VodCategory(categoryId = "all", categoryName = "Tüm Filmler", itemCount = totalVod)
-                    vodCategories.value = listOf(allCat) + cats
+        vodCategoriesJob?.cancel()
+        vodCategoriesJob = viewModelScope.launch {
+            repository.getVodCategoriesFlow()
+                .catch { e -> Log.w("MainViewModel", "Vod categories flow error", e) }
+                .collect { cats ->
+                    if (cats.isNotEmpty()) {
+                        val totalVod = cats.sumOf { it.itemCount }
+                        val allCat = VodCategory(categoryId = "all", categoryName = "Tüm Filmler", itemCount = totalVod)
+                        vodCategories.value = listOf(allCat) + cats
+                    }
                 }
-            }
         }
     }
 
@@ -1569,14 +1605,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadSeriesCategories() {
-        viewModelScope.launch {
-            repository.getSeriesCategoriesFlow().collect { cats ->
-                if (cats.isNotEmpty()) {
-                    val totalSeries = cats.sumOf { it.itemCount }
-                    val allCat = SeriesCategory(categoryId = "all", categoryName = "Tüm Diziler", itemCount = totalSeries)
-                    seriesCategories.value = listOf(allCat) + cats
+        seriesCategoriesJob?.cancel()
+        seriesCategoriesJob = viewModelScope.launch {
+            repository.getSeriesCategoriesFlow()
+                .catch { e -> Log.w("MainViewModel", "Series categories flow error", e) }
+                .collect { cats ->
+                    if (cats.isNotEmpty()) {
+                        val totalSeries = cats.sumOf { it.itemCount }
+                        val allCat = SeriesCategory(categoryId = "all", categoryName = "Tüm Diziler", itemCount = totalSeries)
+                        seriesCategories.value = listOf(allCat) + cats
+                    }
                 }
-            }
         }
     }
 

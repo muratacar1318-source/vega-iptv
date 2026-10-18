@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-025 | [Oynatma listesi altyapısı (çoklu liste, liste başına ayrı veri)](docs/gorevler/G-025-oynatma-listesi-altyapisi.md) | 🟠 | ⏳ Bekliyor — **Düzeltme turu 1** (aynı branch; çökme riski) |
+| G-025 | [Oynatma listesi altyapısı (çoklu liste, liste başına ayrı veri)](docs/gorevler/G-025-oynatma-listesi-altyapisi.md) | 🟠 | 🔍 İncelemede (branch: feat/oynatma-listesi-altyapi) |
 | G-026 | [Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş](docs/gorevler/G-026-oynatma-listesi-arayuzu.md) | 🟠 | ⏳ Bekliyor (G-025'ten sonra) |
 | G-027 | [Film/dizide yavaş açılış ve ileri sarmada 7-8 sn bekleme](docs/gorevler/G-027-vod-sarma-ve-acilis-hizi.md) | 🟠 | ⏳ Bekliyor |
 
