@@ -57,4 +57,22 @@ G-025 altyapısının mantığı (eksik görürsen raporla), oynatıcı, senkron
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Durum:** Tamamlandı, Claude'un incelemesine hazır.
+- **Değişiklikler:**
+  - `app/src/main/java/com/tivimax/player/ui/settings/SettingsPlaylistsSection.kt`: Ayarlar için yeni "Listelerim" kategorisi eklendi. Her liste `VegaSectionCard` ile listeleniyor (liste adı, kullanıcı adı, son güncelleme zamanı `AccountInfoFormatter.formatLastSync` ile, "Şu an kullanılıyor" / "Hazır" / "İndirilmedi" rozetleri, Geç, Düzenle, Sil işlemleri). Silme işlemi için onay diyaloğu eklendi.
+  - `app/src/main/java/com/tivimax/player/ui/settings/SettingsPlaylistsSection.kt` (`PlaylistFormDialog`): Liste ekleme ve düzenleme formu eklendi. Liste adı, Vega sunucusu / Başka sunucu seçimi (`VegaChoiceChip`), kullanıcı adı, şifre alanları ve kontrol durumunda "Kontrol ediliyor…" gösterimi uygulandı.
+  - `app/src/main/java/com/tivimax/player/ui/components/QuickPlaylistSwitchDialog.kt`: Telefon ve TV için ortak hızlı geçiş paneli oluşturuldu. Aktif liste rozetli, D-Pad odaklı, altta "Listeleri yönet" butonu barındırıyor.
+  - `app/src/main/java/com/tivimax/player/ui/main/HomeScreen.kt`:
+    - `HomeTopBar` üzerinde logo yanına aktif liste adı hapı ("Ana liste ▾") eklendi. Tek listede doğrudan "Listelerim" ayarlarına yönlendiriyor, birden fazla listede hızlı seçim panelini açıyor.
+    - Liste geçişi sırasında tam ekran "Liste değiştiriliyor…" yükleme katmanı gösteriliyor.
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvNavigationRail.kt`: TV sol menüsüne "Listeler" öğesi eklendi ve hızlı geçiş diyaloğuna bağlandı.
+  - `app/src/main/java/com/tivimax/player/ui/login/LoginScreen.kt`: İlk oynatma listesi ekleme ekranına uyarlandı; alt başlık "İlk oynatma listeni ekle" yapıldı, liste adı alanı (varsayılan "Ana liste"), Vega sunucusu / Başka sunucu seçimi (`VegaChoiceChip`) eklendi, buton metni kontrol esnasında "Kontrol ediliyor…" olarak ayarlandı.
+  - `app/src/main/java/com/tivimax/player/ui/settings/SettingsAccountSection.kt`: Başlık "Hesabım · $activePlaylistName" yapıldı, çıkış butonu "Bu listeyi kaldır" olarak güncellendi ve silme onay metni "Bu listenin kanalları ve favorileri bu cihazdan silinir. Diğer listelerin etkilenmez." olarak düzenlendi.
+  - `app/src/main/java/com/tivimax/player/ui/settings/SettingsScreen.kt`: `SettingsSection.PLAYLISTS` ("Listelerim") ilk sıraya eklendi, yönlendirme ve alt sayfa yönetimi bağlandı.
+  - `app/src/main/java/com/tivimax/player/ui/MainViewModel.kt`: `isSwitchingPlaylist` state flow, `openPlaylistsSettings`, `updatePlaylist` (kimlik değiştiğinde doğrulama ve senkron tetikleme, ad değişiminde yerel güncelleme), `login` içine opsiyonel liste adı desteği ve `switchPlaylist` hata durumunda önceki listeye geri dönüp kullanıcıya Türkçe Toast mesajı verme eklendi.
+  - `app/src/test/java/com/tivimax/player/data/playlist/PlaylistArchitectureTest.kt`: Liste adı güncelleme ve kimlik değişikliğinde senkron sıfırlanma durumları için birim testleri eklendi.
+- **Doğrulama:**
+  - `./gradlew compileDebugKotlin` başarıyla derlendi (0 hata, 0 uyarı).
+  - `./gradlew testDebugUnitTest` başarıyla tamamlandı (tüm testler geçti).
+  - APK üretilmedi (`assembleRelease` çalıştırılmadı).
+  - Fiziksel cihaz / TV etkileşimi yerel ortamda test edilemedi (emülatör/cihaz bağlı değil).

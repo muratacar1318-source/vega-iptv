@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
@@ -38,7 +39,8 @@ fun SettingsAccountSection(
     isRefreshing: Boolean,
     onRefreshClick: () -> Unit,
     onSyncClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    activePlaylistName: String = "Ana liste"
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -54,7 +56,7 @@ fun SettingsAccountSection(
             shape = VegaShapes.Large,
             title = {
                 Text(
-                    text = "Çıkış yapılsın mı?",
+                    text = "Bu liste kaldırılsın mı?",
                     color = VegaColors.TextPrimary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
@@ -62,7 +64,7 @@ fun SettingsAccountSection(
             },
             text = {
                 Text(
-                    text = "Kanal, film ve dizi listeleri bu cihazdan silinir. Tekrar giriş yaptığında yeniden indirilir.",
+                    text = "Bu listenin kanalları ve favorileri bu cihazdan silinir. Diğer listelerin etkilenmez.",
                     color = VegaColors.TextSecondary,
                     fontSize = 13.sp,
                     lineHeight = 18.sp
@@ -87,7 +89,7 @@ fun SettingsAccountSection(
                             }
                         )
                 ) {
-                    Text("Çıkış yap", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Bu listeyi kaldır", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -110,7 +112,18 @@ fun SettingsAccountSection(
         )
     }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "Hesabım · $activePlaylistName",
+            color = VegaColors.TextPrimary,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val isWideScreen = maxWidth >= 840.dp
 
         if (isWideScreen) {
@@ -150,6 +163,7 @@ fun SettingsAccountSection(
             }
         }
     }
+}
 }
 
 @Composable
@@ -558,13 +572,13 @@ private fun LogoutCard(onLogoutClick: () -> Unit) {
                     .dpadFocusable(shape = VegaShapes.Medium, focusedBorderColor = Color.White, onClick = onLogoutClick)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                    imageVector = Icons.Default.DeleteOutline,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Çıkış yap", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Bu listeyi kaldır", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

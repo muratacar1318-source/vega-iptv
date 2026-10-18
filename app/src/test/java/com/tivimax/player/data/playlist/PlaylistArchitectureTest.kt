@@ -162,4 +162,29 @@ class PlaylistArchitectureTest {
         assertNotNull(migrated)
         assertEquals(com.tivimax.player.data.config.AppConfig.SERVER_URL_HTTP, migrated!!.serverUrl)
     }
+
+    @Test
+    fun `playlist copy updates name while preserving other fields`() {
+        val original = Playlist("id_1", "Eski Ad", "http://server", "user", "pass", "db_1", 1000L, true, "18.10.2026")
+        val updated = original.copy(name = "Yeni Ad")
+        assertEquals("Yeni Ad", updated.name)
+        assertEquals(original.serverUrl, updated.serverUrl)
+        assertEquals(original.username, updated.username)
+        assertEquals(original.password, updated.password)
+        assertEquals(original.isSynced, updated.isSynced)
+    }
+
+    @Test
+    fun `playlist credential change invalidates sync state`() {
+        val original = Playlist("id_1", "Evdeki liste", "http://server1", "user1", "pass1", "db_1", 1000L, true, "18.10.2026")
+        val updated = original.copy(
+            serverUrl = "http://server2",
+            username = "user2",
+            password = "pass2",
+            isSynced = false,
+            lastSyncAt = ""
+        )
+        assertEquals(false, updated.isSynced)
+        assertEquals("", updated.lastSyncAt)
+    }
 }

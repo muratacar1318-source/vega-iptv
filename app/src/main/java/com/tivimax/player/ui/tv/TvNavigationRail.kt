@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tv
@@ -50,6 +51,7 @@ fun TvNavigationRail(
     selectedTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
     onSearchClick: () -> Unit,
+    onPlaylistsClick: () -> Unit,
     selectedTabFocusRequester: FocusRequester,
     onRailFocusChanged: (Boolean) -> Unit,
     activeCons: String,
@@ -114,6 +116,12 @@ fun TvNavigationRail(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                TvRailItem(
+                    icon = Icons.AutoMirrored.Filled.PlaylistPlay,
+                    label = "Listeler",
+                    isSelected = false,
+                    onClick = onPlaylistsClick
+                )
                 TvRailItem(
                     icon = Icons.Default.Search,
                     label = "Ara",

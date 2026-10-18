@@ -9,6 +9,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,20 +30,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.theme.*
+import com.tivimax.player.ui.design.VegaChoiceChip
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.MainViewModel
 
 @Composable
 fun LoginScreen(viewModel: MainViewModel) {
+    var playlistName by remember { mutableStateOf("Ana liste") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var isCustomServer by remember { mutableStateOf(false) }
     var customServerUrl by remember { mutableStateOf("") }
-    var showCustomServerInput by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    val effectiveServerUrl = remember(customServerUrl, showCustomServerInput) {
-        if (showCustomServerInput && customServerUrl.isNotBlank()) {
+    val effectiveServerUrl = remember(customServerUrl, isCustomServer) {
+        if (isCustomServer && customServerUrl.isNotBlank()) {
             customServerUrl.trim()
         } else {
             AppConfig.DEFAULT_SERVER_URL
@@ -106,7 +110,7 @@ fun LoginScreen(viewModel: MainViewModel) {
             )
 
             Text(
-                text = AppConfig.APP_TAGLINE,
+                text = "İlk oynatma listeni ekle",
                 fontSize = 13.sp,
                 color = VegaColors.TextSecondary,
                 modifier = Modifier.padding(top = 4.dp)
@@ -143,6 +147,106 @@ fun LoginScreen(viewModel: MainViewModel) {
                     }
                 }
             }
+
+            // Input: Liste Adı
+            OutlinedTextField(
+                value = playlistName,
+                onValueChange = { playlistName = it },
+                label = { Text("Liste adı") },
+                placeholder = { Text("Ana liste") },
+                singleLine = true,
+                leadingIcon = {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.PlaylistPlay, contentDescription = null, tint = VegaColors.Accent)
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = VegaColors.Accent,
+                    unfocusedBorderColor = VegaColors.Border,
+                    focusedLabelColor = VegaColors.Accent,
+                    unfocusedLabelColor = VegaColors.TextSecondary,
+                    focusedContainerColor = VegaColors.Card,
+                    unfocusedContainerColor = VegaColors.Card,
+                    focusedTextColor = VegaColors.TextPrimary,
+                    unfocusedTextColor = VegaColors.TextPrimary
+                ),
+                shape = VegaShapes.Medium,
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                )
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Sunucu Seçimi
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Sunucu",
+                    color = VegaColors.TextSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    VegaChoiceChip(
+                        label = "Vega sunucusu",
+                        selected = !isCustomServer,
+                        onClick = { isCustomServer = false },
+                        modifier = Modifier.weight(1f)
+                    )
+                    VegaChoiceChip(
+                        label = "Başka sunucu",
+                        selected = isCustomServer,
+                        onClick = { isCustomServer = true },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            AnimatedVisibility(visible = isCustomServer) {
+                Column {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    OutlinedTextField(
+                        value = customServerUrl,
+                        onValueChange = { customServerUrl = it },
+                        label = { Text("Sunucu adresi") },
+                        placeholder = { Text("http://sunucu.com:8080") },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(imageVector = Icons.Default.Dns, contentDescription = null, tint = VegaColors.Accent)
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = VegaColors.Accent,
+                            unfocusedBorderColor = VegaColors.Border,
+                            focusedLabelColor = VegaColors.Accent,
+                            unfocusedLabelColor = VegaColors.TextSecondary,
+                            focusedContainerColor = VegaColors.Card,
+                            unfocusedContainerColor = VegaColors.Card,
+                            focusedTextColor = VegaColors.TextPrimary,
+                            unfocusedTextColor = VegaColors.TextPrimary
+                        ),
+                        shape = VegaShapes.Medium,
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Next
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Input: Kullanıcı Adı (İleri tuşu şifreye odaklar)
             OutlinedTextField(
@@ -214,8 +318,13 @@ fun LoginScreen(viewModel: MainViewModel) {
                 keyboardActions = KeyboardActions(
                     onDone = {
                         focusManager.clearFocus()
-                        if (username.isNotBlank() && password.isNotBlank()) {
-                            viewModel.login(username, password, effectiveServerUrl)
+                        if (playlistName.isNotBlank() && username.isNotBlank() && password.isNotBlank()) {
+                            viewModel.login(
+                                user = username.trim(),
+                                pass = password.trim(),
+                                serverUrl = effectiveServerUrl,
+                                playlistName = playlistName.trim()
+                            )
                         }
                     }
                 )
@@ -223,13 +332,20 @@ fun LoginScreen(viewModel: MainViewModel) {
 
             Spacer(modifier = Modifier.height(22.dp))
 
+            val canSubmit = !isLoading && playlistName.isNotBlank() && username.isNotBlank() && password.isNotBlank()
+
             // Giriş Yap Butonu
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    viewModel.login(username, password, effectiveServerUrl)
+                    viewModel.login(
+                        user = username.trim(),
+                        pass = password.trim(),
+                        serverUrl = effectiveServerUrl,
+                        playlistName = playlistName.trim()
+                    )
                 },
-                enabled = !isLoading && username.isNotBlank() && password.isNotBlank(),
+                enabled = canSubmit,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = VegaColors.Accent,
                     contentColor = VegaColors.OnAccent,
@@ -249,7 +365,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Bağlanıyor...",
+                        text = "Kontrol ediliyor…",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -261,7 +377,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -290,54 +406,11 @@ fun LoginScreen(viewModel: MainViewModel) {
                 )
             }
 
-            // Gelişmiş / Özel Sunucu Seçeneği
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                TextButton(onClick = { showCustomServerInput = !showCustomServerInput }) {
-                    Text(
-                        text = if (showCustomServerInput) "Varsayılan sunucuya dön" else "Farklı sunucu gir",
-                        fontSize = 11.sp,
-                        color = VegaColors.TextMuted
-                    )
-                }
-            }
-
-            AnimatedVisibility(visible = showCustomServerInput) {
-                OutlinedTextField(
-                    value = customServerUrl,
-                    onValueChange = { customServerUrl = it },
-                    label = { Text("Özel sunucu adresi") },
-                    placeholder = { Text("http://sunucu.com:8080") },
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Dns, contentDescription = null, tint = VegaColors.Accent)
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = VegaColors.Accent,
-                        unfocusedBorderColor = VegaColors.Border,
-                        focusedLabelColor = VegaColors.Accent,
-                        unfocusedLabelColor = VegaColors.TextSecondary,
-                        focusedContainerColor = VegaColors.Card,
-                        unfocusedContainerColor = VegaColors.Card,
-                        focusedTextColor = VegaColors.TextPrimary,
-                        unfocusedTextColor = VegaColors.TextPrimary
-                    ),
-                    shape = VegaShapes.Medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 8.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Destek Bilgisi
             Text(
-                text = "Sunucu adresi otomatik yapılandırılmıştır. Yalnızca kullanıcı adı ve şifreni girmen yeterlidir.",
+                text = "Vega sunucusu seçildiğinde adres otomatik kullanılır. Yalnızca kullanıcı adı ve şifreni girmen yeterlidir.",
                 fontSize = 11.sp,
                 color = VegaColors.TextMuted,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
