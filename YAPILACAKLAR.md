@@ -40,6 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
+| G-039 | [Canlı gecikme 8 sn (hızlandırarak yetişme), "Canlıya geç" düzeltmesi, en solda](docs/gorevler/G-039-canli-gecikme-8sn-canliya-gec.md) | 🔴 | ⏳ Sıradaki |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
