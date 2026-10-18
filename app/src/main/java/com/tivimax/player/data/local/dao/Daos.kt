@@ -13,10 +13,10 @@ interface LiveDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategories(categories: List<LiveCategoryEntity>)
 
-    @Query("SELECT * FROM live_categories ORDER BY categoryName ASC")
+    @Query("SELECT * FROM live_categories ORDER BY rowid ASC")
     fun getCategories(): Flow<List<LiveCategoryEntity>>
 
-    @Query("SELECT * FROM live_categories ORDER BY categoryName ASC")
+    @Query("SELECT * FROM live_categories ORDER BY rowid ASC")
     suspend fun getCategoriesList(): List<LiveCategoryEntity>
 
     @Query("DELETE FROM live_categories")
@@ -28,10 +28,10 @@ interface LiveDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStreams(streams: List<LiveStreamEntity>)
 
-    @Query("SELECT * FROM live_streams ORDER BY num ASC, name ASC")
+    @Query("SELECT * FROM live_streams ORDER BY rowid ASC")
     fun getAllStreams(): Flow<List<LiveStreamEntity>>
 
-    @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId ORDER BY num ASC, name ASC")
+    @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
     fun getStreamsByCategory(categoryId: String): Flow<List<LiveStreamEntity>>
 
     @Query("SELECT * FROM live_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
@@ -43,7 +43,7 @@ interface LiveDao {
     @Query("SELECT * FROM live_streams WHERE streamId = :streamId LIMIT 1")
     suspend fun getStreamById(streamId: Int): LiveStreamEntity?
 
-    @Query("SELECT * FROM live_streams WHERE streamId IN (:ids) ORDER BY num ASC, name ASC")
+    @Query("SELECT * FROM live_streams WHERE streamId IN (:ids) ORDER BY rowid ASC")
     fun getStreamsByIds(ids: List<Int>): Flow<List<LiveStreamEntity>>
 
     @Query("""
@@ -54,7 +54,7 @@ interface LiveDao {
             CASE WHEN :sort = 'NAME_ASC' THEN name END COLLATE NOCASE ASC,
             CASE WHEN :sort = 'NAME_DESC' THEN name END COLLATE NOCASE DESC,
             CASE WHEN :sort = 'ADDED_DESC' THEN added END DESC,
-            num ASC, name ASC
+            rowid ASC
     """)
     fun getStreamsFiltered(
         categoryId: String?,
@@ -87,10 +87,10 @@ interface LiveDao {
     suspend fun clearAllStreams()
 
     // Paging 3 Desteği
-    @Query("SELECT * FROM live_streams ORDER BY num ASC, name ASC")
+    @Query("SELECT * FROM live_streams ORDER BY rowid ASC")
     fun getPagedAllStreams(): PagingSource<Int, LiveStreamEntity>
 
-    @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId ORDER BY num ASC, name ASC")
+    @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
     fun getPagedStreamsByCategory(categoryId: String): PagingSource<Int, LiveStreamEntity>
 
     @Query("SELECT * FROM live_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
@@ -102,10 +102,10 @@ interface VodDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategories(categories: List<VodCategoryEntity>)
 
-    @Query("SELECT * FROM vod_categories ORDER BY categoryName ASC")
+    @Query("SELECT * FROM vod_categories ORDER BY rowid ASC")
     fun getCategories(): Flow<List<VodCategoryEntity>>
 
-    @Query("SELECT * FROM vod_categories ORDER BY categoryName ASC")
+    @Query("SELECT * FROM vod_categories ORDER BY rowid ASC")
     suspend fun getCategoriesList(): List<VodCategoryEntity>
 
     @Query("DELETE FROM vod_categories")
@@ -117,10 +117,10 @@ interface VodDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStreams(streams: List<VodStreamEntity>)
 
-    @Query("SELECT * FROM vod_streams ORDER BY added DESC, name ASC")
+    @Query("SELECT * FROM vod_streams ORDER BY rowid ASC")
     fun getAllStreams(): Flow<List<VodStreamEntity>>
 
-    @Query("SELECT * FROM vod_streams WHERE categoryId = :categoryId ORDER BY added DESC, name ASC")
+    @Query("SELECT * FROM vod_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
     fun getStreamsByCategory(categoryId: String): Flow<List<VodStreamEntity>>
 
     @Query("SELECT * FROM vod_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
@@ -144,7 +144,7 @@ interface VodDao {
             CASE WHEN :sort = 'NAME_DESC' THEN name END COLLATE NOCASE DESC,
             CASE WHEN :sort = 'RATING_DESC' THEN rating5Based END DESC,
             CASE WHEN :sort = 'ADDED_DESC' THEN added END DESC,
-            added DESC, name ASC
+            rowid ASC
     """)
     fun getStreamsFiltered(
         categoryId: String?,
@@ -177,10 +177,10 @@ interface VodDao {
     suspend fun clearAllStreams()
 
     // Paging 3 Desteği
-    @Query("SELECT * FROM vod_streams ORDER BY added DESC, name ASC")
+    @Query("SELECT * FROM vod_streams ORDER BY rowid ASC")
     fun getPagedAllStreams(): PagingSource<Int, VodStreamEntity>
 
-    @Query("SELECT * FROM vod_streams WHERE categoryId = :categoryId ORDER BY added DESC, name ASC")
+    @Query("SELECT * FROM vod_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
     fun getPagedStreamsByCategory(categoryId: String): PagingSource<Int, VodStreamEntity>
 
     @Query("SELECT * FROM vod_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
@@ -192,10 +192,10 @@ interface SeriesDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCategories(categories: List<SeriesCategoryEntity>)
 
-    @Query("SELECT * FROM series_categories ORDER BY categoryName ASC")
+    @Query("SELECT * FROM series_categories ORDER BY rowid ASC")
     fun getCategories(): Flow<List<SeriesCategoryEntity>>
 
-    @Query("SELECT * FROM series_categories ORDER BY categoryName ASC")
+    @Query("SELECT * FROM series_categories ORDER BY rowid ASC")
     suspend fun getCategoriesList(): List<SeriesCategoryEntity>
 
     @Query("DELETE FROM series_categories")
@@ -207,10 +207,10 @@ interface SeriesDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStreams(streams: List<SeriesStreamEntity>)
 
-    @Query("SELECT * FROM series_streams ORDER BY lastModified DESC, name ASC")
+    @Query("SELECT * FROM series_streams ORDER BY rowid ASC")
     fun getAllStreams(): Flow<List<SeriesStreamEntity>>
 
-    @Query("SELECT * FROM series_streams WHERE categoryId = :categoryId ORDER BY lastModified DESC, name ASC")
+    @Query("SELECT * FROM series_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
     fun getStreamsByCategory(categoryId: String): Flow<List<SeriesStreamEntity>>
 
     @Query("SELECT * FROM series_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
@@ -234,7 +234,7 @@ interface SeriesDao {
             CASE WHEN :sort = 'NAME_DESC' THEN name END COLLATE NOCASE DESC,
             CASE WHEN :sort = 'RATING_DESC' THEN rating5Based END DESC,
             CASE WHEN :sort = 'ADDED_DESC' THEN lastModified END DESC,
-            lastModified DESC, name ASC
+            rowid ASC
     """)
     fun getStreamsFiltered(
         categoryId: String?,
@@ -267,10 +267,10 @@ interface SeriesDao {
     suspend fun clearAllStreams()
 
     // Paging 3 Desteği
-    @Query("SELECT * FROM series_streams ORDER BY lastModified DESC, name ASC")
+    @Query("SELECT * FROM series_streams ORDER BY rowid ASC")
     fun getPagedAllStreams(): PagingSource<Int, SeriesStreamEntity>
 
-    @Query("SELECT * FROM series_streams WHERE categoryId = :categoryId ORDER BY lastModified DESC, name ASC")
+    @Query("SELECT * FROM series_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
     fun getPagedStreamsByCategory(categoryId: String): PagingSource<Int, SeriesStreamEntity>
 
     @Query("SELECT * FROM series_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")

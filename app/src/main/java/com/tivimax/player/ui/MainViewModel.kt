@@ -21,6 +21,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.tivimax.player.data.preferences.WatchProgress
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import okhttp3.OkHttpClient
@@ -512,7 +513,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }.sortedWith(
             compareByDescending<LiveCategory> { it.categoryId == "all" }
                 .thenByDescending { pinned.contains(it.categoryId) }
-                .thenBy { it.categoryName }
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -525,7 +525,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }.sortedWith(
             compareByDescending<VodCategory> { it.categoryId == "all" }
                 .thenByDescending { pinned.contains(it.categoryId) }
-                .thenBy { it.categoryName }
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -538,7 +537,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }.sortedWith(
             compareByDescending<SeriesCategory> { it.categoryId == "all" }
                 .thenByDescending { pinned.contains(it.categoryId) }
-                .thenBy { it.categoryName }
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -548,18 +546,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val streamFormat = preferences.streamFormatFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "TS")
 
-    // Sıralama Tercihleri (Canlı TV: Varsayılan | Film & Dizi: Eklenme Tarihi)
+    // Sıralama Tercihleri (varsayılan: sunucu sırası)
     val liveSortOption = preferences.liveSortFlow.map {
         try { SortOption.valueOf(it) } catch (e: Exception) { SortOption.DEFAULT }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SortOption.DEFAULT)
 
     val vodSortOption = preferences.vodSortFlow.map {
-        try { SortOption.valueOf(it) } catch (e: Exception) { SortOption.ADDED_DESC }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, SortOption.ADDED_DESC)
+        try { SortOption.valueOf(it) } catch (e: Exception) { SortOption.DEFAULT }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SortOption.DEFAULT)
 
     val seriesSortOption = preferences.seriesSortFlow.map {
-        try { SortOption.valueOf(it) } catch (e: Exception) { SortOption.ADDED_DESC }
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, SortOption.ADDED_DESC)
+        try { SortOption.valueOf(it) } catch (e: Exception) { SortOption.DEFAULT }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SortOption.DEFAULT)
 
     val autoSyncLive = preferences.autoSyncLiveFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     val autoPipEnabled = preferences.autoPipFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
@@ -567,6 +565,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val liveBufferSeconds = preferences.liveBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 2)
     val decoderMode = preferences.decoderModeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "HARDWARE")
     val watchProgressMap = preferences.watchProgressMapFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    /** G-030: Ana ekran "Kaldığın Yerden Devam Et" — sadece bu listede gerçekten bulunan filmler. */
+    val continueWatchingMovies: StateFlow<List<Pair<WatchProgress, VodStream>>> =
+        watchProgressMap
+            .map { map ->
+                map.values
+                    .filter { it.positionMs > 10_000L && !it.isWatched }
+                    .sortedByDescending { it.timestamp }
+                    .take(30)
+            }
+            .flatMapLatest { progressList ->
+                if (progressList.isEmpty()) {
+                    flowOf(emptyList())
+                } else {
+                    repository.getVodStreamsByIdsFlow(progressList.map { it.streamId })
+                        .map { movies ->
+                            val byId = movies.associateBy { it.streamId }
+                            progressList.mapNotNull { p -> byId[p.streamId]?.let { p to it } }.take(10)
+                        }
+                }
+            }
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     val isInPipMode = MutableStateFlow(false)
 
     // Altyazı Özelleştirme ("ORTA", "BEYAZ", gecikme ms)
