@@ -1,0 +1,22 @@
+# Vega IPTV v1.3.2 (Build 54) - Tasarım Uyumu, Kararlılık ve Medya Oturumu İyileştirmeleri
+
+### 🔧 Medya Oturumu ve İlk Açılış Düzeltmesi (G-020):
+- Uygulamaya her girişte ilk içerik açılışında meydana gelen oturum çakışması hatası giderildi.
+- Oynatıcı kapatılırken medya oturumunun düzgün sonlandırılması sağlandı.
+- Hata durumlarında gösterilen teknik mesajlar kullanıcı dostu Türkçe metinlerle değiştirildi.
+
+### 📺 TV Ekranları ve Kumanda Uyumu (G-016):
+- TV ana ekranı, yan gezinme çubuğu, EPG rehberi ve oynatıcı katmanı tek bir tasarım sistemine kavuşturuldu.
+- Kumanda odak çerçeveleri ekran genelinde tutarlı hale getirildi.
+- EPG ızgarası ve kanal listelerindeki karmaşık yazı boyutları ve başlıklar sadeleştirildi.
+
+### 🎬 Oynatıcı Arayüzü Tasarım Yenilemesi (G-015):
+- Canlı yayın ve video oynatıcı ekranlarındaki renkler, kartlar ve butonlar modern tasarım kurallarına uyarlandı.
+- Hızlı kanal listesi, mini rehber ve ayarlar paneli tek tip renk ve köşe standartlarına getirildi.
+
+### 🎨 Tasarım Sistemi Temeli (G-014):
+- Tüm uygulama için Zümrüt, Ametist ve Gece temalarını destekleyen renk, köşe ve tipografi sistemi oluşturuldu.
+
+### ⚙️ Ayarlar ve Hesap Ekranı Sadeleştirmesi (G-012, G-013):
+- Ayarlar menüsü daha sade ve anlaşılır başlıklara ayrıldı, gereksiz teknik terimler temizlendi.
+- Hesap ekranına gerçek abonelik bitiş tarihi, kategori içerik sayıları ve güvenli çıkış onayı eklendi.
