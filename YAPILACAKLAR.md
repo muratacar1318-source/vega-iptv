@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-041 | [Canlı kırpma teşhisi (geliştirici ekranı)](docs/gorevler/G-041-kirpma-teshis.md) | 🔴 | 🔍 İncelemede (branch: chore/kirpma-teshis) |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -50,6 +49,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-041 | Canlı kırpma teşhis bilgisi (geliştirici ekranı) — PR #50 | 18 Ekim |
 | G-040 | Canlı açılışta sunucu yığını kırpılıyor → doğrudan ~8 sn gecikme; hızlandırma kaldırıldı; Canlıya geç = yeniden bağlan — PR #49 | 18 Ekim |
 | G-039 | Canlı gecikme hedefi 8 sn (1,5×/2× hızlanarak yetişme), "Canlıya geç" en solda, canlı durum rozeti — PR #48 | 18 Ekim |
 | G-038 | TV canlı: OK duraklatmıyor, saat bilgi kartıyla gizleniyor, tampon canlı, "Canlıya geç" (3→8 sn), HEVC açılış ölçümü (debug) — PR #47 | 18 Ekim |
