@@ -119,4 +119,7 @@ Ayrıca ~326 `isUserInteracting` listesine `|| showDualViewPicker` ekle (seçici
 
 ### Düzeltme turu 1 — Agent raporu
 
-_(Agent doldurur.)_
+- `PlayerScreen.kt` içindeki kontroller görünürlük koşulu (`visible`) `showControls && !isInPipMode && !showSettingsPanel && !showMoreSheet && !showEpisodesDrawer && !showDualViewPicker` olarak güncellendi. Artık tüm yan paneller açıkken kontroller ve arka plan düğmeleri tamamen gizleniyor.
+- `PlayerScreen.kt` içindeki `isUserInteracting` listesine `|| showDualViewPicker` eklendi; böylece çift ekran kanal seçici açıkken kontroller zamanlayıcıyla beklenmedik şekilde tetiklenmiyor.
+- `./gradlew compileDebugKotlin` çalıştırıldı ve sıfır hata ile derlendi (BUILD SUCCESSFUL).
+- Değişiklikler commit edilip `ui/oynatici-yan-paneller` branch'ine pushlandı.

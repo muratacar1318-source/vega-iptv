@@ -323,7 +323,7 @@ fun PlayerScreen(
     }
 
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    val isUserInteracting = isScrubbing || gestureScrubActive || (seekDirection != null) || (optimisticSeekPosition != null) || (infoBannerText != null) || showChannelDrawer || showSettingsPanel || showSleepTimerDialog || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || showMoreSheet || (dragStartOffset != null)
+    val isUserInteracting = isScrubbing || gestureScrubActive || (seekDirection != null) || (optimisticSeekPosition != null) || (infoBannerText != null) || showChannelDrawer || showSettingsPanel || showSleepTimerDialog || showOverlayGuide || showRecentChannelsBar || showNumericKeypad || showCategoryManagementDialog || isZapperActive || showEpisodesDrawer || showMoreSheet || showDualViewPicker || (dragStartOffset != null)
 
     LaunchedEffect(isUserInteracting) {
         lastInteractionTime = System.currentTimeMillis()
@@ -1303,7 +1303,7 @@ fun PlayerScreen(
 
         // CONTROLS OVERLAY (Üst Bar, Merkez Butonlar, Alt Bar)
         AnimatedVisibility(
-            visible = showControls && !isInPipMode && !showSettingsPanel,
+            visible = showControls && !isInPipMode && !showSettingsPanel && !showMoreSheet && !showEpisodesDrawer && !showDualViewPicker,
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(200))
         ) {
