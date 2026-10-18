@@ -42,7 +42,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 |---|---|---|---|
 | G-025 | [Oynatma listesi altyapısı (çoklu liste, liste başına ayrı veri)](docs/gorevler/G-025-oynatma-listesi-altyapisi.md) | 🟠 | ⏳ Bekliyor |
 | G-026 | [Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş](docs/gorevler/G-026-oynatma-listesi-arayuzu.md) | 🟠 | ⏳ Bekliyor (G-025'ten sonra) |
-| G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | 🔍 İncelendi ✔ — G-024 main'e alındıktan sonra birleştirilecek (Claude yapar) |
 
 ---
 
@@ -72,6 +71,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-023 | Oynatıcıdaki alttan açılan sayfalar kompakt yan panele çevrildi (Daha fazla, Bölümler, Çift ekran) — PR #29 | 18 Ekim |
 | G-017 | Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler tasarım kurallarına uyduruldu — PR #31 | 18 Ekim |
 | G-024 | Sabit http sunucu, şifreli bağlantı kaldırıldı, güncelleme ekranı geri tuşu, 429 yeniden deneme, güvenli eski içerik temizliği — PR #33 | 18 Ekim |
+| G-018 | Ayarlar, Giriş, Liste indirme, Cihaz seçimi tasarım kurallarına uyduruldu — PR #34 | 18 Ekim |
 
 ---
 
