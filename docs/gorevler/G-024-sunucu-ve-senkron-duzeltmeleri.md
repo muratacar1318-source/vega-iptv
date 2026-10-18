@@ -96,4 +96,31 @@ Kullanıcının kayıtlı favorileri / izleme geçmişi.
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+### Değişiklik Özeti
+1. **Sabit HTTP Sunucu & Şifreli Bağlantı Ayarının Kaldırılması:**
+   - `AppConfig.kt`: `DEFAULT_SERVER_URL = SERVER_URL_HTTP` yapıldı, `FALLBACK_DOMAINS` sadece HTTP domain içerecek şekilde düzenlendi.
+   - `SettingsScreen.kt`: "Şifreli bağlantı" satırı, ilgili durum ve import'lar arayüzden kaldırıldı.
+   - `MainViewModel.kt`: Uygulama açılışında (`checkUserLoginAndNavigate`) kayıtlı sunucu adresi HTTPS ise tek seferlik `SERVER_URL_HTTP`'ye geçiş eklendi (kullanıcının elle girdiği özel sunuculara dokunulmadı).
+2. **Kategori Hatası Gizlenmesi Düzeltildi:**
+   - `XtreamRepository.syncAllCategories()`: Üç kategori isteği (canlı, VOD, dizi) birden başarısız olursa `Result.failure` dönecek şekilde güncellendi; biri dahi başarılıysa başarı dönülüyor.
+3. **HTTP 429 / 502 / 503 ve Ağ Zaman Aşımı Retry Mekanizması:**
+   - `XtreamRepository.executeWithRetry()`: 429, 502, 503 ve `SocketTimeoutException`/`IOException` durumunda 3 denemeye kadar bekleme (`Retry-After` saniyesi veya 2s, 5s, 10s).
+   - Senkronizasyon isteklerine `executeWithRetry` entegre edildi.
+   - `MainViewModel.startPlaylistSync()`: Senkronizasyon başında `closeMiniPlayer()`, `playerManager.release()`, `vodPrewarmer.cancelAll("Playlist sync")` ile bağlantılar serbest bırakıldı.
+   - Yeniden deneme anında adım alt metni güncellendi: `"Sunucu yoğun, tekrar deneniyor… ($attempt/$max)"`.
+   - Hata mesajları kullanıcı dostu sade Türkçe formatına dönüştürüldü (429/503 -> "Sunucu şu an yoğun...", 401/403 -> "Hesap bilgileri reddedildi...", ağ/zaman aşımı -> "Bağlantı kurulamadı...", diğer -> "İçerik alınamadı..."). Teknik hata kodları `Log.w` ile loglandı.
+4. **Sunucuda Olmayan Eski İçeriklerin Temizlenmesi (Stale Data Deletion):**
+   - `Daos.kt`: `LiveDao`, `VodDao` ve `SeriesDao` içine `getAllStreamIds()` / `getAllSeriesIds()`, `deleteStreamsByIds()` / `deleteSeriesByIds()`, `getAllCategoryIds()` ve `deleteCategoriesByIds()` metotları eklendi.
+   - `syncLiveStreams`, `syncVodStreams`, `syncSeriesStreams` ve `fetchAndSave*Categories` adımlarında görülen ID'ler toplandı; adım tamamen başarılı bittiğinde sunucuda artık bulunmayan ID'ler Room veritabanından 900'lük parçalar halinde silindi. Hata durumunda silme yapılmayarak mevcut liste korundu.
+   - Senkron bitiminde `XtreamRepository.clearCache()` bellek önbelleklerini temizledi; `MainViewModel` evrensel arama sonuçlarını sıfırladı ve sorgu varsa yeniden çalıştırdı.
+5. **Güncelleme Ekranında Geri Tuşu & Durdurma Diyaloğu:**
+   - `PlaylistSyncScreen.kt`: `BackHandler` eklendi. Senkron sürerken "Güncelleme durdurulsun mu?" diyalogu ("Devam et" varsayılan odak, "Durdur" senkronu iptal edip çıkış yapar).
+   - Tamamlanmış liste varsa `navigateBack()` (veya `Screen.Home`), yoksa `Screen.Login` ekranına yönlendirme sağlandı.
+   - Hata durumunda "Kaldığı Yerden Yeniden Dene" butonunun altına ikincil "Geri dön" butonu eklendi.
+
+### Test Durumu
+- `./gradlew compileDebugKotlin`: Başarılı (BUILD SUCCESSFUL).
+- Ayarlar -> Şifreli bağlantı kaldırıldı: Kod seviyesinde doğrulandı.
+- Geri tuşu ve durdurma akışı: Kod seviyesinde doğrulandı; fiziki cihaz testi test edilemedi.
+- 429 yeniden deneme ve hata mesajları: Kod seviyesinde doğrulandı; fiziki cihaz testi test edilemedi.
+- Eski sunucu/içerik temizleme: Kod seviyesinde doğrulandı; fiziki cihaz testi test edilemedi.

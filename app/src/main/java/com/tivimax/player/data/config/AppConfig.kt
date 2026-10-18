@@ -15,13 +15,12 @@ object AppConfig {
 
     val SERVER_URL_HTTPS: String by lazy { SecurityUtils.deobfuscate(OBF_SERVER_URL_HTTPS) }
     val SERVER_URL_HTTP: String by lazy { SecurityUtils.deobfuscate(OBF_SERVER_URL_HTTP) }
-    val DEFAULT_SERVER_URL: String by lazy { SERVER_URL_HTTPS }
+    val DEFAULT_SERVER_URL: String by lazy { SERVER_URL_HTTP }
 
     // Yedek Sunucu Domainleri (ISP engeli veya sunucu yoğunluğunda otomatik denenir)
     val FALLBACK_DOMAINS: List<String> by lazy {
         listOf(
-            SERVER_URL_HTTP,
-            SERVER_URL_HTTPS
+            SERVER_URL_HTTP
         )
     }
 
