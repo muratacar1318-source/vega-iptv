@@ -40,8 +40,22 @@ Canlı yayın iyi; film/dizide **bazen açılış gecikiyor**, **ileri sarınca 
    `STATE_READY` arası süreyi `TAG_TIMING`'e yazan bir debug log ekleyebilirsin (`BuildConfig.DEBUG` içinde).
    (Yerel ölçüm için gerekirse `assembleDebug` + cihaza kurulum serbest; release APK üretme.)
 
+### 5) Liste indirme ölçümü (film/dizi listesinin bu sağlayıcıda yavaş gelmesi)
+Kullanıcı: başka sağlayıcıda 17-18 bin film birkaç saniyede iniyor; varsayılan sağlayıcıda filmler bazen hiç gelmiyor
+ya da geç geliyor. Önce **ölç**, sonra raporla (bu maddede davranış DEĞİŞTİRME):
+- `XtreamRepository.executeWithRetry` içine `BuildConfig.DEBUG` koşullu ölçüm logu (etiket `SyncTiming`):
+  istek adı (`get_live_streams`, `get_vod_streams`, `get_series`, kategori istekleri), HTTP kodu, ilk bayta kadar süre (ms),
+  toplam süre (ms), indirilen bayt, `Content-Encoding` başlığı (gzip var mı), `Retry-After`, deneme sayısı.
+  Gövdeyi okuma süresini de ölçmek için `sync*` fonksiyonlarında akış bitince toplam süreyi ve kayıt sayısını logla.
+- Debug derlemeyle cihazda/emülatörde **varsayılan sağlayıcıyla** "İçerikleri güncelle"yi 2 kez çalıştır ve raporda tablo ver:
+  | İstek | HTTP | İlk bayt (ms) | Toplam (ms) | Boyut | gzip | Deneme | Kategori yedeğine düştü mü |
+- Ayrıca şunu kontrol et ve raporla: `XtreamRepository` OkHttp istemcisinde `Connection: close` başlığı var
+  (her istekte yeni bağlantı); OkHttp'nin otomatik gzip'i açık mı (elle `Accept-Encoding` verilmediği için açık olmalı —
+  yanıt başlığıyla doğrula).
+- Ölçüm loglarını commit'te bırakabilirsin (sadece DEBUG). Sonuçlara göre Claude ayrı bir iyileştirme görevi yazacak.
+
 ## DOKUNMA
-Canlı yayın yükleme ayarları ve davranışı, `VodPrewarmer`, yüzey devri, medya oturumu, altyazı, yedek uzantı sırası,
+Canlı yayın yükleme ayarları ve davranışı, senkron davranışı (madde 5 sadece ölçüm), `VodPrewarmer`, yüzey devri, medya oturumu, altyazı, yedek uzantı sırası,
 güncelleme, imza, CI, sürüm numarası.
 
 ## Test
