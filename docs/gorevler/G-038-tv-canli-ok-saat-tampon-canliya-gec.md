@@ -232,4 +232,25 @@ Kanal geçiş mantığı (G-037), `syncToLive`, tampon ayarları (`createLoadCon
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - **Bölüm A (TiviPlayerManager.kt):**
+    - **A1:** `liveJumpTargetMs` (3s), `liveJumpPlayingSinceMs`, `liveJumpJob` ve `startupDebugInfo` (`dbgFormatMs`, `dbgCodec`, `dbgDecoder`, `dbgFirstFrameMs`) alanları ve `publishStartupDebug()` fonksiyonu eklendi.
+    - **A2:** `playWithFallbacks` başında canlıya geç işi iptal edildi ve açılış ölçüm sayaçları sıfırlandı.
+    - **A3:** `jumpToLive()` fonksiyonu eklendi; en güncel noktaya atlayıp belirlenen tampon dolana kadar bekleyip oynatıyor.
+    - **A4:** Canlıya geçişten sonraki ilk 60 saniyede `STATE_BUFFERING` olursa `liveJumpTargetMs` otomatik olarak 8 saniyeye çıkarıldı.
+    - **A5:** `timingAnalyticsListener` içine `onVideoInputFormatChanged` ve `onVideoDecoderInitialized` eklenerek biçim ve çözücü süreleri kaydedildi; `onRenderedFirstFrame` içine ilk kare süresi ölçümü eklendi.
+  - **Bölüm B (TvPlayerOverlay.kt):**
+    - **B1:** Kumanda OK (DPAD_CENTER / ENTER) basıldığında yayının duraklatılması engellendi, sadece bilgi kartı açılıp kapanır hale getirildi (`showInfoCard = !showInfoCard`).
+    - **B2:** Saat `Surface`'ı `if (showInfoCard || showActionTray)` koşuluna alınarak sadece bilgi kartı veya menü açıkken ekranda görünmesi sağlandı.
+    - **B3:** `LaunchedEffect(showInfoCard)` ile bilgi kartı açıkken her 1 saniyede bir `updateDiagnostics()` çağrılarak tampon bilgisinin canlı güncellenmesi sağlandı.
+    - **B4:** `startupDebugInfo` dinlendi ve hata ayıklama (debug) kurulumlarında bilgi kartının altında açılış ölçümü metni gösterildi.
+    - **B5:** Menü yatay butonlarına (Action Dock) ikinci düğme olarak `LiveTv` ikonlu "Canlıya geç" düğmesi eklendi.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt`
+  - `docs/gorevler/G-038-tv-canli-ok-saat-tampon-canliya-gec.md`
+  - `YAPILACAKLAR.md`
+- **Test sonuçları:**
+  - `./gradlew compileDebugKotlin`: Başarılı (`BUILD SUCCESSFUL in 13s`).
+  - `./gradlew testDebugUnitTest`: Başarılı (`BUILD SUCCESSFUL in 5s`, 28 testin tümü geçti).
+  - Fiziksel TV / emülatör bağlı olmadığı için ekran üzerinde manuel TV testi yapılamadı (test edilemedi).

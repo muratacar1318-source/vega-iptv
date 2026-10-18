@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-038 | [TV canlı: OK duraklatmasın, saat gizlensin, tampon canlı, "Canlıya geç", HEVC açılış ölçümü](docs/gorevler/G-038-tv-canli-ok-saat-tampon-canliya-gec.md) | 🔴 | ⏳ Sıradaki |
+| G-038 | [TV canlı: OK duraklatmasın, saat gizlensin, tampon canlı, "Canlıya geç", HEVC açılış ölçümü](docs/gorevler/G-038-tv-canli-ok-saat-tampon-canliya-gec.md) | 🔴 | 🔍 İncelemede (branch: feat/tv-canliya-gec) |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 

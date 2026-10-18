@@ -206,12 +206,40 @@ class TiviPlayerManager(private val context: Context) {
                 }
             }
 
+            override fun onVideoInputFormatChanged(
+                eventTime: AnalyticsListener.EventTime,
+                format: androidx.media3.common.Format,
+                decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
+            ) {
+                if (BuildConfig.DEBUG && dbgFormatMs < 0) {
+                    dbgFormatMs = timingOffsetMs()
+                    dbgCodec = format.sampleMimeType ?: ""
+                    publishStartupDebug()
+                }
+            }
+
+            override fun onVideoDecoderInitialized(
+                eventTime: AnalyticsListener.EventTime,
+                decoderName: String,
+                initializedTimestampMs: Long,
+                initializationDurationMs: Long
+            ) {
+                if (BuildConfig.DEBUG) {
+                    dbgDecoder = "$decoderName (${initializationDurationMs}ms)"
+                    publishStartupDebug()
+                }
+            }
+
             override fun onRenderedFirstFrame(
                 eventTime: AnalyticsListener.EventTime,
                 output: Any,
                 renderTimeMs: Long
             ) {
                 if (BuildConfig.DEBUG) {
+                    if (dbgFirstFrameMs < 0) {
+                        dbgFirstFrameMs = timingOffsetMs()
+                        publishStartupDebug()
+                    }
                     val totalMs = timingOffsetMs()
                     Log.d(TAG_TIMING, "[+${totalMs}ms] ★★★ onRenderedFirstFrame: İLK KARE ÇİZİLDİ! (Toplam açılış süresi: ${totalMs}ms, renderTime: ${renderTimeMs}ms) ★★★")
                 }
@@ -580,6 +608,27 @@ class TiviPlayerManager(private val context: Context) {
     // G-037: Planlanmış yeniden deneme işi (yeni kanal başlarken iptal edilir)
     private var pendingRetryJob: Job? = null
 
+    // G-038: "Canlıya geç" — tampon hedefi (veri yetişmezse 8 sn'ye çıkar)
+    private var liveJumpTargetMs = 3_000L
+    private var liveJumpPlayingSinceMs = 0L
+    private var liveJumpJob: Job? = null
+
+    // G-038: Açılış ölçümü (sadece geliştirici kurulumunda gösterilir)
+    private var dbgFormatMs = -1L
+    private var dbgCodec = ""
+    private var dbgDecoder = ""
+    private var dbgFirstFrameMs = -1L
+    private val _startupDebugInfo = MutableStateFlow("")
+    val startupDebugInfo: StateFlow<String> = _startupDebugInfo.asStateFlow()
+
+    private fun publishStartupDebug() {
+        val parts = mutableListOf<String>()
+        if (dbgFormatMs >= 0) parts.add("biçim +${dbgFormatMs}ms ${dbgCodec.substringAfter('/')}")
+        if (dbgDecoder.isNotBlank()) parts.add("çözücü $dbgDecoder")
+        if (dbgFirstFrameMs >= 0) parts.add("ilk kare +${dbgFirstFrameMs}ms")
+        _startupDebugInfo.value = parts.joinToString(" · ")
+    }
+
     fun initializePlayer(isLive: Boolean = isLiveStream): ExoPlayer {
         if (exoPlayer != null) {
             if (BuildConfig.DEBUG) {
@@ -629,6 +678,13 @@ class TiviPlayerManager(private val context: Context) {
                     Player.STATE_BUFFERING -> {
                         _isBuffering.value = true
                         _errorMessage.value = null
+                        // G-038: Canlıya geçtikten sonraki 60 sn içinde takılma olursa sonraki atlamalarda 8 sn tampon
+                        if (isLiveStream && liveJumpPlayingSinceMs > 0L &&
+                            SystemClock.elapsedRealtime() - liveJumpPlayingSinceMs < 60_000L
+                        ) {
+                            liveJumpTargetMs = 8_000L
+                            liveJumpPlayingSinceMs = 0L
+                        }
                     }
                     Player.STATE_READY -> {
                         if (isLiveStream) {
@@ -848,6 +904,15 @@ class TiviPlayerManager(private val context: Context) {
         networkRecoveryAttempt = 0
         decoderRecoveryAttempt = 0
         isReconnecting = false
+        // G-038: Canlıya geç bekleyişi ve açılış ölçümü sıfırla
+        liveJumpJob?.cancel()
+        liveJumpJob = null
+        liveJumpPlayingSinceMs = 0L
+        dbgFormatMs = -1L
+        dbgCodec = ""
+        dbgDecoder = ""
+        dbgFirstFrameMs = -1L
+        _startupDebugInfo.value = ""
         if (BuildConfig.DEBUG) {
             val masked = urls.map { maskUrl(it) }
             Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] playWithFallbacks: isLive=$isLive, urlCount=${urls.size}, startPositionMs=$startPositionMs, urls=$masked")
@@ -1098,6 +1163,33 @@ class TiviPlayerManager(private val context: Context) {
 
     fun setAutoSyncLive(enabled: Boolean) {
         this.autoSyncLive = enabled
+    }
+
+    /**
+     * G-038: Canlı yayını en güncel noktaya alır (YouTube/Kick "Canlı" düğmesi gibi).
+     * Bağlantıyı yeniler, [liveJumpTargetMs] kadar tampon dolunca oynatır (en fazla hedef + 4 sn bekler).
+     */
+    fun jumpToLive() {
+        val player = exoPlayer ?: return
+        if (!isLiveStream || currentUrl.isBlank()) return
+        liveJumpJob?.cancel()
+        liveJumpPlayingSinceMs = 0L
+        player.playWhenReady = false
+        player.stop()
+        player.prepare()
+        val target = liveJumpTargetMs
+        liveJumpJob = scope.launch {
+            val startedAt = SystemClock.elapsedRealtime()
+            while (isActive) {
+                val p = exoPlayer ?: return@launch
+                val waited = SystemClock.elapsedRealtime() - startedAt
+                if (p.totalBufferedDuration >= target || waited >= target + 4_000L) break
+                delay(200L)
+            }
+            exoPlayer?.playWhenReady = true
+            liveJumpPlayingSinceMs = SystemClock.elapsedRealtime()
+            updateDiagnostics()
+        }
     }
 
     fun syncToLive(): Boolean {
