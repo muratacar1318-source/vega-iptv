@@ -18,6 +18,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
@@ -98,6 +99,15 @@ class XtreamRepository(private val context: Context? = null) {
         liveCategoriesCache.clear()
         vodCategoriesCache.clear()
         seriesCategoriesCache.clear()
+    }
+
+    /** G-028: Senkron indirmelerinin geçici dosya klasörü (cacheDir/sync). Context yoksa null. */
+    private val syncTempDir: java.io.File?
+        get() = context?.let { java.io.File(it.cacheDir, "sync") }
+
+    /** G-028: Uygulama açılışında önceki oturumdan kalan geçici dosyaları temizler. */
+    fun cleanupSyncTempFiles() {
+        syncTempDir?.let { clearSyncTempDir(it) }
     }
 
     private val client = OkHttpClient.Builder()
@@ -298,50 +308,56 @@ class XtreamRepository(private val context: Context? = null) {
             var totalSaved = 0
             val seenIds = HashSet<Int>()
 
-            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
-                val jsonReader = JsonReader(reader)
-                jsonReader.isLenient = true
+            val tempDir = syncTempDir ?: throw java.io.IOException("Geçici klasör yok")
+            val tempFile = downloadBodyToFile(response, tempDir, "live") { }
+            try {
+                tempFile.bufferedReader(Charsets.UTF_8).use { reader ->
+                    val jsonReader = JsonReader(reader)
+                    jsonReader.isLenient = true
 
-                if (jsonReader.peek() != JsonToken.BEGIN_ARRAY) {
-                    return@withContext Result.failure(Exception("HTTP Hatası: geçersiz yanıt"))
-                }
+                    if (jsonReader.peek() != JsonToken.BEGIN_ARRAY) {
+                        return@withContext Result.failure(Exception("HTTP Hatası: geçersiz yanıt"))
+                    }
 
-                jsonReader.beginArray()
-                val chunk = ArrayList<LiveStreamEntity>(2000)
+                    jsonReader.beginArray()
+                    val chunk = ArrayList<LiveStreamEntity>(2000)
 
-                while (jsonReader.hasNext()) {
-                    try {
-                        val stream: LiveStream = gson.fromJson(jsonReader, LiveStream::class.java)
-                        if (stream.streamId > 0 && !stream.name.isNullOrBlank()) {
-                            chunk.add(stream.toEntity())
-                            seenIds.add(stream.streamId)
-                        }
-
-                        if (chunk.size >= 2000) {
-                            val toInsert = ArrayList(chunk)
-                            db.withTransaction {
-                                db.liveDao().insertStreams(toInsert)
+                    while (jsonReader.hasNext()) {
+                        try {
+                            val stream: LiveStream = gson.fromJson(jsonReader, LiveStream::class.java)
+                            if (stream.streamId > 0 && !stream.name.isNullOrBlank()) {
+                                chunk.add(stream.toEntity())
+                                seenIds.add(stream.streamId)
                             }
-                            totalSaved += toInsert.size
-                            onProgress?.invoke(totalSaved)
-                            chunk.clear()
+
+                            if (chunk.size >= 2000) {
+                                val toInsert = ArrayList(chunk)
+                                db.withTransaction {
+                                    db.liveDao().insertStreams(toInsert)
+                                }
+                                totalSaved += toInsert.size
+                                onProgress?.invoke(totalSaved)
+                                chunk.clear()
+                            }
+                        } catch (e: Exception) {
+                            try { jsonReader.skipValue() } catch (_: Exception) {}
                         }
-                    } catch (e: Exception) {
-                        try { jsonReader.skipValue() } catch (_: Exception) {}
                     }
-                }
 
-                if (chunk.isNotEmpty()) {
-                    val toInsert = ArrayList(chunk)
-                    db.withTransaction {
-                        db.liveDao().insertStreams(toInsert)
+                    if (chunk.isNotEmpty()) {
+                        val toInsert = ArrayList(chunk)
+                        db.withTransaction {
+                            db.liveDao().insertStreams(toInsert)
+                        }
+                        totalSaved += toInsert.size
+                        onProgress?.invoke(totalSaved)
+                        chunk.clear()
                     }
-                    totalSaved += toInsert.size
-                    onProgress?.invoke(totalSaved)
-                    chunk.clear()
-                }
 
-                try { jsonReader.endArray() } catch (_: Exception) {}
+                    try { jsonReader.endArray() } catch (_: Exception) {}
+                }
+            } finally {
+                tempFile.delete()
             }
 
             // Sunucuda artık bulunmayan eski canlı yayınları temizle
@@ -519,14 +535,25 @@ class XtreamRepository(private val context: Context? = null) {
                         val body = response.body
                         if (body != null) {
                             var currentBulkSaved = 0
-                            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
-                                parseAndInsertVodChunk(
-                                    reader, db, chunkSize = 2000,
-                                    onIdSeen = { seenIds.add(it) }
-                                ) { added ->
-                                    currentBulkSaved += added
-                                    onProgress?.invoke(currentBulkSaved, "$currentBulkSaved film kaydedildi")
+                            val tempDir = syncTempDir ?: throw java.io.IOException("Geçici klasör yok")
+                            val tempFile = downloadBodyToFile(response, tempDir, "vod") { bytes ->
+                                onProgress?.invoke(0, "Filmler indiriliyor… ${formatMegabytes(bytes)}")
+                            }
+                            if (BuildConfig.DEBUG) {
+                                android.util.Log.d("SyncTiming", "Dosyaya indirildi: vod, ${tempFile.length()} bayt")
+                            }
+                            try {
+                                tempFile.bufferedReader(Charsets.UTF_8).use { reader ->
+                                    parseAndInsertVodChunk(
+                                        reader, db, chunkSize = 2000,
+                                        onIdSeen = { seenIds.add(it) }
+                                    ) { added ->
+                                        currentBulkSaved += added
+                                        onProgress?.invoke(currentBulkSaved, "$currentBulkSaved film kaydedildi")
+                                    }
                                 }
+                            } finally {
+                                tempFile.delete()
                             }
                             totalSaved = currentBulkSaved
                             bulkSucceeded = true
@@ -587,22 +614,28 @@ class XtreamRepository(private val context: Context? = null) {
                                         if (catResponse.isSuccessful) {
                                             val catBody = catResponse.body
                                             if (catBody != null) {
-                                                catBody.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
-                                                    parseAndInsertVodChunk(
-                                                        reader, db, chunkSize = 500, dbMutex = dbWriteMutex,
-                                                        onIdSeen = { id ->
-                                                            synchronized(seenIds) {
-                                                                seenIds.add(id)
+                                                val tempDir = syncTempDir ?: throw java.io.IOException("Geçici klasör yok")
+                                                val tempFile = downloadBodyToFile(catResponse, tempDir, "vod-cat-${cat.categoryId}") { }
+                                                try {
+                                                    tempFile.bufferedReader(Charsets.UTF_8).use { reader ->
+                                                        parseAndInsertVodChunk(
+                                                            reader, db, chunkSize = 500, dbMutex = dbWriteMutex,
+                                                            onIdSeen = { id ->
+                                                                synchronized(seenIds) {
+                                                                    seenIds.add(id)
+                                                                }
                                                             }
+                                                        ) { added ->
+                                                            val currentTotal = totalSavedAtomic.addAndGet(added)
+                                                            val curCatIdx = processedCategories.get()
+                                                            onProgress?.invoke(
+                                                                currentTotal,
+                                                                "$currentTotal film kaydedildi - Kategori $curCatIdx/$totalCategories (${cat.categoryName})"
+                                                            )
                                                         }
-                                                    ) { added ->
-                                                        val currentTotal = totalSavedAtomic.addAndGet(added)
-                                                        val curCatIdx = processedCategories.get()
-                                                        onProgress?.invoke(
-                                                            currentTotal,
-                                                            "$currentTotal film kaydedildi - Kategori $curCatIdx/$totalCategories (${cat.categoryName})"
-                                                        )
                                                     }
+                                                } finally {
+                                                    tempFile.delete()
                                                 }
                                             } else {
                                                 failedCategories.incrementAndGet()
@@ -694,14 +727,25 @@ class XtreamRepository(private val context: Context? = null) {
                         val body = response.body
                         if (body != null) {
                             var currentBulkSaved = 0
-                            body.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
-                                parseAndInsertSeriesChunk(
-                                    reader, db, chunkSize = 2000,
-                                    onIdSeen = { seenIds.add(it) }
-                                ) { added ->
-                                    currentBulkSaved += added
-                                    onProgress?.invoke(currentBulkSaved, "$currentBulkSaved dizi kaydedildi")
+                            val tempDir = syncTempDir ?: throw java.io.IOException("Geçici klasör yok")
+                            val tempFile = downloadBodyToFile(response, tempDir, "series") { bytes ->
+                                onProgress?.invoke(0, "Diziler indiriliyor… ${formatMegabytes(bytes)}")
+                            }
+                            if (BuildConfig.DEBUG) {
+                                android.util.Log.d("SyncTiming", "Dosyaya indirildi: series, ${tempFile.length()} bayt")
+                            }
+                            try {
+                                tempFile.bufferedReader(Charsets.UTF_8).use { reader ->
+                                    parseAndInsertSeriesChunk(
+                                        reader, db, chunkSize = 2000,
+                                        onIdSeen = { seenIds.add(it) }
+                                    ) { added ->
+                                        currentBulkSaved += added
+                                        onProgress?.invoke(currentBulkSaved, "$currentBulkSaved dizi kaydedildi")
+                                    }
                                 }
+                            } finally {
+                                tempFile.delete()
                             }
                             totalSaved = currentBulkSaved
                             bulkSucceeded = true
@@ -761,22 +805,28 @@ class XtreamRepository(private val context: Context? = null) {
                                         if (catResponse.isSuccessful) {
                                             val catBody = catResponse.body
                                             if (catBody != null) {
-                                                catBody.byteStream().bufferedReader(Charsets.UTF_8).use { reader ->
-                                                    parseAndInsertSeriesChunk(
-                                                        reader, db, chunkSize = 500, dbMutex = dbWriteMutex,
-                                                        onIdSeen = { id ->
-                                                            synchronized(seenIds) {
-                                                                seenIds.add(id)
+                                                val tempDir = syncTempDir ?: throw java.io.IOException("Geçici klasör yok")
+                                                val tempFile = downloadBodyToFile(catResponse, tempDir, "series-cat-${cat.categoryId}") { }
+                                                try {
+                                                    tempFile.bufferedReader(Charsets.UTF_8).use { reader ->
+                                                        parseAndInsertSeriesChunk(
+                                                            reader, db, chunkSize = 500, dbMutex = dbWriteMutex,
+                                                            onIdSeen = { id ->
+                                                                synchronized(seenIds) {
+                                                                    seenIds.add(id)
+                                                                }
                                                             }
+                                                        ) { added ->
+                                                            val currentTotal = totalSavedAtomic.addAndGet(added)
+                                                            val curCatIdx = processedCategories.get()
+                                                            onProgress?.invoke(
+                                                                currentTotal,
+                                                                "$currentTotal dizi kaydedildi - Kategori $curCatIdx/$totalCategories (${cat.categoryName})"
+                                                            )
                                                         }
-                                                    ) { added ->
-                                                        val currentTotal = totalSavedAtomic.addAndGet(added)
-                                                        val curCatIdx = processedCategories.get()
-                                                        onProgress?.invoke(
-                                                            currentTotal,
-                                                            "$currentTotal dizi kaydedildi - Kategori $curCatIdx/$totalCategories (${cat.categoryName})"
-                                                        )
                                                     }
+                                                } finally {
+                                                    tempFile.delete()
                                                 }
                                             } else {
                                                 failedCategories.incrementAndGet()
@@ -1584,4 +1634,61 @@ fun toUserMessage(e: Throwable): String {
         e is java.io.IOException || cause is java.io.IOException -> "Sunucuya ulaşılamadı. İnternetini kontrol et."
         else -> "Bağlanılamadı. Bilgilerini kontrol edip tekrar dene."
     }
+}
+
+/**
+ * G-028: Yanıt gövdesini geçici dosyaya yazar ve bağlantıyı kapatır.
+ * Eksik indirme, okuma hatası veya iptal durumunda dosyayı siler ve hatayı yukarı fırlatır.
+ */
+internal suspend fun downloadBodyToFile(
+    response: okhttp3.Response,
+    dir: java.io.File,
+    prefix: String,
+    onBytes: ((Long) -> Unit)? = null
+): java.io.File {
+    dir.mkdirs()
+    val file = java.io.File(dir, "$prefix-${System.currentTimeMillis()}-${java.util.UUID.randomUUID()}.json")
+    try {
+        response.use { resp ->
+            val body = resp.body ?: throw java.io.IOException("Boş sunucu yanıtı")
+            val expected = body.contentLength()
+            var total = 0L
+            var lastReported = 0L
+            body.byteStream().use { input ->
+                java.io.FileOutputStream(file).buffered(64 * 1024).use { out ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        kotlin.coroutines.coroutineContext.ensureActive()
+                        val read = input.read(buffer)
+                        if (read == -1) break
+                        out.write(buffer, 0, read)
+                        total += read
+                        if (total - lastReported >= 512 * 1024) {
+                            lastReported = total
+                            onBytes?.invoke(total)
+                        }
+                    }
+                }
+            }
+            if (expected > 0 && total != expected) {
+                throw java.io.IOException("Eksik indirme: $total / $expected bayt")
+            }
+            onBytes?.invoke(total)
+        }
+        return file
+    } catch (e: Throwable) {
+        file.delete()
+        throw e
+    }
+}
+
+/** G-028: "12,4 MB" biçiminde Türkçe boyut metni. */
+internal fun formatMegabytes(bytes: Long): String =
+    String.format(java.util.Locale("tr", "TR"), "%.1f MB", bytes / (1024.0 * 1024.0))
+
+/** G-028: Geçici indirme klasöründeki tüm dosyaları siler. Hata fırlatmaz. */
+internal fun clearSyncTempDir(dir: java.io.File) {
+    try {
+        dir.listFiles()?.forEach { it.delete() }
+    } catch (_: Throwable) {}
 }
