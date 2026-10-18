@@ -40,8 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-026 | [Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş](docs/gorevler/G-026-oynatma-listesi-arayuzu.md) | 🟠 | 🔍 İncelemede (branch: feat/oynatma-listesi-arayuz) |
-| G-028 | [Liste indirme: önce dosyaya indir sonra işle; sonraki güncellemeler arka planda](docs/gorevler/G-028-liste-indirme-once-dosyaya.md) | 🟠 | ⏳ Bekliyor (G-026'dan sonra; G-027 tamamlandı) |
+| G-028 | [Liste indirme: önce dosyaya indir sonra işle; sonraki güncellemeler arka planda](docs/gorevler/G-028-liste-indirme-once-dosyaya.md) | 🟠 | ⏳ Sıradaki |
 
 ---
 
@@ -49,6 +48,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-026 | Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş, TV "Listeler" — PR #38 | 18 Ekim |
 | G-025 | Oynatma listesi altyapısı: çoklu liste, liste başına ayrı veritabanı, güvenli geçiş — PR #35 | 18 Ekim |
 | G-027 | Film/dizide anahtar kareye sarma, 429/5xx için yerinde kısa yeniden deneme, ölçüm logları — PR #37 | 18 Ekim |
 | G-004 | Canlı TV'de kanal ilk açıldığında siyah ekran (video yüzeyi tek sahipli) — PR #7 | 17 Ekim |
