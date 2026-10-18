@@ -891,6 +891,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             preferences.deviceModeFlow.collect { saved ->
                 if (saved != null) {
                     _deviceMode.value = saved
+                    // G-036: Açılışta bir an yanlış düzen gelmesin diye hızlı kopyayı eşitle
+                    if (OrientationManager.getFastCachedDeviceMode(getApplication()) != saved) {
+                        OrientationManager.saveFastCache(getApplication(), saved)
+                    }
                 }
             }
         }

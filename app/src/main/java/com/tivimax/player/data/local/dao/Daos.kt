@@ -28,10 +28,10 @@ interface LiveDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertStreams(streams: List<LiveStreamEntity>)
 
-    @Query("SELECT * FROM live_streams ORDER BY rowid ASC")
+    @Query("SELECT * FROM live_streams ORDER BY CASE WHEN num > 0 THEN 0 ELSE 1 END, num ASC, rowid ASC")
     fun getAllStreams(): Flow<List<LiveStreamEntity>>
 
-    @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
+    @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId ORDER BY CASE WHEN num > 0 THEN 0 ELSE 1 END, num ASC, rowid ASC")
     fun getStreamsByCategory(categoryId: String): Flow<List<LiveStreamEntity>>
 
     @Query("SELECT * FROM live_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
@@ -43,7 +43,7 @@ interface LiveDao {
     @Query("SELECT * FROM live_streams WHERE streamId = :streamId LIMIT 1")
     suspend fun getStreamById(streamId: Int): LiveStreamEntity?
 
-    @Query("SELECT * FROM live_streams WHERE streamId IN (:ids) ORDER BY rowid ASC")
+    @Query("SELECT * FROM live_streams WHERE streamId IN (:ids) ORDER BY CASE WHEN num > 0 THEN 0 ELSE 1 END, num ASC, rowid ASC")
     fun getStreamsByIds(ids: List<Int>): Flow<List<LiveStreamEntity>>
 
     @Query("""
@@ -54,7 +54,7 @@ interface LiveDao {
             CASE WHEN :sort = 'NAME_ASC' THEN name END COLLATE NOCASE ASC,
             CASE WHEN :sort = 'NAME_DESC' THEN name END COLLATE NOCASE DESC,
             CASE WHEN :sort = 'ADDED_DESC' THEN added END DESC,
-            rowid ASC
+            CASE WHEN num > 0 THEN 0 ELSE 1 END, num ASC, rowid ASC
     """)
     fun getStreamsFiltered(
         categoryId: String?,
@@ -87,10 +87,10 @@ interface LiveDao {
     suspend fun clearAllStreams()
 
     // Paging 3 Desteği
-    @Query("SELECT * FROM live_streams ORDER BY rowid ASC")
+    @Query("SELECT * FROM live_streams ORDER BY CASE WHEN num > 0 THEN 0 ELSE 1 END, num ASC, rowid ASC")
     fun getPagedAllStreams(): PagingSource<Int, LiveStreamEntity>
 
-    @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
+    @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId ORDER BY CASE WHEN num > 0 THEN 0 ELSE 1 END, num ASC, rowid ASC")
     fun getPagedStreamsByCategory(categoryId: String): PagingSource<Int, LiveStreamEntity>
 
     @Query("SELECT * FROM live_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
