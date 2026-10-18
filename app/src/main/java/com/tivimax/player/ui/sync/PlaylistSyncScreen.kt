@@ -39,17 +39,9 @@ import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.SyncStepInfo
 import com.tivimax.player.ui.SyncStepStatus
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 import kotlinx.coroutines.delay
-
-private val DarkBackground = Color(0xFF000000)
-private val CardBackground = Color(0xFF0F141C)
-private val BorderMuted = Color(0xFF1E2638)
-private val AccentIndigo = Color(0xFF6366F1)
-private val AccentPurple = Color(0xFF8B5CF6)
-private val SuccessGreen = Color(0xFF10B981)
-private val ErrorRed = Color(0xFFEF4444)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
 
 @Composable
 fun PlaylistSyncScreen(viewModel: MainViewModel) {
@@ -90,7 +82,7 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(VegaColors.Background)
     ) {
         if (isLandscape) {
             // ==========================================
@@ -120,15 +112,15 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                         Box(
                             modifier = Modifier
                                 .size(42.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Brush.linearGradient(listOf(AccentIndigo, AccentPurple))),
+                                .clip(VegaShapes.Medium)
+                                .background(Brush.linearGradient(listOf(VegaColors.Accent, VegaColors.Accent.copy(alpha = 0.7f)))),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(imageVector = Icons.Default.Tv, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                            Icon(imageVector = Icons.Default.Tv, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(24.dp))
                         }
                         Column {
-                            Text(text = "VEGA IPTV", color = TextWhite, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                            Text(text = "İndeksleme & Kurulum", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                            Text(text = "VEGA IPTV", color = VegaColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
+                            Text(text = "İndeksleme ve kurulum", color = VegaColors.TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                         }
                     }
 
@@ -144,16 +136,16 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                             modifier = Modifier.fillMaxSize(),
                             strokeWidth = 9.dp,
                             color = when {
-                                syncState.failedStepIndex != null -> ErrorRed
-                                syncState.isCompleted -> SuccessGreen
-                                else -> AccentIndigo
+                                syncState.failedStepIndex != null -> VegaColors.Danger
+                                syncState.isCompleted -> VegaColors.Success
+                                else -> VegaColors.Accent
                             },
-                            trackColor = Color(0xFF1E2638)
+                            trackColor = VegaColors.Border
                         )
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = "%$percentage",
-                                color = TextWhite,
+                                color = VegaColors.TextPrimary,
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
@@ -164,9 +156,9 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                                     else -> "İndiriliyor"
                                 },
                                 color = when {
-                                    syncState.failedStepIndex != null -> ErrorRed
-                                    syncState.isCompleted -> SuccessGreen
-                                    else -> TextMuted
+                                    syncState.failedStepIndex != null -> VegaColors.Danger
+                                    syncState.isCompleted -> VegaColors.Success
+                                    else -> VegaColors.TextSecondary
                                 },
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -178,13 +170,13 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
 
                     // O An Kaydedilen İçerik Sayısı / Detay
                     val activeDetail = activeStep?.detailText?.ifBlank { null }
-                        ?: if (syncState.isCompleted) "Tüm içerikler senkronize edildi (0ms)"
-                        else if (syncState.failedStepIndex != null) "İnternet bağlantınızı kontrol edin."
+                        ?: if (syncState.isCompleted) "Tüm içerikler senkronize edildi"
+                        else if (syncState.failedStepIndex != null) "İnternet bağlantını kontrol et."
                         else "İçerik arşivleri hazırlanıyor..."
 
                     Text(
                         text = activeDetail,
-                        color = if (syncState.failedStepIndex != null) ErrorRed else TextMuted,
+                        color = if (syncState.failedStepIndex != null) VegaColors.Danger else VegaColors.TextSecondary,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center,
                         fontWeight = FontWeight.Medium,
@@ -198,72 +190,72 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                     if (syncState.failedStepIndex != null) {
                         Button(
                             onClick = { viewModel.retryFailedSyncStep() },
-                            colors = ButtonDefaults.buttonColors(containerColor = ErrorRed),
-                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Danger),
+                            shape = VegaShapes.Medium,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
+                                .height(48.dp)
                                 .focusRequester(retryFocusRequester)
                                 .dpadFocusable(
                                     focusedBorderColor = Color.White,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = VegaShapes.Medium,
                                     onClick = { viewModel.retryFailedSyncStep() }
                                 )
                         ) {
                             Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Kaldığı Yerden Yeniden Dene", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(text = "Kaldığı yerden yeniden dene", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     } else if (syncState.isCompleted) {
                         Button(
                             onClick = { viewModel.navigateTo(Screen.Home) },
-                            colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
-                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                            shape = VegaShapes.Medium,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
+                                .height(48.dp)
                                 .focusRequester(retryFocusRequester)
                                 .dpadFocusable(
                                     focusedBorderColor = Color.White,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = VegaShapes.Medium,
                                     onClick = { viewModel.navigateTo(Screen.Home) }
                                 )
                         ) {
-                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Hemen İzlemeye Başla (0ms)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text(text = "Hemen izlemeye başla", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     } else if (syncState.isLiveReady) {
                         Button(
                             onClick = { viewModel.navigateTo(Screen.Home) },
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
-                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                            shape = VegaShapes.Medium,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(44.dp)
+                                .height(48.dp)
                                 .focusRequester(retryFocusRequester)
                                 .dpadFocusable(
                                     focusedBorderColor = Color.White,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = VegaShapes.Medium,
                                     onClick = { viewModel.navigateTo(Screen.Home) }
                                 )
                         ) {
-                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Arayüze Geç (Arka Planda Yükle)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(text = "Arayüze geç (arka planda yükle)", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Canlı TV hazır. Arşiv arka planda kaydediliyor...",
-                            color = Color(0xFF64748B),
-                            fontSize = 10.sp,
+                            color = VegaColors.TextMuted,
+                            fontSize = 11.sp,
                             textAlign = TextAlign.Center
                         )
                     } else {
                         Text(
                             text = "Ekran açık tutulmaktadır...",
-                            color = Color(0xFF64748B),
-                            fontSize = 10.sp,
+                            color = VegaColors.TextMuted,
+                            fontSize = 11.sp,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -297,27 +289,26 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                 Box(
                     modifier = Modifier
                         .size(68.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Brush.linearGradient(listOf(AccentIndigo, AccentPurple)))
-                        .shadow(16.dp, RoundedCornerShape(20.dp), spotColor = AccentIndigo),
+                        .clip(VegaShapes.Large)
+                        .background(Brush.linearGradient(listOf(VegaColors.Accent, VegaColors.Accent.copy(alpha = 0.7f)))),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = Icons.Default.Tv, contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
+                    Icon(imageVector = Icons.Default.Tv, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(36.dp))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = "VEGA IPTV",
-                    color = TextWhite,
-                    fontSize = 24.sp,
+                    color = VegaColors.TextPrimary,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 2.sp
                 )
 
                 Text(
-                    text = "Oynatma Listesi Kurulumu ve İndeksleme",
-                    color = TextMuted,
+                    text = "Oynatma listesi kurulumu ve indeksleme",
+                    color = VegaColors.TextSecondary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(top = 4.dp)
@@ -333,13 +324,13 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                         progress = { overallProgress },
                         modifier = Modifier.fillMaxSize(),
                         strokeWidth = 7.dp,
-                        color = if (syncState.failedStepIndex != null) ErrorRed else if (syncState.isCompleted) SuccessGreen else AccentIndigo,
-                        trackColor = Color(0xFF1E2638)
+                        color = if (syncState.failedStepIndex != null) VegaColors.Danger else if (syncState.isCompleted) VegaColors.Success else VegaColors.Accent,
+                        trackColor = VegaColors.Border
                     )
                     Text(
                         text = "%$percentage",
-                        color = TextWhite,
-                        fontSize = 20.sp,
+                        color = VegaColors.TextPrimary,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -362,78 +353,78 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                 if (syncState.failedStepIndex != null) {
                     Button(
                         onClick = { viewModel.retryFailedSyncStep() },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
-                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Danger),
+                        shape = VegaShapes.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
                             .widthIn(max = 400.dp)
-                            .height(52.dp)
+                            .height(48.dp)
                             .focusRequester(retryFocusRequester)
                             .dpadFocusable(
                                 focusedBorderColor = Color.White,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = VegaShapes.Medium,
                                 onClick = { viewModel.retryFailedSyncStep() }
                             )
                     ) {
                         Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Kaldığı Yerden Yeniden Dene", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text(text = "Kaldığı yerden yeniden dene", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     }
                 } else if (syncState.isCompleted) {
                     Button(
                         onClick = { viewModel.navigateTo(Screen.Home) },
-                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
-                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                        shape = VegaShapes.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
                             .widthIn(max = 400.dp)
-                            .height(52.dp)
+                            .height(48.dp)
                             .focusRequester(retryFocusRequester)
                             .dpadFocusable(
                                 focusedBorderColor = Color.White,
-                                shape = RoundedCornerShape(14.dp),
+                                shape = VegaShapes.Medium,
                                 onClick = { viewModel.navigateTo(Screen.Home) }
                             )
                     ) {
-                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(22.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Hemen İzlemeye Başla (0ms)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(text = "Hemen izlemeye başla", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
-                    } else if (syncState.isLiveReady) {
-                        Button(
-                            onClick = { viewModel.navigateTo(Screen.Home) },
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .widthIn(max = 400.dp)
-                                .height(52.dp)
-                                .focusRequester(retryFocusRequester)
-                                .dpadFocusable(
-                                    focusedBorderColor = Color.White,
-                                    shape = RoundedCornerShape(14.dp),
-                                    onClick = { viewModel.navigateTo(Screen.Home) }
-                                )
-                        ) {
-                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Arayüze Geç (Arka Planda Yükle)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Canlı TV kanalları hazır. Film ve dizi arşivi arka planda kaydedilmeye devam edecektir.",
-                            color = Color(0xFF64748B),
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    } else {
-                        Text(
-                            text = "Lütfen işlem bitene kadar bekleyiniz, ekran açık tutulacaktır...",
-                            color = Color(0xFF64748B),
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
+                } else if (syncState.isLiveReady) {
+                    Button(
+                        onClick = { viewModel.navigateTo(Screen.Home) },
+                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                        shape = VegaShapes.Medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 400.dp)
+                            .height(48.dp)
+                            .focusRequester(retryFocusRequester)
+                            .dpadFocusable(
+                                focusedBorderColor = Color.White,
+                                shape = VegaShapes.Medium,
+                                onClick = { viewModel.navigateTo(Screen.Home) }
+                            )
+                    ) {
+                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(22.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Arayüze geç (arka planda yükle)", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Canlı TV kanalları hazır. Film ve dizi arşivi arka planda kaydedilmeye devam edecektir.",
+                        color = VegaColors.TextMuted,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
+                } else {
+                    Text(
+                        text = "Lütfen işlem bitene kadar bekle, ekran açık tutulacaktır...",
+                        color = VegaColors.TextMuted,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(36.dp))
             }
@@ -449,17 +440,17 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
 
     val borderColor by animateColorAsState(
         targetValue = when {
-            isActive -> AccentIndigo
-            isCompleted -> SuccessGreen.copy(alpha = 0.5f)
-            isFailed -> ErrorRed
-            else -> BorderMuted
+            isActive -> VegaColors.Accent
+            isCompleted -> VegaColors.Success.copy(alpha = 0.5f)
+            isFailed -> VegaColors.Danger
+            else -> VegaColors.Border
         },
         label = "borderColor"
     )
 
     Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        shape = VegaShapes.Medium,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
         border = BorderStroke(if (isActive) 1.5.dp else 1.dp, borderColor),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -479,26 +470,26 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
                         .clip(CircleShape)
                         .background(
                             when {
-                                isCompleted -> SuccessGreen.copy(alpha = 0.15f)
-                                isActive -> AccentIndigo.copy(alpha = 0.15f)
-                                isFailed -> ErrorRed.copy(alpha = 0.15f)
-                                else -> Color(0xFF1E2638)
+                                isCompleted -> VegaColors.Success.copy(alpha = 0.15f)
+                                isActive -> VegaColors.Accent.copy(alpha = 0.15f)
+                                isFailed -> VegaColors.Danger.copy(alpha = 0.15f)
+                                else -> VegaColors.SurfaceVariant
                             }
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     when (step.status) {
                         SyncStepStatus.COMPLETED -> {
-                            Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(18.dp))
+                            Icon(imageVector = Icons.Default.CheckCircle, contentDescription = null, tint = VegaColors.Success, modifier = Modifier.size(18.dp))
                         }
                         SyncStepStatus.IN_PROGRESS -> {
-                            CircularProgressIndicator(strokeWidth = 2.dp, color = AccentIndigo, modifier = Modifier.size(16.dp))
+                            CircularProgressIndicator(strokeWidth = 2.dp, color = VegaColors.Accent, modifier = Modifier.size(16.dp))
                         }
                         SyncStepStatus.FAILED -> {
-                            Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = ErrorRed, modifier = Modifier.size(18.dp))
+                            Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = VegaColors.Danger, modifier = Modifier.size(18.dp))
                         }
                         SyncStepStatus.PENDING -> {
-                            Text(text = "${step.stepNumber}", color = Color(0xFF64748B), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "${step.stepNumber}", color = VegaColors.TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -509,8 +500,8 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "${step.stepNumber}. ${step.title}",
-                        color = if (isActive || isCompleted) TextWhite else TextMuted,
-                        fontSize = 12.sp,
+                        color = if (isActive || isCompleted) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                        fontSize = 13.sp,
                         fontWeight = if (isActive || isCompleted) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -520,10 +511,10 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
                         Text(
                             text = step.errorMessage ?: step.detailText,
                             color = when {
-                                isFailed -> ErrorRed
-                                isCompleted -> SuccessGreen
-                                isActive -> AccentIndigo
-                                else -> TextMuted
+                                isFailed -> VegaColors.Danger
+                                isCompleted -> VegaColors.Success
+                                isActive -> VegaColors.Accent
+                                else -> VegaColors.TextMuted
                             },
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
@@ -544,8 +535,8 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
                             .fillMaxWidth()
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp)),
-                        color = AccentIndigo,
-                        trackColor = Color(0xFF1E2638)
+                        color = VegaColors.Accent,
+                        trackColor = VegaColors.Border
                     )
                 } else {
                     LinearProgressIndicator(
@@ -553,8 +544,8 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
                             .fillMaxWidth()
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp)),
-                        color = AccentIndigo,
-                        trackColor = Color(0xFF1E2638)
+                        color = VegaColors.Accent,
+                        trackColor = VegaColors.Border
                     )
                 }
             }

@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.XtreamUserInfo
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 
 @Composable
 fun SettingsAccountSection(
@@ -48,20 +50,21 @@ fun SettingsAccountSection(
 
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            containerColor = TiviSurface,
+            containerColor = VegaColors.Surface,
+            shape = VegaShapes.Large,
             title = {
                 Text(
                     text = "Çıkış yapılsın mı?",
-                    color = TiviTextPrimary,
-                    fontSize = 18.sp,
+                    color = VegaColors.TextPrimary,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Text(
-                    text = "Kanal, film ve dizi listeleri bu cihazdan silinir. Tekrar giriş yaptığınızda yeniden indirilir.",
-                    color = TiviTextSecondary,
-                    fontSize = 13.5.sp,
+                    text = "Kanal, film ve dizi listeleri bu cihazdan silinir. Tekrar giriş yaptığında yeniden indirilir.",
+                    color = VegaColors.TextSecondary,
+                    fontSize = 13.sp,
                     lineHeight = 18.sp
                 )
             },
@@ -71,12 +74,12 @@ fun SettingsAccountSection(
                         showLogoutDialog = false
                         onLogoutClick()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF5350)),
-                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Danger),
+                    shape = VegaShapes.Medium,
                     modifier = Modifier
                         .height(44.dp)
                         .dpadFocusable(
-                            shape = RoundedCornerShape(8.dp),
+                            shape = VegaShapes.Medium,
                             focusedBorderColor = Color.White,
                             onClick = {
                                 showLogoutDialog = false
@@ -84,24 +87,24 @@ fun SettingsAccountSection(
                             }
                         )
                 ) {
-                    Text("Çıkış Yap", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Çıkış yap", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 OutlinedButton(
                     onClick = { showLogoutDialog = false },
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, TiviCardBorder),
+                    shape = VegaShapes.Medium,
+                    border = BorderStroke(1.dp, VegaColors.Border),
                     modifier = Modifier
                         .height(44.dp)
                         .focusRequester(cancelFocusRequester)
                         .dpadFocusable(
-                            shape = RoundedCornerShape(8.dp),
-                            focusedBorderColor = Color.White,
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.Accent,
                             onClick = { showLogoutDialog = false }
                         )
                 ) {
-                    Text("Vazgeç", color = Color.White)
+                    Text("Vazgeç", color = VegaColors.TextPrimary)
                 }
             }
         )
@@ -156,9 +159,9 @@ private fun ProfileCard(
     onRefreshClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCard),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Large,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -172,12 +175,12 @@ private fun ProfileCard(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(OpusCyan.copy(alpha = 0.2f)),
+                    .background(VegaColors.Accent.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = avatarLetter,
-                    color = OpusCyan,
+                    color = VegaColors.Accent,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -188,7 +191,7 @@ private fun ProfileCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = userInfo?.username?.ifBlank { "Kullanıcı" } ?: "Kullanıcı",
-                    color = Color.White,
+                    color = VegaColors.TextPrimary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -196,15 +199,15 @@ private fun ProfileCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val statusResult = AccountInfoFormatter.accountStatus(userInfo)
                     val statusColor = when (statusResult.colorType) {
-                        AccountBadgeColor.GREEN -> TiviGreen
-                        AccountBadgeColor.RED -> Color(0xFFEF5350)
-                        AccountBadgeColor.AMBER -> Color(0xFFFFA000)
-                        AccountBadgeColor.GRAY -> Color.Gray
+                        AccountBadgeColor.GREEN -> VegaColors.Success
+                        AccountBadgeColor.RED -> VegaColors.Danger
+                        AccountBadgeColor.AMBER -> VegaColors.Gold
+                        AccountBadgeColor.GRAY -> VegaColors.TextMuted
                     }
 
                     Surface(
                         color = statusColor.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(6.dp),
+                        shape = VegaShapes.Small,
                         border = BorderStroke(1.dp, statusColor.copy(alpha = 0.4f))
                     ) {
                         Text(
@@ -219,13 +222,13 @@ private fun ProfileCard(
                     if (userInfo?.isTrial == "1") {
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
-                            color = Color(0xFFFFA000).copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(6.dp),
-                            border = BorderStroke(1.dp, Color(0xFFFFA000).copy(alpha = 0.4f))
+                            color = VegaColors.Gold.copy(alpha = 0.15f),
+                            shape = VegaShapes.Small,
+                            border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.4f))
                         ) {
                             Text(
                                 text = "Deneme",
-                                color = Color(0xFFFFA000),
+                                color = VegaColors.Gold,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -246,14 +249,14 @@ private fun ProfileCard(
                 if (isRefreshing) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = OpusCyan,
+                        color = VegaColors.Accent,
                         strokeWidth = 2.dp
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Hesap bilgilerini yenile",
-                        tint = OpusCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -265,21 +268,21 @@ private fun ProfileCard(
 @Composable
 private fun SubscriptionCard(userInfo: XtreamUserInfo?) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCard),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Large,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Text(
                 text = "Abonelik Bilgileri",
-                color = TiviTextPrimary,
+                color = VegaColors.TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = TiviCardBorder, thickness = 0.5.dp)
+            HorizontalDivider(color = VegaColors.Border, thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(12.dp))
 
             val expDateFormatted = AccountInfoFormatter.formatExpDate(userInfo?.expDate)
@@ -288,25 +291,25 @@ private fun SubscriptionCard(userInfo: XtreamUserInfo?) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Bitiş Tarihi", color = TiviTextSecondary, fontSize = 13.sp)
-                Text(expDateFormatted, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text("Bitiş Tarihi", color = VegaColors.TextSecondary, fontSize = 13.sp)
+                Text(expDateFormatted, color = VegaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
 
             val remainingDays = AccountInfoFormatter.formatRemainingDays(userInfo?.expDate)
             if (remainingDays != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 val remColor = when (remainingDays.colorType) {
-                    AccountBadgeColor.GREEN -> TiviGreen
-                    AccountBadgeColor.RED -> Color(0xFFEF5350)
-                    AccountBadgeColor.AMBER -> Color(0xFFFFA000)
-                    AccountBadgeColor.GRAY -> Color.Gray
+                    AccountBadgeColor.GREEN -> VegaColors.Success
+                    AccountBadgeColor.RED -> VegaColors.Danger
+                    AccountBadgeColor.AMBER -> VegaColors.Gold
+                    AccountBadgeColor.GRAY -> VegaColors.TextMuted
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Kalan Süre", color = TiviTextSecondary, fontSize = 13.sp)
+                    Text("Kalan Süre", color = VegaColors.TextSecondary, fontSize = 13.sp)
                     Text(remainingDays.label, color = remColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -320,8 +323,8 @@ private fun SubscriptionCard(userInfo: XtreamUserInfo?) {
                         .fillMaxWidth()
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp)),
-                    color = OpusCyan,
-                    trackColor = TiviCardBorder
+                    color = VegaColors.Accent,
+                    trackColor = VegaColors.Border
                 )
             }
 
@@ -333,8 +336,8 @@ private fun SubscriptionCard(userInfo: XtreamUserInfo?) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Üyelik Başlangıcı", color = TiviTextSecondary, fontSize = 13.sp)
-                    Text(createdAtFormatted, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Üyelik Başlangıcı", color = VegaColors.TextSecondary, fontSize = 13.sp)
+                    Text(createdAtFormatted, color = VegaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -344,21 +347,21 @@ private fun SubscriptionCard(userInfo: XtreamUserInfo?) {
 @Composable
 private fun ConnectionCard(userInfo: XtreamUserInfo?) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCard),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Large,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Text(
                 text = "Bağlantı",
-                color = TiviTextPrimary,
+                color = VegaColors.TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = TiviCardBorder, thickness = 0.5.dp)
+            HorizontalDivider(color = VegaColors.Border, thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(12.dp))
 
             val maxCons = userInfo?.maxConnections?.trim()?.ifBlank { null }
@@ -367,10 +370,10 @@ private fun ConnectionCard(userInfo: XtreamUserInfo?) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Aynı anda izleme hakkı", color = TiviTextSecondary, fontSize = 13.sp)
+                Text("Aynı anda izleme hakkı", color = VegaColors.TextSecondary, fontSize = 13.sp)
                 Text(
                     text = if (maxCons != null) "$maxCons cihaz" else "—",
-                    color = Color.White,
+                    color = VegaColors.TextPrimary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -384,8 +387,8 @@ private fun ConnectionCard(userInfo: XtreamUserInfo?) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Şu an kullanımda", color = TiviTextSecondary, fontSize = 13.sp)
-                    Text(activeCons, color = OpusCyan, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("Şu an kullanımda", color = VegaColors.TextSecondary, fontSize = 13.sp)
+                    Text(activeCons, color = VegaColors.Accent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -395,21 +398,21 @@ private fun ConnectionCard(userInfo: XtreamUserInfo?) {
 @Composable
 private fun ContentSummaryCard(contentCounts: Triple<Int, Int, Int>?) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCard),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Large,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Text(
                 text = "İçerik Özeti",
-                color = TiviTextPrimary,
+                color = VegaColors.TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = TiviCardBorder, thickness = 0.5.dp)
+            HorizontalDivider(color = VegaColors.Border, thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
@@ -447,9 +450,9 @@ private fun ContentCountBox(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = TiviSurface,
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        color = VegaColors.Surface,
+        shape = VegaShapes.Medium,
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = modifier
     ) {
         Column(
@@ -459,21 +462,21 @@ private fun ContentCountBox(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = OpusCyan,
+                tint = VegaColors.Accent,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = count,
-                color = Color.White,
+                color = VegaColors.TextPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = title,
-                color = TiviTextSecondary,
-                fontSize = 11.5.sp
+                color = VegaColors.TextSecondary,
+                fontSize = 11.sp
             )
         }
     }
@@ -485,21 +488,21 @@ private fun SyncCard(
     onSyncClick: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCard),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Large,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Text(
                 text = "Senkronizasyon",
-                color = TiviTextPrimary,
+                color = VegaColors.TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = TiviCardBorder, thickness = 0.5.dp)
+            HorizontalDivider(color = VegaColors.Border, thickness = 0.5.dp)
             Spacer(modifier = Modifier.height(12.dp))
 
             val formattedSync = AccountInfoFormatter.formatLastSync(lastSync)
@@ -508,11 +511,11 @@ private fun SyncCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Son Güncelleme", color = TiviTextSecondary, fontSize = 13.sp)
+                Text("Son Güncelleme", color = VegaColors.TextSecondary, fontSize = 13.sp)
                 Text(
                     text = formattedSync,
-                    color = OpusCyan,
-                    fontSize = 12.5.sp,
+                    color = VegaColors.Accent,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -521,16 +524,16 @@ private fun SyncCard(
 
             Button(
                 onClick = onSyncClick,
-                colors = ButtonDefaults.buttonColors(containerColor = OpusCyan),
-                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                shape = VegaShapes.Medium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(44.dp)
-                    .dpadFocusable(shape = RoundedCornerShape(10.dp), focusedBorderColor = Color.White, onClick = onSyncClick)
+                    .dpadFocusable(shape = VegaShapes.Medium, focusedBorderColor = Color.White, onClick = onSyncClick)
             ) {
-                Icon(Icons.Default.Sync, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Sync, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Şimdi Senkronize Et", color = Color.Black, fontWeight = FontWeight.Bold)
+                Text("Şimdi senkronize et", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -539,20 +542,20 @@ private fun SyncCard(
 @Composable
 private fun LogoutCard(onLogoutClick: () -> Unit) {
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = TiviCard),
-        border = BorderStroke(1.dp, TiviCardBorder),
+        shape = VegaShapes.Large,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             Button(
                 onClick = onLogoutClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF5350)),
-                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Danger),
+                shape = VegaShapes.Medium,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(44.dp)
-                    .dpadFocusable(shape = RoundedCornerShape(10.dp), focusedBorderColor = Color.White, onClick = onLogoutClick)
+                    .dpadFocusable(shape = VegaShapes.Medium, focusedBorderColor = Color.White, onClick = onLogoutClick)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ExitToApp,
@@ -561,7 +564,7 @@ private fun LogoutCard(onLogoutClick: () -> Unit) {
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Çıkış Yap", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Çıkış yap", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

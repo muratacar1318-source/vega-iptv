@@ -42,6 +42,9 @@ import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.detectRecommendedDeviceMode
 import kotlinx.coroutines.delay
 
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+
 /**
  * İlk Açılış Cihaz Modu Seçim Ekranı (Telefon / Tablet / TV).
  * Cihaz türünü otomatik tespit edip önerir, tam D-pad kumanda ve dokunmatik desteği sunar.
@@ -72,17 +75,17 @@ fun DeviceModeSetupScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(TiviBackground),
+            .background(VegaColors.Background),
         contentAlignment = Alignment.Center
     ) {
-        // Arka plan neon gradyan ışıltıları
+        // Arka plan gradyan ışıltıları
         Box(
             modifier = Modifier
                 .size(320.dp)
                 .align(Alignment.TopStart)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(OpusPurple.copy(alpha = 0.18f), Color.Transparent)
+                        colors = listOf(VegaColors.Accent.copy(alpha = 0.12f), Color.Transparent)
                     )
                 )
         )
@@ -92,7 +95,7 @@ fun DeviceModeSetupScreen(
                 .align(Alignment.BottomEnd)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(OpusCyan.copy(alpha = 0.15f), Color.Transparent)
+                        colors = listOf(VegaColors.Accent.copy(alpha = 0.12f), Color.Transparent)
                     )
                 )
         )
@@ -108,15 +111,15 @@ fun DeviceModeSetupScreen(
             // Başlık & Logo
             Surface(
                 shape = CircleShape,
-                color = OpusCyan.copy(alpha = 0.12f),
-                border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.35f)),
+                color = VegaColors.Accent.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f)),
                 modifier = Modifier.size(56.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.Tv,
                         contentDescription = null,
-                        tint = OpusCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -126,8 +129,8 @@ fun DeviceModeSetupScreen(
 
             Text(
                 text = stringResource(R.string.device_mode_title),
-                color = Color.White,
-                fontSize = 26.sp,
+                color = VegaColors.TextPrimary,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 0.5.sp
             )
@@ -136,8 +139,8 @@ fun DeviceModeSetupScreen(
 
             Text(
                 text = stringResource(R.string.device_mode_subtitle),
-                color = TiviTextSecondary,
-                fontSize = 13.5.sp,
+                color = VegaColors.TextSecondary,
+                fontSize = 13.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -242,16 +245,16 @@ fun DeviceModeSetupScreen(
                     viewModel.onDeviceModeSetupCompleted(selectedMode)
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = OpusCyan,
-                    contentColor = Color.Black
+                    containerColor = VegaColors.Accent,
+                    contentColor = VegaColors.OnAccent
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = VegaShapes.Medium,
                 modifier = Modifier
                     .fillMaxWidth(if (isWideScreen) 0.45f else 1f)
-                    .height(50.dp)
+                    .height(48.dp)
                     .dpadFocusable(
                         focusedBorderColor = Color.White,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = VegaShapes.Medium,
                         onClick = {
                             val infoMsg = context.getString(R.string.device_mode_info)
                             Toast.makeText(context, infoMsg, Toast.LENGTH_LONG).show()
@@ -272,8 +275,8 @@ fun DeviceModeSetupScreen(
             // Bilgi Metni
             Text(
                 text = stringResource(R.string.device_mode_info),
-                color = TiviTextSecondary.copy(alpha = 0.75f),
-                fontSize = 12.sp,
+                color = VegaColors.TextMuted,
+                fontSize = 11.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
@@ -300,26 +303,26 @@ private fun DeviceModeCard(
 
     val borderColor = when {
         isFocused -> Color.White
-        isSelected -> OpusCyan
-        else -> TiviCardBorder
+        isSelected -> VegaColors.Accent
+        else -> VegaColors.Border
     }
 
     val backgroundColor = when {
-        isSelected -> OpusCyan.copy(alpha = 0.12f)
-        isFocused -> TiviCard.copy(alpha = 0.9f)
-        else -> TiviCard.copy(alpha = 0.6f)
+        isSelected -> VegaColors.Accent.copy(alpha = 0.12f)
+        isFocused -> VegaColors.Card.copy(alpha = 0.9f)
+        else -> VegaColors.Card.copy(alpha = 0.6f)
     }
 
     Surface(
         onClick = onSelect,
-        shape = RoundedCornerShape(18.dp),
+        shape = VegaShapes.Large,
         color = backgroundColor,
         border = BorderStroke(if (isSelected || isFocused) 2.dp else 1.dp, borderColor),
         modifier = modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .dpadFocusable(
                 focusedBorderColor = Color.White,
-                shape = RoundedCornerShape(18.dp),
+                shape = VegaShapes.Large,
                 scale = 1.04f,
                 onClick = onSelect,
                 onFocusStateChange = { isFocused = it }
@@ -336,15 +339,15 @@ private fun DeviceModeCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isSelected) OpusCyan else Color.White.copy(alpha = 0.08f),
+                    shape = VegaShapes.Medium,
+                    color = if (isSelected) VegaColors.Accent else Color.White.copy(alpha = 0.08f),
                     modifier = Modifier.size(44.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isSelected) Color.Black else Color.White,
+                            tint = if (isSelected) VegaColors.OnAccent else Color.White,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -357,14 +360,14 @@ private fun DeviceModeCard(
                     if (isRecommended) {
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Brush.horizontalGradient(listOf(OpusCyan, OpusPurple)))
+                                .clip(VegaShapes.Small)
+                                .background(VegaColors.Accent)
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
                                 text = stringResource(R.string.device_mode_recommended),
-                                color = Color.Black,
-                                fontSize = 10.sp,
+                                color = VegaColors.OnAccent,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold
                             )
                         }
@@ -375,10 +378,10 @@ private fun DeviceModeCard(
                         modifier = Modifier
                             .size(22.dp)
                             .clip(CircleShape)
-                            .background(if (isSelected) OpusCyan else Color.Transparent)
+                            .background(if (isSelected) VegaColors.Accent else Color.Transparent)
                             .border(
                                 1.5.dp,
-                                if (isSelected) OpusCyan else Color.White.copy(alpha = 0.3f),
+                                if (isSelected) VegaColors.Accent else Color.White.copy(alpha = 0.3f),
                                 CircleShape
                             ),
                         contentAlignment = Alignment.Center
@@ -387,7 +390,7 @@ private fun DeviceModeCard(
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                tint = Color.Black,
+                                tint = VegaColors.OnAccent,
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -399,7 +402,7 @@ private fun DeviceModeCard(
 
             Text(
                 text = title,
-                color = Color.White,
+                color = VegaColors.TextPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -408,9 +411,9 @@ private fun DeviceModeCard(
 
             Text(
                 text = description,
-                color = TiviTextSecondary,
-                fontSize = 12.sp,
-                lineHeight = 16.sp
+                color = VegaColors.TextSecondary,
+                fontSize = 13.sp,
+                lineHeight = 17.sp
             )
         }
     }

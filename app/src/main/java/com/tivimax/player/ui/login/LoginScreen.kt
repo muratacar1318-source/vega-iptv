@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.MainViewModel
 
 @Composable
@@ -57,8 +58,8 @@ fun LoginScreen(viewModel: MainViewModel) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF0F141C),
-                        TiviBackground,
+                        VegaColors.Surface,
+                        VegaColors.Background,
                         Color(0xFF000000)
                     )
                 )
@@ -78,10 +79,10 @@ fun LoginScreen(viewModel: MainViewModel) {
             Box(
                 modifier = Modifier
                     .size(86.dp)
-                    .clip(RoundedCornerShape(24.dp))
+                    .clip(VegaShapes.Large)
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(TiviPrimary, TiviPrimaryDark)
+                            colors = listOf(VegaColors.Accent, VegaColors.Accent.copy(alpha = 0.7f))
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -100,14 +101,14 @@ fun LoginScreen(viewModel: MainViewModel) {
                 text = AppConfig.APP_NAME,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = TiviTextPrimary,
+                color = VegaColors.TextPrimary,
                 letterSpacing = 1.sp
             )
 
             Text(
                 text = AppConfig.APP_TAGLINE,
                 fontSize = 13.sp,
-                color = TiviTextSecondary,
+                color = VegaColors.TextSecondary,
                 modifier = Modifier.padding(top = 4.dp)
             )
 
@@ -117,8 +118,8 @@ fun LoginScreen(viewModel: MainViewModel) {
             AnimatedVisibility(visible = errorMessage != null) {
                 errorMessage?.let { error ->
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = TiviAccentLive.copy(alpha = 0.15f)),
-                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = VegaColors.Danger.copy(alpha = 0.15f)),
+                        shape = VegaShapes.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 16.dp)
@@ -130,12 +131,12 @@ fun LoginScreen(viewModel: MainViewModel) {
                             Icon(
                                 imageVector = Icons.Default.ErrorOutline,
                                 contentDescription = null,
-                                tint = TiviAccentLive
+                                tint = VegaColors.Danger
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = error,
-                                color = TiviTextPrimary,
+                                color = VegaColors.TextPrimary,
                                 fontSize = 13.sp
                             )
                         }
@@ -147,22 +148,22 @@ fun LoginScreen(viewModel: MainViewModel) {
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text("Kullanıcı Adı") },
+                label = { Text("Kullanıcı adı") },
                 singleLine = true,
                 leadingIcon = {
-                    Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = TiviPrimary)
+                    Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = VegaColors.Accent)
                 },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = TiviPrimary,
-                    unfocusedBorderColor = TiviCardBorder,
-                    focusedLabelColor = TiviPrimary,
-                    unfocusedLabelColor = TiviTextSecondary,
-                    focusedContainerColor = TiviCard,
-                    unfocusedContainerColor = TiviCard,
-                    focusedTextColor = TiviTextPrimary,
-                    unfocusedTextColor = TiviTextPrimary
+                    focusedBorderColor = VegaColors.Accent,
+                    unfocusedBorderColor = VegaColors.Border,
+                    focusedLabelColor = VegaColors.Accent,
+                    unfocusedLabelColor = VegaColors.TextSecondary,
+                    focusedContainerColor = VegaColors.Card,
+                    unfocusedContainerColor = VegaColors.Card,
+                    focusedTextColor = VegaColors.TextPrimary,
+                    unfocusedTextColor = VegaColors.TextPrimary
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = VegaShapes.Medium,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
@@ -182,29 +183,29 @@ fun LoginScreen(viewModel: MainViewModel) {
                 label = { Text("Şifre") },
                 singleLine = true,
                 leadingIcon = {
-                    Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = TiviPrimary)
+                    Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = VegaColors.Accent)
                 },
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
                             imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                             contentDescription = null,
-                            tint = TiviTextSecondary
+                            tint = VegaColors.TextSecondary
                         )
                     }
                 },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = TiviPrimary,
-                    unfocusedBorderColor = TiviCardBorder,
-                    focusedLabelColor = TiviPrimary,
-                    unfocusedLabelColor = TiviTextSecondary,
-                    focusedContainerColor = TiviCard,
-                    unfocusedContainerColor = TiviCard,
-                    focusedTextColor = TiviTextPrimary,
-                    unfocusedTextColor = TiviTextPrimary
+                    focusedBorderColor = VegaColors.Accent,
+                    unfocusedBorderColor = VegaColors.Border,
+                    focusedLabelColor = VegaColors.Accent,
+                    unfocusedLabelColor = VegaColors.TextSecondary,
+                    focusedContainerColor = VegaColors.Card,
+                    unfocusedContainerColor = VegaColors.Card,
+                    focusedTextColor = VegaColors.TextPrimary,
+                    unfocusedTextColor = VegaColors.TextPrimary
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = VegaShapes.Medium,
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
@@ -230,15 +231,15 @@ fun LoginScreen(viewModel: MainViewModel) {
                 },
                 enabled = !isLoading && username.isNotBlank() && password.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = TiviPrimary,
+                    containerColor = VegaColors.Accent,
                     contentColor = VegaColors.OnAccent,
-                    disabledContainerColor = TiviCardBorder,
-                    disabledContentColor = TiviTextMuted
+                    disabledContainerColor = VegaColors.Border,
+                    disabledContentColor = VegaColors.TextMuted
                 ),
-                shape = RoundedCornerShape(14.dp),
+                shape = VegaShapes.Medium,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(48.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
@@ -255,10 +256,9 @@ fun LoginScreen(viewModel: MainViewModel) {
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "GİRİŞ YAP",
+                            text = "Giriş yap",
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                            fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(imageVector = Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -271,17 +271,20 @@ fun LoginScreen(viewModel: MainViewModel) {
             // Demo Modu ile Test Et Butonu
             OutlinedButton(
                 onClick = { viewModel.loginDemo() },
-                shape = RoundedCornerShape(14.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.5f)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = TiviPrimary),
+                shape = VegaShapes.Medium,
+                border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = VegaColors.SurfaceVariant,
+                    contentColor = VegaColors.TextPrimary
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp)
+                    .height(44.dp)
             ) {
-                Icon(imageVector = Icons.Default.PlayCircleOutline, contentDescription = null, tint = TiviPrimary, modifier = Modifier.size(18.dp))
+                Icon(imageVector = Icons.Default.PlayCircleOutline, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Hemen Dene (Canlı Demo)",
+                    text = "Hemen dene (canlı demo)",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -296,9 +299,9 @@ fun LoginScreen(viewModel: MainViewModel) {
             ) {
                 TextButton(onClick = { showCustomServerInput = !showCustomServerInput }) {
                     Text(
-                        text = if (showCustomServerInput) "Varsayılan Sunucuya Dön" else "Farklı Sunucu Gir",
+                        text = if (showCustomServerInput) "Varsayılan sunucuya dön" else "Farklı sunucu gir",
                         fontSize = 11.sp,
-                        color = TiviTextMuted
+                        color = VegaColors.TextMuted
                     )
                 }
             }
@@ -307,21 +310,23 @@ fun LoginScreen(viewModel: MainViewModel) {
                 OutlinedTextField(
                     value = customServerUrl,
                     onValueChange = { customServerUrl = it },
-                    label = { Text("Özel Sunucu Adresi") },
+                    label = { Text("Özel sunucu adresi") },
                     placeholder = { Text("http://sunucu.com:8080") },
                     singleLine = true,
                     leadingIcon = {
-                        Icon(imageVector = Icons.Default.Dns, contentDescription = null, tint = TiviPrimary)
+                        Icon(imageVector = Icons.Default.Dns, contentDescription = null, tint = VegaColors.Accent)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = TiviPrimary,
-                        unfocusedBorderColor = TiviCardBorder,
-                        focusedContainerColor = TiviCard,
-                        unfocusedContainerColor = TiviCard,
-                        focusedTextColor = TiviTextPrimary,
-                        unfocusedTextColor = TiviTextPrimary
+                        focusedBorderColor = VegaColors.Accent,
+                        unfocusedBorderColor = VegaColors.Border,
+                        focusedLabelColor = VegaColors.Accent,
+                        unfocusedLabelColor = VegaColors.TextSecondary,
+                        focusedContainerColor = VegaColors.Card,
+                        unfocusedContainerColor = VegaColors.Card,
+                        focusedTextColor = VegaColors.TextPrimary,
+                        unfocusedTextColor = VegaColors.TextPrimary
                     ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = VegaShapes.Medium,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 4.dp, bottom = 8.dp)
@@ -332,9 +337,9 @@ fun LoginScreen(viewModel: MainViewModel) {
 
             // Destek Bilgisi
             Text(
-                text = "Sunucu adresi otomatik yapılandırılmıştır. Yalnızca kullanıcı adı ve şifrenizi girmeniz yeterlidir.",
+                text = "Sunucu adresi otomatik yapılandırılmıştır. Yalnızca kullanıcı adı ve şifreni girmen yeterlidir.",
                 fontSize = 11.sp,
-                color = TiviTextMuted,
+                color = VegaColors.TextMuted,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )

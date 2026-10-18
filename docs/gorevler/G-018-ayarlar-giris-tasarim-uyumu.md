@@ -44,4 +44,46 @@ güncelleme sistemi, imza, CI. `ui/design/*` ve `theme/*` dosyalarını değişt
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+### 1. Yapılan Değişiklikler ve Tasarım Uyumu
+- **`DeviceModeSetupScreen.kt`**:
+  - Sabit renkler `VegaColors` (`Background`, `Accent`, `OnAccent`, `TextPrimary`, `TextSecondary`, `TextMuted`, `Card`, `Border`) ile değiştirildi.
+  - Köşe yuvarlaklıkları `VegaShapes.Small`, `Medium`, `Large` ve `Pill` tokenlarına bağlandı.
+  - Odak renkleri `Color.White` / `VegaColors.Accent` olarak hizalandı, tipografi 22/17/13/11sp ölçeğine uyarlandı.
+- **`LoginScreen.kt`**:
+  - Logo kutusu ve arka plan gradyanları `VegaColors.Surface` ve `VegaColors.Background` ile temaya duyarlı hale getirildi.
+  - Hata banner'ı rengi `VegaColors.Danger` yapıldı.
+  - Metin kutuları ve butonların odak/kenar/dolgu renkleri `VegaColors` tokenlarıyla güncellendi, köşeler `VegaShapes.Medium` yapıldı.
+  - Buton yükseklikleri 48dp/44dp olarak ayarlandı.
+- **`PlaylistSyncScreen.kt`**:
+  - Dosya başında yer alan tüm sabit `Color(0xFF...)` tanımları temizlendi; `VegaColors` (`Background`, `Card`, `Border`, `Accent`, `Success`, `Danger`, `TextPrimary`, `TextSecondary`, `TextMuted`) tokenlarına bağlandı.
+  - Yatay ve dikey modlardaki sayaç ve ilerleme çubukları `VegaColors.Accent`, `VegaColors.Success` ve `VegaColors.Danger` kullanacak şekilde uyarlandı.
+  - Butonlar ve kart köşeleri `VegaShapes.Medium` ve `VegaShapes.Large` ile hizalandı.
+- **`SettingsAccountSection.kt`**:
+  - Çıkış diyaloğu ve butonlardaki sabit `Color(0xFFEF5350)` ve `Color(0xFFFFA000)` yerine `VegaColors.Danger` ve `VegaColors.Gold` bağlandı.
+  - Kartlar `VegaShapes.Large` ve `VegaColors.Card`/`Border` ile temaya bağlandı.
+  - Butonlar `VegaShapes.Medium` ile standartlaştırıldı.
+- **`SettingsScreen.kt`**:
+  - Sol menü, dikey alt sayfa menüsü, cihaz modu seçimi diyaloğu ve ayar kartlarındaki renkler `VegaColors` (`Background`, `Surface`, `Card`, `Border`, `Accent`, `TextPrimary`, `TextSecondary`, `TextMuted`, `Danger`) ve `VegaShapes` (`Medium`, `Large`, `Small`) tokenlarıyla güncellendi.
+
+### 2. Değişen Metinler ("Sen" Dili & Cümle Düzeni)
+- `GİRİŞ YAP` -> `Giriş yap`
+- `Hemen Dene (Canlı Demo)` -> `Hemen dene (canlı demo)`
+- `Varsayılan Sunucuya Dön` -> `Varsayılan sunucuya dön`
+- `Farklı Sunucu Gir` -> `Farklı sunucu gir`
+- `Özel Sunucu Adresi` -> `Özel sunucu adresi`
+- `Kullanıcı Adı` -> `Kullanıcı adı`
+- `Sunucu adresi otomatik yapılandırılmıştır. Yalnızca kullanıcı adı ve şifrenizi girmeniz yeterlidir.` -> `Sunucu adresi otomatik yapılandırılmıştır. Yalnızca kullanıcı adı ve şifreni girmen yeterlidir.`
+- `İndeksleme & Kurulum` -> `İndeksleme ve kurulum`
+- `Oynatma Listesi Kurulumu ve İndeksleme` -> `Oynatma listesi kurulumu ve indeksleme`
+- `İnternet bağlantınızı kontrol edin.` -> `İnternet bağlantını kontrol et.`
+- `Kaldığı Yerden Yeniden Dene` -> `Kaldığı yerden yeniden dene`
+- `Hemen İzlemeye Başla (0ms)` -> `Hemen izlemeye başla`
+- `Arayüze Geç (Arka Planda Yükle)` -> `Arayüze geç (arka planda yükle)`
+- `Lütfen işlem bitene kadar bekleyiniz, ekran açık tutulacaktır...` -> `Lütfen işlem bitene kadar bekle, ekran açık tutulacaktır...`
+- `Tekrar giriş yaptığınızda yeniden indirilir.` -> `Tekrar giriş yaptığında yeniden indirilir.`
+- `Çıkış Yap` -> `Çıkış yap`
+- `Şimdi Senkronize Et` -> `Şimdi senkronize et`
+
+### 3. Test Durumu
+- `./gradlew compileDebugKotlin` başarıyla tamamlandı (BUILD SUCCESSFUL).
+- Cihaz üzerinde manuel görsel ve kumanda testi ortam kısıtları nedeniyle yapılamadı (test edilemedi). APK üretilmedi.
