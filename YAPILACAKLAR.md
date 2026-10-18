@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-022 | [Akıllı altyazı / ses dili eşleme — kullanıcı seçimini ezmesin](docs/gorevler/G-022-akilli-altyazi.md) | 🟠 | ⏳ Bekliyor (mevcut branch'te düzeltme) |
+| G-022 | [Akıllı altyazı / ses dili eşleme — kullanıcı seçimini ezmesin](docs/gorevler/G-022-akilli-altyazi.md) | 🟠 | ⏳ Bekliyor |
 | G-017 | [Ana sayfa, Canlı TV, Film/Dizi, Arama, Favoriler — tasarım uyumu](docs/gorevler/G-017-gezinme-ekranlari-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 | G-018 | [Ayarlar, Giriş, Liste indirme, Cihaz seçimi — tasarım uyumu](docs/gorevler/G-018-ayarlar-giris-tasarim-uyumu.md) | 🟢 | ⏳ Bekliyor |
 

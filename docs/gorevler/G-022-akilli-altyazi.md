@@ -2,14 +2,14 @@
 
 - **Öncelik:** 🟠
 - **Agent dağılımı:** Tek agent
-- **Branch:** `feat/akilli-altyazi-secimi` (MEVCUT branch'te devam)
+- **Branch:** `fix/akilli-altyazi-bir-kez` (main'den YENİ branch — ilk sürüm v1.3.3 ile main'e girdi ve yayınlandı)
 - **Commit mesajı:** `fix(player): akıllı altyazı kuralı sadece içerik açılışında bir kez uygulanıyor, kullanıcı seçimi ezilmiyor`
 
 ## Durum
 
 Kullanıcı Antigravity'ye doğrudan istedi; branch'te ilk sürüm var (`7dd75f3`): Türkçe seste altyazı kapalı,
-İngilizce seste Türkçe altyazı açık, ses ve altyazı aynı dildeyse altyazı kapalı. Fikir doğru, ama Claude
-incelemesinde **ciddi bir kullanıcı hatası** bulundu; bu haliyle main'e alınmayacak.
+İngilizce seste Türkçe altyazı açık, ses ve altyazı aynı dildeyse altyazı kapalı. Bu ilk sürüm **v1.3.3 olarak main'e alınıp yayınlandı** (PR #26). Claude incelemesinde
+**ciddi bir kullanıcı hatası** bulundu; bu görev onu düzeltir (sonraki sürüm v1.3.4).
 
 ## Bulunan sorunlar
 
@@ -20,15 +20,13 @@ incelemesinde **ciddi bir kullanıcı hatası** bulundu; bu haliyle main'e alın
    - `disableSubtitles()` / `selectTrackInternal()` yeni bir `onTracksChanged` doğurur → kural tekrar çalışır (gereksiz döngü).
 2. **Ayarlardaki tercih yok sayılıyor:** Ayarlar → Oynatıcı → "Tercih edilen altyazı dili" (`setDefaultTrackLanguages`,
    ör. "Kapalı" ya da "İngilizce") ile çelişebilir.
-3. **Sürüm numarası özellik branch'inde artırılmış** (`versionCode 55`, `1.3.3`, release notu). Sürüm sadece
-   kullanıcı "release yap" deyince ve main'de ayrı bir commit olarak artırılır.
+3. Kullanıcıya incelenmeden yayınlandı (v1.3.3).
 
 ## Yapılacaklar
 
-`git checkout feat/akilli-altyazi-secimi && git pull && git merge origin/main`
+`git checkout main && git pull && git checkout -b fix/akilli-altyazi-bir-kez`
 
-1. **Sürüm değişikliğini geri al:** `app/build.gradle.kts` → `versionCode = 54`, `versionName = "1.3.2"` (main'deki hali);
-   `docs/release-notes/release_notes_v1.3.3.txt` dosyasını sil.
+1. Sürüm numarasına DOKUNMA (main'deki 1.3.3 kalsın; v1.3.4'ü kullanıcı "release yap" deyince çıkarırız).
 2. **Kural içerik başına BİR KEZ uygulansın:**
    - `TiviPlayerManager`'a `private var smartSubtitleAppliedForUrl: String? = null` ekle.
    - `extractTracks()` sonunda: sadece `currentPlayingUrl != null && smartSubtitleAppliedForUrl != currentPlayingUrl`
