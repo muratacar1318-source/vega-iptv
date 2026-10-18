@@ -1,0 +1,7 @@
+# Vega IPTV v1.3.3 (Build 55) - Akıllı Altyazı ve Ses Dili Eşleme
+
+### 🎧 Akıllı Altyazı ve Ses Dili Uyumu:
+- Ses dili ile altyazı dili aynı olduğunda altyazı otomatik olarak kapatılır.
+- Türkçe dublaj veya Türkçe sesli içeriklerde altyazı varsayılan olarak kapalı başlar.
+- İngilizce ses seçildiğinde veya başladığında Türkçe altyazı otomatik olarak seçilir.
+- Oynatıcı içerisinde ses dili değiştirildiğinde akıllı altyazı kuralı anında devreye girer.
