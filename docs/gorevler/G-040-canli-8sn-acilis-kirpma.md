@@ -468,4 +468,22 @@ TvPlayerOverlay, PlayerScreen, güncelleme sistemi (AutoUpdateManager), imza, CI
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - **Adım 1:** `LiveBurstTrimmer.kt` sınıfı eklendi. Bağlantı başında sunucunun gönderdiği ilk yığını (burst) en fazla 3 sn önceden okuyup TS PCR saat bilgisine göre en yeni 8 sn dışındaki eski yayını paket sınırında kırpar.
+  - **Adım 2:** `LiveBurstTrimDataSource.kt` sınıfı eklendi. Yalnızca canlı, ana URL ve TS yayınlarda `LiveBurstTrimmer` ile kırpma uygular; olası bir hatada kırpmayı oturum boyunca devre dışı bırakıp normal akışa devam eder.
+  - **Adım 3:** `LiveBurstTrimmerTest.kt` birim testi eklendi (30s kırpma, 5s dokunmama, non-TS, başta çöp veri, PCR yok, saat sıçraması, gerçek zamanlı akış senaryoları).
+  - **Adım 4 (TiviPlayerManager.kt):**
+    - `createDataSourceFactory()` içine `LiveBurstTrimDataSource.Factory` eklendi (canlı, ana URL, .ts için).
+    - `startPositionUpdates()` içinde hızlandırma çağrısı (`applyLiveCatchUp`) kaldırıldı; sadece `_liveBehindSecs` tampon süresine göre güncellenir hale getirildi.
+    - `jumpToLive()` fonksiyonu bağlantıyı yenileyerek (`player.stop()`, `player.prepare()`, `player.play()`) açılış kırpması üzerinden yayını ~8 sn gecikmeye getirecek şekilde güncellendi.
+- **Değiştirilen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/player/LiveBurstTrimmer.kt` (yeni)
+  - `app/src/main/java/com/tivimax/player/player/LiveBurstTrimDataSource.kt` (yeni)
+  - `app/src/test/java/com/tivimax/player/player/LiveBurstTrimmerTest.kt` (yeni)
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`
+  - `docs/gorevler/G-040-canli-8sn-acilis-kirpma.md`
+  - `YAPILACAKLAR.md`
+- **Test sonuçları:**
+  - `./gradlew compileDebugKotlin`: Başarılı (`BUILD SUCCESSFUL in 11s`).
+  - `./gradlew testDebugUnitTest`: Başarılı (`BUILD SUCCESSFUL in 6s`, `LiveBurstTrimmerTest` dahil tüm 28 test geçti).
+  - Fiziksel TV / emülatör bağlı olmadığı için ekran üzerinde manuel TV testi yapılamadı (test edilemedi).

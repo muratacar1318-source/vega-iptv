@@ -533,7 +533,14 @@ class TiviPlayerManager(private val context: Context) {
     fun createDataSourceFactory(): DataSource.Factory {
         val okHttpDataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(baseOkHttpClient)
             .setUserAgent(USER_AGENT)
-        return DefaultDataSource.Factory(context, okHttpDataSourceFactory)
+        val base = DefaultDataSource.Factory(context, okHttpDataSourceFactory)
+        // G-040: Canlı .ts ana yayında bağlantı başındaki eski yayını at (gecikme ~8 sn)
+        return LiveBurstTrimDataSource.Factory(base) { spec ->
+            isLiveStream &&
+                spec.position == 0L &&
+                spec.uri.toString() == currentUrl &&
+                !currentUrl.contains(".m3u8", ignoreCase = true)
+        }
     }
 
     private class VodLoadErrorHandlingPolicy(
@@ -1203,13 +1210,16 @@ class TiviPlayerManager(private val context: Context) {
     }
 
     /**
-     * G-039: "Canlıya geç" — fazla tamponu 2× hızla eritip 8 sn gecikmeye getirir.
-     * (.ts canlı yayında ileri sarılamaz; bağlantıyı yenilemek de işe yaramaz — sunucu yine aynı tamponu gönderir.)
+     * G-040: "Canlıya geç" — bağlantıyı yeniler; açılış kırpması yayını ~8 sn gecikmeye getirir.
      */
     fun jumpToLive() {
-        if (!isLiveStream) return
-        liveCatchUpStalls = 0
-        liveCatchUpBoost = true
+        val player = exoPlayer ?: return
+        if (!isLiveStream || currentUrl.isBlank()) return
+        liveCatchUpBoost = false
+        // G-040: Yeniden bağlan; açılıştaki kırpma yayını ~8 sn gecikmeye getirir
+        player.stop()
+        player.prepare()
+        player.play()
     }
 
     fun syncToLive(): Boolean {
@@ -1241,7 +1251,8 @@ class TiviPlayerManager(private val context: Context) {
                         if (offset > 0) {
                             _liveOffsetMs.value = offset
                         }
-                        applyLiveCatchUp(player)
+                        // G-040: Hızlandırma yok; sadece canlıdan gerilik bilgisini güncelle
+                        _liveBehindSecs.value = player.totalBufferedDuration.coerceAtLeast(0L) / 1000f
                     }
                 }
                 delay(250)
