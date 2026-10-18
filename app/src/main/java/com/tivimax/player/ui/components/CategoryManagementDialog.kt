@@ -51,7 +51,6 @@ fun CategoryManagementDialog(
             searchQuery.isBlank() || it.second.contains(searchQuery, ignoreCase = true)
         }.sortedWith(
             compareByDescending<Triple<String, String, Int>> { pinnedCats.contains(it.first) }
-                .thenBy { it.second }
         )
     }
 

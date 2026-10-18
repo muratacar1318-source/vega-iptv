@@ -38,7 +38,7 @@ import com.tivimax.player.ui.components.dpadFocusable
 @Composable
 fun OpusDashboardScreen(viewModel: MainViewModel) {
     val userInfo by viewModel.userInfo.collectAsState()
-    val watchProgressMap by viewModel.watchProgressMap.collectAsState()
+    val continueWatching by viewModel.continueWatchingMovies.collectAsState()
     val recentChannels by viewModel.recentChannels.collectAsState()
     val liveCategories by viewModel.liveCategories.collectAsState()
     val vodStreams by viewModel.vodStreams.collectAsState()
@@ -46,19 +46,12 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
     val seriesCategories by viewModel.seriesCategories.collectAsState()
     val favoriteLiveIds by viewModel.favoriteLiveIds.collectAsState()
 
-    // Sadece Film ve Dizi (VOD) içerikleri için kaldığı yerden devam et listesi
-    val activeVodProgressList = remember(watchProgressMap) {
-        watchProgressMap.values
-            .filter { it.positionMs > 10_000L && !it.isWatched }
-            .sortedByDescending { it.timestamp }
-            .take(10)
-    }
-
     // En Son Eklenen Filmler
     val newlyAddedVodList = remember(vodStreams) {
         vodStreams
             .filter { !it.added.isNullOrBlank() }
             .sortedByDescending { it.added?.toLongOrNull() ?: 0L }
+            .distinctBy { (it.name ?: "").trim().lowercase() }
             .take(12)
             .ifEmpty { vodStreams.take(10) }
     }
@@ -68,6 +61,7 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
         seriesStreams
             .filter { !it.added.isNullOrBlank() || !it.lastModified.isNullOrBlank() }
             .sortedByDescending { (it.lastModified?.toLongOrNull() ?: it.added?.toLongOrNull() ?: 0L) }
+            .distinctBy { (it.name ?: "").trim().lowercase() }
             .take(12)
             .ifEmpty { seriesStreams.take(10) }
     }
@@ -241,7 +235,7 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
         // ==========================================
         // 3. KALDIĞIN YERDEN DEVAM ET (SADECE FİLM / DİZİ VOD)
         // ==========================================
-        if (activeVodProgressList.isNotEmpty()) {
+        if (continueWatching.isNotEmpty()) {
             Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -250,7 +244,7 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                 Icon(Icons.Default.History, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Kaldığın Yerden Devam Et (Film ve Dizi)",
+                    text = "Kaldığın Yerden Devam Et",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = VegaColors.TextPrimary
@@ -261,18 +255,12 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(vertical = 4.dp)
             ) {
-                items(activeVodProgressList, key = { "progress_${it.streamId}" }) { progress ->
-                    val movie = remember(vodStreams, progress.streamId) {
-                        vodStreams.firstOrNull { it.streamId == progress.streamId }
-                    }
-
-                    if (movie != null) {
-                        DashboardProgressCard(
-                            movie = movie,
-                            progress = progress,
-                            onClick = { viewModel.playVod(movie, resume = true) }
-                        )
-                    }
+                items(continueWatching, key = { "progress_${it.first.streamId}" }) { (progress, movie) ->
+                    DashboardProgressCard(
+                        movie = movie,
+                        progress = progress,
+                        onClick = { viewModel.playVod(movie, resume = true) }
+                    )
                 }
             }
         }

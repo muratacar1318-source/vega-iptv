@@ -214,4 +214,20 @@ oynatma listesi mantığı, güncelleme sistemi (AutoUpdateManager), imza, CI, s
 
 ## Agent raporu
 
-_(Agent doldurur: her bölüm için ne yaptın, test sonucu, test edemediklerin.)_
+- **Durum:** Tamamlandı, Claude'un incelemesine hazır.
+- **Değişiklikler:**
+  - **Bölüm A (HomeScreen.kt):** `HomeTopBar` içerisindeki aktif liste rozeti `.weight(1f)` ve `.widthIn(max = 180.dp)` alan bir `Box` içine alındı, liste adı taşmasında `weight(1f, fill = false)` kullanılarak kısalması sağlandı. Ortadaki geniş arama çubuğu kaldırıldı, sağ kısma 40x40 boyutlarında özel Arama `Surface` butonu eklendi. Üst çubuk elemanlarının sıkışması tamamen giderildi.
+  - **Bölüm B (Sunucu Sırası Varsayılan):**
+    - `Daos.kt`: `LiveDao`, `VodDao`, `SeriesDao` içerisindeki kategori ve içerik varsayılan sıralamaları `ORDER BY rowid ASC` olarak değiştirildi.
+    - `UserPreferences.kt`: `vodSortFlow` ve `seriesSortFlow` varsayılan değerleri `"DEFAULT"` yapıldı.
+    - `MainViewModel.kt`: `vodSortOption` ve `seriesSortOption` varsayılan değerleri `SortOption.DEFAULT` olarak güncellendi. `visibleLiveCategories`, `visibleVodCategories`, `visibleSeriesCategories` içindeki `.thenBy { it.categoryName }` satırları kaldırılarak sunucu sırası korundu.
+    - `CategoryManagementDialog.kt`: `filteredCategories` içindeki `.thenBy { it.second }` kaldırıldı.
+  - **Bölüm C ("Kaldığın Yerden Devam Et" Boş Başlık Düzeltmesi):**
+    - `MainViewModel.kt`: `continueWatchingMovies` Flow'u eklendi; izleme geçmişindeki `streamId`'ler veritabanından doğrudan sorgulanarak sadece aktif veritabanında gerçekten mevcut olan VOD içerikleri ve izleme süreleri filtrelendi.
+    - `OpusDashboardScreen.kt`: Eski `activeVodProgressList` kaldırılıp `viewModel.continueWatchingMovies` bağlandı. Başlık metni `"Kaldığın Yerden Devam Et"` olarak sadeleştirildi; içerik yoksa başlık dahil bölüm çizilmiyor.
+  - **Bölüm D (Son Eklenenlerde Tekrar Eden İçerikler):**
+    - `OpusDashboardScreen.kt`: `newlyAddedVodList` ve `newlyAddedSeriesList` listelerine `.distinctBy { (it.name ?: "").trim().lowercase() }` filtresi eklenerek aynı isimli içeriklerin tekrarlanması engellendi.
+- **Doğrulama:**
+  - `./gradlew compileDebugKotlin` başarıyla tamamlandı.
+  - `./gradlew testDebugUnitTest` başarıyla tamamlandı (60 test geçti, 0 hata).
+  - Fiziksel cihaz / emülatör bağlı olmadığı için ekran görüntüleri ekran üzerinde test edilemedi (derleme ve test adımlarıyla doğrulandı).

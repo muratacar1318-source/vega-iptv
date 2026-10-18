@@ -598,88 +598,78 @@ private fun HomeTopBar(
 
             // Aktif Liste Rozeti / Hapı ("Ana liste ▾")
             Spacer(modifier = Modifier.width(8.dp))
-            Surface(
-                shape = VegaShapes.Pill,
-                color = Color.White.copy(alpha = 0.08f),
-                border = BorderStroke(1.dp, VegaColors.Border),
-                modifier = Modifier
-                    .clip(VegaShapes.Pill)
-                    .clickable { onPlaylistClick() }
-                    .dpadFocusable(
-                        shape = VegaShapes.Pill,
-                        focusedBorderColor = VegaColors.Accent,
-                        onClick = onPlaylistClick
-                    )
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = activePlaylistName,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = VegaColors.TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 100.dp)
-                    )
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = null,
-                        tint = VegaColors.TextSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-
-            // Orta: Arama Butonu/Çubuğu
-            Surface(
-                shape = VegaShapes.Pill,
-                color = Color.White.copy(alpha = 0.08f),
-                border = BorderStroke(1.dp, VegaColors.Border),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp)
-                    .padding(horizontal = 10.dp)
-                    .dpadFocusable(
-                        shape = VegaShapes.Pill,
-                        focusedBorderColor = VegaColors.Accent,
-                        onClick = onSearchClick
-                    )
-            ) {
-                Row(
+                Surface(
+                    shape = VegaShapes.Pill,
+                    color = Color.White.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, VegaColors.Border),
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { onSearchClick() }
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .widthIn(max = 180.dp)
+                        .clip(VegaShapes.Pill)
+                        .clickable { onPlaylistClick() }
+                        .dpadFocusable(
+                            shape = VegaShapes.Pill,
+                            focusedBorderColor = VegaColors.Accent,
+                            onClick = onPlaylistClick
+                        )
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Arama",
-                        tint = VegaColors.Accent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "İçerik ara...",
-                        color = VegaColors.TextSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = activePlaylistName,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = VegaColors.TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = VegaColors.TextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
-            // Sağ: Senkronizasyon (aktifse), Yenile ve Ayarlar butonları
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Sağ: Arama, Senkronizasyon (aktifse), Yenile ve Ayarlar butonları
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Arama Butonu
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = Color.White.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, VegaColors.Border),
+                    onClick = onSearchClick,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .dpadFocusable(
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.Accent,
+                            onClick = onSearchClick
+                        )
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Ara",
+                            tint = VegaColors.Accent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
                 if (isSyncing) {
                     Surface(
                         shape = VegaShapes.Medium,
