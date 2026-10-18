@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-031 | [Film/dizi arka planda duraklasın (küçük pencere yok), canlı küçük pencerede devam](docs/gorevler/G-031-film-dizi-arka-planda-duraklat.md) | 🟠 | 🔍 İncelemede (branch: fix/arka-plan-oynatma) |
 
 ---
 
@@ -48,6 +47,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-031 | Film/dizi arka planda duraklıyor (küçük pencere yok), canlı küçük pencerede devam; PiP kapatılınca ses kesiliyor — PR #42 | 18 Ekim |
 | G-030 | Üst çubuk sıkışması, sunucu sırası varsayılan, boş devam et başlığı, tekrar eden filmler — PR #41 | 18 Ekim |
 | R-1.4.0 | v1.4.0 (build 60) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 18 Ekim |
 | G-029 | Kurulu listede içerik güncellemesi arka planda, ana ekranda şerit — PR #40 | 18 Ekim |
