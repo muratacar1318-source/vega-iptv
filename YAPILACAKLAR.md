@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-029 | [Kurulu listede içerik güncellemesi arka planda, ana ekranda şerit](docs/gorevler/G-029-arka-planda-liste-guncelleme.md) | 🟡 | 🔍 İncelemede (branch: feat/arka-plan-guncelleme) |
+| R-1.4.0 | [Sürüm yayını v1.4.0 — kullanıcı onayladı](docs/gorevler/R-1.4.0-surum-yayini.md) | 🔴 | ⏳ Sıradaki |
 
 ---
 
@@ -48,6 +48,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-029 | Kurulu listede içerik güncellemesi arka planda, ana ekranda şerit — PR #40 | 18 Ekim |
 | G-028 | Listeler önce dosyaya indiriliyor, sonra işleniyor (bağlantı kısa sürüyor) — PR #39 | 18 Ekim |
 | G-026 | Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş, TV "Listeler" — PR #38 | 18 Ekim |
 | G-025 | Oynatma listesi altyapısı: çoklu liste, liste başına ayrı veritabanı, güvenli geçiş — PR #35 | 18 Ekim |
