@@ -94,6 +94,7 @@ fun TvPlayerOverlay(
     val subtitleColor by viewModel.subtitleColor.collectAsState()
     val subtitleSize by viewModel.subtitleSize.collectAsState()
     val anySubSelected = subtitleTracks.any { it.isSelected }
+    val startupDebugInfo by playerManager.startupDebugInfo.collectAsState()
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -169,6 +170,14 @@ fun TvPlayerOverlay(
         } else if (showActionTray) {
             delay(80)
             try { actionDockFocusRequester.requestFocus() } catch (_: Exception) {}
+        }
+    }
+
+    // G-038: Bilgi kartı açıkken tampon/teknik bilgileri her saniye güncelle
+    LaunchedEffect(showInfoCard) {
+        while (showInfoCard) {
+            playerManager.updateDiagnostics()
+            delay(1000L)
         }
     }
 
@@ -255,11 +264,8 @@ fun TvPlayerOverlay(
                         if (keyEvent.nativeKeyEvent.repeatCount > 0) {
                             return@onPreviewKeyEvent true
                         }
-                        if (!showInfoCard) {
-                            showInfoCard = true
-                        } else {
-                            playerManager.togglePlayPause()
-                        }
+                        // G-038: OK yayını durdurmaz; bilgi kartını açar/kapatır
+                        showInfoCard = !showInfoCard
                         return@onPreviewKeyEvent true
                     }
 
@@ -362,19 +368,21 @@ fun TvPlayerOverlay(
                 .padding(top = 20.dp, end = 24.dp),
             horizontalAlignment = Alignment.End
         ) {
-            // SAAT
-            Surface(
-                shape = VegaShapes.Medium,
-                color = VegaColors.OverlayPanel,
-                border = BorderStroke(1.dp, VegaColors.Border)
-            ) {
-                Text(
-                    text = clockText,
-                    color = VegaColors.TextPrimary,
-                    fontSize = VegaText.Body,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+            // SAAT (G-038: sadece bilgi kartı/menü açıkken)
+            if (showInfoCard || showActionTray) {
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.OverlayPanel,
+                    border = BorderStroke(1.dp, VegaColors.Border)
+                ) {
+                    Text(
+                        text = clockText,
+                        color = VegaColors.TextPrimary,
+                        fontSize = VegaText.Body,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
             }
 
             // RAKAM İLE KANAL GEÇİŞİ (NUMERIC ZAPPER)
@@ -520,6 +528,16 @@ fun TvPlayerOverlay(
                         }
                     }
 
+                    if (com.tivimax.player.BuildConfig.DEBUG && startupDebugInfo.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Açılış ölçümü: $startupDebugInfo",
+                            color = VegaColors.TextMuted,
+                            fontSize = VegaText.Caption,
+                            maxLines = 2
+                        )
+                    }
+
                     if (!showActionTray) {
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -591,6 +609,16 @@ fun TvPlayerOverlay(
                                     onClick = { showTrackSheet = true },
                                     isPortrait = false,
                                     modifier = Modifier.focusRequester(actionDockFocusRequester)
+                                )
+                                PlayerPillButton(
+                                    text = "Canlıya geç",
+                                    icon = Icons.Default.LiveTv,
+                                    onClick = {
+                                        playerManager.jumpToLive()
+                                        showActionTray = false
+                                        seekRippleMessage = "Canlı yayına geçiliyor…"
+                                    },
+                                    isPortrait = false
                                 )
                                 PlayerPillButton(
                                     text = when (aspectRatio) {
