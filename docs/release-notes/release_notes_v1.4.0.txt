@@ -1,0 +1,6 @@
+- Artık birden fazla oynatma listesi ekleyip aralarında tek dokunuşla geçebilirsin.
+- Film ve dizilerde ileri-geri sarma çok daha hızlı.
+- Kanal, film ve dizi listeleri daha hızlı ve daha sorunsuz iniyor.
+- İçerik güncellemesi arka planda çalışıyor; bu sırada uygulamayı kullanmaya devam edebilirsin.
+- Sunucu yoğun olduğunda film ve diziler daha kararlı açılıyor.
+- Bağlantı hatalarında daha anlaşılır mesajlar gösteriliyor.
