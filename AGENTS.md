@@ -24,6 +24,11 @@
 ## Sürüm (release) kuralları
 - Release sadece kullanıcı açıkça "release yap" dediğinde yayınlanır.
 - versionCode her release'de 1 artar.
+- **Release APK SADECE kullanıcının bilgisayarında** `./gradlew assembleRelease` ile derlenir (imza:
+  `%USERPROFILE%\.android\debug.keystore`). GitHub Actions / bulut derlemesi ile release APK YAYINLAMA.
+- Yüklemeden ÖNCE `apksigner verify --print-certs` ile imza SHA-256 kontrol edilir; şu olmalı:
+  `2E:5C:18:FE:C5:F4:F6:F5:E2:C7:48:A5:D8:5C:2C:D3:5F:58:D5:E4:19:63:F2:D4:3B:51:18:BE:97:76:6F:2D`.
+  Farklıysa YÜKLEME, dur ve raporla (farklı imzalı sürüm telefonlara kurulamaz).
 - Release açıklaması (GitHub Release body) uygulamadaki güncelleme penceresinde kullanıcıya
   AYNEN gösterilir. Bu yüzden:
   * Son kullanıcının anlayacağı sade Türkçe ile yazılır (ör. "Filmler ekranındaki çökme düzeltildi").

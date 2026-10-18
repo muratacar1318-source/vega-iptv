@@ -65,7 +65,9 @@ jobs:
         run: |
           set -o pipefail
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            ./gradlew assembleDebug assembleRelease --stacktrace 2>&1 | tee build.log
+            # Bulut ortamının debug anahtarı telefonlardaki sürümle UYUŞMAZ (v1.3.2 olayı).
+            # Bu yüzden burada sadece test amaçlı debug APK üretilir; yayınlanacak release APK burada ÜRETİLMEZ.
+            ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
           else
             ./gradlew compileDebugKotlin --stacktrace 2>&1 | tee build.log
           fi
@@ -104,13 +106,6 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
 
-      - name: Release APK'yı yükle
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: vega-iptv-release
-          path: app/build/outputs/apk/release/*.apk
-          retention-days: 30
 
       - name: İmza dosyalarını temizle
         if: always()

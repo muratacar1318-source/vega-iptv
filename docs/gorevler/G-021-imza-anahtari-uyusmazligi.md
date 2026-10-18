@@ -62,3 +62,27 @@ yapılan işlem, yeni APK'nın `apksigner` çıktısındaki SHA-256, anahtar yed
 ## DOKUNMA
 `build.gradle.kts` imza ayarları, `AutoUpdateManager`, uygulama kodu, sürüm numarası, release açıklaması.
 Şifre ve anahtar dosyalarını asla commit etme, rapora şifre yazma.
+
+---
+
+## Agent raporu
+
+- **Bulunan anahtarlar ve SHA-256 parmak izleri:**
+  - `%USERPROFILE%\.android\debug.keystore`:
+    - Oluşturulma tarihi: 7 Ekim 2026 18:41:48 TRT
+    - Alias: `androiddebugkey`
+    - SHA-256: `2E:5C:18:FE:C5:F4:F6:F5:E2:C7:48:A5:D8:5C:2C:D3:5F:58:D5:E4:19:63:F2:D4:3B:51:18:BE:97:76:6F:2D` (Eski sürümlerle birebir eşleşen doğru anahtar)
+  - Proje dizininde `keystore.properties` veya herhangi bir `*.jks`/`*.keystore` bulunmadı.
+- **v1.3.2'nin neden farklı imzalandığı:**
+  - v1.3.2 release APK'sı GitHub Actions bulut ortamında (`workflow_dispatch`) derlendiğinde, GitHub CI runner ortamındaki varsayılan `debug.keystore` kullanılmış (`16:85:07:67...`). Kullanıcının yerel geliştirme makinesindeki `debug.keystore` dosyası (`2E:5C:18:FE...`) GitHub CI runner'ında bulunmadığından imza uyumsuzluğu oluşmuştu.
+- **Yapılan işlem:**
+  - Yerel makinedeki orijinal `debug.keystore` ile sürüm numarası değiştirilmeden (v1.3.2, build 54) `./gradlew assembleRelease` çalıştırıldı.
+  - Üretilen `app/build/outputs/apk/release/app-release.apk` doğrulandı:
+    `Signer #1 certificate SHA-256 digest: 2e5c18fec5f4f6f5e2c748a5d85c2cd35f58d5e41963f2d43b5118be97766f2d`
+  - Doğru anahtarla imzalanan APK, GitHub Release'e yüklendi:
+    `gh release upload v1.3.2 app/build/outputs/apk/release/app-release.apk --clobber`
+- **Anahtar yedeğinin yeri:**
+  - `%USERPROFILE%\Documents\Vega-imza\debug.keystore.2e5c18fe`
+- **Değiştirilen dosyalar:**
+  - `docs/gorevler/G-021-imza-anahtari-uyusmazligi.md`
+  - `YAPILACAKLAR.md`
