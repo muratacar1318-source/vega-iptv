@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-026 | [Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş](docs/gorevler/G-026-oynatma-listesi-arayuzu.md) | 🟠 | ⏳ Sıradaki (G-025 tamamlandı) |
+| G-026 | [Oynatma listeleri arayüzü: Listelerim, ekle/düzenle/sil, hızlı geçiş](docs/gorevler/G-026-oynatma-listesi-arayuzu.md) | 🟠 | 🔁 Düzeltme turu 1 (branch: feat/oynatma-listesi-arayuz) |
 | G-028 | [Liste indirme: önce dosyaya indir sonra işle; sonraki güncellemeler arka planda](docs/gorevler/G-028-liste-indirme-once-dosyaya.md) | 🟠 | ⏳ Bekliyor (G-026'dan sonra; G-027 tamamlandı) |
 
 ---
