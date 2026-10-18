@@ -161,4 +161,20 @@ main'deki hali). `compileDebugKotlin` + `testDebugUnitTest`, push, rapor, dur. A
 
 ### Düzeltme turu 1 — Agent raporu
 
-_(Agent doldurur.)_
+- **Kategori bazlı yedek indirmede başarısız kategori takibi (`syncVodStreams` & `syncSeriesStreams`):**
+  - Kategori döngüsünde `failedCategories: AtomicInteger` ve `lastExceptionRef: AtomicReference<Exception?>` ile başarısız kategoriler sayıldı.
+  - Tüm kategoriler başarısız olursa (`failedCategoryCount == totalCategories`), `Result.failure(lastException)` dönülerek işlem sonlandırıldı; silme adımı kesinlikle çalıştırılmadı.
+  - Kısmi başarısızlık durumunda (`failedCategoryCount > 0`), çekilen kategorilerin verileri Room'a kaydedildi ancak silme adımı atlandı (`Log.w: "Kısmi senkron, eski içerik korunuyor ($failedCategoryCount/$totalCategoryCount kategori başarısız)"`).
+  - Silme adımı yalnızca `bulkSucceeded == true` veya `failedCategoryCount == 0` durumunda çalıştırıldı.
+- **Ortak güvenlik kuralı (`safeStaleIds`):**
+  - `XtreamRepository` companion object içerisine `safeStaleIds(existing: Collection<T>, seen: Set<T>, label: String): List<T>` eklendi.
+  - `seen.isEmpty()` ise uyarı loglanıp boş liste döndürüldü.
+  - `existing.isNotEmpty() && seen.size < existing.size / 2` ise uyarı loglanıp silme atlandı (boş liste döndürüldü).
+  - Normal senaryoda `(existing.toSet() - seen).toList()` döndürüldü.
+  - Tüm 6 silme noktasında (`syncLiveStreams`, `syncVodStreams`, `syncSeriesStreams`, `fetchAndSaveLiveCategories`, `fetchAndSaveVodCategories`, `fetchAndSaveSeriesCategories`) `safeStaleIds` kullanıldı.
+- **Dizi olmayan yanıt kontrolü (`peek() != BEGIN_ARRAY`):**
+  - Canlı akışlar ve canlı/VOD/dizi kategori çekme metodlarında `peek() != BEGIN_ARRAY` kontrolü eklendi; dizi değilse `Result.failure(Exception("HTTP Hatası: geçersiz yanıt"))` döndürülerek silme engellendi.
+  - `parseAndInsertVodChunk` ve `parseAndInsertSeriesChunk` metodlarında dizi olmayan yanıtlar için `Exception("HTTP Hatası: geçersiz yanıt")` fırlatılması sağlandı.
+- **Birim testleri & derleme doğrulama:**
+  - `app/src/test/java/com/tivimax/player/data/repository/StaleIdFilterTest.kt` dosyası yazıldı (boş görülen liste, yarısından az görülen liste, normal fark durumu, boş mevcut liste, string kategori ID'leri).
+  - `.\gradlew testDebugUnitTest` çalıştırıldı ve tüm testlerin başarılı olduğu doğrulandı (`BUILD SUCCESSFUL`).

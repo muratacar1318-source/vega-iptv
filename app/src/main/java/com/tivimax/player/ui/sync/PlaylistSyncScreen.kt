@@ -41,6 +41,10 @@ import com.tivimax.player.ui.SyncStepStatus
 import com.tivimax.player.ui.components.dpadFocusable
 import kotlinx.coroutines.delay
 
+import androidx.activity.compose.BackHandler
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+
 private val DarkBackground = Color(0xFF000000)
 private val CardBackground = Color(0xFF0F141C)
 private val BorderMuted = Color(0xFF1E2638)
@@ -54,12 +58,105 @@ private val TextMuted = Color(0xFF94A3B8)
 @Composable
 fun PlaylistSyncScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val syncState by viewModel.playlistSyncState.collectAsState()
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
 
     val retryFocusRequester = remember { FocusRequester() }
+    val continueFocusRequester = remember { FocusRequester() }
+    var showCancelDialog by remember { mutableStateOf(false) }
+
+    fun handleExit() {
+        coroutineScope.launch {
+            val isSynced = viewModel.preferences.isPlaylistSyncedFlow.first()
+            if (isSynced) {
+                if (!viewModel.navigateBack()) {
+                    viewModel.navigateTo(Screen.Home)
+                }
+            } else {
+                viewModel.navigateTo(Screen.Login)
+            }
+        }
+    }
+
+    // Sistem Geri Tuşu Yönetimi
+    BackHandler(enabled = true) {
+        if (syncState.isSyncing) {
+            showCancelDialog = true
+        } else {
+            handleExit()
+        }
+    }
+
+    // Senkronizasyonu durdurma onay diyaloğu
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            containerColor = CardBackground,
+            titleContentColor = TextWhite,
+            textContentColor = TextMuted,
+            title = {
+                Text(
+                    text = "Güncelleme durdurulsun mu?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = TextWhite
+                )
+            },
+            text = {
+                Text(
+                    text = "Mevcut listen korunur.",
+                    fontSize = 14.sp,
+                    color = TextMuted
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showCancelDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentIndigo),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .focusRequester(continueFocusRequester)
+                        .dpadFocusable(
+                            focusedBorderColor = Color.White,
+                            shape = RoundedCornerShape(12.dp),
+                            onClick = { showCancelDialog = false }
+                        )
+                ) {
+                    Text(text = "Devam et", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showCancelDialog = false
+                        viewModel.cancelPlaylistSync()
+                        handleExit()
+                    },
+                    modifier = Modifier.dpadFocusable(
+                        focusedBorderColor = Color.White,
+                        shape = RoundedCornerShape(12.dp),
+                        onClick = {
+                            showCancelDialog = false
+                            viewModel.cancelPlaylistSync()
+                            handleExit()
+                        }
+                    )
+                ) {
+                    Text(text = "Durdur", color = ErrorRed, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+
+        LaunchedEffect(Unit) {
+            delay(100)
+            try {
+                continueFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
 
     // Hata oluştuğunda "Kaldığı Yerden Yeniden Dene" butonuna otomatik odaklan
     LaunchedEffect(syncState.failedStepIndex) {
@@ -213,6 +310,23 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                             Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(text = "Kaldığı Yerden Yeniden Dene", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { handleExit() },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextWhite),
+                            border = BorderStroke(1.dp, BorderMuted),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp)
+                                .dpadFocusable(
+                                    focusedBorderColor = Color.White,
+                                    shape = RoundedCornerShape(12.dp),
+                                    onClick = { handleExit() }
+                                )
+                        ) {
+                            Text(text = "Geri dön", color = TextWhite, fontWeight = FontWeight.Medium, fontSize = 12.sp)
                         }
                     } else if (syncState.isCompleted) {
                         Button(
@@ -378,6 +492,24 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                         Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(text = "Kaldığı Yerden Yeniden Dene", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = { handleExit() },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextWhite),
+                        border = BorderStroke(1.dp, BorderMuted),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 400.dp)
+                            .height(52.dp)
+                            .dpadFocusable(
+                                focusedBorderColor = Color.White,
+                                shape = RoundedCornerShape(14.dp),
+                                onClick = { handleExit() }
+                            )
+                    ) {
+                        Text(text = "Geri dön", color = TextWhite, fontWeight = FontWeight.Medium, fontSize = 15.sp)
                     }
                 } else if (syncState.isCompleted) {
                     Button(
