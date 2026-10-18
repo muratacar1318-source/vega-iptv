@@ -95,6 +95,8 @@ fun TvPlayerOverlay(
     val subtitleSize by viewModel.subtitleSize.collectAsState()
     val anySubSelected = subtitleTracks.any { it.isSelected }
     val startupDebugInfo by playerManager.startupDebugInfo.collectAsState()
+    val liveBehindSecs by playerManager.liveBehindSecs.collectAsState()
+    val liveCatchingUp by playerManager.liveCatchingUp.collectAsState()
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -478,6 +480,14 @@ fun TvPlayerOverlay(
                                     if (streamDiagnostics.frameRateBadge.isNotBlank()) {
                                         TechBadge(text = streamDiagnostics.frameRateBadge)
                                     }
+                                    // G-039: Canlı durumu
+                                    if (liveCatchingUp) {
+                                        TechBadge(text = "⏩ Canlıya yetişiliyor", isHighlight = true)
+                                    } else if (liveBehindSecs > 10f) {
+                                        TechBadge(text = "${liveBehindSecs.toInt()} sn geride")
+                                    } else if (liveBehindSecs > 0f) {
+                                        TechBadge(text = "● CANLI", isHighlight = true)
+                                    }
                                     if (streamDiagnostics.bufferHealthSecs.isNotBlank()) {
                                         TechBadge(text = "Tampon: ${streamDiagnostics.bufferHealthSecs}")
                                     }
@@ -604,20 +614,22 @@ fun TvPlayerOverlay(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 PlayerPillButton(
-                                    text = "Ses ve altyazı",
-                                    icon = Icons.Default.Subtitles,
-                                    onClick = { showTrackSheet = true },
-                                    isPortrait = false,
-                                    modifier = Modifier.focusRequester(actionDockFocusRequester)
-                                )
-                                PlayerPillButton(
                                     text = "Canlıya geç",
                                     icon = Icons.Default.LiveTv,
                                     onClick = {
                                         playerManager.jumpToLive()
                                         showActionTray = false
-                                        seekRippleMessage = "Canlı yayına geçiliyor…"
+                                        seekRippleMessage = "Canlıya yetişiliyor…"
                                     },
+                                    isActive = liveBehindSecs > 10f,
+                                    activeColor = VegaColors.Live,
+                                    isPortrait = false,
+                                    modifier = Modifier.focusRequester(actionDockFocusRequester)
+                                )
+                                PlayerPillButton(
+                                    text = "Ses ve altyazı",
+                                    icon = Icons.Default.Subtitles,
+                                    onClick = { showTrackSheet = true },
                                     isPortrait = false
                                 )
                                 PlayerPillButton(

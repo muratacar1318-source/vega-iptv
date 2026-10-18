@@ -608,10 +608,43 @@ class TiviPlayerManager(private val context: Context) {
     // G-037: Planlanmış yeniden deneme işi (yeni kanal başlarken iptal edilir)
     private var pendingRetryJob: Job? = null
 
-    // G-038: "Canlıya geç" — tampon hedefi (veri yetişmezse 8 sn'ye çıkar)
-    private var liveJumpTargetMs = 3_000L
-    private var liveJumpPlayingSinceMs = 0L
-    private var liveJumpJob: Job? = null
+    // G-039: Canlı gecikme hedefi — fazla tampon hızlandırılarak eritilir
+    private val liveTargetAheadMs = 8_000L
+    private var liveCatchUpSpeed = 1.0f
+    private var liveCatchUpStalls = 0
+    private var liveCatchUpBoost = false
+    private val _liveBehindSecs = MutableStateFlow(0f)
+    val liveBehindSecs: StateFlow<Float> = _liveBehindSecs.asStateFlow()
+    private val _liveCatchingUp = MutableStateFlow(false)
+    val liveCatchingUp: StateFlow<Boolean> = _liveCatchingUp.asStateFlow()
+
+    private fun setCatchUpSpeed(player: ExoPlayer, speed: Float) {
+        liveCatchUpSpeed = speed
+        player.setPlaybackSpeed(speed)
+        _liveCatchingUp.value = speed > 1.0f
+    }
+
+    /** G-039: Konum döngüsünde (250 ms) canlı yayın için çağrılır. */
+    private fun applyLiveCatchUp(player: ExoPlayer) {
+        val ahead = player.totalBufferedDuration.coerceAtLeast(0L)
+        _liveBehindSecs.value = ahead / 1000f
+        val autoAllowed = liveCatchUpStalls < 2
+        if (!player.isPlaying || (!autoAllowed && !liveCatchUpBoost)) {
+            if (liveCatchUpSpeed != 1.0f) setCatchUpSpeed(player, 1.0f)
+            return
+        }
+        val desired = when {
+            ahead <= liveTargetAheadMs -> {
+                liveCatchUpBoost = false
+                1.0f
+            }
+            liveCatchUpBoost -> 2.0f
+            ahead > liveTargetAheadMs + 1_500L -> 1.5f
+            liveCatchUpSpeed > 1.0f -> liveCatchUpSpeed
+            else -> 1.0f
+        }
+        if (desired != liveCatchUpSpeed) setCatchUpSpeed(player, desired)
+    }
 
     // G-038: Açılış ölçümü (sadece geliştirici kurulumunda gösterilir)
     private var dbgFormatMs = -1L
@@ -678,12 +711,11 @@ class TiviPlayerManager(private val context: Context) {
                     Player.STATE_BUFFERING -> {
                         _isBuffering.value = true
                         _errorMessage.value = null
-                        // G-038: Canlıya geçtikten sonraki 60 sn içinde takılma olursa sonraki atlamalarda 8 sn tampon
-                        if (isLiveStream && liveJumpPlayingSinceMs > 0L &&
-                            SystemClock.elapsedRealtime() - liveJumpPlayingSinceMs < 60_000L
-                        ) {
-                            liveJumpTargetMs = 8_000L
-                            liveJumpPlayingSinceMs = 0L
+                        // G-039: Görüntü geldikten sonra takılma → hızlandırmayı say; 2 takılmada otomatik hızlandırma durur
+                        if (isLiveStream && hasRenderedFirstFrameOrReady) {
+                            liveCatchUpStalls++
+                            liveCatchUpBoost = false
+                            exoPlayer?.let { if (liveCatchUpSpeed != 1.0f) setCatchUpSpeed(it, 1.0f) }
                         }
                     }
                     Player.STATE_READY -> {
@@ -904,10 +936,15 @@ class TiviPlayerManager(private val context: Context) {
         networkRecoveryAttempt = 0
         decoderRecoveryAttempt = 0
         isReconnecting = false
-        // G-038: Canlıya geç bekleyişi ve açılış ölçümü sıfırla
-        liveJumpJob?.cancel()
-        liveJumpJob = null
-        liveJumpPlayingSinceMs = 0L
+        // G-038/G-039: Canlı durum ve açılış ölçümü sıfırla
+        if (liveCatchUpSpeed != 1.0f || isLive) {
+            exoPlayer?.setPlaybackSpeed(if (isLive) 1.0f else _playbackSpeed.value)
+        }
+        liveCatchUpSpeed = 1.0f
+        liveCatchUpStalls = 0
+        liveCatchUpBoost = false
+        _liveCatchingUp.value = false
+        _liveBehindSecs.value = 0f
         dbgFormatMs = -1L
         dbgCodec = ""
         dbgDecoder = ""
@@ -1166,30 +1203,13 @@ class TiviPlayerManager(private val context: Context) {
     }
 
     /**
-     * G-038: Canlı yayını en güncel noktaya alır (YouTube/Kick "Canlı" düğmesi gibi).
-     * Bağlantıyı yeniler, [liveJumpTargetMs] kadar tampon dolunca oynatır (en fazla hedef + 4 sn bekler).
+     * G-039: "Canlıya geç" — fazla tamponu 2× hızla eritip 8 sn gecikmeye getirir.
+     * (.ts canlı yayında ileri sarılamaz; bağlantıyı yenilemek de işe yaramaz — sunucu yine aynı tamponu gönderir.)
      */
     fun jumpToLive() {
-        val player = exoPlayer ?: return
-        if (!isLiveStream || currentUrl.isBlank()) return
-        liveJumpJob?.cancel()
-        liveJumpPlayingSinceMs = 0L
-        player.playWhenReady = false
-        player.stop()
-        player.prepare()
-        val target = liveJumpTargetMs
-        liveJumpJob = scope.launch {
-            val startedAt = SystemClock.elapsedRealtime()
-            while (isActive) {
-                val p = exoPlayer ?: return@launch
-                val waited = SystemClock.elapsedRealtime() - startedAt
-                if (p.totalBufferedDuration >= target || waited >= target + 4_000L) break
-                delay(200L)
-            }
-            exoPlayer?.playWhenReady = true
-            liveJumpPlayingSinceMs = SystemClock.elapsedRealtime()
-            updateDiagnostics()
-        }
+        if (!isLiveStream) return
+        liveCatchUpStalls = 0
+        liveCatchUpBoost = true
     }
 
     fun syncToLive(): Boolean {
@@ -1221,6 +1241,7 @@ class TiviPlayerManager(private val context: Context) {
                         if (offset > 0) {
                             _liveOffsetMs.value = offset
                         }
+                        applyLiveCatchUp(player)
                     }
                 }
                 delay(250)
