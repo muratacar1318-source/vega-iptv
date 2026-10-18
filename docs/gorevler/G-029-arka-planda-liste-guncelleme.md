@@ -212,11 +212,11 @@ fun BackgroundSyncBanner(
             )
             Spacer(Modifier.width(10.dp))
         }
-        Text(text = text, style = VegaText.Body, color = VegaColors.TextPrimary)
+        Text(text = text, fontSize = VegaText.Body, color = VegaColors.TextPrimary)
     }
 }
 ```
-> `VegaColors.Card`, `VegaColors.Accent`, `VegaColors.TextPrimary`, `VegaShapes.Medium`, `VegaText.Body` projede **var**.
+> `VegaColors.Card`, `VegaColors.Accent`, `VegaColors.TextPrimary`, `VegaShapes.Medium`, `VegaText.Body` (bu bir yazı BOYUTU, `fontSize =` ile kullanılır) projede **var**.
 > Başka isim uydurma. Derleme hatası çıkarsa `ui/design/VegaDesign.kt` dosyasına bakıp **var olan** adı kullan.
 > **TV'de şerit odak almaz** (clickable yok) — kumanda gezinmesi bozulmasın diye. Bunu değiştirme.
 
