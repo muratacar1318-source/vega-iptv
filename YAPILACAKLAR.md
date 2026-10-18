@@ -40,7 +40,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-028 | [Liste indirme: önce dosyaya indir sonra işle; sonraki güncellemeler arka planda](docs/gorevler/G-028-liste-indirme-once-dosyaya.md) | 🟠 | ⏳ Sıradaki |
+| G-028 | [Liste indirme: önce dosyaya indir, sonra işle](docs/gorevler/G-028-liste-indirme-once-dosyaya.md) | 🟠 | ⏳ Sıradaki |
+| G-029 | Sonraki liste güncellemeleri arka planda (ana ekran şeridi) | 🟡 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 
 ---
 
