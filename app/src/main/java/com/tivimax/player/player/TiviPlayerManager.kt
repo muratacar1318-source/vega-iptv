@@ -27,6 +27,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.MediaSession
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -123,6 +125,8 @@ class TiviPlayerManager(private val context: Context) {
     private var rebufferCount: Int = 0
     private var hasRenderedFirstFrameOrReady: Boolean = false
     private var firstUrlAuthRetried: Boolean = false
+    private var seekStartMs: Long = 0L
+    private var seekTargetMs: Long = 0L
 
     var onVodAuthErrorCallback: ((httpCode: Int) -> Unit)? = null
     var onVodPlaybackSuccessCallback: (() -> Unit)? = null
@@ -504,6 +508,42 @@ class TiviPlayerManager(private val context: Context) {
         return DefaultDataSource.Factory(context, okHttpDataSourceFactory)
     }
 
+    private class VodLoadErrorHandlingPolicy(
+        private val minRetryCount: Int = 4
+    ) : DefaultLoadErrorHandlingPolicy(minRetryCount) {
+
+        override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+            val code = findResponseCode(loadErrorInfo.exception)
+            if (code != null) {
+                if (code == 429 || code == 503 || code == 509 || code in 500..599) {
+                    return when (loadErrorInfo.errorCount) {
+                        1 -> 400L
+                        2 -> 800L
+                        3 -> 1500L
+                        else -> 2500L
+                    }
+                }
+                if (code == 403 || code == 404) {
+                    return C.TIME_UNSET
+                }
+            }
+            return super.getRetryDelayMsFor(loadErrorInfo)
+        }
+
+        override fun getMinimumLoadableRetryCount(dataType: Int): Int = minRetryCount
+
+        private fun findResponseCode(throwable: Throwable?): Int? {
+            var current = throwable
+            while (current != null) {
+                if (current is HttpDataSource.InvalidResponseCodeException) {
+                    return current.responseCode
+                }
+                current = current.cause
+            }
+            return null
+        }
+    }
+
     private fun createLoadControl(isLive: Boolean): DefaultLoadControl {
         return if (isLive) {
             val liveBufferForPlayback = if (liveBufferSecondsState.value <= 2) 800 else liveBufferSecondsState.value * 1000
@@ -526,7 +566,7 @@ class TiviPlayerManager(private val context: Context) {
                     /* minBufferMs = */ vodMinBufferMs,
                     /* maxBufferMs = */ vodMaxBufferMs,
                     /* bufferForPlaybackMs = */ 1_500,
-                    /* bufferForPlaybackAfterRebufferMs = */ 5_000
+                    /* bufferForPlaybackAfterRebufferMs = */ 2_500
                 )
                 .setPrioritizeTimeOverSizeThresholds(true)
                 .setBackBuffer(20_000, true)
@@ -563,6 +603,9 @@ class TiviPlayerManager(private val context: Context) {
         }
 
         val mediaSourceFactory = DefaultMediaSourceFactory(createDataSourceFactory())
+        if (!isLive) {
+            mediaSourceFactory.setLoadErrorHandlingPolicy(VodLoadErrorHandlingPolicy(4))
+        }
 
         val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
@@ -586,13 +629,20 @@ class TiviPlayerManager(private val context: Context) {
                         _errorMessage.value = null
                     }
                     Player.STATE_READY -> {
-                        player.setSeekParameters(SeekParameters.DEFAULT)
+                        if (isLiveStream) {
+                            player.setSeekParameters(SeekParameters.DEFAULT)
+                        }
                         hasRenderedFirstFrameOrReady = true
                         _isBuffering.value = false
                         _duration.value = if (isLiveStream) 0L else player.duration.coerceAtLeast(0L)
                         _errorMessage.value = null
                         onVodPlaybackSuccessCallback?.invoke()
                         updateDiagnostics()
+                        if (BuildConfig.DEBUG && !isLiveStream && seekStartMs > 0L) {
+                            val duration = System.currentTimeMillis() - seekStartMs
+                            Log.d(TAG_TIMING, "[VodTiming] Sarma tamamlandı: Hedef=${seekTargetMs}ms, Oynatma başlangıcı=${duration}ms")
+                            seekStartMs = 0L
+                        }
                     }
                     Player.STATE_ENDED -> {
                         if (isLiveStream) {
@@ -913,15 +963,29 @@ class TiviPlayerManager(private val context: Context) {
     fun seekTo(positionMs: Long) {
         val target = positionMs.coerceAtLeast(0L)
         lastSeekTimestamp = System.currentTimeMillis()
+        if (!isLiveStream) {
+            exoPlayer?.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+        }
+        if (BuildConfig.DEBUG && !isLiveStream) {
+            seekStartMs = System.currentTimeMillis()
+            seekTargetMs = target
+        }
         _currentPosition.value = target
         exoPlayer?.seekTo(target)
     }
 
     fun forward10Seconds() {
         exoPlayer?.let {
+            if (!isLiveStream) {
+                it.setSeekParameters(SeekParameters.PREVIOUS_SYNC)
+            }
             val dur = it.duration
             val target = if (dur > 0) (it.currentPosition + 10_000L).coerceAtMost(dur) else it.currentPosition + 10_000L
             lastSeekTimestamp = System.currentTimeMillis()
+            if (BuildConfig.DEBUG && !isLiveStream) {
+                seekStartMs = System.currentTimeMillis()
+                seekTargetMs = target
+            }
             _currentPosition.value = target
             it.seekTo(target)
         }
@@ -929,8 +993,15 @@ class TiviPlayerManager(private val context: Context) {
 
     fun rewind10Seconds() {
         exoPlayer?.let {
+            if (!isLiveStream) {
+                it.setSeekParameters(SeekParameters.PREVIOUS_SYNC)
+            }
             val target = (it.currentPosition - 10_000L).coerceAtLeast(0L)
             lastSeekTimestamp = System.currentTimeMillis()
+            if (BuildConfig.DEBUG && !isLiveStream) {
+                seekStartMs = System.currentTimeMillis()
+                seekTargetMs = target
+            }
             _currentPosition.value = target
             it.seekTo(target)
         }
@@ -938,9 +1009,16 @@ class TiviPlayerManager(private val context: Context) {
 
     fun forward30Seconds() {
         exoPlayer?.let {
+            if (!isLiveStream) {
+                it.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+            }
             val dur = it.duration
             val target = if (dur > 0) (it.currentPosition + 30_000L).coerceAtMost(dur) else it.currentPosition + 30_000L
             lastSeekTimestamp = System.currentTimeMillis()
+            if (BuildConfig.DEBUG && !isLiveStream) {
+                seekStartMs = System.currentTimeMillis()
+                seekTargetMs = target
+            }
             _currentPosition.value = target
             it.seekTo(target)
         }
@@ -948,8 +1026,15 @@ class TiviPlayerManager(private val context: Context) {
 
     fun rewind30Seconds() {
         exoPlayer?.let {
+            if (!isLiveStream) {
+                it.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+            }
             val target = (it.currentPosition - 30_000L).coerceAtLeast(0L)
             lastSeekTimestamp = System.currentTimeMillis()
+            if (BuildConfig.DEBUG && !isLiveStream) {
+                seekStartMs = System.currentTimeMillis()
+                seekTargetMs = target
+            }
             _currentPosition.value = target
             it.seekTo(target)
         }

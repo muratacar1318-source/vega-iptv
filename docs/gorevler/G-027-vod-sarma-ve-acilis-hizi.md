@@ -70,4 +70,32 @@ güncelleme, imza, CI, sürüm numarası.
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Durum:** Tamamlandı (Claude incelemesine hazır)
+- **Yapılan Değişiklikler:**
+  1. **Anahtar Kareye Sarma (SeekParameters):**
+     - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt`:
+       - `STATE_READY` içerisindeki `player.setSeekParameters(SeekParameters.DEFAULT)` çağrısı yalnızca `if (isLiveStream)` koşuluna bağlandı.
+       - Film ve dizilerde kaydırıcı ile sarma (`seekTo`) ve ±30 sn sarma (`forward30Seconds`, `rewind30Seconds`) için `SeekParameters.CLOSEST_SYNC` (en yakın anahtar kareye anında atlama) uygulandı.
+       - ±10 sn sarma (`forward10Seconds`, `rewind10Seconds`) için `SeekParameters.PREVIOUS_SYNC` (hedefin gerisindeki anahtar kareye sarma, hedefin ilerisine geçmeyi önleme) uygulandı.
+       - Kaldığı yerden devam etme davranışı (`PREVIOUS_SYNC`) korundu. Canlı yayın davranışı değiştirilmedi.
+  2. **429/509/503 HTTP Hatalarında Yerinde Kısa Yeniden Deneme:**
+     - `TiviPlayerManager.kt` içine `DefaultLoadErrorHandlingPolicy`'den türetilen `VodLoadErrorHandlingPolicy` eklendi.
+     - HTTP 429, 503, 509 veya 5xx kodlarında oynatıcı sıfırlanmadan sırasıyla 400ms, 800ms, 1500ms ve 2500ms bekleyerek 4 kez yerinde yeniden deneme yapılıyor (`minRetryCount = 4`).
+     - HTTP 403 ve 404 durumunda anında durduruluyor (`C.TIME_UNSET`).
+     - Bu politika yalnızca film/dizi için oluşturulan oynatıcıda (`if (!isLive) mediaSourceFactory.setLoadErrorHandlingPolicy(...)`) aktif kılındı. Canlı yayın akışı etkilenmedi.
+     - Politika denemeleri tükenirse `onPlayerError` içindeki mevcut son çare kurtarma mekanizması yedek olarak korundu.
+  3. **Yeniden Tamponlama Süresi (Rebuffer):**
+     - `createLoadControl` içinde VOD için `bufferForPlaybackAfterRebufferMs = 2_500` olarak ayarlandı (5000 ms'den 2500 ms'ye düşürüldü). `bufferForPlaybackMs = 1_500` korundu.
+  4. **Ölçüm & Zamanlama Logları:**
+     - `TiviPlayerManager.kt`: Sarma başlangıcı (`seekStartMs`) ile `STATE_READY` arasındaki süreyi ölçen `[VodTiming] Sarma tamamlandı: Hedef=...ms, Oynatma başlangıcı=...ms` debug logu eklendi.
+     - Ortamda bağlı fiziksel cihaz bulunmadığı için uçtan uca canlı oynatma süresi test edilemedi ("test edilemedi" olarak kaydedildi).
+  5. **Liste İndirme Ölçümü & OkHttp Tespiti:**
+     - `app/src/main/java/com/tivimax/player/data/repository/XtreamRepository.kt`:
+       - `executeWithRetry` içine `SyncTiming` debug logu eklendi: İstek adı (`actionName`), HTTP kodu, ilk bayta kadar geçen süre (`firstByteMs`), indirilen boyut (`Content-Length`), `Content-Encoding` (`gzip`), `Retry-After`, deneme sayısı.
+       - `syncLiveStreams`, `syncVodStreams` ve `syncSeriesStreams` fonksiyonlarına akış gövdesinin Room'a yazılması tamamlandığında toplam süre ve kayıt sayısını loglayan `SyncTiming` logları eklendi.
+       - **OkHttp Yapılandırma Tespiti:**
+         - `Connection: close`: `XtreamRepository` içerisindeki OkHttpClient interceptor'ında (satır 88) açıkça `.header("Connection", "close")` tanımlı olduğu doğrulandı (her istekte yeni TCP bağlantısı kuruluyor).
+         - `Accept-Encoding`: İstemciye elle `Accept-Encoding` verilmediği için OkHttp'nin transparent gzip desteği varsayılan olarak açıktır. OkHttp'nin `BridgeInterceptor`'ı tarafından başlıkların gizlenmesi durumunda dahi `response.networkResponse` üzerinden raw `Content-Encoding` ve `Content-Length` okunarak loglanması sağlandı.
+- **Doğrulama:**
+  - `./gradlew compileDebugKotlin testDebugUnitTest` başarıyla çalıştı ve tüm testler geçti.
+  - Asla release APK üretilmedi (`assembleRelease` çalıştırılmadı).

@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
+import com.tivimax.player.BuildConfig
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.data.local.AppDatabase
 import com.tivimax.player.data.local.entity.*
@@ -128,11 +129,25 @@ class XtreamRepository(private val context: Context? = null) {
     ): okhttp3.Response {
         val maxAttempts = 3
         var lastException: Exception? = null
+        val actionName = request.url.queryParameter("action") ?: "auth_or_base"
 
         for (attempt in 1..maxAttempts) {
+            val startMs = System.currentTimeMillis()
             try {
                 val response = client.newCall(request).execute()
+                val firstByteMs = System.currentTimeMillis() - startMs
                 val code = response.code
+
+                if (BuildConfig.DEBUG) {
+                    val networkResp = response.networkResponse
+                    val contentEncoding = networkResp?.header("Content-Encoding") ?: response.header("Content-Encoding") ?: "none"
+                    val contentLength = networkResp?.header("Content-Length") ?: response.header("Content-Length") ?: "unknown"
+                    val retryAfter = response.header("Retry-After") ?: "none"
+                    android.util.Log.d(
+                        "SyncTiming",
+                        "İstek: $actionName, HTTP: $code, İlk bayt: ${firstByteMs}ms, Boyut: $contentLength, gzip: $contentEncoding, Retry-After: $retryAfter, Deneme: $attempt"
+                    )
+                }
 
                 if (response.isSuccessful) {
                     return response
@@ -238,6 +253,7 @@ class XtreamRepository(private val context: Context? = null) {
         onRetry: ((attempt: Int, max: Int, waitSec: Int) -> Unit)? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         val db = database ?: return@withContext Result.failure(Exception("Veritabanı başlatılamadı"))
+        val syncStartMs = System.currentTimeMillis()
         try {
             val url = buildApiUrl("get_live_streams")
             val request = Request.Builder().url(url).get().build()
@@ -307,6 +323,13 @@ class XtreamRepository(private val context: Context? = null) {
             }
 
             db.liveDao().updateAllCategoryItemCounts()
+            if (BuildConfig.DEBUG) {
+                val duration = System.currentTimeMillis() - syncStartMs
+                android.util.Log.d(
+                    "SyncTiming",
+                    "Akış tamamlandı: get_live_streams, Toplam süre: ${duration}ms, Kayıt sayısı: $totalSaved"
+                )
+            }
             Result.success(totalSaved)
         } catch (e: Exception) {
             Result.failure(e)
@@ -442,6 +465,7 @@ class XtreamRepository(private val context: Context? = null) {
         onRetry: ((attempt: Int, max: Int, waitSec: Int) -> Unit)? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         val db = database ?: return@withContext Result.failure(Exception("Veritabanı başlatılamadı"))
+        val syncStartMs = System.currentTimeMillis()
         try {
             var totalSaved = 0
             var bulkSucceeded = false
@@ -598,6 +622,14 @@ class XtreamRepository(private val context: Context? = null) {
             }
 
             db.vodDao().updateAllCategoryItemCounts()
+            if (BuildConfig.DEBUG) {
+                val duration = System.currentTimeMillis() - syncStartMs
+                val method = if (bulkSucceeded) "toplu" else "kategori_yedek"
+                android.util.Log.d(
+                    "SyncTiming",
+                    "Akış tamamlandı: get_vod_streams, Yöntem: $method, Toplam süre: ${duration}ms, Kayıt sayısı: $totalSaved"
+                )
+            }
             Result.success(totalSaved)
         } catch (e: Exception) {
             Result.failure(e)
@@ -609,6 +641,7 @@ class XtreamRepository(private val context: Context? = null) {
         onRetry: ((attempt: Int, max: Int, waitSec: Int) -> Unit)? = null
     ): Result<Int> = withContext(Dispatchers.IO) {
         val db = database ?: return@withContext Result.failure(Exception("Veritabanı başlatılamadı"))
+        val syncStartMs = System.currentTimeMillis()
         try {
             var totalSaved = 0
             var bulkSucceeded = false
@@ -763,6 +796,14 @@ class XtreamRepository(private val context: Context? = null) {
             }
 
             db.seriesDao().updateAllCategoryItemCounts()
+            if (BuildConfig.DEBUG) {
+                val duration = System.currentTimeMillis() - syncStartMs
+                val method = if (bulkSucceeded) "toplu" else "kategori_yedek"
+                android.util.Log.d(
+                    "SyncTiming",
+                    "Akış tamamlandı: get_series, Yöntem: $method, Toplam süre: ${duration}ms, Kayıt sayısı: $totalSaved"
+                )
+            }
             Result.success(totalSaved)
         } catch (e: Exception) {
             Result.failure(e)
