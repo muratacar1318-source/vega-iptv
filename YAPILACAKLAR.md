@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-029 | [Kurulu listede içerik güncellemesi arka planda, ana ekranda şerit](docs/gorevler/G-029-arka-planda-liste-guncelleme.md) | 🟡 | ⏳ Sıradaki |
+| G-029 | [Kurulu listede içerik güncellemesi arka planda, ana ekranda şerit](docs/gorevler/G-029-arka-planda-liste-guncelleme.md) | 🟡 | 🔍 İncelemede (branch: feat/arka-plan-guncelleme) |
 
 ---
 

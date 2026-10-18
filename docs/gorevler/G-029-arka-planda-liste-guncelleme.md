@@ -297,4 +297,22 @@ imza, CI, sürüm numarası, tasarım dosyaları.
 
 ## Agent raporu
 
-_(Agent doldurur: her adım için ne yaptın, test sonucu, test edemediklerin.)_
+- **Durum:** Tamamlandı, Claude'un incelemesine hazır.
+- **Değişiklikler:**
+  - `MainViewModel.kt`:
+    - Adım 1: `BackgroundSyncStatus` (HIDDEN, RUNNING, DONE, FAILED, STOPPED) enum sınıfı eklendi.
+    - Adım 2: `isBackgroundSyncRun` bayrağı ve `backgroundSyncStatus` StateFlow alanı eklendi.
+    - Adım 3: `refreshPlaylistContent()`, `stopBackgroundSyncForPlayback()`, `dismissBackgroundSyncBanner()` eklendi. `refreshPlaylistContent()`, aktif liste önceden kurulmuşsa arka planda güncellemeyi başlatır; kurulmamışsa tam ekran kurulum ekranını açar.
+    - Adım 4: `startPlaylistSync` metoduna `background: Boolean = false` parametresi eklendi. Arka plan senkronizasyonu başladığında şerit durumu RUNNING yapılır. 2. adımda canlı kategori/kanal yüklemeleri ve 5. adımda tam veri yükleme yerine sadece içerik sayıları yenilenir. Bitince şerit DONE yapılıp 3 saniye sonra HIDDEN konumuna alınır.
+    - Adım 5 & 6: `failStep` ve `cancelPlaylistSync` çağrılarında şerit durumu sırasıyla FAILED ve HIDDEN yapıldı.
+    - Adım 7: `playLiveChannel`, `startDualView`, `playVod` ve `playSeriesEpisode` fonksiyonlarının başında `stopBackgroundSyncForPlayback()` çağrılarak oynatma başlatıldığında arka plan güncellemesinin güvenle durdurulması ve şeridin STOPPED gösterilmesi sağlandı.
+  - `BackgroundSyncBanner.kt` (Yeni Bileşen):
+    - Adım 8: Ana ekranda gösterilecek şerit bileşeni oluşturuldu. RUNNING durumunda dönen yükleme göstergesi ve %, DONE, FAILED ve STOPPED durumlarına göre Türkçe uyarı metinleri eklendi. TV modunda odak almayacak şekilde ayarlandı.
+  - `HomeScreen.kt`:
+    - Adım 9: Mobil/tablet `Scaffold` bileşenine `snackbarHost` olarak `BackgroundSyncBanner` bağlandı. TV sağ tarafındaki `Box` içerisine şerit eklendi. Senkronizasyon onay diyaloğundaki "Güncelle" butonu `refreshPlaylistContent()` fonksiyonuna bağlandı.
+  - `SettingsScreen.kt`:
+    - Adım 10: "İçerikleri güncelle" butonu `refreshPlaylistContent()` fonksiyonuna bağlandı.
+- **Doğrulama:**
+  - `./gradlew compileDebugKotlin` başarıyla tamamlandı.
+  - `./gradlew testDebugUnitTest` başarıyla tamamlandı (60 test geçti, 0 hata).
+  - Fiziksel cihaz / emülatör bağlı olmadığı için canlı cihazda UI indirme akışı test edilemedi (derleme ve test adımlarıyla doğrulandı).
