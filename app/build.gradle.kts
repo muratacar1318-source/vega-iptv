@@ -35,8 +35,8 @@ android {
         applicationId = "com.tivimax.player"
         minSdk = 26
         targetSdk = 36
-        versionCode = 56
-        versionName = "1.3.4"
+        versionCode = 57
+        versionName = "1.3.5"
 
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
 
