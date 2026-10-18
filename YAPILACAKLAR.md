@@ -68,7 +68,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-020 | İçerik ilk açılış hatası (\"Session ID must be unique\") giderildi — PR #23 | 18 Ekim |
 | G-021 | v1.3.2 doğru anahtarla yeniden imzalandı (güncelleme kurulabiliyor) | 18 Ekim |
 | G-022 | Akıllı altyazı içerik başına bir kez uygulanıyor, kullanıcı seçimi korunuyor | 18 Ekim |
-| G-023 | Oynatıcıda Daha fazla, Bölümler ve Çift ekran kompakt yan panelde — PR #29 | 18 Ekim |
 
 ---
 
