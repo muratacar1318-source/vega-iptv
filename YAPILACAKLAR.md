@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-033 | [TV: menü ↔ içerik geçişleri, film/dizi oynatıcıda kumanda](docs/gorevler/G-033-tv-menu-gecisleri-film-kumanda.md) | 🔴 | 🔍 İncelemede (branch: fix/tv-menu-gecis) |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -50,6 +49,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-033 | TV: menüden dönüşte odak hafızası, ▲▼ ile menüye kaçma engeli, film oynatıcıda zaman çubuğu odağı — PR #44 | 18 Ekim |
 | G-032 | TV canlı tam ekran: menü/kanal listesi/ses-altyazı paneli kumandayla çalışıyor, ▼ hep önceki kanal, ▶ menü — PR #43 | 18 Ekim |
 | R-1.4.1 | v1.4.1 (build 61) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 18 Ekim |
 | G-031 | Film/dizi arka planda duraklıyor (küçük pencere yok), canlı küçük pencerede devam; PiP kapatılınca ses kesiliyor — PR #42 | 18 Ekim |
