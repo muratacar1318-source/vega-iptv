@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-037 | [Hızlı kanal değiştirince kanalların açılmaması (tek bağlantı)](docs/gorevler/G-037-hizli-kanal-degistirme.md) | 🔴 | 🔍 İncelemede (branch: fix/hizli-zap) |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -50,6 +49,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-037 | Hızlı kanal değiştirmede sadece son kanala bağlanılıyor (TV), eski yeniden deneme işleri iptal — PR #46 | 18 Ekim |
 | G-036 | TV: Ayarlar sol menü kayıyor, TV kutuları TV olarak öneriliyor, kanallar numara sırasında — PR #45 | 18 Ekim |
 | G-033 | TV: menüden dönüşte odak hafızası, ▲▼ ile menüye kaçma engeli, film oynatıcıda zaman çubuğu odağı — PR #44 | 18 Ekim |
 | G-032 | TV canlı tam ekran: menü/kanal listesi/ses-altyazı paneli kumandayla çalışıyor, ▼ hep önceki kanal, ▶ menü — PR #43 | 18 Ekim |
