@@ -83,4 +83,15 @@ güncelleme, imza, CI. Sürüm numarası.
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  1. Ortak kap `PlayerSidePanel.kt` oluşturuldu: Yatayda 340dp sağ panel, dikeyde alttan en fazla %55 yükseklik, `VegaColors.OverlayPanel` zemin, `VegaColors.Scrim` dokunarak kapatma karartması, `BackHandler`, `AnimatedVisibility` kayma animasyonları ve kapatma butonu.
+  2. `PlayerSettingsPanel.kt` ortak `PlayerSidePanel` kabını kullanacak şekilde sadeleştirildi. Canlı yayında `availableTabs` listesine `SettingsTab.ASPECT_RATIO` eklendi, teşhis alt bilgisi (`DiagnosticsFooter`) `internal` yapılarak paylaşıldı.
+  3. `LivePlayerMoreSheet.kt` kaldırılarak yerine `LiveMorePanel.kt` (`PlayerSidePanel` tabanlı) oluşturuldu: 5 adet 52dp kompakt satır (Kanal listesi, Kanal numarası gir, Çift ekran, Uyku zamanlayıcısı, Yayın bilgisi teşhis).
+  4. `PlayerScreen.kt` içindeki dizi "Bölümler" sayfası `ModalBottomSheet` yerine `PlayerSidePanel` içine alındı; sezon çipleri `VegaChoiceChip` ile düzenlendi, bölüm satırları 64dp yapıldı ve aktif bölüme otomatik kaydırma eklendi.
+  5. `DualViewChannelPicker` bileşeni `ModalBottomSheet` yerine `PlayerSidePanel(title = "İkinci kanalı seç")` kabına geçirildi; 56dp kompakt kanal satırları ve arama kutusu yerleştirildi.
+  6. Panel açıkken kontrollerin gizlenmesi, `isUserInteracting` / `anyOverlayOpen` ve panel kapandığında immersive modun yeniden uygulanması sağlandı.
+- **Derleme / Test Durumu:**
+  - `./gradlew compileDebugKotlin` başarıyla tamamlandı (BUILD SUCCESSFUL).
+  - Emülatör / fiziksel cihaz etkileşimli testi: test edilemedi (otomatik build ortamı).
+- **Kaldırılan Dosyalar:**
+  - `LivePlayerMoreSheet.kt` (artık kullanılmadığı için silindi).

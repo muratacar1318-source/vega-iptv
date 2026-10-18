@@ -75,6 +75,7 @@ import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.ui.design.VegaChoiceChip
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.CategoryManagementDialog
@@ -89,7 +90,8 @@ import com.tivimax.player.ui.player.components.PlayerPillButton
 import com.tivimax.player.ui.player.components.BouncyIconButton
 import com.tivimax.player.ui.player.components.LocalPlayerInteraction
 import com.tivimax.player.ui.player.components.LivePlayerActionBar
-import com.tivimax.player.ui.player.components.LivePlayerMoreSheet
+import com.tivimax.player.ui.player.components.LiveMorePanel
+import com.tivimax.player.ui.player.components.PlayerSidePanel
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -2547,44 +2549,37 @@ fun PlayerScreen(
             }
         }
 
-        // DAHA FAZLA (⋯) İKİNCİL SEÇENEKLER BOTTOM SHEET
-        if (showMoreSheet) {
-            LivePlayerMoreSheet(
-                aspectRatio = aspectRatio,
-                onCycleAspectRatio = {
-                    val newMode = playerManager.cycleAspectRatio()
-                    showInfoBanner(
-                        when (newMode) {
-                            AspectRatioMode.FIT -> "En-Boy: Orijinal"
-                            AspectRatioMode.FILL -> "En-Boy: Doldur"
-                            AspectRatioMode.ZOOM -> "En-Boy: Yakınlaştır"
-                            AspectRatioMode.RATIO_16_9 -> "En-Boy: 16:9"
-                            AspectRatioMode.RATIO_4_3 -> "En-Boy: 4:3"
-                        }
-                    )
-                },
-                isDualViewActive = isDualViewActive,
-                onOpenDualView = {
-                    showMoreSheet = false
-                    showDualViewPicker = true
-                },
-                onOpenNumpad = {
-                    showMoreSheet = false
-                    showNumericKeypad = true
-                },
-                onOpenChannelDrawer = {
-                    showMoreSheet = false
-                    showChannelDrawer = true
-                },
-                onLockControls = {
-                    showMoreSheet = false
-                    isControlsLocked = true
-                    showInfoBanner("🔒 Ekran Kilitlendi")
-                },
-                diagnostics = streamDiagnostics,
-                onDismiss = { showMoreSheet = false }
-            )
-        }
+        // DAHA FAZLA (⋯) İKİNCİL SEÇENEKLER YAN PANELİ (G-023)
+        LiveMorePanel(
+            visible = showMoreSheet,
+            isPortrait = isPortrait,
+            isDualViewActive = isDualViewActive,
+            onOpenDualView = {
+                showMoreSheet = false
+                showDualViewPicker = true
+            },
+            onOpenNumpad = {
+                showMoreSheet = false
+                showNumericKeypad = true
+            },
+            onOpenChannelDrawer = {
+                showMoreSheet = false
+                showChannelDrawer = true
+            },
+            sleepTimerSeconds = sleepTimerSeconds,
+            onOpenSleepTimer = {
+                showMoreSheet = false
+                showSleepTimerDialog = true
+            },
+            diagnostics = streamDiagnostics,
+            onClose = {
+                showMoreSheet = false
+                orientationManager?.setImmersiveMode(true)
+                try {
+                    playerFocusRequester.requestFocus()
+                } catch (_: Exception) {}
+            }
+        )
 
         // TEK KOMPAKT OYNATICI AYARLARI PANELİ (SES, ALTYAZI, GÖRÜNTÜ, HIZ)
         PlayerSettingsPanel(
@@ -2633,132 +2628,134 @@ fun PlayerScreen(
             }
         )
 
-        // BÖLÜMLER SEÇİCİ BOTTOM SHEET (DİZİ MODUNDA)
-        if (showEpisodesDrawer && currentSeriesInfo != null) {
+        // BÖLÜMLER SEÇİCİ YAN PANELİ (DİZİ MODUNDA - G-023)
+        if (currentSeriesInfo != null) {
             val episodesMap = currentSeriesInfo?.episodes ?: emptyMap()
-            val seasonKeys = episodesMap.keys.sortedBy { it.toIntOrNull() ?: 0 }
+            val seasonKeys = remember(episodesMap) {
+                episodesMap.keys.sortedBy { it.toIntOrNull() ?: 0 }
+            }
             val activeEpisode = currentEpisode?.first
             var activeSeasonKey by remember(activeEpisode, seasonKeys) {
                 mutableStateOf(activeEpisode?.season?.toString() ?: seasonKeys.firstOrNull() ?: "1")
             }
+            val episodesListState = rememberLazyListState()
 
-            ModalBottomSheet(
-                onDismissRequest = { showEpisodesDrawer = false },
-                containerColor = TiviSurface,
-                dragHandle = { BottomSheetDefaults.DragHandle() }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
-                ) {
-                    Text(
-                        text = currentSeriesInfo?.info?.name ?: title,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
+            val seasonEpisodes = episodesMap[activeSeasonKey] ?: emptyList()
 
-                    if (seasonKeys.size > 1) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 12.dp)
-                        ) {
-                            items(seasonKeys) { sKey ->
-                                val isSel = sKey == activeSeasonKey
-                                Surface(
-                                    onClick = { activeSeasonKey = sKey },
-                                    shape = VegaShapes.Pill,
-                                    color = if (isSel) VegaColors.Accent.copy(alpha = 0.25f) else VegaColors.SurfaceVariant,
-                                    border = BorderStroke(1.dp, if (isSel) VegaColors.Accent else VegaColors.Border),
-                                    modifier = Modifier.height(32.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp)) {
-                                        Text(
-                                            text = "Sezon $sKey",
-                                            color = if (isSel) VegaColors.Accent else VegaColors.TextPrimary,
-                                            fontSize = VegaText.Secondary,
-                                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium
-                                        )
-                                    }
-                                }
-                            }
-                        }
+            // Açılınca oynayan bölüme kaydır
+            LaunchedEffect(showEpisodesDrawer, activeSeasonKey) {
+                if (showEpisodesDrawer && activeEpisode != null) {
+                    val idx = seasonEpisodes.indexOfFirst { it.id == activeEpisode.id }
+                    if (idx >= 0) {
+                        episodesListState.animateScrollToItem(idx)
                     }
+                }
+            }
 
-                    val seasonEpisodes = episodesMap[activeSeasonKey] ?: emptyList()
-                    LazyColumn(
+            PlayerSidePanel(
+                visible = showEpisodesDrawer,
+                title = currentSeriesInfo?.info?.name ?: title,
+                onClose = {
+                    showEpisodesDrawer = false
+                    orientationManager?.setImmersiveMode(true)
+                    try {
+                        playerFocusRequester.requestFocus()
+                    } catch (_: Exception) {}
+                },
+                isPortrait = isPortrait
+            ) {
+                if (seasonKeys.size > 1) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 380.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                            .padding(bottom = 10.dp)
                     ) {
-                        items(seasonEpisodes) { ep ->
-                            val isCurrentEp = activeEpisode?.id == ep.id
-                            Surface(
-                                onClick = {
-                                    viewModel.playSeriesEpisode(ep, currentSeriesInfo?.info?.name ?: title)
-                                    showEpisodesDrawer = false
-                                },
-                                shape = VegaShapes.Medium,
-                                color = if (isCurrentEp) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
-                                border = BorderStroke(1.dp, if (isCurrentEp) VegaColors.Accent else VegaColors.Border),
-                                modifier = Modifier.fillMaxWidth()
+                        items(seasonKeys) { sKey ->
+                            val isSel = sKey == activeSeasonKey
+                            VegaChoiceChip(
+                                label = "Sezon $sKey",
+                                selected = isSel,
+                                onClick = { activeSeasonKey = sKey }
+                            )
+                        }
+                    }
+                }
+
+                LazyColumn(
+                    state = episodesListState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(seasonEpisodes, key = { it.id }) { ep ->
+                        val isCurrentEp = activeEpisode?.id == ep.id
+                        var isItemFocused by remember { mutableStateOf(false) }
+
+                        Surface(
+                            onClick = {
+                                viewModel.playSeriesEpisode(ep, currentSeriesInfo?.info?.name ?: title)
+                                showEpisodesDrawer = false
+                            },
+                            shape = VegaShapes.Small,
+                            color = if (isItemFocused) VegaColors.Accent.copy(alpha = 0.25f)
+                            else if (isCurrentEp) VegaColors.Accent.copy(alpha = 0.18f)
+                            else VegaColors.SurfaceVariant,
+                            border = BorderStroke(
+                                if (isItemFocused) 2.dp else 1.dp,
+                                if (isItemFocused || isCurrentEp) VegaColors.Accent else VegaColors.Border
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .onFocusChanged { isItemFocused = it.isFocused }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isCurrentEp) VegaColors.Accent else VegaColors.Border),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isCurrentEp) VegaColors.Accent else VegaColors.Border),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = ep.episodeNum.toString(),
-                                            color = Color.White,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = ep.title.ifBlank { "Bölüm ${ep.episodeNum}" },
-                                            color = if (isCurrentEp) VegaColors.Accent else VegaColors.TextPrimary,
-                                            fontSize = VegaText.Body,
-                                            fontWeight = if (isCurrentEp) FontWeight.Bold else FontWeight.Medium,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        if (!ep.info?.plot.isNullOrBlank()) {
-                                            Text(
-                                                text = ep.info?.plot ?: "",
-                                                color = VegaColors.TextSecondary,
-                                                fontSize = VegaText.Caption,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-                                    if (isCurrentEp) {
-                                        Icon(
-                                            imageVector = Icons.Default.PlayArrow,
-                                            contentDescription = "Oynatılıyor",
-                                            tint = VegaColors.Accent,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                                    Text(
+                                        text = ep.episodeNum.toString(),
+                                        color = if (isCurrentEp) VegaColors.OnAccent else Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Text(
+                                    text = ep.title.ifBlank { "Bölüm ${ep.episodeNum}" },
+                                    color = if (isCurrentEp) VegaColors.Accent else VegaColors.TextPrimary,
+                                    fontSize = VegaText.Body,
+                                    fontWeight = if (isCurrentEp) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                if (isCurrentEp) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Oynatılıyor",
+                                        tint = VegaColors.Accent,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -2807,16 +2804,24 @@ fun PlayerScreen(
             )
         }
 
-        // ÇİFT EKRAN KANAL SEÇİCİ DİYALOĞU
-        if (showDualViewPicker && isLive) {
+        // ÇİFT EKRAN KANAL SEÇİCİ DİYALOĞU (G-023)
+        if (isLive) {
             DualViewChannelPicker(
+                visible = showDualViewPicker,
+                isPortrait = isPortrait,
                 liveStreams = allLiveStreams,
                 currentStreamId = streamId,
                 onChannelSelected = { channel ->
                     viewModel.startDualView(channel)
                     showDualViewPicker = false
                 },
-                onDismiss = { showDualViewPicker = false }
+                onDismiss = {
+                    showDualViewPicker = false
+                    orientationManager?.setImmersiveMode(true)
+                    try {
+                        playerFocusRequester.requestFocus()
+                    } catch (_: Exception) {}
+                }
             )
         }
 
@@ -3219,9 +3224,10 @@ fun DualViewSingleWindow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DualViewChannelPicker(
+    visible: Boolean,
+    isPortrait: Boolean,
     liveStreams: List<LiveStream>,
     currentStreamId: Int,
     onChannelSelected: (LiveStream) -> Unit,
@@ -3238,141 +3244,98 @@ fun DualViewChannelPicker(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = VegaColors.Surface,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = VegaColors.TextSecondary) }
+    PlayerSidePanel(
+        visible = visible,
+        title = "İkinci kanalı seç",
+        onClose = onDismiss,
+        isPortrait = isPortrait
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.75f)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.GridView,
-                        contentDescription = null,
-                        tint = VegaColors.Accent,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Çift ekran — İkinci kanal",
-                            color = VegaColors.TextPrimary,
-                            fontSize = VegaText.BodyProminent,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Aynı anda canlı izlemek istediğin kanalı seç",
-                            color = VegaColors.TextSecondary,
-                            fontSize = VegaText.Secondary
-                        )
+        // Arama Çubuğu
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Kanal ara...", color = VegaColors.TextMuted, fontSize = VegaText.Secondary) },
+            leadingIcon = {
+                Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = VegaColors.Accent)
+            },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(imageVector = Icons.Default.Clear, contentDescription = "Temizle", tint = VegaColors.TextPrimary)
                     }
                 }
-                IconButton(onClick = onDismiss) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Kapat", tint = VegaColors.TextPrimary)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Arama Çubuğu
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Kanal ara...", color = VegaColors.TextMuted, fontSize = VegaText.Secondary) },
-                leadingIcon = {
-                    Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = VegaColors.Accent)
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotBlank()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(imageVector = Icons.Default.Clear, contentDescription = "Temizle", tint = VegaColors.TextPrimary)
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = VegaShapes.Medium,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = VegaColors.Accent,
-                    unfocusedBorderColor = VegaColors.Border,
-                    focusedContainerColor = VegaColors.SurfaceVariant,
-                    unfocusedContainerColor = VegaColors.SurfaceVariant,
-                    focusedTextColor = VegaColors.TextPrimary,
-                    unfocusedTextColor = VegaColors.TextPrimary
-                )
+            },
+            singleLine = true,
+            shape = VegaShapes.Medium,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = VegaColors.Accent,
+                unfocusedBorderColor = VegaColors.Border,
+                focusedContainerColor = VegaColors.SurfaceVariant,
+                unfocusedContainerColor = VegaColors.SurfaceVariant,
+                focusedTextColor = VegaColors.TextPrimary,
+                unfocusedTextColor = VegaColors.TextPrimary
             )
+        )
 
-            Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-            // Kanal Listesi
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                items(filteredChannels, key = { it.streamId }) { channel ->
-                    Surface(
-                        onClick = { onChannelSelected(channel) },
-                        shape = VegaShapes.Medium,
-                        color = VegaColors.SurfaceVariant,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
-                        modifier = Modifier.fillMaxWidth()
+        // Kanal Listesi
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            items(filteredChannels, key = { it.streamId }) { channel ->
+                var isItemFocused by remember { mutableStateOf(false) }
+
+                Surface(
+                    onClick = { onChannelSelected(channel) },
+                    shape = VegaShapes.Small,
+                    color = if (isItemFocused) VegaColors.Accent.copy(alpha = 0.25f) else VegaColors.SurfaceVariant,
+                    border = BorderStroke(
+                        if (isItemFocused) 2.dp else 1.dp,
+                        if (isItemFocused) VegaColors.Accent else VegaColors.Border
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .onFocusChanged { isItemFocused = it.isFocused }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (!channel.streamIcon.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = channel.streamIcon,
-                                    contentDescription = channel.name,
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(RoundedCornerShape(6.dp)),
-                                    contentScale = ContentScale.Fit
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
+                        if (!channel.streamIcon.isNullOrBlank()) {
+                            AsyncImage(
+                                model = channel.streamIcon,
+                                contentDescription = channel.name,
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(6.dp)),
+                                contentScale = ContentScale.Fit
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = channel.name,
+                                color = VegaColors.TextPrimary,
+                                fontSize = VegaText.Body,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (!channel.currentProgram.isNullOrBlank()) {
                                 Text(
-                                    text = channel.name,
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
+                                    text = "Canlı: ${channel.currentProgram}",
+                                    color = VegaColors.TextSecondary,
+                                    fontSize = VegaText.Caption,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
-                                )
-                                if (!channel.currentProgram.isNullOrBlank()) {
-                                    Text(
-                                        text = "Canlı: ${channel.currentProgram}",
-                                        color = TiviTextSecondary,
-                                        fontSize = 11.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = TiviPrimary.copy(alpha = 0.15f)
-                            ) {
-                                Text(
-                                    text = "Başlat",
-                                    color = TiviPrimary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
                             }
                         }
