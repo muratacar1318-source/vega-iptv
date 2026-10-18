@@ -95,3 +95,28 @@ güncelleme, imza, CI. Sürüm numarası.
   - Emülatör / fiziksel cihaz etkileşimli testi: test edilemedi (otomatik build ortamı).
 - **Kaldırılan Dosyalar:**
   - `LivePlayerMoreSheet.kt` (artık kullanılmadığı için silindi).
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 18 Ekim)
+
+**Durum:** Çok iyi — ortak `PlayerSidePanel`, `LiveMorePanel` (5 kompakt satır), canlıda Görüntü sekmesi, Bölümler ve
+Çift ekran yan panelde; derleme başarılı. Tek eksik madde 5:
+
+`PlayerScreen.kt` ~1306: kontroller sadece Ayarlar paneli açıkken gizleniyor:
+```kotlin
+visible = showControls && !isInPipMode && !showSettingsPanel,
+```
+Yeni paneller açıkken alt kart, üst hap ve ortadaki düğmeler karartmanın altında görünmeye devam ediyor (üst üste
+biniyor). Şuna çevir:
+```kotlin
+visible = showControls && !isInPipMode && !showSettingsPanel && !showMoreSheet && !showEpisodesDrawer && !showDualViewPicker,
+```
+Ayrıca ~326 `isUserInteracting` listesine `|| showDualViewPicker` ekle (seçici açıkken kontroller zamanlayıcıyla kapanmasın).
+
+**AYNI BRANCH'te:** `git checkout ui/oynatici-yan-paneller && git pull && git merge origin/main`
+(`YAPILACAKLAR.md` / bu dosyada çakışma çıkarsa main'deki hali al). Sadece bu iki satır. `compileDebugKotlin`, push, rapor, dur.
+
+### Düzeltme turu 1 — Agent raporu
+
+_(Agent doldurur.)_
