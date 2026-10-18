@@ -1,0 +1,6 @@
+- Üst çubuktaki arama düğmesi artık sıkışmıyor; uzun liste adları kısaltılarak gösteriliyor.
+- Kategoriler, kanallar, filmler ve diziler sağlayıcının sıralamasıyla geliyor.
+- Film veya dizi izlerken uygulamadan çıkınca video duraklıyor, döndüğünde kaldığın yerden başlatabilirsin.
+- Canlı yayın, uygulamadan çıkınca küçük pencerede oynamaya devam ediyor.
+- Küçük pencere kapatılınca ses artık arka planda devam etmiyor.
+- Ana ekranda boş görünen "Kaldığın Yerden Devam Et" başlığı ve tekrar eden filmler düzeltildi.
