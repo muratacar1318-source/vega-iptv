@@ -124,3 +124,41 @@ Kullanıcının kayıtlı favorileri / izleme geçmişi.
 - Geri tuşu ve durdurma akışı: Kod seviyesinde doğrulandı; fiziki cihaz testi test edilemedi.
 - 429 yeniden deneme ve hata mesajları: Kod seviyesinde doğrulandı; fiziki cihaz testi test edilemedi.
 - Eski sunucu/içerik temizleme: Kod seviyesinde doğrulandı; fiziki cihaz testi test edilemedi.
+
+---
+
+## 🔁 Düzeltme turu 1 (Claude incelemesi — 18 Ekim)
+
+**Durum:** Madde 1–4 doğru (http, ayar kaldırıldı, geri tuşu + iptal diyaloğu, `executeWithRetry`, sade hata metinleri,
+senkron öncesi oynatıcı/prewarmer durduruluyor). **Madde 5'te (eski içerik silme) veri kaybı riski var** — tam da 429
+yaşanan senaryoda kullanıcının film/dizi listesi silinebilir. Kural "adım hata ile biterse silme yapma" idi.
+
+### Sorunlar
+1. **Film/dizi kategori bazlı yedek indirme** (`syncVodStreams` ~496-566, `syncSeriesStreams` aynısı): tek tek kategori
+   istekleri hata verirse `catch` yutuyor; sonra yine `staleIds` siliniyor → **başarısız kategorilerin bütün filmleri/dizileri
+   silinir.** Bütün kategoriler 429 alırsa `seenIds` boş kalır, adım "başarılı" döner ve **tüm film arşivi silinir.**
+2. **Yanıt dizi değilse** (sunucu 200 ile `{"user_info":…}` / hata JSON'u / boş gövde dönerse) `peek() != BEGIN_ARRAY` →
+   hiçbir şey eklenmez, `seenIds` boş, adım başarılı → **hepsi silinir.** (Canlı, film, dizi, kategoriler — hepsinde.)
+
+### Yapılacaklar (`XtreamRepository.kt`)
+1. Kategori bazlı yedek modda başarısız kategori sayısını say (`AtomicInteger failedCategories`, `catch`'te ve
+   `!catResponse.isSuccessful` durumunda artır).
+   - `failedCategories == totalCategories` → `Result.failure(Exception("HTTP Hatası: …"))` (son hata kodunu taşı) — **silme yok**.
+   - `failedCategories > 0` → içerikleri kaydet ama **silme adımını atla** (Log.w ile "kısmi senkron, eski içerik korunuyor").
+   - Sadece `bulkSucceeded == true` ya da `failedCategories == 0` iken silme yapılsın.
+2. **Ortak güvenlik kuralı** — tüm silme noktalarında (canlı/film/dizi akışları ve 3 kategori türü) silmeden önce:
+   - Yanıt gövdesi **dizi değilse** (`peek() != BEGIN_ARRAY`) → o istek **başarısız** sayılsın (`Result.failure`, metin
+     "HTTP Hatası: geçersiz yanıt"), silme yok.
+   - `seenIds.isEmpty()` ise silme YOK.
+   - `seenIds.size < existingIds.size / 2` ise silme YOK (Log.w: "yeni liste mevcut listenin yarısından az, silme atlandı").
+     (Sunucu değişimi gibi meşru durumlarda yeni liste genelde büyüktür; kullanıcı gerekirse listeyi silip yeniden ekler — G-025.)
+   Bu kontrolü tek bir yardımcıda topla: `private fun <T> safeStaleIds(existing: Collection<T>, seen: Set<T>, label: String): List<T>`
+   (boş liste dönerse silme yapılmaz).
+3. `app/src/test` altına `safeStaleIds` birim testi: boş seen → boş; seen < yarısı → boş; normal → fark.
+
+**AYNI BRANCH:** `git checkout fix/sunucu-ve-senkron && git pull && git merge origin/main` (`YAPILACAKLAR.md` çakışırsa
+main'deki hali). `compileDebugKotlin` + `testDebugUnitTest`, push, rapor, dur. APK üretme.
+
+### Düzeltme turu 1 — Agent raporu
+
+_(Agent doldurur.)_
