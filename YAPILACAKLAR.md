@@ -40,6 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
+| G-042 | [TV: sekmede kategorilere odak, canlıya yetişme geri alındı + tampon iyileştirme, en-boy oranı](docs/gorevler/G-042-tv-kategori-odak-tampon-geri-al-en-boy.md) | 🔴 | ⏳ Sıradaki |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
