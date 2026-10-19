@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-043 | Ayarlar → Oynatıcı: "Canlı yayın biçimi" seçeneği (Standart / HLS) — [görev](docs/gorevler/G-043-canli-yayin-bicimi-ayari.md) | 🟠 | 🔄 Agent bitirdi — Claude kontrol edecek |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -50,6 +49,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-043 | Ayarlar → Oynatıcı: "Canlı yayın biçimi" seçeneği (Standart / HLS) — PR #52 | 19 Ekim |
 | G-042 | TV: sekmede kategorilere odak; canlıya yetişme (G-039/40/41) geri alındı + tampon iyileştirme; TV en-boy oranı — PR #51 | 19 Ekim |
 | G-041 | Canlı kırpma teşhis bilgisi (geliştirici ekranı) — PR #50 | 18 Ekim |
 | G-040 | Canlı açılışta sunucu yığını kırpılıyor → doğrudan ~8 sn gecikme; hızlandırma kaldırıldı; Canlıya geç = yeniden bağlan — PR #49 | 18 Ekim |
