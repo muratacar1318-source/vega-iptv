@@ -65,7 +65,7 @@ git apply --ignore-whitespace docs/gorevler/G-045-degisiklikler.patch
 git status --short
 ```
 - **21** satır ` M ...` ve **1** satır `?? app/src/main/java/com/tivimax/player/ui/components/TvTextFieldSupport.kt` görünmeli.
-- `git diff --stat` son satırı yaklaşık: `21 files changed, 213 insertions(+), 61 deletions(-)` (yeni dosya hariç).
+- `git diff --stat` son satırı yaklaşık: `21 files changed, 211 insertions(+), 61 deletions(-)` (yeni dosya hariç).
 
 ## Adım 4 — Derle ve test et
 1. `./gradlew :app:assembleDebug` → hatasız bitmeli.
