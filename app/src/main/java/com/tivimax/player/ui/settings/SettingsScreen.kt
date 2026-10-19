@@ -644,6 +644,49 @@ private fun RenderSelectedSection(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 
+                    // G-043: Canlı yayın biçimi (Standart = TS, HLS = düşük gecikme denemesi)
+                    val streamFormat by viewModel.streamFormat.collectAsState()
+                    Text(text = "Canlı yayın biçimi", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Yayın canlıdan geride kalıyorsa 'HLS'yi dene. Kanal açılmazsa ya da takılırsa 'Standart'a dön. Değişiklik bir sonraki açtığın kanalda geçerli olur.",
+                        color = TiviTextSecondary,
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        listOf("TS" to "Standart (önerilen)", "HLS" to "HLS (düşük gecikme)").forEach { (format, label) ->
+                             val isSelected = streamFormat == format
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
+                                border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .dpadFocusable(
+                                        focusedBorderColor = OpusCyan,
+                                        shape = RoundedCornerShape(10.dp),
+                                        onClick = {
+                                            viewModel.setStreamFormat(format)
+                                            val toastVal = if (format == "HLS") "HLS" else "Standart"
+                                            Toast.makeText(context, "Canlı yayın biçimi: $toastVal", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) OpusCyan else TiviTextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
                     // Canlı Yayın Ön Yükleme
                     Text(text = "Canlı yayın ön yükleme", color = TiviTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(4.dp))

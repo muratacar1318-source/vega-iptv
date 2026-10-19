@@ -736,6 +736,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // G-043: Canlı yayın biçimi ("TS" = Standart, "HLS"). Sonraki açılan kanalda geçerli olur.
+    fun setStreamFormat(format: String) {
+        val safe = if (format == "HLS") "HLS" else "TS"
+        viewModelScope.launch {
+            preferences.setStreamFormat(safe)
+        }
+    }
+
     fun setSubtitleSize(size: String) {
         viewModelScope.launch {
             preferences.setSubtitleSize(size)
