@@ -40,6 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
+| G-043 | Ayarlar → Oynatıcı: "Canlı yayın biçimi" seçeneği (Standart / HLS) — [görev](docs/gorevler/G-043-canli-yayin-bicimi-ayari.md) | 🟠 | 🟢 Hazır — agent başlayabilir |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
