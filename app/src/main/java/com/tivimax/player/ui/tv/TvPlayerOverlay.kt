@@ -95,8 +95,6 @@ fun TvPlayerOverlay(
     val subtitleSize by viewModel.subtitleSize.collectAsState()
     val anySubSelected = subtitleTracks.any { it.isSelected }
     val startupDebugInfo by playerManager.startupDebugInfo.collectAsState()
-    val liveBehindSecs by playerManager.liveBehindSecs.collectAsState()
-    val liveCatchingUp by playerManager.liveCatchingUp.collectAsState()
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -341,6 +339,19 @@ fun TvPlayerOverlay(
             update = { playerView ->
                 val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive = true)
                 playerManager.attachView(playerView, isPrimary = true, tag = "TvPlayerOverlay")
+                // G-042: En-boy oranı (telefon oynatıcısıyla aynı eşleme)
+                val (targetResizeMode, targetScaleX, targetScaleY) = when (aspectRatio) {
+                    AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                    AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                    AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
+                    AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                    AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+                }
+                if (playerView.resizeMode != targetResizeMode) playerView.resizeMode = targetResizeMode
+                if (playerView.scaleX != targetScaleX || playerView.scaleY != targetScaleY) {
+                    playerView.scaleX = targetScaleX
+                    playerView.scaleY = targetScaleY
+                }
                 try {
                     delayedController.attach(playerView, currentPlayer)
                     delayedController.updateDelay(subtitleDelayMs)
@@ -480,14 +491,6 @@ fun TvPlayerOverlay(
                                     if (streamDiagnostics.frameRateBadge.isNotBlank()) {
                                         TechBadge(text = streamDiagnostics.frameRateBadge)
                                     }
-                                    // G-039: Canlı durumu
-                                    if (liveCatchingUp) {
-                                        TechBadge(text = "⏩ Canlıya yetişiliyor", isHighlight = true)
-                                    } else if (liveBehindSecs > 10f) {
-                                        TechBadge(text = "${liveBehindSecs.toInt()} sn geride")
-                                    } else if (liveBehindSecs > 0f) {
-                                        TechBadge(text = "● CANLI", isHighlight = true)
-                                    }
                                     if (streamDiagnostics.bufferHealthSecs.isNotBlank()) {
                                         TechBadge(text = "Tampon: ${streamDiagnostics.bufferHealthSecs}")
                                     }
@@ -614,23 +617,11 @@ fun TvPlayerOverlay(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 PlayerPillButton(
-                                    text = "Canlıya geç",
-                                    icon = Icons.Default.LiveTv,
-                                    onClick = {
-                                        playerManager.jumpToLive()
-                                        showActionTray = false
-                                        seekRippleMessage = "Canlıya yetişiliyor…"
-                                    },
-                                    isActive = liveBehindSecs > 10f,
-                                    activeColor = VegaColors.Live,
-                                    isPortrait = false,
-                                    modifier = Modifier.focusRequester(actionDockFocusRequester)
-                                )
-                                PlayerPillButton(
                                     text = "Ses ve altyazı",
                                     icon = Icons.Default.Subtitles,
                                     onClick = { showTrackSheet = true },
-                                    isPortrait = false
+                                    isPortrait = false,
+                                    modifier = Modifier.focusRequester(actionDockFocusRequester)
                                 )
                                 PlayerPillButton(
                                     text = when (aspectRatio) {

@@ -58,6 +58,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.text.TextStyle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 import com.tivimax.player.ui.tv.TvNavigationRail
 import com.tivimax.player.ui.tv.TvTiviMateScreen
@@ -89,6 +90,9 @@ fun HomeScreen(viewModel: MainViewModel) {
 
     // Android TV: sol menü odak durumu ve Canlı TV tam ekran oynatıcı durumu
     val tvRailFocusRequester = remember { FocusRequester() }
+    // G-042: Sol menüden sekmeye girince odağı içeriğe (kategori sütununa) taşımak için
+    val tvFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val tvFocusScope = rememberCoroutineScope()
     var tvRailHasFocus by remember { mutableStateOf(false) }
     var tvLiveFullScreen by remember { mutableStateOf(false) }
 
@@ -171,6 +175,16 @@ fun HomeScreen(viewModel: MainViewModel) {
                             tvLiveFullScreen = false
                             viewModel.setVideoFullscreen(false)
                             viewModel.setSelectedHomeTab(tab)
+                        }
+                        // G-042: Canlı TV / Filmler / Diziler'de imleç doğrudan kategorilere geçsin
+                        if (tab == HomeTab.LIVE_TV || tab == HomeTab.MOVIES || tab == HomeTab.SERIES) {
+                            tvFocusScope.launch {
+                                repeat(4) {
+                                    delay(150L)
+                                    if (!tvRailHasFocus) return@launch
+                                    tvFocusManager.moveFocus(FocusDirection.Right)
+                                }
+                            }
                         }
                     },
                     onSearchClick = { viewModel.navigateTo(Screen.Search) },
