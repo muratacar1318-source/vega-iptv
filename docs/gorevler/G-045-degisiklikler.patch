@@ -1,0 +1,863 @@
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index a28b3e9..b13d052 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -22,6 +22,7 @@
+         android:banner="@mipmap/ic_launcher"
+         android:supportsRtl="true"
+         android:usesCleartextTraffic="true"
++        android:largeHeap="true"
+         android:networkSecurityConfig="@xml/network_security_config"
+         android:windowSoftInputMode="adjustResize"
+         android:theme="@style/Theme.TiviMax">
+diff --git a/app/src/main/java/com/tivimax/player/data/preferences/UserPreferences.kt b/app/src/main/java/com/tivimax/player/data/preferences/UserPreferences.kt
+index 60cd6e6..bd35dde 100644
+--- a/app/src/main/java/com/tivimax/player/data/preferences/UserPreferences.kt
++++ b/app/src/main/java/com/tivimax/player/data/preferences/UserPreferences.kt
+@@ -229,7 +229,7 @@ class UserPreferences(private val context: Context) {
+     val seriesSortFlow: Flow<String> = context.appDataStore.data.map { it[KEY_SERIES_SORT] ?: "DEFAULT" }
+     val autoSyncLiveFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_SYNC_LIVE] ?: true }
+     val autoPipFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_PIP] ?: true }
+-    val vodBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_VOD_BUFFER_SECONDS] ?: 60 }
++    val vodBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_VOD_BUFFER_SECONDS] ?: 180 }
+     val liveBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_LIVE_BUFFER_SECONDS] ?: 2 }
+     val decoderModeFlow: Flow<String> = context.appDataStore.data.map { it[KEY_DECODER_MODE] ?: "HARDWARE" }
+ 
+diff --git a/app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt b/app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt
+index 2ba98ff..0796da0 100644
+--- a/app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt
++++ b/app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt
+@@ -453,8 +453,8 @@ class TiviPlayerManager(private val context: Context) {
+     private val _bufferedPosition = MutableStateFlow(0L)
+     val bufferedPosition: StateFlow<Long> = _bufferedPosition.asStateFlow()
+ 
+-    private var _vodBufferSeconds: Int = 60
+-    val vodBufferSecondsState = MutableStateFlow(60)
++    private var _vodBufferSeconds: Int = 180
++    val vodBufferSecondsState = MutableStateFlow(180)
+ 
+     private var _liveBufferSeconds: Int = 2
+     val liveBufferSecondsState = MutableStateFlow(2)
+@@ -590,6 +590,10 @@ class TiviPlayerManager(private val context: Context) {
+         } else {
+             val vodMinBufferMs = (_vodBufferSeconds * 1000).coerceAtLeast(15_000)
+             val vodMaxBufferMs = (vodMinBufferMs * 2).coerceAtLeast(50_000).coerceAtMost(180_000)
++            // G-045: Uzun ön yükleme cihaz belleğini aşmasın — bellek sınırına gelince süre dolmasa da durur
++            val vodTargetBufferBytes = (Runtime.getRuntime().maxMemory() / 4)
++                .coerceIn(32L * 1024 * 1024, 200L * 1024 * 1024)
++                .toInt()
+             DefaultLoadControl.Builder()
+                 .setBufferDurationsMs(
+                     /* minBufferMs = */ vodMinBufferMs,
+@@ -597,7 +601,8 @@ class TiviPlayerManager(private val context: Context) {
+                     /* bufferForPlaybackMs = */ 1_500,
+                     /* bufferForPlaybackAfterRebufferMs = */ 2_500
+                 )
+-                .setPrioritizeTimeOverSizeThresholds(true)
++                .setTargetBufferBytes(vodTargetBufferBytes)
++                .setPrioritizeTimeOverSizeThresholds(false)
+                 .setBackBuffer(20_000, true)
+                 .build()
+         }
+@@ -1342,7 +1347,8 @@ class TiviPlayerManager(private val context: Context) {
+         val cleanLang = lang?.trim()?.lowercase() ?: ""
+         val cleanLabel = label?.trim()?.lowercase() ?: ""
+         return when {
+-            cleanLang in listOf("tr", "tur", "turkish") || cleanLabel.contains("türk") || cleanLabel.contains("turk") -> "tr"
++            cleanLang in listOf("tr", "tur", "turkish") || cleanLabel.contains("türk") || cleanLabel.contains("turk") ||
++                cleanLabel.contains("dublaj") || cleanLabel == "tr" || cleanLabel.startsWith("tr ") -> "tr"
+             cleanLang in listOf("en", "eng", "english") || cleanLabel.contains("ing") || cleanLabel.contains("eng") -> "en"
+             cleanLang in listOf("de", "deu", "ger", "german") || cleanLabel.contains("alm") || cleanLabel.contains("ger") -> "de"
+             cleanLang in listOf("fr", "fra", "fre", "french") || cleanLabel.contains("fran") || cleanLabel.contains("fren") -> "fr"
+diff --git a/app/src/main/java/com/tivimax/player/ui/MainViewModel.kt b/app/src/main/java/com/tivimax/player/ui/MainViewModel.kt
+index d144ba9..18fa672 100644
+--- a/app/src/main/java/com/tivimax/player/ui/MainViewModel.kt
++++ b/app/src/main/java/com/tivimax/player/ui/MainViewModel.kt
+@@ -561,7 +561,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
+ 
+     val autoSyncLive = preferences.autoSyncLiveFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+     val autoPipEnabled = preferences.autoPipFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+-    val vodBufferSeconds = preferences.vodBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 60)
++    val vodBufferSeconds = preferences.vodBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 180)
+     val liveBufferSeconds = preferences.liveBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 2)
+     val decoderMode = preferences.decoderModeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "HARDWARE")
+     val watchProgressMap = preferences.watchProgressMapFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+@@ -822,7 +822,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
+         viewModelScope.launch {
+             combine(preferences.defaultAudioLangFlow, preferences.defaultSubtitleLangFlow) { audio, sub ->
+                 Pair(audio, sub)
+-            }.collect { (audio, sub) ->
++            }
++                // G-045: Sadece dil ayarı gerçekten değişince uygula. (Başka bir ayar kaydedilince — ör. 15 sn'de bir
++                // izleme konumu — tekrar uygulanıp kullanıcının kapattığı altyazıyı geri açıyordu.)
++                .distinctUntilChanged()
++                .collect { (audio, sub) ->
+                 playerManager.setDefaultTrackLanguages(audio, sub)
+             }
+         }
+@@ -2220,6 +2224,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
+         }
+     }
+ 
++    // G-045: TV kanal listesinde (◀) gezinirken kanalı OK'a basmadan aç.
++    // Hızlı gezinmede sadece en son durulan kanala bağlanılır (scheduleTvZap ile aynı bekleme).
++    fun tvGuidePreviewChannel(channel: LiveStream) {
++        if (activePreviewChannel.value?.streamId == channel.streamId) return
++        scheduleTvZap(channel)
++    }
++
+     fun zapNextChannel(currentStreamId: Int): LiveStream? {
+         val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
+             liveStreams.value
+diff --git a/app/src/main/java/com/tivimax/player/ui/catalog/VegaMediaCatalogScreen.kt b/app/src/main/java/com/tivimax/player/ui/catalog/VegaMediaCatalogScreen.kt
+index 3705aef..ad227a4 100644
+--- a/app/src/main/java/com/tivimax/player/ui/catalog/VegaMediaCatalogScreen.kt
++++ b/app/src/main/java/com/tivimax/player/ui/catalog/VegaMediaCatalogScreen.kt
+@@ -127,7 +127,8 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
+                 onCategorySelected = { viewModel.loadSeriesStreams(it) },
+                 title = "KATEGORİLER",
+                 totalCount = totalSeriesCount,
+-                allLabel = "Tüm Diziler"
++                allLabel = "Tüm Diziler",
++                tvFocusBehavior = com.tivimax.player.util.LocalIsTvDevice.current // G-045
+             )
+ 
+             Box(
+diff --git a/app/src/main/java/com/tivimax/player/ui/components/CategoryManagementDialog.kt b/app/src/main/java/com/tivimax/player/ui/components/CategoryManagementDialog.kt
+index bdc6ee4..d494883 100644
+--- a/app/src/main/java/com/tivimax/player/ui/components/CategoryManagementDialog.kt
++++ b/app/src/main/java/com/tivimax/player/ui/components/CategoryManagementDialog.kt
+@@ -161,6 +161,7 @@ fun CategoryManagementDialog(
+                     verticalAlignment = Alignment.CenterVertically
+                 ) {
+                     OutlinedTextField(
++                        keyboardOptions = tvKeyboardOptions(),
+                         value = searchQuery,
+                         onValueChange = { searchQuery = it },
+                         placeholder = { Text("Kategori ara...", fontSize = 13.sp, color = VegaColors.TextMuted) },
+@@ -181,7 +182,7 @@ fun CategoryManagementDialog(
+                             focusedContainerColor = VegaColors.Card,
+                             unfocusedContainerColor = VegaColors.Card
+                         ),
+-                        modifier = Modifier
++                        modifier = Modifier.tvOpenKeyboardOnOk()
+                             .weight(1f)
+                             .height(48.dp),
+                         shape = VegaShapes.Medium
+diff --git a/app/src/main/java/com/tivimax/player/ui/components/CategorySidebar.kt b/app/src/main/java/com/tivimax/player/ui/components/CategorySidebar.kt
+index 934eb80..8f03467 100644
+--- a/app/src/main/java/com/tivimax/player/ui/components/CategorySidebar.kt
++++ b/app/src/main/java/com/tivimax/player/ui/components/CategorySidebar.kt
+@@ -14,10 +14,21 @@ import androidx.compose.material3.Icon
+ import androidx.compose.material3.Surface
+ import androidx.compose.material3.Text
+ import androidx.compose.runtime.Composable
++import androidx.compose.runtime.DisposableEffect
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
+ import androidx.compose.runtime.remember
++import androidx.compose.runtime.rememberCoroutineScope
++import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
++import androidx.compose.ui.focus.FocusDirection
++import androidx.compose.ui.focus.FocusRequester
++import androidx.compose.ui.focus.focusProperties
++import androidx.compose.ui.focus.focusRequester
+ import androidx.compose.ui.focus.focusRestorer
++import androidx.compose.ui.focus.onFocusChanged
++import androidx.compose.ui.platform.LocalFocusManager
+ import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.graphics.vector.ImageVector
+ import androidx.compose.ui.text.font.FontWeight
+@@ -25,6 +36,8 @@ import androidx.compose.ui.text.style.TextOverflow
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+ import com.tivimax.player.ui.design.VegaColors
++import kotlinx.coroutines.delay
++import kotlinx.coroutines.launch
+ 
+ data class CategoryUiItem(
+     val id: String,
+@@ -44,7 +57,9 @@ fun CategorySidebar(
+     totalCount: Int = 0,
+     allLabel: String = "Tümü",
+     onFilterClick: (() -> Unit)? = null,
+-    modifier: Modifier = Modifier
++    modifier: Modifier = Modifier,
++    // G-045: TV'de kategori seçilince odak içeriğe geçer; sola dönünce seçili kategoriye gelir
++    tvFocusBehavior: Boolean = false
+ ) {
+     val safeCategories = remember(categories) {
+         categories
+@@ -56,6 +71,26 @@ fun CategorySidebar(
+         else categories.firstOrNull { it.id == "all" }?.count ?: safeCategories.sumOf { it.count }
+     }
+ 
++    // G-045: TV odak davranışı
++    val focusManager = LocalFocusManager.current
++    val focusScope = rememberCoroutineScope()
++    var listHasFocus by remember { mutableStateOf(false) }
++    val selectedRequester = remember { FocusRequester() }
++    var selectedItemAttached by remember { mutableStateOf(false) }
++    val selectCategory: (String) -> Unit = { id ->
++        onCategorySelected(id)
++        if (tvFocusBehavior) {
++            focusScope.launch {
++                delay(300)
++                repeat(6) {
++                    if (!listHasFocus) return@launch
++                    focusManager.moveFocus(FocusDirection.Right)
++                    delay(250)
++                }
++            }
++        }
++    }
++
+     Column(
+         modifier = modifier
+             .fillMaxHeight()
+@@ -103,33 +138,82 @@ fun CategorySidebar(
+         Spacer(modifier = Modifier.height(4.dp))
+ 
+         LazyColumn(
+-            modifier = Modifier.fillMaxSize().focusRestorer(),
++            modifier = Modifier
++                .fillMaxSize()
++                .onFocusChanged { listHasFocus = it.hasFocus }
++                .then(
++                    if (tvFocusBehavior) {
++                        Modifier.focusProperties {
++                            onEnter = {
++                                if (selectedItemAttached) {
++                                    try { selectedRequester.requestFocus() } catch (_: Exception) {}
++                                }
++                            }
++                        }
++                    } else {
++                        Modifier.focusRestorer()
++                    }
++                ),
+             contentPadding = PaddingValues(bottom = 90.dp),
+             verticalArrangement = Arrangement.spacedBy(2.dp)
+         ) {
+             item(key = "sidebar_cat_all") {
+                 val isSelected = selectedCategoryId == "all" || selectedCategoryId.isEmpty()
+-                CategoryItem(
+-                    name = allLabel,
+-                    count = effectiveTotalCount,
+-                    icon = Icons.Default.Folder,
+-                    iconTint = VegaColors.Accent,
++                SelectedCategoryAnchor(
+                     isSelected = isSelected,
+-                    onClick = { onCategorySelected("all") }
+-                )
++                    requester = selectedRequester,
++                    onAttachedChange = { selectedItemAttached = it }
++                ) {
++                    CategoryItem(
++                        name = allLabel,
++                        count = effectiveTotalCount,
++                        icon = Icons.Default.Folder,
++                        iconTint = VegaColors.Accent,
++                        isSelected = isSelected,
++                        onClick = { selectCategory("all") }
++                    )
++                }
+             }
+ 
+             items(safeCategories, key = { "sidebar_cat_${it.id}" }) { cat ->
+                 val isSelected = cat.id == selectedCategoryId
+-                CategoryItem(
+-                    name = cat.name,
+-                    count = cat.count,
+-                    icon = cat.icon,
+-                    iconTint = cat.iconTint,
++                SelectedCategoryAnchor(
+                     isSelected = isSelected,
+-                    onClick = { onCategorySelected(cat.id) }
+-                )
++                    requester = selectedRequester,
++                    onAttachedChange = { selectedItemAttached = it }
++                ) {
++                    CategoryItem(
++                        name = cat.name,
++                        count = cat.count,
++                        icon = cat.icon,
++                        iconTint = cat.iconTint,
++                        isSelected = isSelected,
++                        onClick = { selectCategory(cat.id) }
++                    )
++                }
+             }
+         }
+     }
+ }
++
++/**
++ * G-045: Seçili kategoriye odak bağlantısı. Yapı her durumda aynı kalır (sadece modifier değişir),
++ * böylece seçim değişince öğe yeniden oluşturulmaz ve odak kaybolmaz.
++ */
++@Composable
++private fun SelectedCategoryAnchor(
++    isSelected: Boolean,
++    requester: FocusRequester,
++    onAttachedChange: (Boolean) -> Unit,
++    content: @Composable () -> Unit
++) {
++    DisposableEffect(isSelected) {
++        if (isSelected) onAttachedChange(true)
++        onDispose {
++            if (isSelected) onAttachedChange(false)
++        }
++    }
++    Box(modifier = if (isSelected) Modifier.focusRequester(requester) else Modifier) {
++        content()
++    }
++}
+diff --git a/app/src/main/java/com/tivimax/player/ui/components/MediaCategoryNavigationBar.kt b/app/src/main/java/com/tivimax/player/ui/components/MediaCategoryNavigationBar.kt
+index 03c2609..515a32b 100644
+--- a/app/src/main/java/com/tivimax/player/ui/components/MediaCategoryNavigationBar.kt
++++ b/app/src/main/java/com/tivimax/player/ui/components/MediaCategoryNavigationBar.kt
+@@ -375,6 +375,7 @@ fun MediaCategoryBottomSheet(
+ 
+             // Arama Kutusu
+             OutlinedTextField(
++                keyboardOptions = tvKeyboardOptions(),
+                 value = searchQuery,
+                 onValueChange = { searchQuery = it },
+                 placeholder = { Text("Kategori ara...", color = TiviTextSecondary, fontSize = 13.sp) },
+@@ -408,7 +409,7 @@ fun MediaCategoryBottomSheet(
+                     focusedTextColor = Color.White,
+                     unfocusedTextColor = Color.White
+                 ),
+-                modifier = Modifier
++                modifier = Modifier.tvOpenKeyboardOnOk()
+                     .fillMaxWidth()
+                     .padding(vertical = 8.dp)
+             )
+diff --git a/app/src/main/java/com/tivimax/player/ui/components/TvTextFieldSupport.kt b/app/src/main/java/com/tivimax/player/ui/components/TvTextFieldSupport.kt
+new file mode 100644
+index 0000000..0f3cd7b
+--- /dev/null
++++ b/app/src/main/java/com/tivimax/player/ui/components/TvTextFieldSupport.kt
+@@ -0,0 +1,48 @@
++package com.tivimax.player.ui.components
++
++import android.view.KeyEvent
++import androidx.compose.foundation.text.KeyboardOptions
++import androidx.compose.runtime.Composable
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.composed
++import androidx.compose.ui.input.key.KeyEventType
++import androidx.compose.ui.input.key.onPreviewKeyEvent
++import androidx.compose.ui.input.key.type
++import androidx.compose.ui.platform.LocalSoftwareKeyboardController
++import com.tivimax.player.util.LocalIsTvDevice
++
++/**
++ * G-045: TV'de yazı kutusuna gelince klavye kendiliğinden açılmasın.
++ * Telefon ve tablette hiçbir şeyi değiştirmez (ayarlar olduğu gibi döner).
++ */
++@Composable
++fun tvKeyboardOptions(base: KeyboardOptions = KeyboardOptions.Default): KeyboardOptions {
++    return if (LocalIsTvDevice.current) base.copy(showKeyboardOnFocus = false) else base
++}
++
++/**
++ * G-045: TV'de yazı kutusundayken kumandanın OK tuşu klavyeyi açar.
++ * Telefon ve tablette hiçbir şey yapmaz.
++ */
++fun Modifier.tvOpenKeyboardOnOk(): Modifier = composed {
++    val isTv = LocalIsTvDevice.current
++    val keyboard = LocalSoftwareKeyboardController.current
++    if (!isTv) {
++        Modifier
++    } else {
++        Modifier.onPreviewKeyEvent { event ->
++            val code = event.nativeKeyEvent.keyCode
++            if (code == KeyEvent.KEYCODE_DPAD_CENTER ||
++                code == KeyEvent.KEYCODE_ENTER ||
++                code == KeyEvent.KEYCODE_NUMPAD_ENTER
++            ) {
++                if (event.type == KeyEventType.KeyUp) {
++                    keyboard?.show()
++                }
++                true
++            } else {
++                false
++            }
++        }
++    }
++}
+diff --git a/app/src/main/java/com/tivimax/player/ui/live/LiveTvScreen.kt b/app/src/main/java/com/tivimax/player/ui/live/LiveTvScreen.kt
+index 4a0a477..dd3ebe0 100644
+--- a/app/src/main/java/com/tivimax/player/ui/live/LiveTvScreen.kt
++++ b/app/src/main/java/com/tivimax/player/ui/live/LiveTvScreen.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.live
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import androidx.activity.compose.BackHandler
+ import com.tivimax.player.util.LocalIsTvDevice
+ import android.content.res.Configuration
+@@ -294,13 +296,13 @@ fun LiveTvScreen(viewModel: MainViewModel) {
+                             isError = parentalPinError,
+                             singleLine = true,
+                             placeholder = { Text("****") },
+-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
++                            keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
+                             visualTransformation = PasswordVisualTransformation(),
+                             colors = OutlinedTextFieldDefaults.colors(
+                                 focusedBorderColor = OpusCyan,
+                                 errorBorderColor = Color.Red
+                             ),
+-                            modifier = Modifier.fillMaxWidth()
++                            modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
+                         )
+                         if (parentalPinError) {
+                             Spacer(modifier = Modifier.height(4.dp))
+diff --git a/app/src/main/java/com/tivimax/player/ui/live/modern/CategorySelectorBottomSheet.kt b/app/src/main/java/com/tivimax/player/ui/live/modern/CategorySelectorBottomSheet.kt
+index df37efa..ee00679 100644
+--- a/app/src/main/java/com/tivimax/player/ui/live/modern/CategorySelectorBottomSheet.kt
++++ b/app/src/main/java/com/tivimax/player/ui/live/modern/CategorySelectorBottomSheet.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.live.modern
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.clickable
+@@ -89,6 +91,7 @@ fun CategorySelectorBottomSheet(
+ 
+             // Kategori İçi Arama Çubuğu
+             OutlinedTextField(
++                keyboardOptions = tvKeyboardOptions(),
+                 value = searchQuery,
+                 onValueChange = { searchQuery = it },
+                 placeholder = {
+@@ -128,7 +131,7 @@ fun CategorySelectorBottomSheet(
+                     unfocusedTextColor = Color.White
+                 ),
+                 shape = RoundedCornerShape(12.dp),
+-                modifier = Modifier
++                modifier = Modifier.tvOpenKeyboardOnOk()
+                     .fillMaxWidth()
+                     .height(48.dp)
+             )
+diff --git a/app/src/main/java/com/tivimax/player/ui/live/modern/LiveTvTopBar.kt b/app/src/main/java/com/tivimax/player/ui/live/modern/LiveTvTopBar.kt
+index 8abde27..0be9d38 100644
+--- a/app/src/main/java/com/tivimax/player/ui/live/modern/LiveTvTopBar.kt
++++ b/app/src/main/java/com/tivimax/player/ui/live/modern/LiveTvTopBar.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.live.modern
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.layout.*
+ import androidx.compose.foundation.shape.RoundedCornerShape
+@@ -97,9 +99,9 @@ fun LiveTvTopBar(
+                                 fontSize = 12.5.sp
+                             ),
+                             cursorBrush = SolidColor(OpusCyan),
+-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
++                            keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
+                             keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+-                            modifier = Modifier.fillMaxWidth()
++                            modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
+                         )
+                     }
+                     if (searchQuery.isNotEmpty()) {
+diff --git a/app/src/main/java/com/tivimax/player/ui/live/shelf/SeeAllCategoryView.kt b/app/src/main/java/com/tivimax/player/ui/live/shelf/SeeAllCategoryView.kt
+index cb4ee06..c27cfa3 100644
+--- a/app/src/main/java/com/tivimax/player/ui/live/shelf/SeeAllCategoryView.kt
++++ b/app/src/main/java/com/tivimax/player/ui/live/shelf/SeeAllCategoryView.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.live.shelf
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import androidx.activity.compose.BackHandler
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.layout.*
+@@ -149,7 +151,7 @@ fun SeeAllCategoryView(
+                 }
+             },
+             singleLine = true,
+-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
++            keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
+             keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+             colors = OutlinedTextFieldDefaults.colors(
+                 focusedContainerColor = TiviCard,
+@@ -160,7 +162,7 @@ fun SeeAllCategoryView(
+                 unfocusedTextColor = Color.White
+             ),
+             shape = RoundedCornerShape(10.dp),
+-            modifier = Modifier
++            modifier = Modifier.tvOpenKeyboardOnOk()
+                 .fillMaxWidth()
+                 .padding(horizontal = 16.dp, vertical = 8.dp)
+                 .height(50.dp)
+diff --git a/app/src/main/java/com/tivimax/player/ui/live/shelf/ShelfLiveLayout.kt b/app/src/main/java/com/tivimax/player/ui/live/shelf/ShelfLiveLayout.kt
+index df96ca5..30cb35b 100644
+--- a/app/src/main/java/com/tivimax/player/ui/live/shelf/ShelfLiveLayout.kt
++++ b/app/src/main/java/com/tivimax/player/ui/live/shelf/ShelfLiveLayout.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.live.shelf
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import androidx.activity.compose.BackHandler
+ import androidx.compose.animation.*
+ import androidx.compose.animation.core.tween
+@@ -242,7 +244,7 @@ fun ShelfLiveLayout(
+                 }
+             },
+             singleLine = true,
+-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
++            keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
+             keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+             colors = OutlinedTextFieldDefaults.colors(
+                 focusedContainerColor = TiviCard,
+@@ -253,7 +255,7 @@ fun ShelfLiveLayout(
+                 unfocusedTextColor = Color.White
+             ),
+             shape = RoundedCornerShape(10.dp),
+-            modifier = Modifier
++            modifier = Modifier.tvOpenKeyboardOnOk()
+                 .fillMaxWidth()
+                 .padding(horizontal = 16.dp, vertical = 6.dp)
+                 .height(48.dp)
+diff --git a/app/src/main/java/com/tivimax/player/ui/login/LoginScreen.kt b/app/src/main/java/com/tivimax/player/ui/login/LoginScreen.kt
+index 17944ec..d99d21b 100644
+--- a/app/src/main/java/com/tivimax/player/ui/login/LoginScreen.kt
++++ b/app/src/main/java/com/tivimax/player/ui/login/LoginScreen.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.login
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import androidx.compose.animation.AnimatedVisibility
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.layout.*
+@@ -169,11 +171,11 @@ fun LoginScreen(viewModel: MainViewModel) {
+                     unfocusedTextColor = VegaColors.TextPrimary
+                 ),
+                 shape = VegaShapes.Medium,
+-                modifier = Modifier.fillMaxWidth(),
+-                keyboardOptions = KeyboardOptions(
++                modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
++                keyboardOptions = tvKeyboardOptions(KeyboardOptions(
+                     keyboardType = KeyboardType.Text,
+                     imeAction = ImeAction.Next
+-                ),
++                )),
+                 keyboardActions = KeyboardActions(
+                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                 )
+@@ -234,11 +236,11 @@ fun LoginScreen(viewModel: MainViewModel) {
+                             unfocusedTextColor = VegaColors.TextPrimary
+                         ),
+                         shape = VegaShapes.Medium,
+-                        modifier = Modifier.fillMaxWidth(),
+-                        keyboardOptions = KeyboardOptions(
++                        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
++                        keyboardOptions = tvKeyboardOptions(KeyboardOptions(
+                             keyboardType = KeyboardType.Uri,
+                             imeAction = ImeAction.Next
+-                        ),
++                        )),
+                         keyboardActions = KeyboardActions(
+                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                         )
+@@ -268,11 +270,11 @@ fun LoginScreen(viewModel: MainViewModel) {
+                     unfocusedTextColor = VegaColors.TextPrimary
+                 ),
+                 shape = VegaShapes.Medium,
+-                modifier = Modifier.fillMaxWidth(),
+-                keyboardOptions = KeyboardOptions(
++                modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
++                keyboardOptions = tvKeyboardOptions(KeyboardOptions(
+                     keyboardType = KeyboardType.Text,
+                     imeAction = ImeAction.Next
+-                ),
++                )),
+                 keyboardActions = KeyboardActions(
+                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                 )
+@@ -310,11 +312,11 @@ fun LoginScreen(viewModel: MainViewModel) {
+                     unfocusedTextColor = VegaColors.TextPrimary
+                 ),
+                 shape = VegaShapes.Medium,
+-                modifier = Modifier.fillMaxWidth(),
+-                keyboardOptions = KeyboardOptions(
++                modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
++                keyboardOptions = tvKeyboardOptions(KeyboardOptions(
+                     keyboardType = KeyboardType.Password,
+                     imeAction = ImeAction.Done
+-                ),
++                )),
+                 keyboardActions = KeyboardActions(
+                     onDone = {
+                         focusManager.clearFocus()
+diff --git a/app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt b/app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt
+index 7711283..42a7c62 100644
+--- a/app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt
++++ b/app/src/main/java/com/tivimax/player/ui/player/PlayerScreen.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.player
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import android.app.Activity
+ import android.app.PictureInPictureParams
+ import android.content.Context
+@@ -3265,9 +3267,10 @@ fun DualViewChannelPicker(
+     ) {
+         // Arama Çubuğu
+         OutlinedTextField(
++            keyboardOptions = tvKeyboardOptions(),
+             value = searchQuery,
+             onValueChange = { searchQuery = it },
+-            modifier = Modifier.fillMaxWidth(),
++            modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
+             placeholder = { Text("Kanal ara...", color = VegaColors.TextMuted, fontSize = VegaText.Secondary) },
+             leadingIcon = {
+                 Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = VegaColors.Accent)
+diff --git a/app/src/main/java/com/tivimax/player/ui/player/components/TiviPlayerComponents.kt b/app/src/main/java/com/tivimax/player/ui/player/components/TiviPlayerComponents.kt
+index 8916db1..f637100 100644
+--- a/app/src/main/java/com/tivimax/player/ui/player/components/TiviPlayerComponents.kt
++++ b/app/src/main/java/com/tivimax/player/ui/player/components/TiviPlayerComponents.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.player.components
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import android.content.res.Configuration
+ import androidx.compose.animation.*
+ import androidx.compose.animation.core.*
+@@ -220,6 +222,7 @@ fun TiviOverlayGuide(
+                     ) {
+                         // Kanal Arama
+                         OutlinedTextField(
++                            keyboardOptions = tvKeyboardOptions(),
+                             value = channelSearchQuery,
+                             onValueChange = { channelSearchQuery = it },
+                             placeholder = { Text("Kanal ara...", fontSize = VegaText.Caption, color = VegaColors.TextMuted) },
+@@ -234,7 +237,7 @@ fun TiviOverlayGuide(
+                                 unfocusedContainerColor = VegaColors.SurfaceVariant
+                             ),
+                             shape = VegaShapes.Medium,
+-                            modifier = Modifier
++                            modifier = Modifier.tvOpenKeyboardOnOk()
+                                 .fillMaxWidth()
+                                 .height(44.dp)
+                         )
+diff --git a/app/src/main/java/com/tivimax/player/ui/search/UniversalSearchScreen.kt b/app/src/main/java/com/tivimax/player/ui/search/UniversalSearchScreen.kt
+index aabf3e6..e662552 100644
+--- a/app/src/main/java/com/tivimax/player/ui/search/UniversalSearchScreen.kt
++++ b/app/src/main/java/com/tivimax/player/ui/search/UniversalSearchScreen.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.search
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import androidx.activity.compose.BackHandler
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+@@ -165,14 +167,14 @@ fun UniversalSearchScreen(
+                                         fontSize = 14.sp
+                                     ),
+                                     cursorBrush = SolidColor(VegaColors.Accent),
+-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
++                                    keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
+                                     keyboardActions = KeyboardActions(
+                                         onSearch = {
+                                             focusManager.clearFocus()
+                                             viewModel.saveRecentSearch(searchQuery)
+                                         }
+                                     ),
+-                                    modifier = Modifier
++                                    modifier = Modifier.tvOpenKeyboardOnOk()
+                                         .fillMaxWidth()
+                                         .focusRequester(searchFocusRequester)
+                                 )
+diff --git a/app/src/main/java/com/tivimax/player/ui/settings/SettingsPlaylistsSection.kt b/app/src/main/java/com/tivimax/player/ui/settings/SettingsPlaylistsSection.kt
+index e5c90bc..6092011 100644
+--- a/app/src/main/java/com/tivimax/player/ui/settings/SettingsPlaylistsSection.kt
++++ b/app/src/main/java/com/tivimax/player/ui/settings/SettingsPlaylistsSection.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.settings
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import androidx.compose.foundation.BorderStroke
+ import androidx.compose.foundation.background
+ import androidx.compose.foundation.layout.*
+@@ -352,6 +354,7 @@ fun PlaylistFormDialog(
+ 
+                 // Liste Adı
+                 OutlinedTextField(
++                    keyboardOptions = tvKeyboardOptions(),
+                     value = name,
+                     onValueChange = { name = it },
+                     label = { Text("Liste adı") },
+@@ -368,7 +371,7 @@ fun PlaylistFormDialog(
+                         unfocusedTextColor = VegaColors.TextPrimary
+                     ),
+                     shape = VegaShapes.Medium,
+-                    modifier = Modifier.fillMaxWidth()
++                    modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
+                 )
+ 
+                 // Sunucu Seçimi
+@@ -401,6 +404,7 @@ fun PlaylistFormDialog(
+                 // Başka Sunucu Adresi Girişi
+                 if (isCustomServer) {
+                     OutlinedTextField(
++                        keyboardOptions = tvKeyboardOptions(),
+                         value = customServerUrl,
+                         onValueChange = { customServerUrl = it },
+                         label = { Text("Sunucu adresi") },
+@@ -420,12 +424,13 @@ fun PlaylistFormDialog(
+                             unfocusedTextColor = VegaColors.TextPrimary
+                         ),
+                         shape = VegaShapes.Medium,
+-                        modifier = Modifier.fillMaxWidth()
++                        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
+                     )
+                 }
+ 
+                 // Kullanıcı Adı
+                 OutlinedTextField(
++                    keyboardOptions = tvKeyboardOptions(),
+                     value = username,
+                     onValueChange = { username = it },
+                     label = { Text("Kullanıcı adı") },
+@@ -444,7 +449,7 @@ fun PlaylistFormDialog(
+                         unfocusedTextColor = VegaColors.TextPrimary
+                     ),
+                     shape = VegaShapes.Medium,
+-                    modifier = Modifier.fillMaxWidth()
++                    modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
+                 )
+ 
+                 // Şifre
+@@ -477,8 +482,8 @@ fun PlaylistFormDialog(
+                         unfocusedTextColor = VegaColors.TextPrimary
+                     ),
+                     shape = VegaShapes.Medium,
+-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+-                    modifier = Modifier.fillMaxWidth()
++                    keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.Password)),
++                    modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
+                 )
+ 
+                 Spacer(modifier = Modifier.height(4.dp))
+diff --git a/app/src/main/java/com/tivimax/player/ui/settings/SettingsScreen.kt b/app/src/main/java/com/tivimax/player/ui/settings/SettingsScreen.kt
+index 2b2e146..ffe0430 100644
+--- a/app/src/main/java/com/tivimax/player/ui/settings/SettingsScreen.kt
++++ b/app/src/main/java/com/tivimax/player/ui/settings/SettingsScreen.kt
+@@ -1,5 +1,7 @@
+ package com.tivimax.player.ui.settings
+ 
++import com.tivimax.player.ui.components.tvKeyboardOptions
++import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+ import android.content.Context
+ import android.content.res.Configuration
+ import android.widget.Toast
+@@ -411,14 +413,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
+                         onValueChange = { if (it.length <= 4) newPinInput = it },
+                         placeholder = { Text("••••") },
+                         singleLine = true,
+-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
++                        keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
+                         colors = OutlinedTextFieldDefaults.colors(
+                             focusedBorderColor = OpusCyan,
+                             unfocusedBorderColor = TiviCardBorder,
+                             focusedTextColor = TiviTextPrimary,
+                             unfocusedTextColor = TiviTextPrimary
+                         ),
+-                        modifier = Modifier.fillMaxWidth()
++                        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
+                     )
+                 }
+             },
+@@ -750,7 +752,7 @@ private fun RenderSelectedSection(
+                                 )
+                             ) {
+                                 Text(
+-                                    text = if (secs == 60) "60 sn (önerilen)" else "$secs sn",
++                                    text = if (secs == 180) "180 sn (önerilen)" else "$secs sn",
+                                     color = if (isSelected) OpusCyan else TiviTextSecondary,
+                                     fontSize = 11.sp,
+                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+diff --git a/app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt b/app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt
+index 373fa33..1837fc1 100644
+--- a/app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt
++++ b/app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt
+@@ -111,6 +111,8 @@ fun TvPlayerOverlay(
+     var showInfoCard by remember { mutableStateOf(true) }
+     var showActionTray by remember { mutableStateOf(false) }
+     var showOverlayGuide by remember { mutableStateOf(false) }
++    // G-045: Liste açıldıktan sonra kullanıcı ▲▼ ile gezindi mi? (Sadece gezinince kanal kendiliğinden açılır)
++    var guideNavigated by remember { mutableStateOf(false) }
+     var showQuickSettings by remember { mutableStateOf(false) }
+     var showTrackSheet by remember { mutableStateOf(false) }
+ 
+@@ -247,6 +249,10 @@ fun TvPlayerOverlay(
+                         showOverlayGuide = false
+                         return@onPreviewKeyEvent true
+                     }
++                    // G-045: Listede ▲▼ ile gezinme başladı
++                    if (showOverlayGuide && (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN)) {
++                        guideNavigated = true
++                    }
+                     return@onPreviewKeyEvent false
+                 }
+ 
+@@ -295,6 +301,7 @@ fun TvPlayerOverlay(
+                     }
+ 
+                     KeyEvent.KEYCODE_DPAD_LEFT -> {
++                        guideNavigated = false // G-045
+                         showOverlayGuide = true
+                         showInfoCard = false
+                         return@onPreviewKeyEvent true
+@@ -692,9 +699,18 @@ fun TvPlayerOverlay(
+                                         focusedBorderColor = VegaColors.Accent,
+                                         shape = VegaShapes.Small,
+                                         onClick = {
+-                                            viewModel.playLiveChannel(st)
++                                            // G-045: Kanal zaten açıldıysa OK sadece listeyi kapatır (yeniden bağlanmaz)
++                                            if (st.streamId != activeChannel.streamId) {
++                                                viewModel.playLiveChannel(st)
++                                            }
+                                             showOverlayGuide = false
+                                             showInfoCard = true
++                                        },
++                                        onFocusStateChange = { focused ->
++                                            // G-045: Listede gezinince kanal OK'a basmadan açılır
++                                            if (focused && showOverlayGuide && guideNavigated && st.streamId != activeChannel.streamId) {
++                                                viewModel.tvGuidePreviewChannel(st)
++                                            }
+                                         }
+                                     )
+                             ) {
+diff --git a/app/src/main/java/com/tivimax/player/ui/vod/VodScreen.kt b/app/src/main/java/com/tivimax/player/ui/vod/VodScreen.kt
+index 9267b01..6646267 100644
+--- a/app/src/main/java/com/tivimax/player/ui/vod/VodScreen.kt
++++ b/app/src/main/java/com/tivimax/player/ui/vod/VodScreen.kt
+@@ -159,7 +159,8 @@ fun VodScreen(viewModel: MainViewModel) {
+                 title = "TÜRLER",
+                 totalCount = totalVodCount,
+                 allLabel = "Tüm Filmler",
+-                onFilterClick = { showCategoryDialog = true }
++                onFilterClick = { showCategoryDialog = true },
++                tvFocusBehavior = isTvDevice // G-045
+             )
+ 
+             Box(
