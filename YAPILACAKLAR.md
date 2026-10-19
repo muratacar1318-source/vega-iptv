@@ -40,6 +40,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
+| G-046 | Genel kontrol: TV'de hata mesajı görünür (OK = tekrar dene), sade hata metinleri, TV odak hafızası (sezon/bölüm/arama), dizide kaldığın bölüm ve sezon — [görev](docs/gorevler/G-046-genel-kontrol-duzeltmeleri.md) | 🟠 | 🟢 Hazır — agent başlayabilir |
+| G-047 | TV canlı ekranındaki orta kanal listesinde de OK'sız önizleme (G-045'teki gibi gezinince kanal açılsın) | 🟡 | ⏸️ Kullanıcı kararı bekliyor — **agent başlamasın** |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -110,7 +112,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
   (Şu an telefondaki simge hâlâ Android'in hazır yeşil simgesi.)
 - **Güncelleyicide indirme doğrulaması** (eksik inen APK'yı kurmadan önce yakalama).
 - **Samsung Tizen / LG webOS sürümü.**
-- **Dizi detayında "Oynat" butonu** kaldığın bölümü değil, seçili sezonun ilk bölümünü açıyor.
 
 ## 💡 Fikirler
 
@@ -120,6 +121,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 - Ebeveyn kilidi PIN'ini TV'de kumandayla girme
 - Çoklu profil (aynı hesapta farklı favoriler ve izleme geçmişi)
 - Film/dizi oynatıcı kontrollerini G-002'deki kompakt tasarım diliyle yenileme
+- Film/dizide takılma bekçisi: bağlantı sessizce kesilirse 60 sn beklemek yerine kalınan saniyeden hızlı yeniden bağlanma (canlıdaki G-044 gibi)
+- Canlı 4K yayında bellek sınırı (G-045'teki film tamponu sınırı gibi; şimdilik gerek görülmedi, sorun çıkarsa)
 
 ---
 
