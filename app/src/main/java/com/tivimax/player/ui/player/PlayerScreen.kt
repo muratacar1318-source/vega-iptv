@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.player
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.Context
@@ -3265,9 +3267,10 @@ fun DualViewChannelPicker(
     ) {
         // Arama Çubuğu
         OutlinedTextField(
+            keyboardOptions = tvKeyboardOptions(),
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
             placeholder = { Text("Kanal ara...", color = VegaColors.TextMuted, fontSize = VegaText.Secondary) },
             leadingIcon = {
                 Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = VegaColors.Accent)

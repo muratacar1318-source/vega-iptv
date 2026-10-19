@@ -159,7 +159,8 @@ fun VodScreen(viewModel: MainViewModel) {
                 title = "TÜRLER",
                 totalCount = totalVodCount,
                 allLabel = "Tüm Filmler",
-                onFilterClick = { showCategoryDialog = true }
+                onFilterClick = { showCategoryDialog = true },
+                tvFocusBehavior = isTvDevice // G-045
             )
 
             Box(

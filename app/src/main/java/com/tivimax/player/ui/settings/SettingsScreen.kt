@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.settings
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import android.content.Context
 import android.content.res.Configuration
 import android.widget.Toast
@@ -411,14 +413,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         onValueChange = { if (it.length <= 4) newPinInput = it },
                         placeholder = { Text("••••") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                        keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = OpusCyan,
                             unfocusedBorderColor = TiviCardBorder,
                             focusedTextColor = TiviTextPrimary,
                             unfocusedTextColor = TiviTextPrimary
                         ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
                     )
                 }
             },
@@ -750,7 +752,7 @@ private fun RenderSelectedSection(
                                 )
                             ) {
                                 Text(
-                                    text = if (secs == 60) "60 sn (önerilen)" else "$secs sn",
+                                    text = if (secs == 180) "180 sn (önerilen)" else "$secs sn",
                                     color = if (isSelected) OpusCyan else TiviTextSecondary,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,

@@ -111,6 +111,8 @@ fun TvPlayerOverlay(
     var showInfoCard by remember { mutableStateOf(true) }
     var showActionTray by remember { mutableStateOf(false) }
     var showOverlayGuide by remember { mutableStateOf(false) }
+    // G-045: Liste açıldıktan sonra kullanıcı ▲▼ ile gezindi mi? (Sadece gezinince kanal kendiliğinden açılır)
+    var guideNavigated by remember { mutableStateOf(false) }
     var showQuickSettings by remember { mutableStateOf(false) }
     var showTrackSheet by remember { mutableStateOf(false) }
 
@@ -247,6 +249,10 @@ fun TvPlayerOverlay(
                         showOverlayGuide = false
                         return@onPreviewKeyEvent true
                     }
+                    // G-045: Listede ▲▼ ile gezinme başladı
+                    if (showOverlayGuide && (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN)) {
+                        guideNavigated = true
+                    }
                     return@onPreviewKeyEvent false
                 }
 
@@ -295,6 +301,7 @@ fun TvPlayerOverlay(
                     }
 
                     KeyEvent.KEYCODE_DPAD_LEFT -> {
+                        guideNavigated = false // G-045
                         showOverlayGuide = true
                         showInfoCard = false
                         return@onPreviewKeyEvent true
@@ -692,9 +699,18 @@ fun TvPlayerOverlay(
                                         focusedBorderColor = VegaColors.Accent,
                                         shape = VegaShapes.Small,
                                         onClick = {
-                                            viewModel.playLiveChannel(st)
+                                            // G-045: Kanal zaten açıldıysa OK sadece listeyi kapatır (yeniden bağlanmaz)
+                                            if (st.streamId != activeChannel.streamId) {
+                                                viewModel.playLiveChannel(st)
+                                            }
                                             showOverlayGuide = false
                                             showInfoCard = true
+                                        },
+                                        onFocusStateChange = { focused ->
+                                            // G-045: Listede gezinince kanal OK'a basmadan açılır
+                                            if (focused && showOverlayGuide && guideNavigated && st.streamId != activeChannel.streamId) {
+                                                viewModel.tvGuidePreviewChannel(st)
+                                            }
                                         }
                                     )
                             ) {

@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.login
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -169,11 +171,11 @@ fun LoginScreen(viewModel: MainViewModel) {
                     unfocusedTextColor = VegaColors.TextPrimary
                 ),
                 shape = VegaShapes.Medium,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(
+                modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
+                keyboardOptions = tvKeyboardOptions(KeyboardOptions(
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Next
-                ),
+                )),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 )
@@ -234,11 +236,11 @@ fun LoginScreen(viewModel: MainViewModel) {
                             unfocusedTextColor = VegaColors.TextPrimary
                         ),
                         shape = VegaShapes.Medium,
-                        modifier = Modifier.fillMaxWidth(),
-                        keyboardOptions = KeyboardOptions(
+                        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
+                        keyboardOptions = tvKeyboardOptions(KeyboardOptions(
                             keyboardType = KeyboardType.Uri,
                             imeAction = ImeAction.Next
-                        ),
+                        )),
                         keyboardActions = KeyboardActions(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         )
@@ -268,11 +270,11 @@ fun LoginScreen(viewModel: MainViewModel) {
                     unfocusedTextColor = VegaColors.TextPrimary
                 ),
                 shape = VegaShapes.Medium,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(
+                modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
+                keyboardOptions = tvKeyboardOptions(KeyboardOptions(
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Next
-                ),
+                )),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 )
@@ -310,11 +312,11 @@ fun LoginScreen(viewModel: MainViewModel) {
                     unfocusedTextColor = VegaColors.TextPrimary
                 ),
                 shape = VegaShapes.Medium,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(
+                modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
+                keyboardOptions = tvKeyboardOptions(KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
-                ),
+                )),
                 keyboardActions = KeyboardActions(
                     onDone = {
                         focusManager.clearFocus()

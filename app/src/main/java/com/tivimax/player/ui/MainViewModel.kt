@@ -561,7 +561,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val autoSyncLive = preferences.autoSyncLiveFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
     val autoPipEnabled = preferences.autoPipFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
-    val vodBufferSeconds = preferences.vodBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 60)
+    val vodBufferSeconds = preferences.vodBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 180)
     val liveBufferSeconds = preferences.liveBufferSecondsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, 2)
     val decoderMode = preferences.decoderModeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "HARDWARE")
     val watchProgressMap = preferences.watchProgressMapFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
@@ -822,7 +822,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             combine(preferences.defaultAudioLangFlow, preferences.defaultSubtitleLangFlow) { audio, sub ->
                 Pair(audio, sub)
-            }.collect { (audio, sub) ->
+            }
+                // G-045: Sadece dil ayarı gerçekten değişince uygula. (Başka bir ayar kaydedilince — ör. 15 sn'de bir
+                // izleme konumu — tekrar uygulanıp kullanıcının kapattığı altyazıyı geri açıyordu.)
+                .distinctUntilChanged()
+                .collect { (audio, sub) ->
                 playerManager.setDefaultTrackLanguages(audio, sub)
             }
         }
@@ -2218,6 +2222,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             delay(450L)
             previewChannel(channel)
         }
+    }
+
+    // G-045: TV kanal listesinde (◀) gezinirken kanalı OK'a basmadan aç.
+    // Hızlı gezinmede sadece en son durulan kanala bağlanılır (scheduleTvZap ile aynı bekleme).
+    fun tvGuidePreviewChannel(channel: LiveStream) {
+        if (activePreviewChannel.value?.streamId == channel.streamId) return
+        scheduleTvZap(channel)
     }
 
     fun zapNextChannel(currentStreamId: Int): LiveStream? {

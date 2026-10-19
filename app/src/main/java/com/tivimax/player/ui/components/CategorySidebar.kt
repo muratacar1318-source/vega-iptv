@@ -14,10 +14,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -25,6 +36,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.ui.design.VegaColors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 data class CategoryUiItem(
     val id: String,
@@ -44,7 +57,9 @@ fun CategorySidebar(
     totalCount: Int = 0,
     allLabel: String = "Tümü",
     onFilterClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // G-045: TV'de kategori seçilince odak içeriğe geçer; sola dönünce seçili kategoriye gelir
+    tvFocusBehavior: Boolean = false
 ) {
     val safeCategories = remember(categories) {
         categories
@@ -54,6 +69,26 @@ fun CategorySidebar(
     val effectiveTotalCount = remember(categories, totalCount, safeCategories) {
         if (totalCount > 0) totalCount
         else categories.firstOrNull { it.id == "all" }?.count ?: safeCategories.sumOf { it.count }
+    }
+
+    // G-045: TV odak davranışı
+    val focusManager = LocalFocusManager.current
+    val focusScope = rememberCoroutineScope()
+    var listHasFocus by remember { mutableStateOf(false) }
+    val selectedRequester = remember { FocusRequester() }
+    var selectedItemAttached by remember { mutableStateOf(false) }
+    val selectCategory: (String) -> Unit = { id ->
+        onCategorySelected(id)
+        if (tvFocusBehavior) {
+            focusScope.launch {
+                delay(300)
+                repeat(6) {
+                    if (!listHasFocus) return@launch
+                    focusManager.moveFocus(FocusDirection.Right)
+                    delay(250)
+                }
+            }
+        }
     }
 
     Column(
@@ -103,33 +138,82 @@ fun CategorySidebar(
         Spacer(modifier = Modifier.height(4.dp))
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize().focusRestorer(),
+            modifier = Modifier
+                .fillMaxSize()
+                .onFocusChanged { listHasFocus = it.hasFocus }
+                .then(
+                    if (tvFocusBehavior) {
+                        Modifier.focusProperties {
+                            onEnter = {
+                                if (selectedItemAttached) {
+                                    try { selectedRequester.requestFocus() } catch (_: Exception) {}
+                                }
+                            }
+                        }
+                    } else {
+                        Modifier.focusRestorer()
+                    }
+                ),
             contentPadding = PaddingValues(bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             item(key = "sidebar_cat_all") {
                 val isSelected = selectedCategoryId == "all" || selectedCategoryId.isEmpty()
-                CategoryItem(
-                    name = allLabel,
-                    count = effectiveTotalCount,
-                    icon = Icons.Default.Folder,
-                    iconTint = VegaColors.Accent,
+                SelectedCategoryAnchor(
                     isSelected = isSelected,
-                    onClick = { onCategorySelected("all") }
-                )
+                    requester = selectedRequester,
+                    onAttachedChange = { selectedItemAttached = it }
+                ) {
+                    CategoryItem(
+                        name = allLabel,
+                        count = effectiveTotalCount,
+                        icon = Icons.Default.Folder,
+                        iconTint = VegaColors.Accent,
+                        isSelected = isSelected,
+                        onClick = { selectCategory("all") }
+                    )
+                }
             }
 
             items(safeCategories, key = { "sidebar_cat_${it.id}" }) { cat ->
                 val isSelected = cat.id == selectedCategoryId
-                CategoryItem(
-                    name = cat.name,
-                    count = cat.count,
-                    icon = cat.icon,
-                    iconTint = cat.iconTint,
+                SelectedCategoryAnchor(
                     isSelected = isSelected,
-                    onClick = { onCategorySelected(cat.id) }
-                )
+                    requester = selectedRequester,
+                    onAttachedChange = { selectedItemAttached = it }
+                ) {
+                    CategoryItem(
+                        name = cat.name,
+                        count = cat.count,
+                        icon = cat.icon,
+                        iconTint = cat.iconTint,
+                        isSelected = isSelected,
+                        onClick = { selectCategory(cat.id) }
+                    )
+                }
             }
         }
+    }
+}
+
+/**
+ * G-045: Seçili kategoriye odak bağlantısı. Yapı her durumda aynı kalır (sadece modifier değişir),
+ * böylece seçim değişince öğe yeniden oluşturulmaz ve odak kaybolmaz.
+ */
+@Composable
+private fun SelectedCategoryAnchor(
+    isSelected: Boolean,
+    requester: FocusRequester,
+    onAttachedChange: (Boolean) -> Unit,
+    content: @Composable () -> Unit
+) {
+    DisposableEffect(isSelected) {
+        if (isSelected) onAttachedChange(true)
+        onDispose {
+            if (isSelected) onAttachedChange(false)
+        }
+    }
+    Box(modifier = if (isSelected) Modifier.focusRequester(requester) else Modifier) {
+        content()
     }
 }

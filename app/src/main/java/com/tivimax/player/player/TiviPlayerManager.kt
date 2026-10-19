@@ -453,8 +453,8 @@ class TiviPlayerManager(private val context: Context) {
     private val _bufferedPosition = MutableStateFlow(0L)
     val bufferedPosition: StateFlow<Long> = _bufferedPosition.asStateFlow()
 
-    private var _vodBufferSeconds: Int = 60
-    val vodBufferSecondsState = MutableStateFlow(60)
+    private var _vodBufferSeconds: Int = 180
+    val vodBufferSecondsState = MutableStateFlow(180)
 
     private var _liveBufferSeconds: Int = 2
     val liveBufferSecondsState = MutableStateFlow(2)
@@ -590,6 +590,10 @@ class TiviPlayerManager(private val context: Context) {
         } else {
             val vodMinBufferMs = (_vodBufferSeconds * 1000).coerceAtLeast(15_000)
             val vodMaxBufferMs = (vodMinBufferMs * 2).coerceAtLeast(50_000).coerceAtMost(180_000)
+            // G-045: Uzun ön yükleme cihaz belleğini aşmasın — bellek sınırına gelince süre dolmasa da durur
+            val vodTargetBufferBytes = (Runtime.getRuntime().maxMemory() / 4)
+                .coerceIn(32L * 1024 * 1024, 200L * 1024 * 1024)
+                .toInt()
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
                     /* minBufferMs = */ vodMinBufferMs,
@@ -597,7 +601,8 @@ class TiviPlayerManager(private val context: Context) {
                     /* bufferForPlaybackMs = */ 1_500,
                     /* bufferForPlaybackAfterRebufferMs = */ 2_500
                 )
-                .setPrioritizeTimeOverSizeThresholds(true)
+                .setTargetBufferBytes(vodTargetBufferBytes)
+                .setPrioritizeTimeOverSizeThresholds(false)
                 .setBackBuffer(20_000, true)
                 .build()
         }
@@ -1342,7 +1347,8 @@ class TiviPlayerManager(private val context: Context) {
         val cleanLang = lang?.trim()?.lowercase() ?: ""
         val cleanLabel = label?.trim()?.lowercase() ?: ""
         return when {
-            cleanLang in listOf("tr", "tur", "turkish") || cleanLabel.contains("türk") || cleanLabel.contains("turk") -> "tr"
+            cleanLang in listOf("tr", "tur", "turkish") || cleanLabel.contains("türk") || cleanLabel.contains("turk") ||
+                cleanLabel.contains("dublaj") || cleanLabel == "tr" || cleanLabel.startsWith("tr ") -> "tr"
             cleanLang in listOf("en", "eng", "english") || cleanLabel.contains("ing") || cleanLabel.contains("eng") -> "en"
             cleanLang in listOf("de", "deu", "ger", "german") || cleanLabel.contains("alm") || cleanLabel.contains("ger") -> "de"
             cleanLang in listOf("fr", "fra", "fre", "french") || cleanLabel.contains("fran") || cleanLabel.contains("fren") -> "fr"

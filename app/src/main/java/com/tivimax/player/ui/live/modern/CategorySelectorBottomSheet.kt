@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.live.modern
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,6 +91,7 @@ fun CategorySelectorBottomSheet(
 
             // Kategori İçi Arama Çubuğu
             OutlinedTextField(
+                keyboardOptions = tvKeyboardOptions(),
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = {
@@ -128,7 +131,7 @@ fun CategorySelectorBottomSheet(
                     unfocusedTextColor = Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
+                modifier = Modifier.tvOpenKeyboardOnOk()
                     .fillMaxWidth()
                     .height(48.dp)
             )

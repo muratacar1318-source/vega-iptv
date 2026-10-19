@@ -229,7 +229,7 @@ class UserPreferences(private val context: Context) {
     val seriesSortFlow: Flow<String> = context.appDataStore.data.map { it[KEY_SERIES_SORT] ?: "DEFAULT" }
     val autoSyncLiveFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_SYNC_LIVE] ?: true }
     val autoPipFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_PIP] ?: true }
-    val vodBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_VOD_BUFFER_SECONDS] ?: 60 }
+    val vodBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_VOD_BUFFER_SECONDS] ?: 180 }
     val liveBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_LIVE_BUFFER_SECONDS] ?: 2 }
     val decoderModeFlow: Flow<String> = context.appDataStore.data.map { it[KEY_DECODER_MODE] ?: "HARDWARE" }
 

@@ -127,7 +127,8 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                 onCategorySelected = { viewModel.loadSeriesStreams(it) },
                 title = "KATEGORİLER",
                 totalCount = totalSeriesCount,
-                allLabel = "Tüm Diziler"
+                allLabel = "Tüm Diziler",
+                tvFocusBehavior = com.tivimax.player.util.LocalIsTvDevice.current // G-045
             )
 
             Box(
