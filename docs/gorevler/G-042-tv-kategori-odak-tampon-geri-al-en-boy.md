@@ -170,4 +170,27 @@ Kanal geçişi (G-037), G-038'in OK/saat/tampon-yenileme düzeltmeleri, telefon 
 
 ## Agent raporu
 
-_(Agent doldurur.)_
+- **Yapılan değişiklikler:**
+  - **Bölüm A (Geri alma):**
+    - `LiveBurstTrimmer.kt`, `LiveBurstTrimDataSource.kt`, `LiveBurstTrimmerTest.kt` dosyaları `git rm` ile kaldırıldı.
+    - `TiviPlayerManager.kt` ve `TvPlayerOverlay.kt` dosyaları G-038 durumuna döndürüldü; G-038'deki `liveJump...` değişkenleri, `STATE_BUFFERING` içindeki yeniden deneme bloğu, `playWithFallbacks` içindeki iptal satırları ve `jumpToLive()` fonksiyonu ile `TvPlayerOverlay.kt` içindeki "Canlıya geç" butonu tamamen temizlendi. G-038'deki açılış ölçüm logları korundu.
+  - **Bölüm B (Tampon optimizasyonu):**
+    - `TiviPlayerManager.kt` içindeki `createLoadControl`'de `liveBufferForPlaybackAfterRebuffer` en az 2500 ms (`maxOf(2_500, ...)`) yapılarak art arda takılmalar engellendi.
+    - `DefaultExtractorsFactory`'ye `FLAG_ALLOW_NON_IDR_KEYFRAMES` bayrağı eklenerek TS canlı yayınlarda kanal açılışı hızlandırıldı.
+  - **Bölüm C (En-boy oranı):**
+    - `TvPlayerOverlay.kt` içindeki video `AndroidView` `update` bloğuna telefon oynatıcısındakiyle aynı `resizeMode`, `scaleX`, `scaleY` eşlemeleri eklenerek TV tam ekranda en-boy oranının (Orijinal, Doldur, Zoom, 16:9, 4:3) çalışması sağlandı.
+  - **Bölüm D (Kategorilere odak):**
+    - `HomeScreen.kt` dosyasına `LocalFocusManager` ve `rememberCoroutineScope` eklendi; TV sol menüsünde Canlı TV, Filmler veya Diziler seçildiğinde imlecin otomatik olarak sağdaki kategori sütununa (`FocusDirection.Right`) geçmesi sağlandı.
+- **Değiştirilen ve silinen dosyalar:**
+  - `app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt` (değişti)
+  - `app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt` (değişti)
+  - `app/src/main/java/com/tivimax/player/ui/main/HomeScreen.kt` (değişti)
+  - `app/src/main/java/com/tivimax/player/player/LiveBurstTrimmer.kt` (silindi)
+  - `app/src/main/java/com/tivimax/player/player/LiveBurstTrimDataSource.kt` (silindi)
+  - `app/src/test/java/com/tivimax/player/player/LiveBurstTrimmerTest.kt` (silindi)
+  - `docs/gorevler/G-042-tv-kategori-odak-tampon-geri-al-en-boy.md` (değişti)
+  - `YAPILACAKLAR.md` (değişti)
+- **Test sonuçları:**
+  - `./gradlew compileDebugKotlin`: Başarılı (`BUILD SUCCESSFUL in 24s`).
+  - `./gradlew testDebugUnitTest`: Başarılı (`BUILD SUCCESSFUL in 8s`, 28 testin tümü geçti).
+  - Fiziksel TV / emülatör bağlı olmadığı için ekran üzerinde manuel TV testi yapılamadı (test edilemedi).

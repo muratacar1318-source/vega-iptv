@@ -533,14 +533,7 @@ class TiviPlayerManager(private val context: Context) {
     fun createDataSourceFactory(): DataSource.Factory {
         val okHttpDataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(baseOkHttpClient)
             .setUserAgent(USER_AGENT)
-        val base = DefaultDataSource.Factory(context, okHttpDataSourceFactory)
-        // G-040: Canlı .ts ana yayında bağlantı başındaki eski yayını at (gecikme ~8 sn)
-        return LiveBurstTrimDataSource.Factory(base) { spec ->
-            isLiveStream &&
-                spec.position == 0L &&
-                spec.uri.toString() == currentUrl &&
-                !currentUrl.contains(".m3u8", ignoreCase = true)
-        }
+        return DefaultDataSource.Factory(context, okHttpDataSourceFactory)
     }
 
     private class VodLoadErrorHandlingPolicy(
@@ -582,7 +575,8 @@ class TiviPlayerManager(private val context: Context) {
     private fun createLoadControl(isLive: Boolean): DefaultLoadControl {
         return if (isLive) {
             val liveBufferForPlayback = if (liveBufferSecondsState.value <= 2) 800 else liveBufferSecondsState.value * 1000
-            val liveBufferForPlaybackAfterRebuffer = if (liveBufferSecondsState.value <= 2) 1200 else liveBufferSecondsState.value * 1000 + 500
+            // G-042: Takılmadan sonra en az 2,5 sn tamponla devam et (art arda takılmayı önler)
+            val liveBufferForPlaybackAfterRebuffer = maxOf(2_500, if (liveBufferSecondsState.value <= 2) 1200 else liveBufferSecondsState.value * 1000 + 500)
             DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
                     /* minBufferMs = */ 10_000,
@@ -615,44 +609,6 @@ class TiviPlayerManager(private val context: Context) {
     // G-037: Planlanmış yeniden deneme işi (yeni kanal başlarken iptal edilir)
     private var pendingRetryJob: Job? = null
 
-    // G-039: Canlı gecikme hedefi — fazla tampon hızlandırılarak eritilir
-    private val liveTargetAheadMs = 8_000L
-    private var liveCatchUpSpeed = 1.0f
-    private var liveCatchUpStalls = 0
-    private var liveCatchUpBoost = false
-    private val _liveBehindSecs = MutableStateFlow(0f)
-    val liveBehindSecs: StateFlow<Float> = _liveBehindSecs.asStateFlow()
-    private val _liveCatchingUp = MutableStateFlow(false)
-    val liveCatchingUp: StateFlow<Boolean> = _liveCatchingUp.asStateFlow()
-
-    private fun setCatchUpSpeed(player: ExoPlayer, speed: Float) {
-        liveCatchUpSpeed = speed
-        player.setPlaybackSpeed(speed)
-        _liveCatchingUp.value = speed > 1.0f
-    }
-
-    /** G-039: Konum döngüsünde (250 ms) canlı yayın için çağrılır. */
-    private fun applyLiveCatchUp(player: ExoPlayer) {
-        val ahead = player.totalBufferedDuration.coerceAtLeast(0L)
-        _liveBehindSecs.value = ahead / 1000f
-        val autoAllowed = liveCatchUpStalls < 2
-        if (!player.isPlaying || (!autoAllowed && !liveCatchUpBoost)) {
-            if (liveCatchUpSpeed != 1.0f) setCatchUpSpeed(player, 1.0f)
-            return
-        }
-        val desired = when {
-            ahead <= liveTargetAheadMs -> {
-                liveCatchUpBoost = false
-                1.0f
-            }
-            liveCatchUpBoost -> 2.0f
-            ahead > liveTargetAheadMs + 1_500L -> 1.5f
-            liveCatchUpSpeed > 1.0f -> liveCatchUpSpeed
-            else -> 1.0f
-        }
-        if (desired != liveCatchUpSpeed) setCatchUpSpeed(player, desired)
-    }
-
     // G-038: Açılış ölçümü (sadece geliştirici kurulumunda gösterilir)
     private var dbgFormatMs = -1L
     private var dbgCodec = ""
@@ -666,7 +622,6 @@ class TiviPlayerManager(private val context: Context) {
         if (dbgFormatMs >= 0) parts.add("biçim +${dbgFormatMs}ms ${dbgCodec.substringAfter('/')}")
         if (dbgDecoder.isNotBlank()) parts.add("çözücü $dbgDecoder")
         if (dbgFirstFrameMs >= 0) parts.add("ilk kare +${dbgFirstFrameMs}ms")
-        if (LiveBurstTrimDataSource.lastStatsText.isNotBlank()) parts.add(LiveBurstTrimDataSource.lastStatsText)
         _startupDebugInfo.value = parts.joinToString(" · ")
     }
 
@@ -694,7 +649,10 @@ class TiviPlayerManager(private val context: Context) {
             setExtensionRendererMode(if (_decoderMode == "SOFTWARE") DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
         }
 
-        val mediaSourceFactory = DefaultMediaSourceFactory(createDataSourceFactory())
+        // G-042: TS yayınlarda IDR olmayan anahtar karelerden de başlayabilsin (kanal açılışı hızlanır)
+        val extractorsFactory = androidx.media3.extractor.DefaultExtractorsFactory()
+            .setTsExtractorFlags(androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES)
+        val mediaSourceFactory = DefaultMediaSourceFactory(createDataSourceFactory(), extractorsFactory)
         if (!isLive) {
             mediaSourceFactory.setLoadErrorHandlingPolicy(VodLoadErrorHandlingPolicy(4))
         }
@@ -719,12 +677,6 @@ class TiviPlayerManager(private val context: Context) {
                     Player.STATE_BUFFERING -> {
                         _isBuffering.value = true
                         _errorMessage.value = null
-                        // G-039: Görüntü geldikten sonra takılma → hızlandırmayı say; 2 takılmada otomatik hızlandırma durur
-                        if (isLiveStream && hasRenderedFirstFrameOrReady) {
-                            liveCatchUpStalls++
-                            liveCatchUpBoost = false
-                            exoPlayer?.let { if (liveCatchUpSpeed != 1.0f) setCatchUpSpeed(it, 1.0f) }
-                        }
                     }
                     Player.STATE_READY -> {
                         if (isLiveStream) {
@@ -944,21 +896,12 @@ class TiviPlayerManager(private val context: Context) {
         networkRecoveryAttempt = 0
         decoderRecoveryAttempt = 0
         isReconnecting = false
-        // G-038/G-039: Canlı durum ve açılış ölçümü sıfırla
-        if (liveCatchUpSpeed != 1.0f || isLive) {
-            exoPlayer?.setPlaybackSpeed(if (isLive) 1.0f else _playbackSpeed.value)
-        }
-        liveCatchUpSpeed = 1.0f
-        liveCatchUpStalls = 0
-        liveCatchUpBoost = false
-        _liveCatchingUp.value = false
-        _liveBehindSecs.value = 0f
+        // G-038: Açılış ölçümü sıfırla
         dbgFormatMs = -1L
         dbgCodec = ""
         dbgDecoder = ""
         dbgFirstFrameMs = -1L
         _startupDebugInfo.value = ""
-        LiveBurstTrimDataSource.lastStatsText = ""
         if (BuildConfig.DEBUG) {
             val masked = urls.map { maskUrl(it) }
             Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] playWithFallbacks: isLive=$isLive, urlCount=${urls.size}, startPositionMs=$startPositionMs, urls=$masked")
@@ -1211,19 +1154,6 @@ class TiviPlayerManager(private val context: Context) {
         this.autoSyncLive = enabled
     }
 
-    /**
-     * G-040: "Canlıya geç" — bağlantıyı yeniler; açılış kırpması yayını ~8 sn gecikmeye getirir.
-     */
-    fun jumpToLive() {
-        val player = exoPlayer ?: return
-        if (!isLiveStream || currentUrl.isBlank()) return
-        liveCatchUpBoost = false
-        // G-040: Yeniden bağlan; açılıştaki kırpma yayını ~8 sn gecikmeye getirir
-        player.stop()
-        player.prepare()
-        player.play()
-    }
-
     fun syncToLive(): Boolean {
         val player = exoPlayer ?: return false
         if (!isLiveStream || currentUrl.isBlank()) return false
@@ -1253,8 +1183,6 @@ class TiviPlayerManager(private val context: Context) {
                         if (offset > 0) {
                             _liveOffsetMs.value = offset
                         }
-                        // G-040: Hızlandırma yok; sadece canlıdan gerilik bilgisini güncelle
-                        _liveBehindSecs.value = player.totalBufferedDuration.coerceAtLeast(0L) / 1000f
                     }
                 }
                 delay(250)
