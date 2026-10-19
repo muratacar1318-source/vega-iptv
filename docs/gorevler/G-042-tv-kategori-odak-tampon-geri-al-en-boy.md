@@ -16,13 +16,12 @@
 ---
 
 ## Bölüm A — Geri alma (git ile)
-Main'den dalı açtıktan sonra **aynen** çalıştır:
+Main'den dalı açtıktan sonra **aynen** çalıştır (kod dosyalarını G-038 sonrası hâline döndürür; belgeler etkilenmez):
 ```
-git revert --no-commit 66a7c0e 581261c 97812f4
-git checkout HEAD -- YAPILACAKLAR.md docs/
+git checkout fb2e9e0 -- app/src/main/java/com/tivimax/player/player/TiviPlayerManager.kt app/src/main/java/com/tivimax/player/ui/tv/TvPlayerOverlay.kt
+git rm -q app/src/main/java/com/tivimax/player/player/LiveBurstTrimmer.kt app/src/main/java/com/tivimax/player/player/LiveBurstTrimDataSource.kt app/src/test/java/com/tivimax/player/player/LiveBurstTrimmerTest.kt
 ```
-(Bu, G-041, G-040 ve G-039'un **kod** değişikliklerini geri alır; belge dosyaları olduğu gibi kalır. Çakışma çıkarsa
-DUR ve raporla.) Sonuçta `LiveBurstTrimmer.kt`, `LiveBurstTrimDataSource.kt`, `LiveBurstTrimmerTest.kt` silinmiş olmalı.
+(Claude denedi: G-038'den sonra bu iki dosyayı sadece G-039/G-040/G-041 değiştirmiş; geri dönüş temiz.)
 
 Ardından G-038'in "Canlıya geç" kalıntılarını elle kaldır:
 
