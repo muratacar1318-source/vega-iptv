@@ -609,6 +609,40 @@ class TiviPlayerManager(private val context: Context) {
     // G-037: Planlanmış yeniden deneme işi (yeni kanal başlarken iptal edilir)
     private var pendingRetryJob: Job? = null
 
+    // G-044: Canlı yayın takılma bekçisi — "yükleniyor"da uzun kalırsa aynı kanala yeniden bağlanır
+    private var liveStallJob: Job? = null
+    private var liveStallRecoveries = 0
+
+    private fun cancelLiveStallWatchdog() {
+        liveStallJob?.cancel()
+        liveStallJob = null
+    }
+
+    private fun armLiveStallWatchdog() {
+        cancelLiveStallWatchdog()
+        if (!isLiveStream) return
+        val urlAtArm = currentPlayingUrl ?: return
+        val timeoutMs = if (hasRenderedFirstFrameOrReady) 10_000L else 20_000L
+        liveStallJob = scope.launch {
+            delay(timeoutMs)
+            val p = exoPlayer ?: return@launch
+            if (!isLiveStream || currentPlayingUrl != urlAtArm) return@launch
+            if (p.playbackState != Player.STATE_BUFFERING || !p.playWhenReady) return@launch
+            if (isReconnecting) return@launch
+            if (liveStallRecoveries >= 3) {
+                _errorMessage.value = "Kanal şu an yanıt vermiyor. Biraz sonra tekrar dene ya da başka bir kanal aç."
+                return@launch
+            }
+            liveStallRecoveries++
+            android.util.Log.w("VegaIPTV", "Canlı yayın ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
+            _errorMessage.value = "Yayın yeniden bağlanıyor... ($liveStallRecoveries/3)"
+            p.stop()
+            p.seekToDefaultPosition()
+            p.prepare()
+            p.play()
+        }
+    }
+
     // G-038: Açılış ölçümü (sadece geliştirici kurulumunda gösterilir)
     private var dbgFormatMs = -1L
     private var dbgCodec = ""
@@ -677,8 +711,11 @@ class TiviPlayerManager(private val context: Context) {
                     Player.STATE_BUFFERING -> {
                         _isBuffering.value = true
                         _errorMessage.value = null
+                        armLiveStallWatchdog() // G-044
                     }
                     Player.STATE_READY -> {
+                        cancelLiveStallWatchdog() // G-044
+                        liveStallRecoveries = 0
                         if (isLiveStream) {
                             player.setSeekParameters(SeekParameters.DEFAULT)
                         }
@@ -712,6 +749,7 @@ class TiviPlayerManager(private val context: Context) {
                     }
                     Player.STATE_IDLE -> {
                         _isBuffering.value = false
+                        cancelLiveStallWatchdog() // G-044
                     }
                 }
             }
@@ -740,6 +778,7 @@ class TiviPlayerManager(private val context: Context) {
 
             override fun onPlayerError(error: PlaybackException) {
                 _isBuffering.value = false
+                cancelLiveStallWatchdog() // G-044: hata akışı kendi yeniden denemesini yapar
                 android.util.Log.e("VegaIPTV", "Player error: ${error.errorCodeName} (${error.errorCode})", error)
 
                 val httpStatusCode = extractHttpStatusCode(error)
@@ -893,6 +932,8 @@ class TiviPlayerManager(private val context: Context) {
         // G-037: Önceki kanaldan kalan yeniden deneme işlerini iptal et, sayaçları sıfırla
         pendingRetryJob?.cancel()
         pendingRetryJob = null
+        cancelLiveStallWatchdog() // G-044
+        liveStallRecoveries = 0
         networkRecoveryAttempt = 0
         decoderRecoveryAttempt = 0
         isReconnecting = false
@@ -976,6 +1017,7 @@ class TiviPlayerManager(private val context: Context) {
     }
 
     fun stopAndClear() {
+        cancelLiveStallWatchdog() // G-044
         positionJob?.cancel()
         currentPlayingUrl = null
         exoPlayer?.let {
@@ -1617,6 +1659,7 @@ class TiviPlayerManager(private val context: Context) {
     }
 
     fun release() {
+        cancelLiveStallWatchdog() // G-044
         closeDualView()
         cancelSleepTimer()
         stopPositionUpdates()
