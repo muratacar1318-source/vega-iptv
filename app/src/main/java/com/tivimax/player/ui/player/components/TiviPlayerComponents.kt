@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.player.components
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import android.content.res.Configuration
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -220,6 +222,7 @@ fun TiviOverlayGuide(
                     ) {
                         // Kanal Arama
                         OutlinedTextField(
+                            keyboardOptions = tvKeyboardOptions(),
                             value = channelSearchQuery,
                             onValueChange = { channelSearchQuery = it },
                             placeholder = { Text("Kanal ara...", fontSize = VegaText.Caption, color = VegaColors.TextMuted) },
@@ -234,7 +237,7 @@ fun TiviOverlayGuide(
                                 unfocusedContainerColor = VegaColors.SurfaceVariant
                             ),
                             shape = VegaShapes.Medium,
-                            modifier = Modifier
+                            modifier = Modifier.tvOpenKeyboardOnOk()
                                 .fillMaxWidth()
                                 .height(44.dp)
                         )

@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.live
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.activity.compose.BackHandler
 import com.tivimax.player.util.LocalIsTvDevice
 import android.content.res.Configuration
@@ -294,13 +296,13 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                             isError = parentalPinError,
                             singleLine = true,
                             placeholder = { Text("****") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
                             visualTransformation = PasswordVisualTransformation(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = OpusCyan,
                                 errorBorderColor = Color.Red
                             ),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
                         )
                         if (parentalPinError) {
                             Spacer(modifier = Modifier.height(4.dp))

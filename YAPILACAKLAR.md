@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-045 | TV: kanal listesinde OK'sız geçiş, klavye OK ile açılsın, kategori odağı; altyazı geri açılma hatası; film/dizi tamponu 180 sn — [görev](docs/gorevler/G-045-tv-liste-klavye-kategori-altyazi-tampon.md) | 🔴 | 🟢 Hazır — agent başlayabilir |
+| G-045 | TV: kanal listesinde OK'sız geçiş, klavye OK ile açılsın, kategori odağı; altyazı geri açılma hatası; film/dizi tamponu 180 sn — [görev](docs/gorevler/G-045-tv-liste-klavye-kategori-altyazi-tampon.md) | 🔴 | 🔄 Agent bitirdi — Claude kontrol edecek |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 

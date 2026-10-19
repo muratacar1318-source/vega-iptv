@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.live.modern
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -97,9 +99,9 @@ fun LiveTvTopBar(
                                 fontSize = 12.5.sp
                             ),
                             cursorBrush = SolidColor(OpusCyan),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
                             keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
                         )
                     }
                     if (searchQuery.isNotEmpty()) {

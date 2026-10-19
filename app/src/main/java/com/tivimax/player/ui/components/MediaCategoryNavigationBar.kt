@@ -375,6 +375,7 @@ fun MediaCategoryBottomSheet(
 
             // Arama Kutusu
             OutlinedTextField(
+                keyboardOptions = tvKeyboardOptions(),
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 placeholder = { Text("Kategori ara...", color = TiviTextSecondary, fontSize = 13.sp) },
@@ -408,7 +409,7 @@ fun MediaCategoryBottomSheet(
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White
                 ),
-                modifier = Modifier
+                modifier = Modifier.tvOpenKeyboardOnOk()
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
             )

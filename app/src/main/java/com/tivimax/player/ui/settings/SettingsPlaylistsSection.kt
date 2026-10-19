@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.settings
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -352,6 +354,7 @@ fun PlaylistFormDialog(
 
                 // Liste Adı
                 OutlinedTextField(
+                    keyboardOptions = tvKeyboardOptions(),
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Liste adı") },
@@ -368,7 +371,7 @@ fun PlaylistFormDialog(
                         unfocusedTextColor = VegaColors.TextPrimary
                     ),
                     shape = VegaShapes.Medium,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
                 )
 
                 // Sunucu Seçimi
@@ -401,6 +404,7 @@ fun PlaylistFormDialog(
                 // Başka Sunucu Adresi Girişi
                 if (isCustomServer) {
                     OutlinedTextField(
+                        keyboardOptions = tvKeyboardOptions(),
                         value = customServerUrl,
                         onValueChange = { customServerUrl = it },
                         label = { Text("Sunucu adresi") },
@@ -420,12 +424,13 @@ fun PlaylistFormDialog(
                             unfocusedTextColor = VegaColors.TextPrimary
                         ),
                         shape = VegaShapes.Medium,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
                     )
                 }
 
                 // Kullanıcı Adı
                 OutlinedTextField(
+                    keyboardOptions = tvKeyboardOptions(),
                     value = username,
                     onValueChange = { username = it },
                     label = { Text("Kullanıcı adı") },
@@ -444,7 +449,7 @@ fun PlaylistFormDialog(
                         unfocusedTextColor = VegaColors.TextPrimary
                     ),
                     shape = VegaShapes.Medium,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
                 )
 
                 // Şifre
@@ -477,8 +482,8 @@ fun PlaylistFormDialog(
                         unfocusedTextColor = VegaColors.TextPrimary
                     ),
                     shape = VegaShapes.Medium,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    modifier = Modifier.fillMaxWidth()
+                    keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.Password)),
+                    modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))

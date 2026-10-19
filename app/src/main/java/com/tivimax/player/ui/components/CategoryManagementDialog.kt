@@ -161,6 +161,7 @@ fun CategoryManagementDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
+                        keyboardOptions = tvKeyboardOptions(),
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         placeholder = { Text("Kategori ara...", fontSize = 13.sp, color = VegaColors.TextMuted) },
@@ -181,7 +182,7 @@ fun CategoryManagementDialog(
                             focusedContainerColor = VegaColors.Card,
                             unfocusedContainerColor = VegaColors.Card
                         ),
-                        modifier = Modifier
+                        modifier = Modifier.tvOpenKeyboardOnOk()
                             .weight(1f)
                             .height(48.dp),
                         shape = VegaShapes.Medium

@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.search
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -165,14 +167,14 @@ fun UniversalSearchScreen(
                                         fontSize = 14.sp
                                     ),
                                     cursorBrush = SolidColor(VegaColors.Accent),
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                    keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
                                     keyboardActions = KeyboardActions(
                                         onSearch = {
                                             focusManager.clearFocus()
                                             viewModel.saveRecentSearch(searchQuery)
                                         }
                                     ),
-                                    modifier = Modifier
+                                    modifier = Modifier.tvOpenKeyboardOnOk()
                                         .fillMaxWidth()
                                         .focusRequester(searchFocusRequester)
                                 )

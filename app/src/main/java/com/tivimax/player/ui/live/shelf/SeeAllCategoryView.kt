@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.live.shelf
 
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -149,7 +151,7 @@ fun SeeAllCategoryView(
                 }
             },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
             keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = TiviCard,
@@ -160,7 +162,7 @@ fun SeeAllCategoryView(
                 unfocusedTextColor = Color.White
             ),
             shape = RoundedCornerShape(10.dp),
-            modifier = Modifier
+            modifier = Modifier.tvOpenKeyboardOnOk()
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .height(50.dp)
