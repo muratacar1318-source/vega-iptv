@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-045 | TV: kanal listesinde OK'sız geçiş, klavye OK ile açılsın, kategori odağı; altyazı geri açılma hatası; film/dizi tamponu 180 sn — [görev](docs/gorevler/G-045-tv-liste-klavye-kategori-altyazi-tampon.md) | 🔴 | 🔄 Agent bitirdi — Claude kontrol edecek |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -50,6 +49,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-045 | TV: kanal listesinde OK'sız geçiş, klavye OK ile açılır, kategori odağı; altyazı geri açılma düzeltmesi; film/dizi tamponu 180 sn — PR #54 | 19 Ekim |
 | G-044 | Canlı yayın takılma bekçisi (uzun takılmada otomatik yeniden bağlanma) — PR #53 | 19 Ekim |
 | G-043 | Ayarlar → Oynatıcı: "Canlı yayın biçimi" seçeneği (Standart / HLS) — PR #52 | 19 Ekim |
 | G-042 | TV: sekmede kategorilere odak; canlıya yetişme (G-039/40/41) geri alındı + tampon iyileştirme; TV en-boy oranı — PR #51 | 19 Ekim |
