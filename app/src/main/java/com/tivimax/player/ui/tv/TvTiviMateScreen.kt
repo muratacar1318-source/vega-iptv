@@ -66,6 +66,8 @@ fun TvTiviMateScreen(
     val recentChannels by viewModel.recentChannels.collectAsState()
 
     val activePreviewChannel by viewModel.activePreviewChannel.collectAsState()
+    // G-046: Önizlemede oynatma hatası / yeniden bağlanma mesajı
+    val previewError by viewModel.playerManager.errorMessage.collectAsState()
     val epgSummaryMap by viewModel.epgSummaryMap.collectAsState()
     val currentEpgList by viewModel.currentEpgList.collectAsState()
 
@@ -558,6 +560,25 @@ fun TvTiviMateScreen(
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
+                        }
+
+                        // G-046: Önizlemede hata mesajı
+                        previewError?.let { msg ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.6f))
+                                    .padding(12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = msg,
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = VegaText.Caption,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
                         }
 
                         // Canlı & Tam Ekran İpucu Rozeti

@@ -880,15 +880,19 @@ class TiviPlayerManager(private val context: Context) {
                     return
                 }
 
+                // G-046: Kullanıcıya teknik kod gösterme; sade Türkçe mesaj
                 val errorDesc = when (error.errorCode) {
-                    PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND ->
-                        "Yayın veya video dosyası bulunamadı (404)."
+                    PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND,
+                    PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ->
+                        "Bu yayın şu an açılamıyor. Biraz sonra tekrar dene ya da başka bir içerik seç."
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
-                        "Bağlantı hatası: Sunucuya ulaşılamıyor. Lütfen internetinizi kontrol edin."
-                    PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED ->
-                        "Desteklenmeyen video formatı."
-                    else -> "Yayın oynatılamıyor: (${error.errorCodeName})"
+                        "Sunucuya ulaşılamıyor. İnternetini kontrol edip tekrar dene."
+                    PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED,
+                    PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
+                    PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED ->
+                        "Bu yayının biçimi cihazında desteklenmiyor."
+                    else -> "Yayın oynatılamıyor. Biraz sonra tekrar dene."
                 }
                 _errorMessage.value = errorDesc
             }
@@ -1349,7 +1353,8 @@ class TiviPlayerManager(private val context: Context) {
         return when {
             cleanLang in listOf("tr", "tur", "turkish") || cleanLabel.contains("türk") || cleanLabel.contains("turk") ||
                 cleanLabel.contains("dublaj") || cleanLabel == "tr" || cleanLabel.startsWith("tr ") -> "tr"
-            cleanLang in listOf("en", "eng", "english") || cleanLabel.contains("ing") || cleanLabel.contains("eng") -> "en"
+            cleanLang in listOf("en", "eng", "english") || cleanLabel.contains("ing") || cleanLabel.contains("eng") ||
+                cleanLabel.contains("ngiliz") -> "en" // G-046: "İngilizce" küçük harfe çevrilince "ing" aranamıyordu
             cleanLang in listOf("de", "deu", "ger", "german") || cleanLabel.contains("alm") || cleanLabel.contains("ger") -> "de"
             cleanLang in listOf("fr", "fra", "fre", "french") || cleanLabel.contains("fran") || cleanLabel.contains("fren") -> "fr"
             cleanLang in listOf("es", "spa", "spanish") || cleanLabel.contains("ispan") || cleanLabel.contains("span") -> "es"

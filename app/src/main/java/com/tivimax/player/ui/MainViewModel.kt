@@ -2224,6 +2224,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // G-047: Dizi detayında son seçilen sezon (dizi kimliği → sezon). Uygulama açıkken hatırlanır.
+    val lastSelectedSeasonBySeries = mutableMapOf<Int, String>()
+
+    // G-046: TV'de hata ekranında OK → aynı kanalı baştan aç
+    fun retryLiveChannel(channel: LiveStream) {
+        tvZapJob?.cancel()
+        playerManager.stopAndClear()
+        previewChannel(channel)
+    }
+
     // G-045: TV kanal listesinde (◀) gezinirken kanalı OK'a basmadan aç.
     // Hızlı gezinmede sadece en son durulan kanala bağlanılır (scheduleTvZap ile aynı bekleme).
     fun tvGuidePreviewChannel(channel: LiveStream) {
