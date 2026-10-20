@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-047 | TV canlı ekranındaki orta kanal listesinde de OK'sız önizleme (G-045'teki gibi gezinince kanal açılsın) | 🟡 | ⏸️ Kullanıcı kararı bekliyor — **agent başlamasın** |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -114,6 +113,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 - **Samsung Tizen / LG webOS sürümü.**
 
 ## 💡 Fikirler
+
+- Karar (20 Ekim): TV canlı ana ekranındaki orta kanal listesi böyle kalacak — 1. OK önizlemede açar, 2. OK tam ekran. (G-047 iptal)
 
 - (Referans: Extreme InfiniTV) TV raflarında odaklanan kartın komşu afişlerini önceden yükleme (kaydırma akıcılığı)
 - (Referans) Canlı kanal adresi belirsizse içerik türünü (HLS / TS) sunucudan sorup doğru oynatıcı yolunu seçme; TS açılmazsa HLS ile tekrar deneme
