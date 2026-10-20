@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-046 | Genel kontrol: TV'de hata mesajı görünür (OK = tekrar dene), sade hata metinleri, TV odak hafızası (sezon/bölüm/arama), dizide kaldığın bölüm ve sezon — [görev](docs/gorevler/G-046-genel-kontrol-duzeltmeleri.md) | 🟠 | 🔄 Agent bitirdi — Claude kontrol edecek |
 | G-047 | TV canlı ekranındaki orta kanal listesinde de OK'sız önizleme (G-045'teki gibi gezinince kanal açılsın) | 🟡 | ⏸️ Kullanıcı kararı bekliyor — **agent başlamasın** |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
@@ -51,6 +50,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-046 | Genel kontrol: TV'de hata mesajı görünür (OK = tekrar dene), sade hata metinleri, TV odak hafızası, dizide kaldığın bölüm ve sezon — PR #55 | 20 Ekim |
 | G-045 | TV: kanal listesinde OK'sız geçiş, klavye OK ile açılır, kategori odağı; altyazı geri açılma düzeltmesi; film/dizi tamponu 180 sn — PR #54 | 19 Ekim |
 | G-044 | Canlı yayın takılma bekçisi (uzun takılmada otomatik yeniden bağlanma) — PR #53 | 19 Ekim |
 | G-043 | Ayarlar → Oynatıcı: "Canlı yayın biçimi" seçeneği (Standart / HLS) — PR #52 | 19 Ekim |
