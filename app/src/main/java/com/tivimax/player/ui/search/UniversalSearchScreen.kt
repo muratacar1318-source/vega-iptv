@@ -1,5 +1,8 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+
 package com.tivimax.player.ui.search
 
+import androidx.compose.ui.focus.focusRestorer
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.activity.compose.BackHandler
@@ -591,7 +594,7 @@ private fun SearchResultsContent(
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 14.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().focusRestorer() // G-047
                         ) {
                             items(vodResults, key = { "vod_${it.streamId}" }) { vod ->
                                 Box(modifier = Modifier.width(115.dp)) {
@@ -621,7 +624,7 @@ private fun SearchResultsContent(
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 14.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().focusRestorer() // G-047
                         ) {
                             items(seriesResults, key = { "series_${it.seriesId}" }) { series ->
                                 Box(modifier = Modifier.width(115.dp)) {

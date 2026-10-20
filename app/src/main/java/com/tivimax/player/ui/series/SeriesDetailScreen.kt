@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+
 package com.tivimax.player.ui.series
 
 import android.content.res.Configuration
@@ -23,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -72,8 +75,32 @@ fun SeriesDetailScreen(
         episodesMap.keys.sortedBy { it.toIntOrNull() ?: 1 }
     }
 
+    // G-047: "Oynat" kaldığın bölümü açsın — en son izlenen bölüm; o bölüm bitmişse sıradaki bölüm
+    val resumeEpisode = remember(episodesMap, seasonKeys, watchProgressMap) {
+        val all = seasonKeys.flatMap { episodesMap[it] ?: emptyList() }
+        val last = all
+            .filter { watchProgressMap[it.id] != null }
+            .maxByOrNull { watchProgressMap[it.id]?.timestamp ?: 0L }
+        when {
+            last == null -> null
+            watchProgressMap[last.id]?.isWatched == true -> all.getOrNull(all.indexOf(last) + 1) ?: last
+            else -> last
+        }
+    }
+
+    // G-047: Oynatıcıdan dönünce aynı sezon açık kalsın (son seçilen sezon hatırlanır;
+    // hiç seçilmediyse kaldığın bölümün sezonu açılır)
     var selectedSeason by remember(seasonKeys) {
-        mutableStateOf(seasonKeys.firstOrNull() ?: "1")
+        mutableStateOf(
+            viewModel.lastSelectedSeasonBySeries[series.seriesId]?.takeIf { it in seasonKeys }
+                ?: resumeEpisode?.season?.toString()?.takeIf { it in seasonKeys }
+                ?: seasonKeys.firstOrNull() ?: "1"
+        )
+    }
+    LaunchedEffect(selectedSeason, seasonKeys) {
+        if (selectedSeason in seasonKeys) {
+            viewModel.lastSelectedSeasonBySeries[series.seriesId] = selectedSeason
+        }
     }
 
     val episodesForSeason = remember(episodesMap, selectedSeason) {
@@ -222,7 +249,7 @@ fun SeriesDetailScreen(
 
                     // Oynat Butonu
                     if (episodesForSeason.isNotEmpty()) {
-                        val nextEp = episodesForSeason.first()
+                        val nextEp = resumeEpisode ?: episodesForSeason.first() // G-047
                         val nextEpProgress = watchProgressMap[nextEp.id]
                         val hasNextProgress = nextEpProgress != null && nextEpProgress.positionMs > 10_000L && nextEpProgress.durationMs > 0
                         Button(
@@ -247,7 +274,7 @@ fun SeriesDetailScreen(
                                     val secs = ((nextEpProgress.positionMs % 60000) / 1000)
                                     "Devam et (${String.format("%02d:%02d", mins, secs)})"
                                 } else {
-                                    "Sezon $selectedSeason, ${nextEp.episodeNum}. bölümü başlat"
+                                    "Sezon ${nextEp.season}, ${nextEp.episodeNum}. bölümü başlat"
                                 },
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
@@ -365,7 +392,7 @@ fun SeriesDetailScreen(
                     if (seasonKeys.isNotEmpty()) {
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().focusRestorer() // G-047
                         ) {
                             items(seasonKeys) { seasonNum ->
                                 val isSelected = seasonNum == selectedSeason
@@ -411,7 +438,8 @@ fun SeriesDetailScreen(
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f),
+                                .weight(1f)
+                                .focusRestorer(), // G-047
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             contentPadding = PaddingValues(bottom = 16.dp)
                         ) {
@@ -486,7 +514,7 @@ fun SeriesDetailScreen(
 
                     // 1. Bölümü Oynat Butonu
                     if (episodesForSeason.isNotEmpty()) {
-                        val nextEp = episodesForSeason.first()
+                        val nextEp = resumeEpisode ?: episodesForSeason.first() // G-047
                         val nextEpProgress = watchProgressMap[nextEp.id]
                         val hasNextProgress = nextEpProgress != null && nextEpProgress.positionMs > 10_000L && nextEpProgress.durationMs > 0
                         Button(
@@ -511,7 +539,7 @@ fun SeriesDetailScreen(
                                     val secs = ((nextEpProgress.positionMs % 60000) / 1000)
                                     "Devam et (${String.format("%02d:%02d", mins, secs)})"
                                 } else {
-                                    "Sezon $selectedSeason, ${nextEp.episodeNum}. bölümü başlat"
+                                    "Sezon ${nextEp.season}, ${nextEp.episodeNum}. bölümü başlat"
                                 },
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
@@ -560,7 +588,7 @@ fun SeriesDetailScreen(
                     if (seasonKeys.isNotEmpty()) {
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().focusRestorer() // G-047
                         ) {
                             items(seasonKeys) { seasonNum ->
                                 val isSelected = seasonNum == selectedSeason

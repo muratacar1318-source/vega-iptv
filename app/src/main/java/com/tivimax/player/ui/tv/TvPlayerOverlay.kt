@@ -95,6 +95,8 @@ fun TvPlayerOverlay(
     val subtitleSize by viewModel.subtitleSize.collectAsState()
     val anySubSelected = subtitleTracks.any { it.isSelected }
     val startupDebugInfo by playerManager.startupDebugInfo.collectAsState()
+    // G-046: Oynatma hatası / yeniden bağlanma mesajı TV'de de görünsün
+    val playerError by playerManager.errorMessage.collectAsState()
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -270,6 +272,11 @@ fun TvPlayerOverlay(
                         if (keyEvent.nativeKeyEvent.repeatCount > 0) {
                             return@onPreviewKeyEvent true
                         }
+                        // G-046: Hata mesajı varken OK kanalı yeniden açar
+                        if (playerError != null) {
+                            viewModel.retryLiveChannel(activeChannel)
+                            return@onPreviewKeyEvent true
+                        }
                         // G-038: OK yayını durdurmaz; bilgi kartını açar/kapatır
                         showInfoCard = !showInfoCard
                         return@onPreviewKeyEvent true
@@ -378,6 +385,40 @@ fun TvPlayerOverlay(
         if (isBuffering) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = VegaColors.Accent, strokeWidth = 3.dp, modifier = Modifier.size(54.dp))
+            }
+        }
+
+        // G-046: HATA / YENİDEN BAĞLANMA MESAJI
+        playerError?.let { msg ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 140.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.OverlayPanel,
+                    border = BorderStroke(1.dp, VegaColors.Border)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = msg,
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.Secondary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "OK: Tekrar dene   ▲▼: Kanal değiştir",
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Caption
+                        )
+                    }
+                }
             }
         }
 

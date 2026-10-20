@@ -247,7 +247,14 @@ class XtreamRepository(private val context: Context? = null) {
             if (authResponse?.userInfo?.auth == 1) {
                 Result.success(authResponse)
             } else {
-                val errorMsg = authResponse?.userInfo?.message ?: "Giriş başarısız. Kullanıcı adı veya şifre hatalı."
+                // G-046: Sunucunun (çoğu zaman İngilizce) mesajını gösterme; sade Türkçe mesaj
+                val status = authResponse?.userInfo?.status?.lowercase() ?: ""
+                val errorMsg = when {
+                    status.contains("expired") -> "Aboneliğinin süresi dolmuş. Sağlayıcınla iletişime geç."
+                    status.contains("banned") || status.contains("disabled") ->
+                        "Bu hesap şu an kullanıma kapalı. Sağlayıcınla iletişime geç."
+                    else -> "Giriş başarısız. Kullanıcı adı veya şifre hatalı."
+                }
                 Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
