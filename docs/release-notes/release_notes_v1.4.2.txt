@@ -1,0 +1,8 @@
+- TV: Kanallar numara sırasında diziliyor ve klavye OK tuşuyla kolayca açılıyor.
+- TV: Menüler, kategoriler ve oynatıcı arasında gezinme iyileştirildi; kaldığın yer hafızada tutuluyor.
+- TV: Hızlı kanal değiştirmede yaşanan kesintiler ve siyah ekranlar düzeltildi.
+- Ayarlar -> Oynatıcı menüsüne yeni "Canlı yayın biçimi" (Standart / HLS) seçeneği eklendi.
+- Canlı yayında donma/takılma olursa artık yuvarlak sonsuza kadar dönmüyor; kendi kendine hızlıca yeniden bağlanıyor.
+- Film ve dizilerde hafıza/önbellek sınırı artırıldı, uzun süreli oynatmalar daha pürüzsüz hale geldi.
+- Hata mesajları sadeleştirildi; teknik kelimeler yerine daha anlaşılır yönlendirmeler eklendi.
+- Dizilerde kaldığın bölüm ve sezon doğru şekilde hatırlanıp otomatik seçiliyor.
