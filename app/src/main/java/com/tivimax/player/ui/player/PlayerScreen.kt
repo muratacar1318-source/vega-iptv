@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.player
 
+import com.tivimax.player.MainActivity
+import android.app.RemoteAction
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import android.app.Activity
@@ -150,6 +152,7 @@ fun PlayerScreen(
     val duration by playerManager.duration.collectAsState()
     val bufferedPosition by playerManager.bufferedPosition.collectAsState()
     val errorMessage by playerManager.errorMessage.collectAsState()
+    val reconnectStatus by playerManager.reconnectStatus.collectAsState()
     val aspectRatio by playerManager.aspectRatio.collectAsState()
     val audioTracks by playerManager.audioTracks.collectAsState()
     val subtitleTracks by playerManager.subtitleTracks.collectAsState()
@@ -441,6 +444,7 @@ fun PlayerScreen(
 
     val isInPipMode by viewModel.isInPipMode.collectAsState()
     val autoPipEnabled by viewModel.autoPipEnabled.collectAsState()
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
     // Altyazı Tercihleri (Boyut & Renk)
     val subtitleSize by viewModel.subtitleSize.collectAsState()
@@ -524,16 +528,23 @@ fun PlayerScreen(
         }
     }
 
-    // Lifecycle Observer (Arka plana atıldığında PiP açık değilse videoyu duraklat)
+    // Lifecycle Observer (Arka plana atıldığında PiP veya çoklu pencere açık değilse videoyu duraklat)
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, isInPipMode) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
-                if (!isInPipMode) {
+            val inPip = (activity?.let {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && it.isInPictureInPictureMode
+            } ?: false) || isInPipMode
+            val inMultiWindow = activity?.let {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && it.isInMultiWindowMode
+            } ?: false
+
+            if (event == Lifecycle.Event.ON_STOP) {
+                if (!inPip && !inMultiWindow) {
                     playerManager.pause()
                 }
             } else if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
-                if (!isControlsLocked && !isInPipMode && isLive) {
+                if (!isControlsLocked && isLive) {
                     playerManager.play()
                 }
             }
@@ -541,6 +552,28 @@ fun PlayerScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // PiP moduna geçildiğinde tüm panelleri kapat ve oynatmayı sürdür
+    LaunchedEffect(isInPipMode) {
+        if (isInPipMode) {
+            showControls = false
+            showBottomInfoCard = false
+            showSettingsPanel = false
+            showMoreSheet = false
+            showEpisodesDrawer = false
+            showDualViewPicker = false
+            showChannelDrawer = false
+            showOverlayGuide = false
+            showRecentChannelsBar = false
+            showNumericKeypad = false
+            showSleepTimerDialog = false
+            showCategoryManagementDialog = false
+            showLockBanner = false
+            if (!playerManager.isPlaying.value) {
+                playerManager.play()
+            }
         }
     }
 
@@ -557,7 +590,7 @@ fun PlayerScreen(
     }
 
     // Android 12+ (API 31+) için Otomatik PiP Kaydı (Sistem Seviyesi Akıcı Animasyon)
-    DisposableEffect(isPlaying, autoPipEnabled, isLive) {
+    DisposableEffect(isPlaying, autoPipEnabled, isLive, playerViewRef) {
         val isTv = activity?.let { act ->
             val uiModeManager = act.getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager
             val isTvMode = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
@@ -566,15 +599,31 @@ fun PlayerScreen(
             isTvMode || hasLeanback || hasNoTouch
         } ?: false
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && activity != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
             try {
                 val hasPip = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
                 if (hasPip) {
-                    val params = PictureInPictureParams.Builder()
-                        .setAspectRatio(Rational(16, 9))
-                        .setAutoEnterEnabled(!isTv && autoPipEnabled && isPlaying && isLive)
-                        .build()
-                    activity.setPictureInPictureParams(params)
+                    val rational = MainActivity.calculatePipAspectRatio(playerManager.player)
+                    val builder = PictureInPictureParams.Builder()
+                        .setAspectRatio(rational)
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        builder.setAutoEnterEnabled(!isTv && autoPipEnabled && isPlaying && isLive)
+                        playerViewRef?.let { view ->
+                            val rect = android.graphics.Rect()
+                            view.getGlobalVisibleRect(rect)
+                            if (!rect.isEmpty) {
+                                builder.setSourceRectHint(rect)
+                            }
+                        }
+                    }
+
+                    val action = MainActivity.createPipPlayPauseAction(activity, isPlaying)
+                    if (action != null) {
+                        builder.setActions(listOf(action))
+                    }
+
+                    activity.setPictureInPictureParams(builder.build())
                 }
             } catch (e: Throwable) {
                 // Ignore unsupported devices / ROMs
@@ -974,7 +1023,7 @@ fun PlayerScreen(
                 }
             }
     ) {
-        if (!isDualViewActive) {
+        if (!isDualViewActive || isInPipMode) {
             // Media3 ExoPlayer Video Render View (İzole Edilmiş Yüzey - HUD/Zaman recomposition'larından asla etkilenmez)
             VideoPlayerSurface(
                 playerManager = playerManager,
@@ -983,6 +1032,9 @@ fun PlayerScreen(
                 subtitleColor = subtitleColor,
                 subtitleSize = subtitleSize,
                 subtitleDelayMs = subtitleDelayMs,
+                isInPipMode = isInPipMode,
+                onPlayerViewCreated = { playerViewRef = it },
+                onPlayerViewReleased = { playerViewRef = null },
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -1016,54 +1068,90 @@ fun PlayerScreen(
             )
         }
 
-        // Hata Bildirimi Overlay
-        errorMessage?.let { error ->
+        // Yeniden Bağlanma Bildirimi (Tam ekranı karartmadan, zarif hap bildirim)
+        if (reconnectStatus != null && !isInPipMode) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.85f)),
-                contentAlignment = Alignment.Center
+                    .padding(bottom = if (isPortrait) 72.dp else 48.dp),
+                contentAlignment = Alignment.BottomCenter
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(24.dp)
+                Surface(
+                    shape = VegaShapes.Pill,
+                    color = Color.Black.copy(alpha = 0.8f),
+                    border = BorderStroke(1.dp, VegaColors.Border)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = TiviAccentLive,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = error,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(
-                            onClick = { playerManager.retryCurrent() },
-                            colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary, contentColor = VegaColors.OnAccent),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Tekrar Dene")
-                        }
-                        OutlinedButton(
-                            onClick = { playerManager.retryNextFallback() },
-                            shape = RoundedCornerShape(10.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary)
-                        ) {
-                            Text("Alternatif Akış Dene", color = TiviPrimary)
-                        }
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = TiviPrimary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = reconnectStatus!!,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    TextButton(onClick = onBack) {
-                        Text("Listeye Geri Dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                }
+            }
+        }
+
+        // Hata Bildirimi Overlay (Yalnızca tüm otomatik denemeler tükendiğinde ve PiP dışında)
+        if (errorMessage != null && reconnectStatus == null && !isInPipMode) {
+            errorMessage?.let { error ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.85f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = TiviAccentLive,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = error,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(
+                                onClick = { playerManager.retryCurrent() },
+                                colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary, contentColor = VegaColors.OnAccent),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Tekrar Dene")
+                            }
+                            OutlinedButton(
+                                onClick = { playerManager.retryNextFallback() },
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary)
+                            ) {
+                                Text("Alternatif Akış Dene", color = TiviPrimary)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(onClick = onBack) {
+                            Text("Listeye Geri Dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                        }
                     }
                 }
             }
@@ -1506,10 +1594,23 @@ fun PlayerScreen(
                                     BouncyIconButton(
                                         onClick = {
                                             try {
-                                                val params = PictureInPictureParams.Builder()
-                                                    .setAspectRatio(Rational(16, 9))
-                                                    .build()
-                                                activity.enterPictureInPictureMode(params)
+                                                val rational = MainActivity.calculatePipAspectRatio(playerManager.player)
+                                                val builder = PictureInPictureParams.Builder()
+                                                    .setAspectRatio(rational)
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                                    playerViewRef?.let { view ->
+                                                        val rect = android.graphics.Rect()
+                                                        view.getGlobalVisibleRect(rect)
+                                                        if (!rect.isEmpty) {
+                                                            builder.setSourceRectHint(rect)
+                                                        }
+                                                    }
+                                                }
+                                                val action = MainActivity.createPipPlayPauseAction(activity, isPlaying)
+                                                if (action != null) {
+                                                    builder.setActions(listOf(action))
+                                                }
+                                                activity.enterPictureInPictureMode(builder.build())
                                             } catch (e: Throwable) {
                                                 // Ignore
                                             }
@@ -1636,10 +1737,23 @@ fun PlayerScreen(
                                 BouncyIconButton(
                                     onClick = {
                                         try {
-                                            val params = PictureInPictureParams.Builder()
-                                                .setAspectRatio(Rational(16, 9))
-                                                .build()
-                                            activity.enterPictureInPictureMode(params)
+                                            val rational = MainActivity.calculatePipAspectRatio(playerManager.player)
+                                            val builder = PictureInPictureParams.Builder()
+                                                .setAspectRatio(rational)
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                                playerViewRef?.let { view ->
+                                                    val rect = android.graphics.Rect()
+                                                    view.getGlobalVisibleRect(rect)
+                                                    if (!rect.isEmpty) {
+                                                        builder.setSourceRectHint(rect)
+                                                    }
+                                                }
+                                            }
+                                            val action = MainActivity.createPipPlayPauseAction(activity, isPlaying)
+                                            if (action != null) {
+                                                builder.setActions(listOf(action))
+                                            }
+                                            activity.enterPictureInPictureMode(builder.build())
                                         } catch (e: Throwable) {
                                             // Ignore
                                         }
@@ -3265,6 +3379,13 @@ fun DualViewChannelPicker(
         onClose = onDismiss,
         isPortrait = isPortrait
     ) {
+        Text(
+            text = "Not: Çift ekran aynı anda 2 bağlantı kullanır; sağlayıcınızın çoklu bağlantıyı desteklemesi gerekir.",
+            color = VegaColors.TextMuted,
+            fontSize = VegaText.Secondary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
         // Arama Çubuğu
         OutlinedTextField(
             keyboardOptions = tvKeyboardOptions(),
@@ -3383,6 +3504,9 @@ private fun VideoPlayerSurface(
     subtitleColor: String,
     subtitleSize: String,
     subtitleDelayMs: Long = 0L,
+    isInPipMode: Boolean = false,
+    onPlayerViewCreated: ((PlayerView) -> Unit)? = null,
+    onPlayerViewReleased: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -3397,10 +3521,10 @@ private fun VideoPlayerSurface(
         }
     }
 
-    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+    var localPlayerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
-    LaunchedEffect(playerViewRef) {
-        val view = playerViewRef ?: return@LaunchedEffect
+    LaunchedEffect(localPlayerViewRef) {
+        val view = localPlayerViewRef ?: return@LaunchedEffect
         // İlk karede ve Crossfade bittikten sonra yüzeyi garantiye almak için yeniden talep
         delay(350L)
         playerManager.attachView(view, isPrimary = true, tag = "VideoPlayerSurface-delay350")
@@ -3409,7 +3533,8 @@ private fun VideoPlayerSurface(
     AndroidView(
         factory = { ctx ->
             PlayerView(ctx).apply {
-                playerViewRef = this
+                localPlayerViewRef = this
+                onPlayerViewCreated?.invoke(this)
                 useController = false
                 keepScreenOn = true
                 setKeepContentOnPlayerReset(true)
@@ -3421,12 +3546,16 @@ private fun VideoPlayerSurface(
                 )
                 val initialPlayer = playerManager.initializePlayer(isLive)
                 playerManager.attachView(this, isPrimary = true, tag = "VideoPlayerSurface-factory")
-                val (initialResizeMode, initialScaleX, initialScaleY) = when (aspectRatio) {
-                    AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
-                    AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                    AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
-                    AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                    AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+                val (initialResizeMode, initialScaleX, initialScaleY) = if (isInPipMode) {
+                    Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                } else {
+                    when (aspectRatio) {
+                        AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                        AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                        AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
+                        AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                        AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+                    }
                 }
                 resizeMode = initialResizeMode
                 scaleX = initialScaleX
@@ -3437,15 +3566,20 @@ private fun VideoPlayerSurface(
             }
         },
         update = { playerView ->
-            playerViewRef = playerView
+            localPlayerViewRef = playerView
+            onPlayerViewCreated?.invoke(playerView)
             val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive)
             playerManager.attachView(playerView, isPrimary = true, tag = "VideoPlayerSurface-update")
-            val (targetResizeMode, targetScaleX, targetScaleY) = when (aspectRatio) {
-                AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
-                AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
-                AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+            val (targetResizeMode, targetScaleX, targetScaleY) = if (isInPipMode) {
+                Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+            } else {
+                when (aspectRatio) {
+                    AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                    AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                    AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
+                    AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                    AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+                }
             }
             var layoutChanged = false
             if (playerView.resizeMode != targetResizeMode) {
@@ -3469,9 +3603,10 @@ private fun VideoPlayerSurface(
             }
         },
         onRelease = { playerView ->
-            if (playerViewRef == playerView) {
-                playerViewRef = null
+            if (localPlayerViewRef == playerView) {
+                localPlayerViewRef = null
             }
+            onPlayerViewReleased?.invoke()
             delayedController.detach()
             playerManager.detachView(playerView, tag = "VideoPlayerSurface-onRelease")
         },

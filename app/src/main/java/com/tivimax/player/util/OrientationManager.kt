@@ -174,8 +174,10 @@ class OrientationManager(private val activity: Activity) {
         inPip: Boolean = false,
         isVideoFullscreen: Boolean = false
     ) {
-        // PiP modundayken yön zorlaması yapılmaz
-        if (inPip) return
+        // PiP veya çoklu pencere modundayken (floating window / split screen) yön zorlaması yapılmaz
+        val inMultiWindow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && activity.isInMultiWindowMode
+        if (inPip || inMultiWindow) return
+
 
         val isPlayerScreen = currentScreen is Screen.Player
         val isFullscreen = isPlayerScreen || isVideoFullscreen
@@ -222,6 +224,9 @@ class OrientationManager(private val activity: Activity) {
      * Sistem çubuklarını gizler veya gösterir, çentik/cutout alanını tam ekrana dahil eder.
      */
     fun setImmersiveMode(enable: Boolean) {
+        val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) activity.isInPictureInPictureMode else false
+        val inMultiWindow = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) activity.isInMultiWindowMode else false
+        if (inPip || inMultiWindow) return
         immersiveWanted = enable
         try {
             val window = activity.window ?: return

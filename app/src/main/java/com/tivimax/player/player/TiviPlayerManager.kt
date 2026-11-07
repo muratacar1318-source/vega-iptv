@@ -390,6 +390,9 @@ class TiviPlayerManager(private val context: Context) {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    private val _reconnectStatus = MutableStateFlow<String?>(null)
+    val reconnectStatus: StateFlow<String?> = _reconnectStatus.asStateFlow()
+
     private val _aspectRatio = MutableStateFlow(AspectRatioMode.FIT)
     val aspectRatio: StateFlow<AspectRatioMode> = _aspectRatio.asStateFlow()
 
@@ -635,12 +638,13 @@ class TiviPlayerManager(private val context: Context) {
             if (p.playbackState != Player.STATE_BUFFERING || !p.playWhenReady) return@launch
             if (isReconnecting) return@launch
             if (liveStallRecoveries >= 3) {
+                _reconnectStatus.value = null
                 _errorMessage.value = "Kanal şu an yanıt vermiyor. Biraz sonra tekrar dene ya da başka bir kanal aç."
                 return@launch
             }
             liveStallRecoveries++
             android.util.Log.w("VegaIPTV", "Canlı yayın ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
-            _errorMessage.value = "Yayın yeniden bağlanıyor... ($liveStallRecoveries/3)"
+            _reconnectStatus.value = "Yayın yeniden bağlanıyor... ($liveStallRecoveries/3)"
             p.stop()
             p.seekToDefaultPosition()
             p.prepare()
@@ -721,6 +725,8 @@ class TiviPlayerManager(private val context: Context) {
                     Player.STATE_READY -> {
                         cancelLiveStallWatchdog() // G-044
                         liveStallRecoveries = 0
+                        networkRecoveryAttempt = 0
+                        _reconnectStatus.value = null
                         if (isLiveStream) {
                             player.setSeekParameters(SeekParameters.DEFAULT)
                         }
@@ -844,7 +850,7 @@ class TiviPlayerManager(private val context: Context) {
                             else -> 5000L
                         }
                         
-                        _errorMessage.value = if (isLiveStream && httpStatusCode != null && httpStatusCode in listOf(403, 429, 456, 458, 509)) {
+                        _reconnectStatus.value = if (isLiveStream && httpStatusCode != null && httpStatusCode in listOf(403, 429, 456, 458, 509)) {
                             "Sağlayıcı meşgul, kanal açılıyor... ($networkRecoveryAttempt/3)"
                         } else {
                             "Yayın yeniden bağlanıyor... ($networkRecoveryAttempt/3)"
@@ -856,6 +862,7 @@ class TiviPlayerManager(private val context: Context) {
                             // G-037: Bu arada başka kanala geçildiyse eski denemeyi yapma
                             if (currentPlayingUrl != urlAtSchedule) {
                                 isReconnecting = false
+                                _reconnectStatus.value = null
                                 return@launch
                             }
                             android.util.Log.w("VegaIPTV", "Ağ koptu, yeniden bağlanılıyor (Deneme $networkRecoveryAttempt)...")
@@ -868,6 +875,8 @@ class TiviPlayerManager(private val context: Context) {
                         return
                     }
                 }
+
+                _reconnectStatus.value = null
 
                 if (fallbackAttempt + 1 < fallbackUrls.size) {
                     val currentPos = exoPlayer?.currentPosition ?: 0L
@@ -946,6 +955,7 @@ class TiviPlayerManager(private val context: Context) {
         networkRecoveryAttempt = 0
         decoderRecoveryAttempt = 0
         isReconnecting = false
+        _reconnectStatus.value = null
         // G-038: Açılış ölçümü sıfırla
         dbgFormatMs = -1L
         dbgCodec = ""
@@ -1028,7 +1038,11 @@ class TiviPlayerManager(private val context: Context) {
     fun stopAndClear() {
         cancelLiveStallWatchdog() // G-044
         positionJob?.cancel()
+        pendingRetryJob?.cancel()
+        pendingRetryJob = null
         currentPlayingUrl = null
+        _reconnectStatus.value = null
+        _errorMessage.value = null
         exoPlayer?.let {
             it.stop()
             it.clearMediaItems()
