@@ -49,6 +49,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| R-1.4.3 | v1.4.3 (build 63) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 7 Kasım |
 | R-1.4.2 | v1.4.2 (build 62) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 21 Ekim |
 | G-046 | Genel kontrol: TV'de hata mesajı görünür (OK = tekrar dene), sade hata metinleri, TV odak hafızası, dizide kaldığın bölüm ve sezon — PR #55 | 20 Ekim |
 | G-045 | TV: kanal listesinde OK'sız geçiş, klavye OK ile açılır, kategori odağı; altyazı geri açılma düzeltmesi; film/dizi tamponu 180 sn — PR #54 | 19 Ekim |

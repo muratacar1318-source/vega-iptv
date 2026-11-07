@@ -1,0 +1,5 @@
+- Küçük pencereye ve bölünmüş ekrana geçişte yaşanan donma ve duraklama sorunu giderildi.
+- Küçük pencereye küçülme ve ekrana yerleşme animasyonu akıcı hale getirildi.
+- Küçük pencere kapatıldığında arka plandaki yayın bağlantısının hemen kesilmesi sağlandı.
+- Küçük pencere kontrolleri sadeleştirilerek sadece oynat ve duraklat seçenekleri bırakıldı.
+- Canlı yayın takılmalarında arka planda sessizce yeniden bağlanma iyileştirildi.
