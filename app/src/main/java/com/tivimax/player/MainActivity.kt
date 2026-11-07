@@ -1,7 +1,14 @@
 package com.tivimax.player
 
+import android.app.PendingIntent
 import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
 import android.util.Rational
@@ -34,6 +41,31 @@ class MainActivity : ComponentActivity() {
     private lateinit var orientationManager: OrientationManager
     private var wasPlayingBeforeStop = false
 
+    private val pipActionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_PIP_PLAY_PAUSE && ::viewModel.isInitialized) {
+                viewModel.playerManager.togglePlayPause()
+                updatePipActions()
+            }
+        }
+    }
+
+    fun updatePipActions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && isInPictureInPictureMode && ::viewModel.isInitialized) {
+            try {
+                val isPlaying = viewModel.playerManager.isPlaying.value
+                val action = createPipPlayPauseAction(this, isPlaying)
+                val rational = calculatePipAspectRatio(viewModel.playerManager.player)
+                val builder = PictureInPictureParams.Builder()
+                    .setAspectRatio(rational)
+                if (action != null) {
+                    builder.setActions(listOf(action))
+                }
+                setPictureInPictureParams(builder.build())
+            } catch (_: Throwable) {}
+        }
+    }
+
     private fun isTvModeActive(): Boolean {
         if (::viewModel.isInitialized) {
             return viewModel.deviceMode.value == DeviceMode.TV
@@ -60,12 +92,28 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val filter = IntentFilter(ACTION_PIP_PLAY_PAUSE)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(pipActionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(pipActionReceiver, filter)
+            }
+        }
+
         setContent {
             val appTheme by viewModel.appTheme.collectAsState()
             val deviceMode by viewModel.deviceMode.collectAsState()
             val currentScreen by viewModel.currentScreen.collectAsState()
             val inPip by viewModel.isInPipMode.collectAsState()
             val isVideoFullscreen by viewModel.isVideoFullscreen.collectAsState()
+            val isPlaying by viewModel.playerManager.isPlaying.collectAsState()
+
+            LaunchedEffect(inPip, isPlaying) {
+                if (inPip) {
+                    updatePipActions()
+                }
+            }
 
             // Merkezi Yön ve Tam Ekran Yönetimi
             LaunchedEffect(deviceMode, currentScreen, inPip, isVideoFullscreen) {
@@ -101,10 +149,17 @@ class MainActivity : ComponentActivity() {
                     viewModel.playerManager.play()
                 }
                 wasPlayingBeforeStop = false
+                // Çift ekran açıksa tek bağlantı kuralı için ikincil ekranı kapat
+                if (viewModel.playerManager.isDualViewActive.value) {
+                    viewModel.playerManager.closeDualView()
+                }
+                updatePipActions()
             } else {
                 // G-031: Küçük pencere X ile kapatıldıysa (aktivite artık görünür değil) oynatmayı durdur
                 if (!lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
-                    viewModel.playerManager.pause()
+                    // Kullanıcı küçük pencereyi X ile kapattı. IPTV sağlayıcısında tek bağlantı kuralı
+                    // olduğundan soketi tamamen kapatıp bağlantıyı serbest bırakıyoruz.
+                    viewModel.playerManager.stopAndClear()
                     wasPlayingBeforeStop = false
                 }
                 if (::orientationManager.isInitialized) {
@@ -168,10 +223,13 @@ class MainActivity : ComponentActivity() {
                 val isLive = viewModel.playerManager.isLiveStream
                 if (hasPip && autoPip && isPlayerScreen && isPlaying && isLive) {
                     val rational = calculatePipAspectRatio(viewModel.playerManager.player)
-                    val params = PictureInPictureParams.Builder()
+                    val builder = PictureInPictureParams.Builder()
                         .setAspectRatio(rational)
-                        .build()
-                    enterPictureInPictureMode(params)
+                    val action = createPipPlayPauseAction(this, isPlaying)
+                    if (action != null) {
+                        builder.setActions(listOf(action))
+                    }
+                    enterPictureInPictureMode(builder.build())
                 }
             } catch (e: Throwable) {
                 // Ignore unsupported devices / ROMs
@@ -234,6 +292,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                unregisterReceiver(pipActionReceiver)
+            } catch (_: Exception) {}
+        }
         if (::viewModel.isInitialized) {
             viewModel.playerManager.release()
         }
@@ -335,6 +398,8 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        const val ACTION_PIP_PLAY_PAUSE = "com.tivimax.player.PIP_PLAY_PAUSE"
+
         fun calculatePipAspectRatio(player: androidx.media3.common.Player?): Rational {
             val size = player?.videoSize
             if (size != null && size.width > 0 && size.height > 0) {
@@ -346,6 +411,29 @@ class MainActivity : ComponentActivity() {
                 }
             }
             return Rational(16, 9)
+        }
+
+        fun createPipPlayPauseAction(context: Context, isPlaying: Boolean): RemoteAction? {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+            val iconRes = if (isPlaying) {
+                android.R.drawable.ic_media_pause
+            } else {
+                android.R.drawable.ic_media_play
+            }
+            val title = if (isPlaying) "Duraklat" else "Oynat"
+            val intent = Intent(ACTION_PIP_PLAY_PAUSE).setPackage(context.packageName)
+            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+            val pendingIntent = PendingIntent.getBroadcast(context, 101, intent, flags)
+            return RemoteAction(
+                Icon.createWithResource(context, iconRes),
+                title,
+                title,
+                pendingIntent
+            )
         }
     }
 }

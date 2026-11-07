@@ -441,6 +441,7 @@ fun PlayerScreen(
 
     val isInPipMode by viewModel.isInPipMode.collectAsState()
     val autoPipEnabled by viewModel.autoPipEnabled.collectAsState()
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
     // Altyazı Tercihleri (Boyut & Renk)
     val subtitleSize by viewModel.subtitleSize.collectAsState()
@@ -586,7 +587,7 @@ fun PlayerScreen(
     }
 
     // Android 12+ (API 31+) için Otomatik PiP Kaydı (Sistem Seviyesi Akıcı Animasyon)
-    DisposableEffect(isPlaying, autoPipEnabled, isLive) {
+    DisposableEffect(isPlaying, autoPipEnabled, isLive, playerViewRef) {
         val isTv = activity?.let { act ->
             val uiModeManager = act.getSystemService(android.content.Context.UI_MODE_SERVICE) as? android.app.UiModeManager
             val isTvMode = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
@@ -595,16 +596,31 @@ fun PlayerScreen(
             isTvMode || hasLeanback || hasNoTouch
         } ?: false
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && activity != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
             try {
                 val hasPip = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
                 if (hasPip) {
                     val rational = MainActivity.calculatePipAspectRatio(playerManager.player)
-                    val params = PictureInPictureParams.Builder()
+                    val builder = PictureInPictureParams.Builder()
                         .setAspectRatio(rational)
-                        .setAutoEnterEnabled(!isTv && autoPipEnabled && isPlaying && isLive)
-                        .build()
-                    activity.setPictureInPictureParams(params)
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        builder.setAutoEnterEnabled(!isTv && autoPipEnabled && isPlaying && isLive)
+                        playerViewRef?.let { view ->
+                            val rect = android.graphics.Rect()
+                            view.getGlobalVisibleRect(rect)
+                            if (!rect.isEmpty) {
+                                builder.setSourceRectHint(rect)
+                            }
+                        }
+                    }
+
+                    val action = MainActivity.createPipPlayPauseAction(activity, isPlaying)
+                    if (action != null) {
+                        builder.setActions(listOf(action))
+                    }
+
+                    activity.setPictureInPictureParams(builder.build())
                 }
             } catch (e: Throwable) {
                 // Ignore unsupported devices / ROMs
@@ -1014,6 +1030,8 @@ fun PlayerScreen(
                 subtitleSize = subtitleSize,
                 subtitleDelayMs = subtitleDelayMs,
                 isInPipMode = isInPipMode,
+                onPlayerViewCreated = { playerViewRef = it },
+                onPlayerViewReleased = { playerViewRef = null },
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -1538,10 +1556,22 @@ fun PlayerScreen(
                                         onClick = {
                                             try {
                                                 val rational = MainActivity.calculatePipAspectRatio(playerManager.player)
-                                                val params = PictureInPictureParams.Builder()
+                                                val builder = PictureInPictureParams.Builder()
                                                     .setAspectRatio(rational)
-                                                    .build()
-                                                activity.enterPictureInPictureMode(params)
+                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                                    playerViewRef?.let { view ->
+                                                        val rect = android.graphics.Rect()
+                                                        view.getGlobalVisibleRect(rect)
+                                                        if (!rect.isEmpty) {
+                                                            builder.setSourceRectHint(rect)
+                                                        }
+                                                    }
+                                                }
+                                                val action = MainActivity.createPipPlayPauseAction(activity, isPlaying)
+                                                if (action != null) {
+                                                    builder.setActions(listOf(action))
+                                                }
+                                                activity.enterPictureInPictureMode(builder.build())
                                             } catch (e: Throwable) {
                                                 // Ignore
                                             }
@@ -1669,10 +1699,22 @@ fun PlayerScreen(
                                     onClick = {
                                         try {
                                             val rational = MainActivity.calculatePipAspectRatio(playerManager.player)
-                                            val params = PictureInPictureParams.Builder()
+                                            val builder = PictureInPictureParams.Builder()
                                                 .setAspectRatio(rational)
-                                                .build()
-                                            activity.enterPictureInPictureMode(params)
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                                playerViewRef?.let { view ->
+                                                    val rect = android.graphics.Rect()
+                                                    view.getGlobalVisibleRect(rect)
+                                                    if (!rect.isEmpty) {
+                                                        builder.setSourceRectHint(rect)
+                                                    }
+                                                }
+                                            }
+                                            val action = MainActivity.createPipPlayPauseAction(activity, isPlaying)
+                                            if (action != null) {
+                                                builder.setActions(listOf(action))
+                                            }
+                                            activity.enterPictureInPictureMode(builder.build())
                                         } catch (e: Throwable) {
                                             // Ignore
                                         }
@@ -3298,6 +3340,13 @@ fun DualViewChannelPicker(
         onClose = onDismiss,
         isPortrait = isPortrait
     ) {
+        Text(
+            text = "Not: Çift ekran aynı anda 2 bağlantı kullanır; sağlayıcınızın çoklu bağlantıyı desteklemesi gerekir.",
+            color = VegaColors.TextMuted,
+            fontSize = VegaText.Secondary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
         // Arama Çubuğu
         OutlinedTextField(
             keyboardOptions = tvKeyboardOptions(),
@@ -3417,6 +3466,8 @@ private fun VideoPlayerSurface(
     subtitleSize: String,
     subtitleDelayMs: Long = 0L,
     isInPipMode: Boolean = false,
+    onPlayerViewCreated: ((PlayerView) -> Unit)? = null,
+    onPlayerViewReleased: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -3431,10 +3482,10 @@ private fun VideoPlayerSurface(
         }
     }
 
-    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+    var localPlayerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
-    LaunchedEffect(playerViewRef) {
-        val view = playerViewRef ?: return@LaunchedEffect
+    LaunchedEffect(localPlayerViewRef) {
+        val view = localPlayerViewRef ?: return@LaunchedEffect
         // İlk karede ve Crossfade bittikten sonra yüzeyi garantiye almak için yeniden talep
         delay(350L)
         playerManager.attachView(view, isPrimary = true, tag = "VideoPlayerSurface-delay350")
@@ -3443,7 +3494,8 @@ private fun VideoPlayerSurface(
     AndroidView(
         factory = { ctx ->
             PlayerView(ctx).apply {
-                playerViewRef = this
+                localPlayerViewRef = this
+                onPlayerViewCreated?.invoke(this)
                 useController = false
                 keepScreenOn = true
                 setKeepContentOnPlayerReset(true)
@@ -3475,7 +3527,8 @@ private fun VideoPlayerSurface(
             }
         },
         update = { playerView ->
-            playerViewRef = playerView
+            localPlayerViewRef = playerView
+            onPlayerViewCreated?.invoke(playerView)
             val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive)
             playerManager.attachView(playerView, isPrimary = true, tag = "VideoPlayerSurface-update")
             val (targetResizeMode, targetScaleX, targetScaleY) = if (isInPipMode) {
@@ -3511,9 +3564,10 @@ private fun VideoPlayerSurface(
             }
         },
         onRelease = { playerView ->
-            if (playerViewRef == playerView) {
-                playerViewRef = null
+            if (localPlayerViewRef == playerView) {
+                localPlayerViewRef = null
             }
+            onPlayerViewReleased?.invoke()
             delayedController.detach()
             playerManager.detachView(playerView, tag = "VideoPlayerSurface-onRelease")
         },
