@@ -150,6 +150,7 @@ fun PlayerScreen(
     val duration by playerManager.duration.collectAsState()
     val bufferedPosition by playerManager.bufferedPosition.collectAsState()
     val errorMessage by playerManager.errorMessage.collectAsState()
+    val reconnectStatus by playerManager.reconnectStatus.collectAsState()
     val aspectRatio by playerManager.aspectRatio.collectAsState()
     val audioTracks by playerManager.audioTracks.collectAsState()
     val subtitleTracks by playerManager.subtitleTracks.collectAsState()
@@ -1065,54 +1066,90 @@ fun PlayerScreen(
             )
         }
 
-        // Hata Bildirimi Overlay
-        errorMessage?.let { error ->
+        // Yeniden Bağlanma Bildirimi (Tam ekranı karartmadan, zarif hap bildirim)
+        if (reconnectStatus != null && !isInPipMode) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.85f)),
-                contentAlignment = Alignment.Center
+                    .padding(bottom = if (isPortrait) 72.dp else 48.dp),
+                contentAlignment = Alignment.BottomCenter
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(24.dp)
+                Surface(
+                    shape = VegaShapes.Pill,
+                    color = Color.Black.copy(alpha = 0.8f),
+                    border = BorderStroke(1.dp, VegaColors.Border)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = TiviAccentLive,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = error,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(
-                            onClick = { playerManager.retryCurrent() },
-                            colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary, contentColor = VegaColors.OnAccent),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Tekrar Dene")
-                        }
-                        OutlinedButton(
-                            onClick = { playerManager.retryNextFallback() },
-                            shape = RoundedCornerShape(10.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary)
-                        ) {
-                            Text("Alternatif Akış Dene", color = TiviPrimary)
-                        }
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            color = TiviPrimary,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = reconnectStatus!!,
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    TextButton(onClick = onBack) {
-                        Text("Listeye Geri Dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                }
+            }
+        }
+
+        // Hata Bildirimi Overlay (Yalnızca tüm otomatik denemeler tükendiğinde ve PiP dışında)
+        if (errorMessage != null && reconnectStatus == null && !isInPipMode) {
+            errorMessage?.let { error ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.85f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = TiviAccentLive,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = error,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Button(
+                                onClick = { playerManager.retryCurrent() },
+                                colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary, contentColor = VegaColors.OnAccent),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Tekrar Dene")
+                            }
+                            OutlinedButton(
+                                onClick = { playerManager.retryNextFallback() },
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary)
+                            ) {
+                                Text("Alternatif Akış Dene", color = TiviPrimary)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(onClick = onBack) {
+                            Text("Listeye Geri Dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                        }
                     }
                 }
             }
