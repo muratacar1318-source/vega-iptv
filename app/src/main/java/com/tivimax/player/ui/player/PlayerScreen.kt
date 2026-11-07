@@ -1,5 +1,7 @@
 package com.tivimax.player.ui.player
 
+import com.tivimax.player.MainActivity
+import android.app.RemoteAction
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import android.app.Activity
