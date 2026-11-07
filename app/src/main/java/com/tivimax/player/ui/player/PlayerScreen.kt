@@ -524,16 +524,23 @@ fun PlayerScreen(
         }
     }
 
-    // Lifecycle Observer (Arka plana atıldığında PiP açık değilse videoyu duraklat)
+    // Lifecycle Observer (Arka plana atıldığında PiP veya çoklu pencere açık değilse videoyu duraklat)
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, isInPipMode) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
-                if (!isInPipMode) {
+            val inPip = (activity?.let {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && it.isInPictureInPictureMode
+            } ?: false) || isInPipMode
+            val inMultiWindow = activity?.let {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && it.isInMultiWindowMode
+            } ?: false
+
+            if (event == Lifecycle.Event.ON_STOP) {
+                if (!inPip && !inMultiWindow) {
                     playerManager.pause()
                 }
             } else if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
-                if (!isControlsLocked && !isInPipMode && isLive) {
+                if (!isControlsLocked && isLive) {
                     playerManager.play()
                 }
             }
@@ -541,6 +548,28 @@ fun PlayerScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // PiP moduna geçildiğinde tüm panelleri kapat ve oynatmayı sürdür
+    LaunchedEffect(isInPipMode) {
+        if (isInPipMode) {
+            showControls = false
+            showBottomInfoCard = false
+            showSettingsPanel = false
+            showMoreSheet = false
+            showEpisodesDrawer = false
+            showDualViewPicker = false
+            showChannelDrawer = false
+            showOverlayGuide = false
+            showRecentChannelsBar = false
+            showNumericKeypad = false
+            showSleepTimerDialog = false
+            showCategoryManagementDialog = false
+            showLockBanner = false
+            if (!playerManager.isPlaying.value) {
+                playerManager.play()
+            }
         }
     }
 
@@ -570,8 +599,9 @@ fun PlayerScreen(
             try {
                 val hasPip = activity.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
                 if (hasPip) {
+                    val rational = MainActivity.calculatePipAspectRatio(playerManager.player)
                     val params = PictureInPictureParams.Builder()
-                        .setAspectRatio(Rational(16, 9))
+                        .setAspectRatio(rational)
                         .setAutoEnterEnabled(!isTv && autoPipEnabled && isPlaying && isLive)
                         .build()
                     activity.setPictureInPictureParams(params)
@@ -974,7 +1004,7 @@ fun PlayerScreen(
                 }
             }
     ) {
-        if (!isDualViewActive) {
+        if (!isDualViewActive || isInPipMode) {
             // Media3 ExoPlayer Video Render View (İzole Edilmiş Yüzey - HUD/Zaman recomposition'larından asla etkilenmez)
             VideoPlayerSurface(
                 playerManager = playerManager,
@@ -983,6 +1013,7 @@ fun PlayerScreen(
                 subtitleColor = subtitleColor,
                 subtitleSize = subtitleSize,
                 subtitleDelayMs = subtitleDelayMs,
+                isInPipMode = isInPipMode,
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -1506,8 +1537,9 @@ fun PlayerScreen(
                                     BouncyIconButton(
                                         onClick = {
                                             try {
+                                                val rational = MainActivity.calculatePipAspectRatio(playerManager.player)
                                                 val params = PictureInPictureParams.Builder()
-                                                    .setAspectRatio(Rational(16, 9))
+                                                    .setAspectRatio(rational)
                                                     .build()
                                                 activity.enterPictureInPictureMode(params)
                                             } catch (e: Throwable) {
@@ -1636,8 +1668,9 @@ fun PlayerScreen(
                                 BouncyIconButton(
                                     onClick = {
                                         try {
+                                            val rational = MainActivity.calculatePipAspectRatio(playerManager.player)
                                             val params = PictureInPictureParams.Builder()
-                                                .setAspectRatio(Rational(16, 9))
+                                                .setAspectRatio(rational)
                                                 .build()
                                             activity.enterPictureInPictureMode(params)
                                         } catch (e: Throwable) {
@@ -3383,6 +3416,7 @@ private fun VideoPlayerSurface(
     subtitleColor: String,
     subtitleSize: String,
     subtitleDelayMs: Long = 0L,
+    isInPipMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -3421,12 +3455,16 @@ private fun VideoPlayerSurface(
                 )
                 val initialPlayer = playerManager.initializePlayer(isLive)
                 playerManager.attachView(this, isPrimary = true, tag = "VideoPlayerSurface-factory")
-                val (initialResizeMode, initialScaleX, initialScaleY) = when (aspectRatio) {
-                    AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
-                    AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                    AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
-                    AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                    AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+                val (initialResizeMode, initialScaleX, initialScaleY) = if (isInPipMode) {
+                    Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                } else {
+                    when (aspectRatio) {
+                        AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                        AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                        AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
+                        AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                        AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+                    }
                 }
                 resizeMode = initialResizeMode
                 scaleX = initialScaleX
@@ -3440,12 +3478,16 @@ private fun VideoPlayerSurface(
             playerViewRef = playerView
             val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive)
             playerManager.attachView(playerView, isPrimary = true, tag = "VideoPlayerSurface-update")
-            val (targetResizeMode, targetScaleX, targetScaleY) = when (aspectRatio) {
-                AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
-                AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
-                AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+            val (targetResizeMode, targetScaleX, targetScaleY) = if (isInPipMode) {
+                Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+            } else {
+                when (aspectRatio) {
+                    AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                    AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                    AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
+                    AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                    AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+                }
             }
             var layoutChanged = false
             if (playerView.resizeMode != targetResizeMode) {

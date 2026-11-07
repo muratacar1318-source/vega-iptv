@@ -95,27 +95,35 @@ class MainActivity : ComponentActivity() {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         if (::viewModel.isInitialized) {
             viewModel.isInPipMode.value = isInPictureInPictureMode
-            // G-031: Küçük pencere X ile kapatıldıysa (aktivite artık görünür değil) oynatmayı durdur
-            if (!isInPictureInPictureMode &&
-                !lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
-            ) {
-                viewModel.playerManager.pause()
+            if (isInPictureInPictureMode) {
+                // Küçük pencereye (PiP) geçildi: Oynatmanın kesintisiz devam etmesini sağla
+                if (wasPlayingBeforeStop || !viewModel.playerManager.isPlaying.value) {
+                    viewModel.playerManager.play()
+                }
                 wasPlayingBeforeStop = false
-            }
-            if (!isInPictureInPictureMode && ::orientationManager.isInitialized) {
-                orientationManager.applyOrientation(
-                    viewModel.deviceMode.value,
-                    viewModel.currentScreen.value,
-                    false,
-                    viewModel.isVideoFullscreen.value
-                )
+            } else {
+                // G-031: Küçük pencere X ile kapatıldıysa (aktivite artık görünür değil) oynatmayı durdur
+                if (!lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
+                    viewModel.playerManager.pause()
+                    wasPlayingBeforeStop = false
+                }
+                if (::orientationManager.isInitialized) {
+                    orientationManager.applyOrientation(
+                        viewModel.deviceMode.value,
+                        viewModel.currentScreen.value,
+                        false,
+                        viewModel.isVideoFullscreen.value
+                    )
+                }
             }
         }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus && ::viewModel.isInitialized && ::orientationManager.isInitialized) {
+        val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
+        val inMultiWindow = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInMultiWindowMode else false
+        if (!inPip && !inMultiWindow && hasFocus && ::viewModel.isInitialized && ::orientationManager.isInitialized) {
             val isPlayer = viewModel.currentScreen.value is Screen.Player
             val isFullscreen = isPlayer || viewModel.isVideoFullscreen.value
             val isTv = viewModel.deviceMode.value == DeviceMode.TV
@@ -127,7 +135,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (::viewModel.isInitialized && ::orientationManager.isInitialized) {
+        val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
+        val inMultiWindow = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInMultiWindowMode else false
+        if (!inPip && !inMultiWindow && ::viewModel.isInitialized && ::orientationManager.isInitialized) {
             val isPlayer = viewModel.currentScreen.value is Screen.Player
             val isFullscreen = isPlayer || viewModel.isVideoFullscreen.value
             val isTv = viewModel.deviceMode.value == DeviceMode.TV
@@ -157,8 +167,9 @@ class MainActivity : ComponentActivity() {
                 val autoPip = viewModel.autoPipEnabled.value
                 val isLive = viewModel.playerManager.isLiveStream
                 if (hasPip && autoPip && isPlayerScreen && isPlaying && isLive) {
+                    val rational = calculatePipAspectRatio(viewModel.playerManager.player)
                     val params = PictureInPictureParams.Builder()
-                        .setAspectRatio(Rational(16, 9))
+                        .setAspectRatio(rational)
                         .build()
                     enterPictureInPictureMode(params)
                 }
@@ -171,8 +182,10 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         if (::viewModel.isInitialized) {
-            val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
-            if (isTvModeActive() || !inPip) {
+            // TV modunda ekran her zaman tektir; odak kaybında anında duraklatılır.
+            // Mobil/tablette ise küçük pencereye (PiP) geçiş anında ve çoklu pencerede (floating window / split screen)
+            // video donmasını/kesilmesini engellemek için duraklatma onStop'a bırakılır.
+            if (isTvModeActive()) {
                 if (viewModel.playerManager.isPlaying.value) {
                     wasPlayingBeforeStop = true
                 }
@@ -185,7 +198,9 @@ class MainActivity : ComponentActivity() {
         super.onStop()
         if (::viewModel.isInitialized) {
             val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
-            if (isTvModeActive() || !inPip) {
+            val inMultiWindow = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInMultiWindowMode else false
+            // Kullanıcı uygulamadan tamamen ayrıldığında (PiP veya çoklu pencerede değilse) oynatıcıyı duraklat
+            if (isTvModeActive() || (!inPip && !inMultiWindow)) {
                 if (viewModel.playerManager.isPlaying.value) {
                     wasPlayingBeforeStop = true
                 }
@@ -317,5 +332,20 @@ class MainActivity : ComponentActivity() {
             }
         }
         return super.onKeyLongPress(keyCode, event)
+    }
+
+    companion object {
+        fun calculatePipAspectRatio(player: androidx.media3.common.Player?): Rational {
+            val size = player?.videoSize
+            if (size != null && size.width > 0 && size.height > 0) {
+                val w = size.width
+                val h = size.height
+                val ratio = w.toFloat() / h.toFloat()
+                if (ratio in 0.42f..2.38f) {
+                    return Rational(w, h)
+                }
+            }
+            return Rational(16, 9)
+        }
     }
 }
