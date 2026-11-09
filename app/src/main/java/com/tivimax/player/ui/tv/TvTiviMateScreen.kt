@@ -113,6 +113,14 @@ fun TvTiviMateScreen(
         }
     }
 
+    val displayedChannels = remember(channels, selectedCategory, favoriteIds) {
+        if (selectedCategory == "favorites") {
+            channels.filter { favoriteIds.contains(it.streamId.toString()) }
+        } else {
+            channels
+        }
+    }
+
     // Kumanda ile zaplama veya rakam tuşlamasında seçilen kanalı listede görünür kıl
     LaunchedEffect(activePreviewChannel?.streamId) {
         val activeId = activePreviewChannel?.streamId ?: return@LaunchedEffect
@@ -125,14 +133,6 @@ fun TvTiviMateScreen(
                     channelListState.animateScrollToItem((index - 2).coerceAtLeast(0))
                 } catch (_: Exception) {}
             }
-        }
-    }
-
-    val displayedChannels = remember(channels, selectedCategory, favoriteIds) {
-        if (selectedCategory == "favorites") {
-            channels.filter { favoriteIds.contains(it.streamId.toString()) }
-        } else {
-            channels
         }
     }
 
