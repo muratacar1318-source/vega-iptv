@@ -318,16 +318,32 @@ class MainActivity : ComponentActivity() {
                 android.view.KeyEvent.KEYCODE_6,
                 android.view.KeyEvent.KEYCODE_7,
                 android.view.KeyEvent.KEYCODE_8,
-                android.view.KeyEvent.KEYCODE_9 -> {
+                android.view.KeyEvent.KEYCODE_9,
+                android.view.KeyEvent.KEYCODE_NUMPAD_0,
+                android.view.KeyEvent.KEYCODE_NUMPAD_1,
+                android.view.KeyEvent.KEYCODE_NUMPAD_2,
+                android.view.KeyEvent.KEYCODE_NUMPAD_3,
+                android.view.KeyEvent.KEYCODE_NUMPAD_4,
+                android.view.KeyEvent.KEYCODE_NUMPAD_5,
+                android.view.KeyEvent.KEYCODE_NUMPAD_6,
+                android.view.KeyEvent.KEYCODE_NUMPAD_7,
+                android.view.KeyEvent.KEYCODE_NUMPAD_8,
+                android.view.KeyEvent.KEYCODE_NUMPAD_9 -> {
                     // Sadece mobil tam ekran oynatıcıda yakala; diğer ekranlarda (Giriş, Arama, PIN)
                     // ve TV rehberinde Compose katmanına bırak (yazı alanları çalışsın)
                     if (isPlayerScreen) {
-                        viewModel.onNumericKeyPressed(event.keyCode - android.view.KeyEvent.KEYCODE_0)
+                        val digit = if (event.keyCode in android.view.KeyEvent.KEYCODE_NUMPAD_0..android.view.KeyEvent.KEYCODE_NUMPAD_9) {
+                            event.keyCode - android.view.KeyEvent.KEYCODE_NUMPAD_0
+                        } else {
+                            event.keyCode - android.view.KeyEvent.KEYCODE_0
+                        }
+                        viewModel.onNumericKeyPressed(digit)
                         return true
                     }
                 }
                 android.view.KeyEvent.KEYCODE_ENTER,
-                android.view.KeyEvent.KEYCODE_DPAD_CENTER -> {
+                android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                     if (viewModel.isZapperActive.value) {
                         viewModel.executeZapperSwitch()
                         return true
@@ -336,7 +352,8 @@ class MainActivity : ComponentActivity() {
                         event.startTracking()
                     }
                 }
-                android.view.KeyEvent.KEYCODE_CHANNEL_UP -> {
+                android.view.KeyEvent.KEYCODE_CHANNEL_UP,
+                android.view.KeyEvent.KEYCODE_PAGE_UP -> {
                     if (isPlayerScreen) {
                         val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
                         viewModel.zapNextChannel(currentStreamId)
@@ -349,7 +366,8 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-                android.view.KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                android.view.KeyEvent.KEYCODE_CHANNEL_DOWN,
+                android.view.KeyEvent.KEYCODE_PAGE_DOWN -> {
                     if (isPlayerScreen) {
                         val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
                         viewModel.zapPreviousChannel(currentStreamId)
@@ -369,13 +387,39 @@ class MainActivity : ComponentActivity() {
                         return true
                     }
                 }
+                android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                    if (isPlayerScreen) {
+                        viewModel.playerManager.togglePlayPause()
+                        return true
+                    }
+                }
+                android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                    if (isPlayerScreen) {
+                        viewModel.playerManager.play()
+                        return true
+                    }
+                }
+                android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                    if (isPlayerScreen) {
+                        viewModel.playerManager.pause()
+                        return true
+                    }
+                }
+                android.view.KeyEvent.KEYCODE_MEDIA_STOP -> {
+                    if (isPlayerScreen) {
+                        viewModel.playerManager.stop()
+                        return true
+                    }
+                }
             }
         }
         return super.dispatchKeyEvent(event)
     }
 
     override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean {
-        if (keyCode == android.view.KeyEvent.KEYCODE_ENTER || keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER) {
+        if (keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+            keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+            keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER) {
             if (event.repeatCount == 0) {
                 event.startTracking()
             }
@@ -384,7 +428,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyLongPress(keyCode: Int, event: android.view.KeyEvent): Boolean {
-        if (keyCode == android.view.KeyEvent.KEYCODE_ENTER || keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER) {
+        if (keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+            keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+            keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER) {
             val isPlayerScreen = ::viewModel.isInitialized && viewModel.currentScreen.value is Screen.Player
             val isLiveTv = ::viewModel.isInitialized &&
                 viewModel.deviceMode.value == DeviceMode.TV &&
