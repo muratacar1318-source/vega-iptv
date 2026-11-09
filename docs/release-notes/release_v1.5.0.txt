@@ -1,0 +1,6 @@
+- Ana sayfa sinematik vitrin ve izlemeye devam et şeridiyle yenilendi.
+- Canlı televizyon ekranına stüdyo düzeni ve ses göstergesi eklendi.
+- Film ve dizi sayfaları yüksek çözünürlüklü afiş ve bölüm listesiyle baştan tasarlandı.
+- Video oynatıcı denetimleri ve zaman çizelgesi daha akıcı hale getirildi.
+- Televizyon kumandası ile kanal ve menü geçişleri hızlandırıldı.
+- Yayın bağlantı hızı artırıldı ve genel kararlılık iyileştirildi.
