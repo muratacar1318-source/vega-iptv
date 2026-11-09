@@ -82,6 +82,7 @@ import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.VegaChoiceChip
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.CategoryManagementDialog
 import com.tivimax.player.ui.player.components.NumericKeypadDialog
 import com.tivimax.player.ui.player.components.TiviBottomInfoCard
@@ -717,7 +718,7 @@ fun PlayerScreen(
                             if (now - lastOkPressTime < 800L) {
                                 isControlsLocked = false
                                 showLockBanner = false
-                                showInfoBanner("🔓 Ekran Kilidi Açıldı")
+                                showInfoBanner("Ekran kilidi açıldı")
                                 return@onPreviewKeyEvent true
                             }
                             lastOkPressTime = now
@@ -1070,7 +1071,7 @@ fun PlayerScreen(
                         if (isControlsLocked) {
                             isControlsLocked = false
                             showLockBanner = false
-                            showInfoBanner("🔓 Ekran Kilidi Açıldı")
+                            showInfoBanner("Ekran kilidi açıldı")
                         } else {
                             if (!isLive) {
                                 if (offset.x < size.width * 0.38f) {
@@ -1212,7 +1213,7 @@ fun PlayerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(
-                        color = TiviPrimary,
+                        color = VegaColors.Accent,
                         strokeWidth = 3.dp,
                         modifier = Modifier.size(56.dp)
                     )
@@ -1254,7 +1255,7 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         CircularProgressIndicator(
-                            color = TiviPrimary,
+                            color = VegaColors.Accent,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(14.dp)
                         )
@@ -1285,7 +1286,7 @@ fun PlayerScreen(
                         Icon(
                             imageVector = Icons.Default.Warning,
                             contentDescription = null,
-                            tint = TiviAccentLive,
+                            tint = VegaColors.Danger,
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1300,24 +1301,24 @@ fun PlayerScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Button(
                                 onClick = { playerManager.retryCurrent() },
-                                colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary, contentColor = VegaColors.OnAccent),
+                                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Tekrar Dene")
+                                Text("Tekrar dene")
                             }
                             OutlinedButton(
                                 onClick = { playerManager.retryNextFallback() },
                                 shape = RoundedCornerShape(10.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary)
+                                border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent)
                             ) {
-                                Text("Alternatif Akış Dene", color = TiviPrimary)
+                                Text("Alternatif akış dene", color = VegaColors.Accent)
                             }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         TextButton(onClick = onBack) {
-                            Text("Listeye Geri Dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                            Text("Listeye geri dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
                         }
                     }
                 }
@@ -1337,7 +1338,7 @@ fun PlayerScreen(
                 val fraction = (pct / 100f).coerceIn(0f, 1f)
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = TiviOverlayDark,
+                    color = VegaColors.OverlayPanel,
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
                     modifier = Modifier
                         .width(42.dp)
@@ -1353,7 +1354,7 @@ fun PlayerScreen(
                         Icon(
                             imageVector = Icons.Default.BrightnessMedium,
                             contentDescription = null,
-                            tint = TiviGold,
+                            tint = VegaColors.Gold,
                             modifier = Modifier.size(18.dp)
                         )
                         Box(
@@ -1368,7 +1369,7 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .fillMaxHeight(fraction)
-                                    .background(TiviGold)
+                                    .background(VegaColors.Gold)
                             )
                         }
                         Text(
@@ -1395,7 +1396,7 @@ fun PlayerScreen(
                 val fraction = (pct / 100f).coerceIn(0f, 1f)
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = TiviOverlayDark,
+                    color = VegaColors.OverlayPanel,
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
                     modifier = Modifier
                         .width(42.dp)
@@ -1411,7 +1412,7 @@ fun PlayerScreen(
                         Icon(
                             imageVector = if (pct == 0) Icons.AutoMirrored.Filled.VolumeMute else Icons.AutoMirrored.Filled.VolumeUp,
                             contentDescription = null,
-                            tint = TiviPrimary,
+                            tint = VegaColors.Accent,
                             modifier = Modifier.size(18.dp)
                         )
                         Box(
@@ -1426,7 +1427,7 @@ fun PlayerScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .fillMaxHeight(fraction)
-                                    .background(TiviPrimary)
+                                    .background(VegaColors.Accent)
                             )
                         }
                         Text(
@@ -1546,8 +1547,8 @@ fun PlayerScreen(
             resumeNotification?.let { msg ->
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = TiviOverlayDark,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, TiviGold.copy(alpha = 0.5f))
+                    color = VegaColors.OverlayPanel,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.5f))
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -1556,7 +1557,7 @@ fun PlayerScreen(
                         Icon(
                             imageVector = Icons.Default.History,
                             contentDescription = null,
-                            tint = TiviGold,
+                            tint = VegaColors.Gold,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
@@ -1588,8 +1589,8 @@ fun PlayerScreen(
                     Surface(
                         onClick = { isControlsLocked = false },
                         shape = CircleShape,
-                        color = TiviOverlayDark,
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, TiviPrimary),
+                        color = VegaColors.OverlayPanel,
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, VegaColors.Accent),
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .size(48.dp)
@@ -1597,8 +1598,8 @@ fun PlayerScreen(
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.Lock,
-                                contentDescription = "Dokunma Kilidini Aç",
-                                tint = TiviPrimary,
+                                contentDescription = "Dokunma kilidini aç",
+                                tint = VegaColors.Accent,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -1677,22 +1678,84 @@ fun PlayerScreen(
                     ) {
                         if (!isLive) {
                             val activeEpisode = currentEpisode?.first
-                            val displayTitle = if (activeEpisode != null) {
+                            if (activeEpisode != null) {
                                 val seriesName = currentSeriesInfo?.info?.name ?: title
-                                "$seriesName - S${activeEpisode.season} B${activeEpisode.episodeNum}"
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Surface(
+                                        shape = VegaShapes.Small,
+                                        color = VegaColors.Accent.copy(alpha = 0.15f),
+                                        border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f))
+                                    ) {
+                                        Text(
+                                            text = "DİZİ",
+                                            color = VegaColors.Accent,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = seriesName,
+                                        color = Color.White,
+                                        fontSize = if (isPortrait) 14.sp else 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Surface(
+                                        shape = VegaShapes.Pill,
+                                        color = VegaColors.SurfaceVariant,
+                                        border = BorderStroke(1.dp, VegaColors.Border)
+                                    ) {
+                                        Text(
+                                            text = "S${activeEpisode.season}:B${activeEpisode.episodeNum}",
+                                            color = VegaColors.TextSecondary,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    if (activeEpisode.title.isNotBlank()) {
+                                        Text(
+                                            text = activeEpisode.title,
+                                            color = VegaColors.TextSecondary,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
                             } else {
-                                title
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Surface(
+                                        shape = VegaShapes.Small,
+                                        color = VegaColors.Accent.copy(alpha = 0.15f),
+                                        border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f))
+                                    ) {
+                                        Text(
+                                            text = "FİLM",
+                                            color = VegaColors.Accent,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = title,
+                                        color = Color.White,
+                                        fontSize = if (isPortrait) 14.sp else 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
-
-                            Text(
-                                text = displayTitle,
-                                color = Color.White,
-                                fontSize = if (isPortrait) 13.5.sp else 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
-                            )
                         }
                     }
 
@@ -1724,8 +1787,8 @@ fun PlayerScreen(
                                     Surface(
                                         onClick = { showSleepTimerDialog = true },
                                         shape = RoundedCornerShape(12.dp),
-                                        color = if (isTimerFocused) OpusCyan.copy(alpha = 0.35f) else Color.Transparent,
-                                        border = if (isTimerFocused) BorderStroke(1.5.dp, OpusCyan) else null,
+                                        color = if (isTimerFocused) VegaColors.Accent.copy(alpha = 0.35f) else Color.Transparent,
+                                        border = if (isTimerFocused) BorderStroke(1.5.dp, VegaColors.Accent) else null,
                                         modifier = Modifier
                                             .height(if (isPortrait) 32.dp else 36.dp)
                                             .onFocusChanged { isTimerFocused = it.isFocused }
@@ -1821,7 +1884,7 @@ fun PlayerScreen(
                                         isControlsLocked = !isControlsLocked
                                         if (!isControlsLocked) {
                                             showLockBanner = false
-                                            showInfoBanner("🔓 Ekran Kilidi Açıldı")
+                                            showInfoBanner("Ekran kilidi açıldı")
                                         } else {
                                             showLockBanner = true
                                         }
@@ -1834,7 +1897,7 @@ fun PlayerScreen(
                                     Icon(
                                         imageVector = if (isControlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
                                         contentDescription = "Ekran Kilidi",
-                                        tint = if (isControlsLocked) TiviAccentLive else Color.White,
+                                        tint = if (isControlsLocked) VegaColors.Live else Color.White,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -1867,8 +1930,8 @@ fun PlayerScreen(
                                 Surface(
                                     onClick = { showSleepTimerDialog = true },
                                     shape = RoundedCornerShape(8.dp),
-                                    color = if (isTimerFocused) OpusCyan.copy(alpha = 0.45f) else TiviSecondary.copy(alpha = 0.35f),
-                                    border = if (isTimerFocused) BorderStroke(2.dp, OpusCyan) else null,
+                                    color = if (isTimerFocused) VegaColors.Accent.copy(alpha = 0.45f) else VegaColors.SurfaceVariant.copy(alpha = 0.35f),
+                                    border = if (isTimerFocused) BorderStroke(2.dp, VegaColors.Accent) else null,
                                     modifier = Modifier
                                         .height(40.dp)
                                         .onFocusChanged { isTimerFocused = it.isFocused }
@@ -1964,7 +2027,7 @@ fun PlayerScreen(
                                     isControlsLocked = !isControlsLocked
                                     if (!isControlsLocked) {
                                         showLockBanner = false
-                                        showInfoBanner("🔓 Ekran Kilidi Açıldı")
+                                        showInfoBanner("Ekran kilidi açıldı")
                                     } else {
                                         showLockBanner = true
                                     }
@@ -1977,7 +2040,7 @@ fun PlayerScreen(
                                 Icon(
                                     imageVector = if (isControlsLocked) Icons.Default.Lock else Icons.Default.LockOpen,
                                     contentDescription = "Ekran Kilidi",
-                                    tint = if (isControlsLocked) TiviAccentLive else Color.White,
+                                    tint = if (isControlsLocked) VegaColors.Live else Color.White,
                                     modifier = Modifier.size(if (isPortrait) 20.dp else 23.dp)
                                 )
                             }
@@ -2164,7 +2227,7 @@ fun PlayerScreen(
                                                     }
                                                     Text(
                                                         text = "Hedef süre ($diffText)",
-                                                        color = TiviTextSecondary,
+                                                        color = VegaColors.TextSecondary,
                                                         fontSize = 10.sp
                                                     )
                                                 }
@@ -2203,7 +2266,7 @@ fun PlayerScreen(
                                             .clip(RoundedCornerShape(8.dp))
                                             .border(
                                                 width = if (isSliderFocused) 2.dp else 0.dp,
-                                                color = if (isSliderFocused) OpusCyan else Color.Transparent,
+                                                color = if (isSliderFocused) VegaColors.Accent else Color.Transparent,
                                                 shape = RoundedCornerShape(8.dp)
                                             )
                                             .padding(if (isSliderFocused) 4.dp else 2.dp)
@@ -2352,11 +2415,11 @@ fun PlayerScreen(
 
                             val vodPillsContent: @Composable () -> Unit = {
                                 PlayerPillButton(
-                                    text = "Baştan Başlat",
+                                    text = "Baştan başlat",
                                     icon = Icons.Default.Replay,
                                     onClick = {
                                         playerManager.seekTo(0L)
-                                        showInfoBanner("Baştan Başlatıldı")
+                                        showInfoBanner("Baştan başlatıldı")
                                     },
                                     isPortrait = isPortrait,
                                     modifier = Modifier
@@ -2372,7 +2435,7 @@ fun PlayerScreen(
                                 )
 
                                 PlayerPillButton(
-                                    text = "Ses & Altyazı",
+                                    text = "Ses ve altyazı",
                                     icon = Icons.Default.Subtitles,
                                     onClick = {
                                         settingsInitialTab = SettingsTab.SUBTITLE
@@ -2620,8 +2683,8 @@ fun PlayerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Hızlı Kanal Geçişi",
-                            color = TiviPrimary,
+                            text = "Hızlı kanal geçişi",
+                            color = VegaColors.Accent,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
                         )
@@ -2646,8 +2709,8 @@ fun PlayerScreen(
                             Surface(
                                 onClick = { viewModel.loadLiveStreams(cat.categoryId) },
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (isSel) TiviPrimary else TiviCard,
-                                contentColor = if (isSel) TiviBackground else TiviTextSecondary
+                                color = if (isSel) VegaColors.Accent.copy(alpha = 0.20f) else VegaColors.Card,
+                                contentColor = if (isSel) VegaColors.Accent else VegaColors.TextSecondary
                             ) {
                                 Text(
                                     text = cat.categoryName,
@@ -2704,8 +2767,8 @@ fun PlayerScreen(
                                     viewModel.playLiveChannel(channel)
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (isCurrent) TiviPrimary.copy(alpha = 0.22f) else Color.Transparent,
-                                border = if (isCurrent) androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary) else null,
+                                color = if (isCurrent) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent,
+                                border = if (isCurrent) androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent) else null,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -2718,7 +2781,7 @@ fun PlayerScreen(
                                                 .width(3.dp)
                                                 .height(24.dp)
                                                 .clip(RoundedCornerShape(1.5.dp))
-                                                .background(TiviPrimary)
+                                                .background(VegaColors.Accent)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                     }
@@ -2729,13 +2792,13 @@ fun PlayerScreen(
                                         modifier = Modifier
                                             .size(34.dp)
                                             .clip(RoundedCornerShape(6.dp))
-                                            .background(TiviCard),
+                                            .background(VegaColors.Card),
                                         placeholderIcon = Icons.Default.Tv
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
                                         text = channel.name,
-                                        color = if (isCurrent) TiviPrimary else Color.White,
+                                        color = if (isCurrent) VegaColors.Accent else Color.White,
                                         fontSize = 13.sp,
                                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                         maxLines = 1,
@@ -2746,7 +2809,7 @@ fun PlayerScreen(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(4.dp))
-                                                .background(TiviPrimary)
+                                                .background(VegaColors.Accent)
                                                 .padding(horizontal = 5.dp, vertical = 2.dp)
                                         ) {
                                             Text(
@@ -2779,9 +2842,9 @@ fun PlayerScreen(
                 .padding(end = 20.dp, bottom = if (isPortrait) 120.dp else 80.dp)
         ) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = TiviOverlayDark),
+                colors = CardDefaults.cardColors(containerColor = VegaColors.OverlayPanel),
                 shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.7f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.7f)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
                 modifier = Modifier.widthIn(max = 300.dp)
             ) {
@@ -2796,12 +2859,12 @@ fun PlayerScreen(
                         Icon(
                             imageVector = Icons.Default.SkipNext,
                             contentDescription = null,
-                            tint = TiviAccentLive,
+                            tint = VegaColors.Danger,
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Sonraki Bölüm (${(timeRemainingMs / 1000L)}s)",
-                            color = TiviAccentLive,
+                            text = "Sonraki bölüm (${(timeRemainingMs / 1000L)}s)",
+                            color = VegaColors.Accent,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
@@ -2813,7 +2876,7 @@ fun PlayerScreen(
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Kapat",
-                                tint = TiviTextSecondary,
+                                tint = VegaColors.TextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -2834,11 +2897,11 @@ fun PlayerScreen(
                     ) {
                         Button(
                             onClick = { viewModel.playNextEpisode() },
-                            colors = ButtonDefaults.buttonColors(containerColor = TiviPrimary),
+                            colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent),
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Text("Hemen İzle", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = VegaColors.OnAccent)
+                            Text("Hemen izle", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = VegaColors.OnAccent)
                         }
                     }
                 }
@@ -2994,7 +3057,7 @@ fun PlayerScreen(
                                 viewModel.playSeriesEpisode(ep, currentSeriesInfo?.info?.name ?: title)
                                 showEpisodesDrawer = false
                             },
-                            shape = VegaShapes.Small,
+                            shape = VegaShapes.Medium,
                             color = if (isItemFocused) VegaColors.Accent.copy(alpha = 0.25f)
                             else if (isCurrentEp) VegaColors.Accent.copy(alpha = 0.18f)
                             else VegaColors.SurfaceVariant,
@@ -3005,6 +3068,15 @@ fun PlayerScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(64.dp)
+                                .dpadFocusable(
+                                    focusedBorderColor = VegaColors.Accent,
+                                    shape = VegaShapes.Medium,
+                                    scale = 1.02f,
+                                    onClick = {
+                                        viewModel.playSeriesEpisode(ep, currentSeriesInfo?.info?.name ?: title)
+                                        showEpisodesDrawer = false
+                                    }
+                                )
                                 .onFocusChanged { isItemFocused = it.isFocused }
                         ) {
                             Row(
@@ -3015,30 +3087,39 @@ fun PlayerScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(28.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isCurrentEp) VegaColors.Accent else VegaColors.Border),
+                                        .size(32.dp)
+                                        .clip(VegaShapes.Small)
+                                        .background(if (isCurrentEp) VegaColors.Accent else VegaColors.Card)
+                                        .border(1.dp, if (isCurrentEp) VegaColors.Accent else VegaColors.Border, VegaShapes.Small),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = ep.episodeNum.toString(),
                                         color = if (isCurrentEp) VegaColors.OnAccent else Color.White,
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
 
-                                Text(
-                                    text = ep.title.ifBlank { "Bölüm ${ep.episodeNum}" },
-                                    color = if (isCurrentEp) VegaColors.Accent else VegaColors.TextPrimary,
-                                    fontSize = VegaText.Body,
-                                    fontWeight = if (isCurrentEp) FontWeight.Bold else FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = ep.title.ifBlank { "Bölüm ${ep.episodeNum}" },
+                                        color = if (isCurrentEp) VegaColors.Accent else VegaColors.TextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isCurrentEp) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    ep.info?.duration?.let { dur ->
+                                        Text(
+                                            text = dur,
+                                            color = VegaColors.TextMuted,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
 
                                 if (isCurrentEp) {
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -3061,8 +3142,8 @@ fun PlayerScreen(
         if (showSleepTimerDialog) {
             AlertDialog(
                 onDismissRequest = { showSleepTimerDialog = false },
-                containerColor = TiviSurface,
-                title = { Text("Uyku Zamanlayıcısı", color = TiviTextPrimary, fontWeight = FontWeight.Bold) },
+                containerColor = VegaColors.Surface,
+                title = { Text("Uyku zamanlayıcısı", color = VegaColors.TextPrimary, fontWeight = FontWeight.Bold) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(15, 30, 45, 60, 90).forEach { mins ->
@@ -3071,11 +3152,11 @@ fun PlayerScreen(
                                     playerManager.setSleepTimer(mins)
                                     showSleepTimerDialog = false
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = TiviCard, contentColor = TiviTextPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.SurfaceVariant, contentColor = VegaColors.TextPrimary),
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("$mins Dakika Sonra Yayını Kapat")
+                                Text("$mins dakika sonra kapat")
                             }
                         }
                         if (sleepTimerSeconds != null) {
@@ -3087,14 +3168,14 @@ fun PlayerScreen(
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Zamanlayıcıyı İptal Et", color = TiviAccentLive)
+                                Text("Zamanlayıcıyı kapat", color = VegaColors.Danger)
                             }
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = { showSleepTimerDialog = false }) {
-                        Text("Vazgeç", color = TiviTextSecondary)
+                        Text("Vazgeç", color = VegaColors.TextSecondary)
                     }
                 }
             )
@@ -3234,7 +3315,7 @@ fun DualViewSplitScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(3.dp)
-                        .background(TiviPrimary.copy(alpha = 0.6f))
+                        .background(VegaColors.Accent.copy(alpha = 0.6f))
                 )
 
                 // Second Screen (Bottom)
@@ -3282,7 +3363,7 @@ fun DualViewSplitScreen(
                     modifier = Modifier
                         .fillMaxHeight()
                         .width(3.dp)
-                        .background(TiviPrimary.copy(alpha = 0.6f))
+                        .background(VegaColors.Accent.copy(alpha = 0.6f))
                 )
 
                 // Second Screen (Right)
@@ -3310,7 +3391,7 @@ fun DualViewSplitScreen(
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Color.Black.copy(alpha = 0.85f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, TiviPrimary.copy(alpha = 0.4f)),
+            border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.4f)),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 12.dp)
@@ -3325,7 +3406,7 @@ fun DualViewSplitScreen(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(TiviAccentLive)
+                        .background(VegaColors.Live)
                 )
 
                 Text(
@@ -3344,8 +3425,8 @@ fun DualViewSplitScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.SwapHoriz,
-                        contentDescription = "Ekranları Değiştir",
-                        tint = TiviPrimary,
+                        contentDescription = "Ekranları değiştir",
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -3357,7 +3438,7 @@ fun DualViewSplitScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
-                        contentDescription = "2. Kanalı Değiştir",
+                        contentDescription = "2. kanalı değiştir",
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
@@ -3459,7 +3540,7 @@ fun DualViewSingleWindow(
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    color = TiviPrimary,
+                    color = VegaColors.Accent,
                     strokeWidth = 2.5.dp,
                     modifier = Modifier.size(36.dp)
                 )
@@ -3476,10 +3557,10 @@ fun DualViewSingleWindow(
         ) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = if (hasAudio) TiviPrimary else Color.Black.copy(alpha = 0.7f),
+                color = if (hasAudio) VegaColors.Accent else Color.Black.copy(alpha = 0.7f),
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    if (hasAudio) TiviPrimary else Color.White.copy(alpha = 0.2f)
+                    if (hasAudio) VegaColors.Accent else Color.White.copy(alpha = 0.2f)
                 )
             ) {
                 Row(
