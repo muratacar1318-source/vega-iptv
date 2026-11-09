@@ -2288,7 +2288,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return prev
     }
 
+    private var lastPlayActionTime = 0L
+
     fun playVod(vod: VodStream, resume: Boolean = false) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastPlayActionTime < 500L) return
+        lastPlayActionTime = now
         stopBackgroundSyncForPlayback()
         vodPrewarmer.cancelAll("oynat basıldı")
         val t0 = SystemClock.elapsedRealtime()
@@ -2329,6 +2334,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun playSeriesEpisode(episode: SeriesEpisode, seriesTitle: String, resume: Boolean = true) {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastPlayActionTime < 500L) return
+        lastPlayActionTime = now
         stopBackgroundSyncForPlayback()
         vodPrewarmer.cancelAll("oynat basıldı")
         val t0 = SystemClock.elapsedRealtime()

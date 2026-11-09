@@ -261,8 +261,7 @@ fun SeriesDetailScreen(
                 .dpadFocusable(
                     focusedBorderColor = VegaColors.Accent,
                     shape = CircleShape,
-                    scale = 1.08f,
-                    onClick = onBack
+                    scale = 1.08f
                 )
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -340,8 +339,7 @@ fun SeriesDetailScreen(
                                 .focusRequester(playButtonFocusRequester)
                                 .dpadFocusable(
                                     focusedBorderColor = Color.White,
-                                    shape = VegaShapes.Medium,
-                                    onClick = { viewModel.playSeriesEpisode(nextEp, series.name, resume = true) }
+                                    shape = VegaShapes.Medium
                                 )
                         ) {
                             Icon(
@@ -387,8 +385,7 @@ fun SeriesDetailScreen(
                                 .height(44.dp)
                                 .dpadFocusable(
                                     focusedBorderColor = VegaColors.Accent,
-                                    shape = VegaShapes.Medium,
-                                    onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) }
+                                    shape = VegaShapes.Medium
                                 )
                         ) {
                             Icon(
@@ -416,8 +413,7 @@ fun SeriesDetailScreen(
                                     .height(44.dp)
                                     .dpadFocusable(
                                         focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium,
-                                        onClick = { openTrailer(context, trailerUrl) }
+                                        shape = VegaShapes.Medium
                                     )
                             ) {
                                 Icon(
@@ -874,8 +870,7 @@ fun SeriesDetailScreen(
                                 .focusRequester(playButtonFocusRequester)
                                 .dpadFocusable(
                                     focusedBorderColor = Color.White,
-                                    shape = VegaShapes.Medium,
-                                    onClick = { viewModel.playSeriesEpisode(nextEp, series.name, resume = true) }
+                                    shape = VegaShapes.Medium
                                 )
                         ) {
                             Icon(
@@ -918,8 +913,7 @@ fun SeriesDetailScreen(
                                 .height(46.dp)
                                 .dpadFocusable(
                                     focusedBorderColor = VegaColors.Accent,
-                                    shape = VegaShapes.Medium,
-                                    onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) }
+                                    shape = VegaShapes.Medium
                                 )
                         ) {
                             Icon(
@@ -946,8 +940,7 @@ fun SeriesDetailScreen(
                                     .height(46.dp)
                                     .dpadFocusable(
                                         focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium,
-                                        onClick = { openTrailer(context, trailerUrl) }
+                                        shape = VegaShapes.Medium
                                     )
                             ) {
                                 Icon(
@@ -1058,8 +1051,7 @@ fun EpisodeCard(
             .dpadFocusable(
                 focusedBorderColor = VegaColors.Accent,
                 shape = VegaShapes.Medium,
-                scale = 1.02f,
-                onClick = onEpisodeClick
+                scale = 1.02f
             )
     ) {
         Row(

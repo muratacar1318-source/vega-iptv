@@ -17,8 +17,10 @@ class BoundedDnsAndStreamingClientTest {
     @Test
     fun testSuccessfulLookupCachesStaleAddress() {
         val mockAddress = InetAddress.getByName("192.168.1.100")
-        val mockDns = Dns { hostname ->
-            if (hostname == "iptv.provider.com") listOf(mockAddress) else emptyList()
+        val mockDns = object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                return if (hostname == "iptv.provider.com") listOf(mockAddress) else emptyList()
+            }
         }
 
         val boundedDns = BoundedDns(
@@ -43,11 +45,13 @@ class BoundedDnsAndStreamingClientTest {
         val workingAddress = InetAddress.getByName("10.0.0.1")
         var shouldFail = false
 
-        val mockDns = Dns { hostname ->
-            if (shouldFail) {
-                throw UnknownHostException("DNS unreachable / ISP blocked")
-            } else {
-                listOf(workingAddress)
+        val mockDns = object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                if (shouldFail) {
+                    throw UnknownHostException("DNS unreachable / ISP blocked")
+                } else {
+                    return listOf(workingAddress)
+                }
             }
         }
 
@@ -71,8 +75,10 @@ class BoundedDnsAndStreamingClientTest {
 
     @Test
     fun testFailedLookupWithoutStaleThrowsUnknownHostException() {
-        val mockDns = Dns { hostname ->
-            throw UnknownHostException("Host not found: $hostname")
+        val mockDns = object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                throw UnknownHostException("Host not found: $hostname")
+            }
         }
 
         val boundedDns = BoundedDns(
@@ -93,9 +99,11 @@ class BoundedDnsAndStreamingClientTest {
         val cachedAddress = InetAddress.getByName("172.16.0.5")
 
         // Slow delegate that exceeds timeout
-        val slowDns = Dns {
-            Thread.sleep(800)
-            listOf(InetAddress.getByName("172.16.0.99"))
+        val slowDns = object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                Thread.sleep(800)
+                return listOf(InetAddress.getByName("172.16.0.99"))
+            }
         }
 
         val boundedDns = BoundedDns(
@@ -122,10 +130,12 @@ class BoundedDnsAndStreamingClientTest {
         val testAddress = InetAddress.getByName("192.168.1.1")
 
         val latch = CountDownLatch(1)
-        val mockDns = Dns {
-            callCount.incrementAndGet()
-            latch.await(2, TimeUnit.SECONDS)
-            listOf(testAddress)
+        val mockDns = object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+                callCount.incrementAndGet()
+                latch.await(2, TimeUnit.SECONDS)
+                return listOf(testAddress)
+            }
         }
 
         val boundedDns = BoundedDns(

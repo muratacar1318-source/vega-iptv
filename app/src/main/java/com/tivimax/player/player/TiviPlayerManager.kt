@@ -681,16 +681,22 @@ class TiviPlayerManager(private val context: Context) {
 
     fun initializePlayer(isLive: Boolean = isLiveStream): ExoPlayer {
         if (exoPlayer != null) {
-            if (BuildConfig.DEBUG) {
-                val createdWithLive = playerLoadControlIsLive
-                val warning = if (createdWithLive != null && createdWithLive != isLive) {
-                    " -> DİKKAT: Player createdWithLive=$createdWithLive ile oluşturulmuş, şu an istenen isLive=$isLive! (LoadControl: ${if (createdWithLive) "CANLI" else "VOD"})"
-                } else {
-                    " (LoadControl: ${if (createdWithLive == true) "CANLI" else "VOD"})"
+            if (playerLoadControlIsLive != null && playerLoadControlIsLive != isLive) {
+                // Mod değişti (Canlı <-> VOD):
+                // Canlı TV için düşük gecikmeli dar tampon, VOD (Film/Dizi) için ise
+                // geniş bellekli büyük tampon ve VodLoadErrorHandlingPolicy gerekir.
+                // Uyumsuz LoadControl ve MediaSource politikasını önlemek için oynatıcıyı temizle ve yeniden inşa et.
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] initializePlayer: Mod değişti (eski=$playerLoadControlIsLive, yeni=$isLive). Oynatıcı yeniden inşa ediliyor.")
                 }
-                Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] initializePlayer: Mevcut player tekrar kullanılıyor (reused=true, createdWithLive=$createdWithLive, requestedIsLive=$isLive)$warning")
+                exoPlayer?.stop()
+                exoPlayer?.clearMediaItems()
+                exoPlayer?.release()
+                exoPlayer = null
+                activePlayerView = null
+            } else {
+                return exoPlayer!!
             }
-            return exoPlayer!!
         }
 
         playerLoadControlIsLive = isLive
@@ -705,7 +711,11 @@ class TiviPlayerManager(private val context: Context) {
 
         // G-042: TS yayınlarda IDR olmayan anahtar karelerden de başlayabilsin (kanal açılışı hızlanır)
         val extractorsFactory = androidx.media3.extractor.DefaultExtractorsFactory()
-            .setTsExtractorFlags(androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES)
+            .setTsExtractorFlags(
+                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES or
+                androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS
+            )
+            .setTsExtractorTimestampSearchBytes(1800 * androidx.media3.extractor.ts.TsExtractor.TS_PACKET_SIZE)
         val mediaSourceFactory = DefaultMediaSourceFactory(createDataSourceFactory(), extractorsFactory)
         if (!isLive) {
             mediaSourceFactory.setLoadErrorHandlingPolicy(VodLoadErrorHandlingPolicy(4))
@@ -1017,7 +1027,9 @@ class TiviPlayerManager(private val context: Context) {
             val player = initializePlayer(isLive)
             player.stop()
             player.clearMediaItems()
-            streamingHttpClient.evictAll()
+            if (isLive) {
+                streamingHttpClient.evictAll()
+            }
 
             player.setSeekParameters(SeekParameters.DEFAULT)
             if (!isLive && startPositionMs > 0) {
