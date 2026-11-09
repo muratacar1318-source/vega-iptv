@@ -446,7 +446,12 @@ fun HomeScreen(viewModel: MainViewModel) {
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Şimdi İndir ve Kur", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Şimdi indir ve kur",
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             },
@@ -473,7 +478,13 @@ fun HomeScreen(viewModel: MainViewModel) {
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Daha Sonra", fontWeight = FontWeight.SemiBold, color = Color.White)
+                        Text(
+                            text = "Daha sonra",
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
