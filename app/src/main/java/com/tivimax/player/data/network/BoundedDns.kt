@@ -19,8 +19,8 @@ import java.util.concurrent.TimeoutException
  * can block for up to 80 seconds, freezing the player on a black screen without failing or retrying.
  *
  * BoundedDns bounds the DNS lookup time:
- * - [timeoutMs] (default 5,000 ms) for initial lookups.
- * - [staleTimeoutMs] (default 1,000 ms) once a working IP is already known in [lastGood].
+ * - [timeoutMs] (default 10,000 ms) for initial lookups.
+ * - [staleTimeoutMs] (default 1,500 ms) once a working IP is already known in [lastGood].
  * - In-flight deduplication: multiple concurrent lookups for the same hostname share the same query.
  * - Stale IP Fallback: if the lookup times out or fails (e.g. ISP DNS throttling/poisoning),
  *   it immediately returns the last working addresses for that host, keeping playback uninterrupted.
@@ -34,8 +34,8 @@ class BoundedDns(
 
     companion object {
         private const val TAG = "BoundedDns"
-        const val DEFAULT_TIMEOUT_MS = 5_000L
-        const val DEFAULT_STALE_TIMEOUT_MS = 1_000L
+        const val DEFAULT_TIMEOUT_MS = 10_000L
+        const val DEFAULT_STALE_TIMEOUT_MS = 1_500L
 
         /** Singleton instance for app-wide DNS routing with shared stale cache */
         val instance by lazy { BoundedDns() }
@@ -95,6 +95,15 @@ class BoundedDns(
             logFallback?.invoke(msg)
             return stale
         }
+
+        // Önbellekte IP yoksa ve zaman aşımı olduysa doğrudan delegate ile son bir kurtarma dene
+        try {
+            val directResult = delegate.lookup(hostname)
+            if (directResult.isNotEmpty()) {
+                lastGood[hostname] = directResult
+                return directResult
+            }
+        } catch (_: Throwable) {}
 
         throw failure
     }

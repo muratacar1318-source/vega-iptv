@@ -215,8 +215,7 @@ fun VodDetailScreen(
                 .dpadFocusable(
                     focusedBorderColor = VegaColors.Accent,
                     shape = CircleShape,
-                    scale = 1.08f,
-                    onClick = onBack
+                    scale = 1.08f
                 )
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -487,8 +486,7 @@ fun VodDetailScreen(
                                     .focusRequester(playButtonFocusRequester)
                                     .dpadFocusable(
                                         focusedBorderColor = Color.White,
-                                        shape = VegaShapes.Medium,
-                                        onClick = { viewModel.playVod(movie, resume = true) }
+                                        shape = VegaShapes.Medium
                                     )
                             ) {
                                 Icon(
@@ -515,8 +513,7 @@ fun VodDetailScreen(
                                     .height(48.dp)
                                     .dpadFocusable(
                                         focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium,
-                                        onClick = { viewModel.playVod(movie, resume = false) }
+                                        shape = VegaShapes.Medium
                                     )
                             ) {
                                 Icon(
@@ -544,8 +541,7 @@ fun VodDetailScreen(
                                     .focusRequester(playButtonFocusRequester)
                                     .dpadFocusable(
                                         focusedBorderColor = Color.White,
-                                        shape = VegaShapes.Medium,
-                                        onClick = { viewModel.playVod(movie, resume = false) }
+                                        shape = VegaShapes.Medium
                                     )
                             ) {
                                 Icon(
@@ -884,8 +880,7 @@ fun VodDetailScreen(
                             .focusRequester(playButtonFocusRequester)
                             .dpadFocusable(
                                 focusedBorderColor = Color.White,
-                                shape = VegaShapes.Medium,
-                                onClick = { viewModel.playVod(movie, resume = true) }
+                                shape = VegaShapes.Medium
                             )
                     ) {
                         Icon(
@@ -913,8 +908,7 @@ fun VodDetailScreen(
                             .height(48.dp)
                             .dpadFocusable(
                                 focusedBorderColor = VegaColors.Accent,
-                                shape = VegaShapes.Medium,
-                                onClick = { viewModel.playVod(movie, resume = false) }
+                                shape = VegaShapes.Medium
                             )
                     ) {
                         Icon(
@@ -943,8 +937,7 @@ fun VodDetailScreen(
                             .focusRequester(playButtonFocusRequester)
                             .dpadFocusable(
                                 focusedBorderColor = Color.White,
-                                shape = VegaShapes.Medium,
-                                onClick = { viewModel.playVod(movie, resume = false) }
+                                shape = VegaShapes.Medium
                             )
                     ) {
                         Icon(
@@ -982,8 +975,7 @@ fun VodDetailScreen(
                             .height(46.dp)
                             .dpadFocusable(
                                 focusedBorderColor = VegaColors.Accent,
-                                shape = VegaShapes.Medium,
-                                onClick = { viewModel.toggleFavoriteVod(movie.streamId.toString()) }
+                                shape = VegaShapes.Medium
                             )
                     ) {
                         Icon(
