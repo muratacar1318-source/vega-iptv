@@ -48,6 +48,8 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
+import com.tivimax.player.ui.components.extractQualityBadges
+import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.DelayedSubtitleController
 import com.tivimax.player.ui.MainViewModel
@@ -484,7 +486,12 @@ fun TvPlayerOverlay(
             Surface(
                 shape = VegaShapes.Large,
                 color = VegaColors.OverlayPanel,
-                border = BorderStroke(1.dp, VegaColors.Border)
+                border = BorderStroke(
+                    1.dp,
+                    Brush.horizontalGradient(
+                        listOf(VegaColors.Accent.copy(alpha = 0.5f), VegaColors.Border, VegaColors.Border)
+                    )
+                )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -531,9 +538,13 @@ fun TvPlayerOverlay(
                                     overflow = TextOverflow.Ellipsis
                                 )
 
-                                // Rozetler
+                                // Rozetler (Kalite ve Teknik Teşhis)
                                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    if (streamDiagnostics.resolutionBadge.isNotBlank()) {
+                                    val qualityBadges = remember(activeChannel.name) { extractQualityBadges(activeChannel.name) }
+                                    qualityBadges.forEach { tag ->
+                                        QualityBadge(tag = tag)
+                                    }
+                                    if (streamDiagnostics.resolutionBadge.isNotBlank() && qualityBadges.none { it.equals(streamDiagnostics.resolutionBadge, true) }) {
                                         TechBadge(text = streamDiagnostics.resolutionBadge, isHighlight = true)
                                     }
                                     if (streamDiagnostics.frameRateBadge.isNotBlank()) {
