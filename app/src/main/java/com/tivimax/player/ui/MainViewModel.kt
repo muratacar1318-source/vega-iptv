@@ -11,6 +11,7 @@ import com.tivimax.player.data.model.*
 import com.tivimax.player.data.playlist.Playlist
 import com.tivimax.player.data.playlist.PlaylistRepository
 import com.tivimax.player.data.preferences.UserPreferences
+import com.tivimax.player.data.network.BoundedDns
 import com.tivimax.player.data.repository.XtreamRepository
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.TiviPlayerManager
@@ -2416,6 +2417,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             withContext(Dispatchers.IO) {
                 try {
                     val client = OkHttpClient.Builder()
+                        .dns(BoundedDns.instance)
                         .connectTimeout(10, TimeUnit.SECONDS)
                         .readTimeout(10, TimeUnit.SECONDS)
                         .build()

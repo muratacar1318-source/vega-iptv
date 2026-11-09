@@ -11,6 +11,7 @@ import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.data.local.AppDatabase
 import com.tivimax.player.data.local.entity.*
 import com.tivimax.player.data.model.*
+import com.tivimax.player.data.network.BoundedDns
 import com.tivimax.player.data.network.FailoverInterceptor
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
@@ -111,6 +112,7 @@ class XtreamRepository(private val context: Context? = null) {
     }
 
     private val client = OkHttpClient.Builder()
+        .dns(BoundedDns.instance)
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(90, TimeUnit.SECONDS)
         .followRedirects(true)

@@ -30,6 +30,8 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import androidx.media3.session.MediaSession
+import com.tivimax.player.data.network.BoundedDns
+import com.tivimax.player.data.network.StreamingHttpClient
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import android.os.SystemClock
@@ -522,8 +524,16 @@ class TiviPlayerManager(private val context: Context) {
         vodBufferSecondsState.value = validSecs
     }
 
+    val streamingHttpClient: StreamingHttpClient by lazy {
+        StreamingHttpClient(
+            base = baseOkHttpClient,
+            dns = BoundedDns.instance
+        )
+    }
+
     val baseOkHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .dns(BoundedDns.instance)
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .followRedirects(true)
@@ -531,10 +541,10 @@ class TiviPlayerManager(private val context: Context) {
             .retryOnConnectionFailure(true)
             .build()
     }
-    private val okHttpClient: OkHttpClient get() = baseOkHttpClient
+    val okHttpClient: OkHttpClient get() = streamingHttpClient.client
 
     fun createDataSourceFactory(): DataSource.Factory {
-        val okHttpDataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(baseOkHttpClient)
+        val okHttpDataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(streamingHttpClient.client)
             .setUserAgent(USER_AGENT)
         return DefaultDataSource.Factory(context, okHttpDataSourceFactory)
     }
@@ -646,6 +656,7 @@ class TiviPlayerManager(private val context: Context) {
             android.util.Log.w("VegaIPTV", "Canlı yayın ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
             _reconnectStatus.value = "Yayın yeniden bağlanıyor... ($liveStallRecoveries/3)"
             p.stop()
+            streamingHttpClient.evictAll()
             p.seekToDefaultPosition()
             p.prepare()
             p.play()
@@ -1006,6 +1017,7 @@ class TiviPlayerManager(private val context: Context) {
             val player = initializePlayer(isLive)
             player.stop()
             player.clearMediaItems()
+            streamingHttpClient.evictAll()
 
             player.setSeekParameters(SeekParameters.DEFAULT)
             if (!isLive && startPositionMs > 0) {
@@ -1047,6 +1059,7 @@ class TiviPlayerManager(private val context: Context) {
             it.stop()
             it.clearMediaItems()
         }
+        streamingHttpClient.evictAll()
         _isBuffering.value = false
         _isPlaying.value = false
     }
@@ -1083,6 +1096,7 @@ class TiviPlayerManager(private val context: Context) {
     fun stop() {
         exoPlayer?.stop()
         secondaryExoPlayer?.stop()
+        streamingHttpClient.evictAll()
     }
 
     fun togglePlayPause() {
@@ -1701,6 +1715,7 @@ class TiviPlayerManager(private val context: Context) {
         activePlayerView = null
         isCurrentOwnerPrimary = false
         pendingSecondaryView = null
+        streamingHttpClient.evictAll()
         _isBuffering.value = false
         _isPlaying.value = false
     }
