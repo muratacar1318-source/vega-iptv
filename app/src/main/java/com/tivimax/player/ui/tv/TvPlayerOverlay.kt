@@ -146,14 +146,24 @@ fun TvPlayerOverlay(
     }
 
     LaunchedEffect(Unit) {
-        delay(150)
-        try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
+        repeat(4) {
+            delay(50)
+            try {
+                overlayFocusRequester.requestFocus()
+                return@LaunchedEffect
+            } catch (_: Exception) {}
+        }
     }
 
     LaunchedEffect(showInfoCard, showActionTray, showOverlayGuide, showQuickSettings, showTrackSheet) {
         if (!showActionTray && !showOverlayGuide && !showQuickSettings && !showTrackSheet) {
-            delay(50)
-            try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
+            repeat(4) {
+                delay(40)
+                try {
+                    overlayFocusRequester.requestFocus()
+                    return@LaunchedEffect
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -161,8 +171,13 @@ fun TvPlayerOverlay(
     LaunchedEffect(showOverlayGuide) {
         if (showOverlayGuide && allStreams.isNotEmpty()) {
             try { guideListState.scrollToItem(guideFocusIndex) } catch (_: Exception) {}
-            delay(120)
-            try { guideFocusRequester.requestFocus() } catch (_: Exception) {}
+            repeat(5) {
+                delay(60)
+                try {
+                    guideFocusRequester.requestFocus()
+                    return@LaunchedEffect
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -231,10 +246,23 @@ fun TvPlayerOverlay(
                 val keyCode = keyEvent.nativeKeyEvent.keyCode
                 registerInteraction()
 
-                // Rakam Tuşlaması (0-9)
+                // Rakam Tuşlaması (0-9 ve Numpad 0-9)
                 if (keyCode in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9) {
                     val digit = keyCode - KeyEvent.KEYCODE_0
                     viewModel.onNumericKeyPressed(digit)
+                    return@onPreviewKeyEvent true
+                }
+                if (keyCode in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9) {
+                    val digit = keyCode - KeyEvent.KEYCODE_NUMPAD_0
+                    viewModel.onNumericKeyPressed(digit)
+                    return@onPreviewKeyEvent true
+                }
+
+                // EĞER ZAPPER AKTİF VE ENTER'A BASILDIYSA ANINDA GEÇ
+                if (isZapperActive && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+                        keyCode == KeyEvent.KEYCODE_ENTER ||
+                        keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                    viewModel.executeZapperSwitch()
                     return@onPreviewKeyEvent true
                 }
 
@@ -244,11 +272,13 @@ fun TvPlayerOverlay(
                         showOverlayGuide = false
                         showQuickSettings = false
                         showTrackSheet = false
+                        try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
                         return@onPreviewKeyEvent true
                     }
                     // G-032: Kanal listesi açıkken ▶ listeyi kapatır
                     if (showOverlayGuide && keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
                         showOverlayGuide = false
+                        try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
                         return@onPreviewKeyEvent true
                     }
                     // G-045: Listede ▲▼ ile gezinme başladı
@@ -258,17 +288,20 @@ fun TvPlayerOverlay(
                     return@onPreviewKeyEvent false
                 }
 
-                // G-032: Menü (alt tepsi) açıkken tuşlar menünün içinde çalışsın; Geri menüyü kapatır
+                // G-032: Menü (alt tepsi) açıkken tuşlar menünün içinde çalışsın; Geri veya Menu kapatır
                 if (showActionTray) {
-                    if (keyCode == KeyEvent.KEYCODE_BACK) {
+                    if (keyCode == KeyEvent.KEYCODE_BACK || keyCode == KeyEvent.KEYCODE_MENU) {
                         showActionTray = false
+                        try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
                         return@onPreviewKeyEvent true
                     }
                     return@onPreviewKeyEvent false
                 }
 
                 when (keyCode) {
-                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    KeyEvent.KEYCODE_DPAD_CENTER,
+                    KeyEvent.KEYCODE_ENTER,
+                    KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                         if (keyEvent.nativeKeyEvent.repeatCount > 0) {
                             return@onPreviewKeyEvent true
                         }
@@ -282,14 +315,18 @@ fun TvPlayerOverlay(
                         return@onPreviewKeyEvent true
                     }
 
-                    KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> {
+                    KeyEvent.KEYCODE_DPAD_UP,
+                    KeyEvent.KEYCODE_CHANNEL_UP,
+                    KeyEvent.KEYCODE_PAGE_UP -> {
                         val next = viewModel.zapNextChannel(activeChannel.streamId)
                         if (next != null) seekRippleMessage = "Sonraki: ${next.name} ⏭"
                         showInfoCard = true
                         return@onPreviewKeyEvent true
                     }
 
-                    KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                    KeyEvent.KEYCODE_DPAD_DOWN,
+                    KeyEvent.KEYCODE_CHANNEL_DOWN,
+                    KeyEvent.KEYCODE_PAGE_DOWN -> {
                         val prev = viewModel.zapPreviousChannel(activeChannel.streamId)
                         if (prev != null) seekRippleMessage = "⏮ ${prev.name}"
                         showInfoCard = true
@@ -301,8 +338,13 @@ fun TvPlayerOverlay(
                         showInfoCard = true
                         showActionTray = true
                         coroutineScope.launch {
-                            delay(150)
-                            try { actionDockFocusRequester.requestFocus() } catch (_: Exception) {}
+                            repeat(4) {
+                                delay(50)
+                                try {
+                                    actionDockFocusRequester.requestFocus()
+                                    return@launch
+                                } catch (_: Exception) {}
+                            }
                         }
                         return@onPreviewKeyEvent true
                     }
@@ -311,6 +353,70 @@ fun TvPlayerOverlay(
                         guideNavigated = false // G-045
                         showOverlayGuide = true
                         showInfoCard = false
+                        return@onPreviewKeyEvent true
+                    }
+
+                    KeyEvent.KEYCODE_MENU -> {
+                        showActionTray = !showActionTray
+                        if (showActionTray) {
+                            showInfoCard = true
+                            coroutineScope.launch {
+                                repeat(4) {
+                                    delay(50)
+                                    try {
+                                        actionDockFocusRequester.requestFocus()
+                                        return@launch
+                                    } catch (_: Exception) {}
+                                }
+                            }
+                        } else {
+                            try { overlayFocusRequester.requestFocus() } catch (_: Exception) {}
+                        }
+                        return@onPreviewKeyEvent true
+                    }
+
+                    KeyEvent.KEYCODE_INFO -> {
+                        showInfoCard = !showInfoCard
+                        return@onPreviewKeyEvent true
+                    }
+
+                    KeyEvent.KEYCODE_GUIDE, KeyEvent.KEYCODE_BUTTON_Y -> {
+                        showOverlayGuide = !showOverlayGuide
+                        showInfoCard = false
+                        return@onPreviewKeyEvent true
+                    }
+
+                    KeyEvent.KEYCODE_LAST_CHANNEL, KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                        val prev = viewModel.zapRecall()
+                        if (prev != null) seekRippleMessage = "↩ ${prev.name}"
+                        showInfoCard = true
+                        return@onPreviewKeyEvent true
+                    }
+
+                    KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                        val next = viewModel.zapNextChannel(activeChannel.streamId)
+                        if (next != null) seekRippleMessage = "Sonraki: ${next.name} ⏭"
+                        showInfoCard = true
+                        return@onPreviewKeyEvent true
+                    }
+
+                    KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                        playerManager.togglePlayPause()
+                        return@onPreviewKeyEvent true
+                    }
+
+                    KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                        playerManager.play()
+                        return@onPreviewKeyEvent true
+                    }
+
+                    KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                        playerManager.pause()
+                        return@onPreviewKeyEvent true
+                    }
+
+                    KeyEvent.KEYCODE_MEDIA_STOP -> {
+                        playerManager.stop()
                         return@onPreviewKeyEvent true
                     }
 

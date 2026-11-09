@@ -113,6 +113,21 @@ fun TvTiviMateScreen(
         }
     }
 
+    // Kumanda ile zaplama veya rakam tuşlamasında seçilen kanalı listede görünür kıl
+    LaunchedEffect(activePreviewChannel?.streamId) {
+        val activeId = activePreviewChannel?.streamId ?: return@LaunchedEffect
+        val index = displayedChannels.indexOfFirst { it.streamId == activeId }
+        if (index >= 0) {
+            val firstVisible = channelListState.firstVisibleItemIndex
+            val lastVisible = firstVisible + channelListState.layoutInfo.visibleItemsInfo.size
+            if (index < firstVisible || index >= lastVisible) {
+                try {
+                    channelListState.animateScrollToItem((index - 2).coerceAtLeast(0))
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
     val displayedChannels = remember(channels, selectedCategory, favoriteIds) {
         if (selectedCategory == "favorites") {
             channels.filter { favoriteIds.contains(it.streamId.toString()) }
@@ -156,8 +171,61 @@ fun TvTiviMateScreen(
                             viewModel.onNumericKeyPressed(digit)
                             return@onPreviewKeyEvent true
                         }
+                        if (keyCode in android.view.KeyEvent.KEYCODE_NUMPAD_0..android.view.KeyEvent.KEYCODE_NUMPAD_9) {
+                            val digit = keyCode - android.view.KeyEvent.KEYCODE_NUMPAD_0
+                            viewModel.onNumericKeyPressed(digit)
+                            return@onPreviewKeyEvent true
+                        }
+                        if (isZapperActive && (keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+                                keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+                                keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER)) {
+                            viewModel.executeZapperSwitch()
+                            return@onPreviewKeyEvent true
+                        }
                         if (keyCode == android.view.KeyEvent.KEYCODE_BACK && isZapperActive) {
                             viewModel.dismissZapper()
+                            return@onPreviewKeyEvent true
+                        }
+                        if (keyCode == android.view.KeyEvent.KEYCODE_GUIDE ||
+                            keyCode == android.view.KeyEvent.KEYCODE_BUTTON_Y) {
+                            showEpgGrid = !showEpgGrid
+                            return@onPreviewKeyEvent true
+                        }
+                        if (keyCode == android.view.KeyEvent.KEYCODE_LAST_CHANNEL ||
+                            keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS) {
+                            viewModel.zapRecall()
+                            return@onPreviewKeyEvent true
+                        }
+                        if (keyCode == android.view.KeyEvent.KEYCODE_CHANNEL_UP ||
+                            keyCode == android.view.KeyEvent.KEYCODE_PAGE_UP) {
+                            val currentId = activePreviewChannel?.streamId
+                            if (currentId != null) {
+                                viewModel.zapNextChannel(currentId)
+                                return@onPreviewKeyEvent true
+                            }
+                        }
+                        if (keyCode == android.view.KeyEvent.KEYCODE_CHANNEL_DOWN ||
+                            keyCode == android.view.KeyEvent.KEYCODE_PAGE_DOWN) {
+                            val currentId = activePreviewChannel?.streamId
+                            if (currentId != null) {
+                                viewModel.zapPreviousChannel(currentId)
+                                return@onPreviewKeyEvent true
+                            }
+                        }
+                        if (keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
+                            viewModel.playerManager.togglePlayPause()
+                            return@onPreviewKeyEvent true
+                        }
+                        if (keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PLAY) {
+                            viewModel.playerManager.play()
+                            return@onPreviewKeyEvent true
+                        }
+                        if (keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PAUSE) {
+                            viewModel.playerManager.pause()
+                            return@onPreviewKeyEvent true
+                        }
+                        if (keyCode == android.view.KeyEvent.KEYCODE_MEDIA_STOP) {
+                            viewModel.playerManager.stop()
                             return@onPreviewKeyEvent true
                         }
                     }

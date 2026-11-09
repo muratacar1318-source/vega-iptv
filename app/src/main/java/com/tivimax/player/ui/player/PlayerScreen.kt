@@ -199,30 +199,42 @@ fun PlayerScreen(
         }
     }
 
-    // TV kumandası için ekrana ilk girişte ana video oynatıcıya odağı ver
+    // TV kumandası için ekrana ilk girişte ana video oynatıcıya odağı ver (düşük donanımlı cihazlar için çoklu deneme)
     LaunchedEffect(Unit) {
-        delay(200)
-        try {
-            playerFocusRequester.requestFocus()
-        } catch (e: Exception) { }
+        repeat(4) {
+            delay(60)
+            try {
+                playerFocusRequester.requestFocus()
+                return@LaunchedEffect
+            } catch (e: Exception) { }
+        }
     }
 
     // HUD açıldığında ilk butona, kapandığında ana oynatıcıya odağı ver
     LaunchedEffect(showControls) {
         if (showControls) {
-            delay(120)
-            try {
-                // G-033: TV'de film/dizide odak zaman çubuğuna: ◀▶ sarar, OK duraklatır, ▼ alt düğmeler
-                if (isTvDevice && !isLive) sliderFocusRequester.requestFocus()
-                else firstButtonFocusRequester.requestFocus()
-            } catch (e: Exception) {
-                try { firstButtonFocusRequester.requestFocus() } catch (_: Exception) { }
+            repeat(4) {
+                delay(50)
+                try {
+                    // G-033: TV'de film/dizide odak zaman çubuğuna: ◀▶ sarar, OK duraklatır, ▼ alt düğmeler
+                    if (isTvDevice && !isLive) sliderFocusRequester.requestFocus()
+                    else firstButtonFocusRequester.requestFocus()
+                    return@LaunchedEffect
+                } catch (e: Exception) {
+                    try {
+                        firstButtonFocusRequester.requestFocus()
+                        return@LaunchedEffect
+                    } catch (_: Exception) { }
+                }
             }
         } else {
-            delay(50)
-            try {
-                playerFocusRequester.requestFocus()
-            } catch (e: Exception) { }
+            repeat(4) {
+                delay(40)
+                try {
+                    playerFocusRequester.requestFocus()
+                    return@LaunchedEffect
+                } catch (e: Exception) { }
+            }
         }
     }
 
@@ -732,6 +744,72 @@ fun PlayerScreen(
                             return@onPreviewKeyEvent true
                         }
 
+                        // Donanım medya tuşları HUD açıkken de çalışsın
+                        when (keyCode) {
+                            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                                playerManager.togglePlayPause()
+                                return@onPreviewKeyEvent true
+                            }
+                            KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                                playerManager.play()
+                                return@onPreviewKeyEvent true
+                            }
+                            KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                                playerManager.pause()
+                                return@onPreviewKeyEvent true
+                            }
+                            KeyEvent.KEYCODE_MEDIA_STOP -> {
+                                playerManager.stop()
+                                return@onPreviewKeyEvent true
+                            }
+                            KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                                triggerSeek(true)
+                                return@onPreviewKeyEvent true
+                            }
+                            KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                                triggerSeek(false)
+                                return@onPreviewKeyEvent true
+                            }
+                            KeyEvent.KEYCODE_INFO -> {
+                                showBottomInfoCard = !showBottomInfoCard
+                                return@onPreviewKeyEvent true
+                            }
+                            KeyEvent.KEYCODE_MENU -> {
+                                showControls = false
+                                showSettingsPanel = !showSettingsPanel
+                                try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
+                                return@onPreviewKeyEvent true
+                            }
+                            KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_PAGE_UP -> {
+                                if (isLive) {
+                                    showControls = false
+                                    val next = viewModel.zapNextChannel(streamId)
+                                    if (next != null) showInfoBanner("Sonraki: ${next.name} ⏭")
+                                    showBottomInfoCard = true
+                                    try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
+                                    return@onPreviewKeyEvent true
+                                } else if (currentEpisode != null) {
+                                    showControls = false
+                                    viewModel.playNextEpisode()
+                                    return@onPreviewKeyEvent true
+                                }
+                            }
+                            KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_PAGE_DOWN, KeyEvent.KEYCODE_LAST_CHANNEL -> {
+                                if (isLive) {
+                                    showControls = false
+                                    val prev = viewModel.zapRecall()
+                                    if (prev != null) showInfoBanner("↩ ${prev.name}")
+                                    showBottomInfoCard = true
+                                    try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
+                                    return@onPreviewKeyEvent true
+                                } else if (currentEpisode != null) {
+                                    showControls = false
+                                    viewModel.playPreviousEpisode()
+                                    return@onPreviewKeyEvent true
+                                }
+                            }
+                        }
+
                         // Canlı TV modundayken kumandadan yukarı/aşağı tuşlarına basıldığında
                         // butonlar arasında takılmak yerine anında sonraki/önceki kanala zaplasın:
                         if (isLive) {
@@ -746,13 +824,13 @@ fun PlayerScreen(
                                     return@onPreviewKeyEvent true
                                 }
                                 KeyEvent.KEYCODE_DPAD_DOWN,
-                        KeyEvent.KEYCODE_CHANNEL_DOWN -> {
-                            showControls = false
-                            showRecentChannelsBar = true
-                            showBottomInfoCard = true
-                            try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
-                            return@onPreviewKeyEvent true
-                        }
+                                KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                                    showControls = false
+                                    showRecentChannelsBar = true
+                                    showBottomInfoCard = true
+                                    try { playerFocusRequester.requestFocus() } catch (e: Exception) {}
+                                    return@onPreviewKeyEvent true
+                                }
                             }
                         }
 
@@ -778,13 +856,20 @@ fun PlayerScreen(
                     // HUD KAPALIYKEN (Normal İzleme Modu):
                     when (keyCode) {
                         KeyEvent.KEYCODE_DPAD_UP,
-                        KeyEvent.KEYCODE_CHANNEL_UP -> {
+                        KeyEvent.KEYCODE_CHANNEL_UP,
+                        KeyEvent.KEYCODE_PAGE_UP -> {
                             if (isLive) {
                                 val next = viewModel.zapNextChannel(streamId)
                                 if (next != null) showInfoBanner("Sonraki: ${next.name} ⏭")
                                 showBottomInfoCard = true
                                 registerInteraction()
                                 return@onPreviewKeyEvent true
+                            }
+                            if (currentEpisode != null && keyCode != KeyEvent.KEYCODE_DPAD_UP) {
+                                if (viewModel.playNextEpisode()) {
+                                    registerInteraction()
+                                    return@onPreviewKeyEvent true
+                                }
                             }
                             if (isTvDevice) {
                                 showControls = true
@@ -794,20 +879,27 @@ fun PlayerScreen(
                             false
                         }
                         KeyEvent.KEYCODE_DPAD_DOWN,
-                    KeyEvent.KEYCODE_CHANNEL_DOWN -> {
-                        if (isLive) {
-                            showRecentChannelsBar = true
-                            showBottomInfoCard = true
-                            registerInteraction()
-                            return@onPreviewKeyEvent true
+                        KeyEvent.KEYCODE_CHANNEL_DOWN,
+                        KeyEvent.KEYCODE_PAGE_DOWN -> {
+                            if (isLive) {
+                                showRecentChannelsBar = true
+                                showBottomInfoCard = true
+                                registerInteraction()
+                                return@onPreviewKeyEvent true
+                            }
+                            if (currentEpisode != null && keyCode != KeyEvent.KEYCODE_DPAD_DOWN) {
+                                if (viewModel.playPreviousEpisode()) {
+                                    registerInteraction()
+                                    return@onPreviewKeyEvent true
+                                }
+                            }
+                            if (isTvDevice) {
+                                showControls = true
+                                registerInteraction()
+                                return@onPreviewKeyEvent true
+                            }
+                            false
                         }
-                        if (isTvDevice) {
-                            showControls = true
-                            registerInteraction()
-                            return@onPreviewKeyEvent true
-                        }
-                        false
-                    }
                         KeyEvent.KEYCODE_DPAD_LEFT -> {
                             if (isLive) {
                                 showOverlayGuide = true
@@ -854,6 +946,81 @@ fun PlayerScreen(
                                 registerInteraction()
                                 return@onPreviewKeyEvent true
                             }
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                            playerManager.togglePlayPause()
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                            playerManager.play()
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                            playerManager.pause()
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_STOP -> {
+                            playerManager.stop()
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                            triggerSeek(true)
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                            triggerSeek(false)
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            if (isLive) {
+                                val next = viewModel.zapNextChannel(streamId)
+                                if (next != null) showInfoBanner("Sonraki: ${next.name} ⏭")
+                                showBottomInfoCard = true
+                                registerInteraction()
+                                return@onPreviewKeyEvent true
+                            } else if (currentEpisode != null) {
+                                if (viewModel.playNextEpisode()) {
+                                    registerInteraction()
+                                    return@onPreviewKeyEvent true
+                                }
+                            }
+                            false
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+                        KeyEvent.KEYCODE_LAST_CHANNEL -> {
+                            if (isLive) {
+                                val prev = viewModel.zapRecall()
+                                if (prev != null) showInfoBanner("↩ ${prev.name}")
+                                showBottomInfoCard = true
+                                registerInteraction()
+                                return@onPreviewKeyEvent true
+                            } else if (currentEpisode != null) {
+                                if (viewModel.playPreviousEpisode()) {
+                                    registerInteraction()
+                                    return@onPreviewKeyEvent true
+                                }
+                            }
+                            false
+                        }
+                        KeyEvent.KEYCODE_INFO -> {
+                            showBottomInfoCard = !showBottomInfoCard
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
+                        }
+                        KeyEvent.KEYCODE_MENU -> {
+                            if (isLive) {
+                                showChannelDrawer = !showChannelDrawer
+                            } else {
+                                showSettingsPanel = !showSettingsPanel
+                            }
+                            registerInteraction()
+                            return@onPreviewKeyEvent true
                         }
                         KeyEvent.KEYCODE_BACK -> {
                             if (!isLive && isBuffering) {

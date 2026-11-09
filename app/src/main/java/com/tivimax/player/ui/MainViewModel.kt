@@ -2391,6 +2391,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return true
     }
 
+    fun getPreviousEpisode(): SeriesEpisode? {
+        val (currentEp, _) = currentPlayingEpisode.value ?: return null
+        val episodesMap = currentSeriesInfo.value?.episodes ?: return null
+        val seasonStr = currentEp.season.toString()
+        val currentSeasonEpisodes = episodesMap[seasonStr] ?: emptyList()
+        val currentIndex = currentSeasonEpisodes.indexOfFirst { it.id == currentEp.id }
+
+        if (currentIndex > 0) {
+            return currentSeasonEpisodes[currentIndex - 1]
+        }
+
+        // Mevcut sezonun 1. bölümüyse bir önceki sezonun son bölümüne geç
+        val prevSeasonStr = (currentEp.season - 1).toString()
+        val prevSeasonEpisodes = episodesMap[prevSeasonStr]
+        if (!prevSeasonEpisodes.isNullOrEmpty()) {
+            return prevSeasonEpisodes.lastOrNull()
+        }
+        return null
+    }
+
+    fun playPreviousEpisode(): Boolean {
+        val prev = getPreviousEpisode() ?: return false
+        val seriesTitle = currentPlayingEpisode.value?.second ?: "Dizi"
+        playSeriesEpisode(prev, seriesTitle, resume = false)
+        return true
+    }
+
     fun toggleFavoriteLive(streamId: String) {
         viewModelScope.launch {
             preferences.toggleFavoriteLive(streamId)
