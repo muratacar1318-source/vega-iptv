@@ -573,8 +573,7 @@ fun VodDetailScreen(
                                 .height(48.dp)
                                 .dpadFocusable(
                                     focusedBorderColor = VegaColors.Accent,
-                                    shape = VegaShapes.Medium,
-                                    onClick = { viewModel.toggleFavoriteVod(movie.streamId.toString()) }
+                                    shape = VegaShapes.Medium
                                 )
                         ) {
                             Icon(
@@ -604,8 +603,7 @@ fun VodDetailScreen(
                                     .height(48.dp)
                                     .dpadFocusable(
                                         focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium,
-                                        onClick = { openTrailer(context, trailerUrl) }
+                                        shape = VegaShapes.Medium
                                     )
                             ) {
                                 Icon(
@@ -1002,8 +1000,7 @@ fun VodDetailScreen(
                                 .height(46.dp)
                                 .dpadFocusable(
                                     focusedBorderColor = VegaColors.Accent,
-                                    shape = VegaShapes.Medium,
-                                    onClick = { openTrailer(context, trailerUrl) }
+                                    shape = VegaShapes.Medium
                                 )
                         ) {
                             Icon(
