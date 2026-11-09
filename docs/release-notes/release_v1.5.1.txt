@@ -1,0 +1,5 @@
+- Film ve dizi oynatıcısında yaşanan takılma ve siyah ekran sorunu giderildi.
+- Video açılış hızı ve ileri sarma performansı artırıldı.
+- Film ve dizi sayfalarında butonlara dokunma tepkisi iyileştirildi.
+- Mobil ağlarda yayın bağlantı kararlılığı güçlendirildi.
+- Genel oynatıcı kararlılığı ve akıcılık artırıldı.
