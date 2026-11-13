@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-060 | Toplu program rehberi arka planda indirilsin, rehber 2 gün ileri | 🟢 | ⏳ Bekliyor |
+| G-060 | Toplu program rehberi arka planda indirilsin, rehber 2 gün ileri | 🟢 | 🔍 İncelemede (branch: feat/toplu-program-rehberi) |
 | G-061 | Geri izleme: rehberde geçmiş programa tıklayıp izleme — **G-060'tan sonra** | 🟢 | ⏳ Bekliyor |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
