@@ -40,6 +40,12 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
+| G-052 | +18 kilidi her yerde: Tümü listesi, arama, ana sayfa; Film/Dizi ve TV'de kilit düğmesi | 🔴 | ⏳ Bekliyor |
+| G-053 | CI birim testlerini de çalıştırsın | 🟠 | ⏳ Bekliyor |
+| G-056 | İzleme ilerlemesi en fazla 500 kayıt, gereksiz yeniden ayrıştırma yok | 🟡 | ⏳ Bekliyor |
+| G-057 | Kalan sabit renkler tokenlara, veri/ağ katmanındaki sessiz hatalara log — **G-052 main'e alınınca** | 🟡 | ⏳ Bekliyor |
+| G-054 | MainViewModel'i parçalara böl (davranış değişmeden) — **G-052/053/056 main'e alınınca** | 🟠 | ⏳ Bekliyor |
+| G-055 | PlayerScreen'i dosyalara böl — **PR #63 kapanınca ve G-054'ten sonra** | 🟡 | ⏳ Bekliyor |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -120,8 +126,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 - **Samsung Tizen / LG webOS sürümü.**
 
 ## 💡 Fikirler
-
-- +18 kilidi Filmler ve Diziler'de: süzme çalışıyor ama kilidi açma düğmesi/PIN penceresi sadece Canlı TV'de (G-050 raporundan; görev yazılacak)
 
 - Karar (20 Ekim): TV canlı ana ekranındaki orta kanal listesi böyle kalacak — 1. OK önizlemede açar, 2. OK tam ekran. (G-047 iptal)
 

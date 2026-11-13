@@ -109,7 +109,7 @@ G-048'den başlayan numaralarla, tarifleri `docs/gorevler/` altına yazılarak a
 - [ ] AutoUpdateManager'a SHA-256 doğrulaması için onay (madde 5).
 - [ ] CI'a test adımı için onay (madde 9).
 
-### Faz 1 — Güvenlik ve veri kaybı riski (v1.5.2)
+### Faz 1 — Güvenlik ve veri kaybı riski (v1.5.2) — ✅ main'e alındı (PR #64–#67)
 | Öneri # | İş | Madde |
 |---|---|---|
 | G-048 | Liste/izleme ilerlemesi JSON'u R8'e dayanıklı hâle getir (geçişli) | 1 |
@@ -118,26 +118,29 @@ G-048'den başlayan numaralarla, tarifleri `docs/gorevler/` altına yazılarak a
 | G-051 | Yerel çökme günlüğü ve geliştirici ekranında paylaşım | 10 |
 | (onaylı) | Güncelleme SHA-256 doğrulaması / ayrı güncelleme kanalı | 3, 5 |
 
-### Faz 2 — Kod sağlığı (sürüm çıkarmadan, arka arkaya küçük PR'lar)
-| Öneri # | İş | Madde |
+### Faz 2 — +18 ve kod sağlığı (görevler yazıldı, 13 Kasım)
+| # | İş | Madde |
 |---|---|---|
-| G-052 | CI'a birim testi adımı (onaylı ise) | 9 |
-| G-053 | MainViewModel'i alanlara böl (davranış değişmeden) | 8 |
-| G-054 | PlayerScreen'i bileşenlere böl (davranış değişmeden) | 8 |
-| G-055 | İzleme ilerlemesini Room'a taşı, kayıt sınırı | 12 |
-| G-056 | Kalan sabit renkler + sessiz catch'lere log | 10, 11 |
+| G-052 | +18 kilidi her yerde (Tümü, arama, ana sayfa, Film/Dizi, TV) — G-050 raporundan | yeni |
+| G-053 | CI'a birim testi adımı | 9 |
+| G-056 | İzleme ilerlemesi en fazla 500 kayıt (Room'a taşınmıyor: içerik DB'leri yedeğe girmiyor ve yıkıcı geçişli) | 12 |
+| G-057 | Kalan sabit renkler + sessiz catch'lere log | 10, 11 |
+| G-054 | MainViewModel'i cephe yöntemiyle böl (davranış değişmeden) | 8 |
+| G-055 | PlayerScreen'i dosyalara böl (PR #63 kapanınca) | 8 |
+
+Sıra: 1. tur G-052, G-053, G-056 (dosyaları ayrık) → birleştir → 2. tur G-057, G-054 → birleştir → G-055.
 
 ### Faz 3 — TV ve mevcut bekleyenler (v1.6.0)
 - G-034 (TV'de geri dönünce aynı afişe dönüş) ve G-035 (TV ana sayfa yeni düzen) — tarifleri
   yazılacak; G-035 için önce senin onayın.
-- G-057: Film/dizide takılma bekçisi (G-044'ün VOD karşılığı).
-- G-058: TV ana ekranında "İzlemeye devam et" kanalı + 320×180 banner.
+- G-058: Film/dizide takılma bekçisi (G-044'ün VOD karşılığı).
+- G-059: TV ana ekranında "İzlemeye devam et" kanalı + 320×180 banner.
 
 ### Faz 4 — Büyük özellikler (v1.7.0)
-- G-059: Toplu EPG (xmltv) arka planda indirme + veritabanı + uzun ızgara.
-- G-060: Geri izleme (catch-up) — G-059'a bağlı.
-- G-061: Program hatırlatıcı — G-059'a bağlı.
-- G-062: Media3 + FFmpeg eklentisi yükseltmesi (tek başına, geniş test).
+- G-060: Toplu EPG (xmltv) arka planda indirme + veritabanı + uzun ızgara.
+- G-061: Geri izleme (catch-up) — G-060'a bağlı.
+- G-062: Program hatırlatıcı — G-060'a bağlı.
+- G-063: Media3 + FFmpeg eklentisi yükseltmesi (tek başına, geniş test).
 
 ### Faz 5 — İsteğe bağlı
 - Çoklu profil, "VLC'de aç", M3U desteği, Chromecast, yeni ad ve simge (ad belli olunca).
