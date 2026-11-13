@@ -40,10 +40,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-057 | Kalan sabit renkler tokenlara, sessiz hatalara log, ana sayfada uydurma değerler, açılışta +18 anlık görünme | 🟡 | 🔍 İncelemede (branch: chore/renk-token-ve-loglar) |
-| G-054 | MainViewModel'i parçalara böl (davranış değişmeden) — **G-057 main'e alınınca** | 🟠 | ⏳ Bekliyor |
-| G-055 | PlayerScreen'i dosyalara böl — **PR #63 kapanınca ve G-054'ten sonra** | 🟡 | ⏳ Bekliyor |
-| G-058 | Film/dizide takılma bekçisi: 15 sn takılınca kalınan saniyeden yeniden bağlan | 🟠 | 🔍 İncelemede (branch: fix/vod-takilma-bekcisi) |
+| G-054 | MainViewModel'i parçalara böl (davranış değişmeden) | 🟠 | ⏳ Bekliyor |
+| G-055 | PlayerScreen'i dosyalara böl — **G-054'ten sonra** (PR #63 alındı) | 🟡 | ⏳ Bekliyor |
 | G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma yeri (TV odağı dahil) — **G-054 main'e alınınca** | 🟠 | ⏳ Bekliyor |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -53,6 +51,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-058 | Film/dizide takılma bekçisi: ilk kareden sonra 15 sn takılınca kalınan saniyeden yeniden bağlanıyor — PR #72 | 13 Kasım |
+| G-057 | Sabit renkler tokenlara, veri katmanında sessiz hatalara log (adres/şifre yok), ana sayfada uydurma "1 / 1 Hat" ve sabit "Abonelik aktif" kaldırıldı, açılışta +18 anlık görünme — PR #71 | 13 Kasım |
 | G-053 | CI her PR'da birim testlerini çalıştırıyor (100 test); CI'da çıkan saat dilimine bağlı eski test hatası düzeltildi — PR #70 | 13 Kasım |
 | G-056 | İzleme ilerlemesi en fazla 500 kayıt, gereksiz yeniden ayrıştırma yok — PR #69 | 13 Kasım |
 | G-052 | +18 kilidi her yerde: Tümü listesi, arama, ana sayfa, numarayla geçiş; Film/Dizi ve TV'de kilit; arka planda kilitlenir — PR #68 | 13 Kasım |
@@ -126,6 +126,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 ## 💡 Fikirler
 
+- G-057 notu: açılışta +18 anlık görünmeyi önleyen bekleme yalnız ilk açılışta; oynatma listesi değiştirilince kategoriler yeniden yüklenirken aynı kısa görünme olabilir. G-054'ten sonra küçük görev olarak yazılacak.
 - Karar (13 Kasım, Claude): `feat/mobil-tablet-mini-oynatici` birleştirilmeyecek (main'in 206 commit gerisinde, PlayerScreen/MainViewModel'e ağır dokunuyor). Mobil/tablette ana ekrana dönünce mini oynatıcıda kesintisiz oynatma fikri G-054/G-055 bölmelerinden sonra yeniden görev olarak yazılacak.
 - Karar (13 Kasım, Claude): PR #63 (ana sayfa üst şerit, buton taşmaları) main'e alındı; uydurma "1 / 1 Hat" ve sabit "Abonelik aktif" G-057 Bölüm C'de düzeltilecek.
 - Karar (20 Ekim): TV canlı ana ekranındaki orta kanal listesi böyle kalacak — 1. OK önizlemede açar, 2. OK tam ekran. (G-047 iptal)
