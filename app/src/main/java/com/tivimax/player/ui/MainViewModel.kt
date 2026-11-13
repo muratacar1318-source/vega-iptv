@@ -539,7 +539,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun scheduleEpgSync() {
         viewModelScope.launch(Dispatchers.IO) {
-            epgRepository.syncIfNeeded()
+            // Yeni rehber yazıldıysa ekrandaki kanalların bilgisi veritabanından tazelenir
+            if (epgRepository.syncIfNeeded()) epgCache.refreshFromDatabase()
         }
     }
 

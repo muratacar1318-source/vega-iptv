@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -355,6 +356,8 @@ fun TvEpgGridScreen(
 
                                     items(filteredPrograms, key = { prog -> "${channel.streamId}_${prog.startTimestamp}_${prog.title.hashCode()}" }) { prog ->
                                         val isCurrent = prog.nowPlaying == 1 || (prog.startTimestamp > 0 && prog.stopTimestamp > 0 && nowSec in prog.startTimestamp..prog.stopTimestamp)
+                                        // G-060: Geçmiş programlar soluk gösterilir (G-061'de tıklanabilir olacak)
+                                        val isPast = !isCurrent && prog.stopTimestamp in 1..nowSec
                                         val durationMinutes = prog.getDurationMinutes()
                                         val blockWidth = (durationMinutes * 3.66f).dp.coerceIn(90.dp, 440.dp)
                                         val programTitle = prog.getDecodedTitle()
@@ -370,6 +373,7 @@ fun TvEpgGridScreen(
                                             modifier = Modifier
                                                 .width(blockWidth)
                                                 .fillMaxHeight(0.85f)
+                                                .alpha(if (isPast) 0.45f else 1f)
                                                 .dpadFocusable(
                                                     focusedBorderColor = VegaColors.Accent,
                                                     shape = VegaShapes.Small,
