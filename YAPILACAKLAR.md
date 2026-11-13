@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-053 | CI birim testlerini de çalıştırsın | 🟠 | 🔍 İncelemede (branch: chore/ci-birim-testleri) — kullanıcı onayıyla Claude yaptı |
 | G-057 | Kalan sabit renkler tokenlara, sessiz hatalara log, ana sayfada uydurma değerler, açılışta +18 anlık görünme | 🟡 | ⏳ Bekliyor |
 | G-054 | MainViewModel'i parçalara böl (davranış değişmeden) — **G-057 main'e alınınca** | 🟠 | ⏳ Bekliyor |
 | G-055 | PlayerScreen'i dosyalara böl — **PR #63 kapanınca ve G-054'ten sonra** | 🟡 | ⏳ Bekliyor |
@@ -54,6 +53,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-053 | CI her PR'da birim testlerini çalıştırıyor (100 test); CI'da çıkan saat dilimine bağlı eski test hatası düzeltildi — PR #70 | 13 Kasım |
 | G-056 | İzleme ilerlemesi en fazla 500 kayıt, gereksiz yeniden ayrıştırma yok — PR #69 | 13 Kasım |
 | G-052 | +18 kilidi her yerde: Tümü listesi, arama, ana sayfa, numarayla geçiş; Film/Dizi ve TV'de kilit; arka planda kilitlenir — PR #68 | 13 Kasım |
 | PR #63 | Ana sayfa üst şerit ve buton taşmaları (kullanıcının PR'ı) | 13 Kasım |
