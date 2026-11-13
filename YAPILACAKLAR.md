@@ -40,10 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-048 | Kayıtlı listeler ve "kaldığın yer" sürüm güncellemesinde kaybolmasın (R8 dayanıklılığı) | 🔴 | 🔍 İncelemede (branch: fix/kayitli-veri-r8) |
-| G-049 | Demo girişi sadece geliştirici derlemesinde | 🔴 | 🔍 İncelemede (branch: fix/demo-sadece-debug) |
-| G-050 | Ebeveyn kilidi: 0000 her zaman açıyor → düzelt, ilk kullanımda PIN belirle; yedekleme kuralları | 🔴 | 🔍 İncelemede (branch: fix/ebeveyn-pin-yedekleme) |
-| G-051 | Çökme günlüğü ve Ayarlar'da "Hata raporu gönder" | 🟠 | 🔍 İncelemede (branch: feat/cokme-gunlugu) |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
@@ -53,6 +49,10 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-051 | Çökme günlüğü cihazda, Ayarlar'da "Hata raporu gönder" (adres/şifre temizlenir) — PR #67 | 13 Kasım |
+| G-050 | Ebeveyn kilidi: 0000 açığı kapandı, ilk kullanımda PIN belirleniyor; yedekte içerik veritabanı yok, yedekten dönüşte liste yeniden iniyor — PR #66 | 13 Kasım |
+| G-049 | Demo girişi sadece geliştirici derlemesinde — PR #65 | 13 Kasım |
+| G-048 | Kayıtlı listeler ve izleme ilerlemesi R8'e dayanıklı (v1.5.1'deki kısa anahtarlar okunuyor) — PR #64 | 13 Kasım |
 | R-1.5.0 | v1.5.0 (build 64) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 9 Kasım |
 | R-1.4.3 | v1.4.3 (build 63) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 7 Kasım |
 | R-1.4.2 | v1.4.2 (build 62) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 21 Ekim |
@@ -120,6 +120,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 - **Samsung Tizen / LG webOS sürümü.**
 
 ## 💡 Fikirler
+
+- +18 kilidi Filmler ve Diziler'de: süzme çalışıyor ama kilidi açma düğmesi/PIN penceresi sadece Canlı TV'de (G-050 raporundan; görev yazılacak)
 
 - Karar (20 Ekim): TV canlı ana ekranındaki orta kanal listesi böyle kalacak — 1. OK önizlemede açar, 2. OK tam ekran. (G-047 iptal)
 
