@@ -160,7 +160,13 @@ fun VodScreen(viewModel: MainViewModel) {
                 totalCount = totalVodCount,
                 allLabel = "Tüm Filmler",
                 onFilterClick = { showCategoryDialog = true },
-                tvFocusBehavior = isTvDevice // G-045
+                tvFocusBehavior = isTvDevice, // G-045
+                footer = if (isTvDevice) {
+                    {
+                        val hasAdultVod by viewModel.hasAdultVodCategory.collectAsState()
+                        com.tivimax.player.ui.components.ParentalLockRow(viewModel, hasAdultVod)
+                    }
+                } else null
             )
 
             Box(
@@ -325,6 +331,11 @@ private fun VodMediaContentGrid(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        // G-052: +18 kilit çipi (TV'de kilit satırı kategori listesinin sonunda)
+                        if (!LocalIsTvDevice.current) {
+                            val hasAdultVod by viewModel.hasAdultVodCategory.collectAsState()
+                            com.tivimax.player.ui.components.ParentalLockChip(viewModel, hasAdultVod)
+                        }
                         if (!isWideScreen) {
                             com.tivimax.player.ui.components.CategoryNavStyleToggleButton(
                                 currentStyle = portraitNavStyle,

@@ -59,7 +59,9 @@ fun CategorySidebar(
     onFilterClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     // G-045: TV'de kategori seçilince odak içeriğe geçer; sola dönünce seçili kategoriye gelir
-    tvFocusBehavior: Boolean = false
+    tvFocusBehavior: Boolean = false,
+    // G-052: Listenin en sonuna eklenen isteğe bağlı satır (ör. TV'de "+18 kilitli")
+    footer: (@Composable () -> Unit)? = null
 ) {
     val safeCategories = remember(categories) {
         categories
@@ -190,6 +192,13 @@ fun CategorySidebar(
                         isSelected = isSelected,
                         onClick = { selectCategory(cat.id) }
                     )
+                }
+            }
+
+            if (footer != null) {
+                item(key = "sidebar_footer") {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    footer()
                 }
             }
         }

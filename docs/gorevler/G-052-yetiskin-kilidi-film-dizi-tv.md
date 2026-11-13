@@ -87,4 +87,26 @@ hesaplaması zaten orada). Başka satıra dokunma.
 - `grep -rn "unlockParental\|ParentalUnlockDialog" app/src/main/java --include=*.kt` → TV dosyalarında da çıkmalı.
 
 ## Agent raporu
-_(Agent doldurur.)_
+**A. Süzme içerik düzeyinde (MainViewModel)**
+- Yeni saf yardımcı `object AdultFilter` (`isAdult`, `blockedIds`, `filterBlocked`); `isAdultCategory` artık buna yönlendiriyor. Kelimeler: mevcutlar + `"+ 18"`, `"18 +"`, `"for adults"`; küçük harfe çevirme hem `tr-TR` hem `ROOT` ile ("YETİŞKİN" yakalanır).
+- `blockedLive/Vod/SeriesCategoryIds` (= gizli kategoriler ∪ kilit kapalıysa yetişkin kategoriler) üç içerik toplayıcısına (`getLive/Vod/SeriesStreamsFilteredFlow`) `combine` ile bağlandı; kilit açılıp kapanınca ya da kategori gizlenince liste yeniden süzülür. Canlıdaki favoriler/son izlenenler bu listeden türediği için aynı süzmeden geçiyor. Ana sayfa `vodStreams`/`seriesStreams`'ten beslendiği için ayrıca kod gerekmedi.
+- `allLiveStreams` süzülmüş liste oldu (CH+/CH−, raf düzeni); ham liste özel `allLiveStreamsRaw`'da tutuluyor. Numarayla geçişte (`onNumericKeyPressed`) numara ham listede eşlenir; engelli kanal ise geçilmez ve "Bu kanal kilitli" Toast'ı çıkar (zapper'da hazır bir mesaj alanı yoktu; `PlayerScreen`/`TvPlayerOverlay` yasak olduğu için Toast kullanıldı).
+- Evrensel aramanın `allowed…Cats` süzmesine dokunulmadı. Room/DAO değişmedi (süzme bellekte).
+- Yeni `hasAdultLive/Vod/SeriesCategory` akışları: kilit düğmesi yalnızca listede yetişkin kategori varsa görünür (kilit açıkken de görünür kalır ki geri kilitlenebilsin).
+
+**B. Ortak diyalog:** `ui/components/ParentalUnlockDialog.kt` (yeni): `ParentalUnlockDialog(viewModel, onDismiss)` (G-050 davranışı aynı, "PIN belirle" modu dahil; `VegaColors`/`VegaButton`, metinler cümle düzeninde "Kilidi aç"/"PIN'i kaydet"), `ParentalLockChip` (Film/Dizi üst çubuğu çipi) ve `ParentalLockRow` (TV satırı). `LiveTvScreen` artık bu diyaloğu kullanıyor; eski satır içi diyalog ve onun durum değişkenleri silindi, kilit düğmeleri aynen duruyor.
+
+**C. Film/Dizi/TV kilit düğmeleri — TV'de kategori listesini hangi ekran çiziyor (istenen bulgu):**
+- TV'de Canlı TV sekmesi → `TvTiviMateScreen` (kategori `LazyColumn`'unun SONUNA `item(key="parental_lock_row")` olarak "+18 kilitli/açık" satırı eklendi; mevcut `focusRequester`/`focusRestorer`'a dokunulmadı).
+- TV'de Filmler ve Diziler sekmeleri ayrı bir TV ekranı DEĞİL: `HomeScreen` → `HomeContentBody` → telefondaki `VodScreen` ve `VegaMediaCatalogScreen` aynen çiziliyor; kategori listesi ortak `CategorySidebar` (`tvFocusBehavior = isTvDevice`). Kilit satırı için `CategorySidebar.kt`'ye (görev listesinde adı geçmiyordu, "TV'de film/dizi listesini çizen ekran" kapsamında sayıldı) isteğe bağlı `footer` parametresi eklendi; listenin sonunda ek öğe olarak çizilir, G-033/G-045 odak mantığı ve requester'lar değişmedi. TV'de footer'a `ParentalLockRow` veriliyor, telefonda üst çubuğa `ParentalLockChip` (sıralama düğmesinin yanı).
+- Telefon/tablet: `VodScreen` ve `VegaMediaCatalogScreen` (grid başlık satırına `lockChip` yuvası). Canlı TV telefonda mevcut kilit düğmelerini koruyor.
+
+**D.** `MainActivity.onStop()` içine tek satır: `if (!inPip) viewModel.lockParental()`.
+
+**Test:** `AdultFilterTest` 6/6; `:app:testDebugUnitTest` ve `:app:compileReleaseKotlin` → BUILD SUCCESSFUL. `grep unlockParental|ParentalUnlockDialog|ParentalLockRow` TV dosyasında (`TvTiviMateScreen`) ve `CategorySidebar` üzerinden TV Film/Dizi yolunda çıkıyor.
+
+**Elle denenmedi / açık noktalar:**
+- Cihaz/emülatör yok: TV'de odak sırası (kilit satırına inme, diyalogda rakam girişi), telefonda çip yerleşimi görsel olarak doğrulanmadı.
+- Açılışta kategoriler yüklenmeden içerik akışı ilk kez gelirse engel kümesi boştur ve çok kısa süre +18 içerik listede görünebilir, kategoriler yükleyince süzülür (kategori listesi boşken karar verilemiyor).
+- Kilit kapalıyken kullanıcının Kategori Yönetimi'nde gizlediği kategorilerin içeriği de artık "Tümü"/aramada çıkmıyor (görev tarifi böyle istiyor).
+- `LiveTvScreen`'de artık kullanılmayan `ParentalPin` importu silindi; başka satıra dokunulmadı.

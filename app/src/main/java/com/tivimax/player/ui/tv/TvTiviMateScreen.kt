@@ -340,6 +340,12 @@ fun TvTiviMateScreen(
                                     onClick = { viewModel.loadLiveStreams(category.categoryId) }
                                 )
                             }
+                            // G-052: Listenin en sonunda +18 kilit satırı (yalnız yetişkin kategori varsa görünür)
+                            item(key = "parental_lock_row") {
+                                val hasAdultLive by viewModel.hasAdultLiveCategory.collectAsState()
+                                Spacer(modifier = Modifier.height(6.dp))
+                                com.tivimax.player.ui.components.ParentalLockRow(viewModel, hasAdultLive)
+                            }
                         }
                     }
                 }

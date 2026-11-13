@@ -3,7 +3,6 @@ package com.tivimax.player.ui.live
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.activity.compose.BackHandler
-import com.tivimax.player.ui.ParentalPin
 import com.tivimax.player.util.LocalIsTvDevice
 import android.content.res.Configuration
 import android.view.ViewGroup
@@ -103,11 +102,6 @@ fun LiveTvScreen(viewModel: MainViewModel) {
 
     var showCategoryManagerDialog by remember { mutableStateOf(false) }
     var showParentalPinDialog by remember { mutableStateOf(false) }
-    var parentalPinInput by remember { mutableStateOf("") }
-    var parentalPinError by remember { mutableStateOf(false) }
-    var parentalPinRepeat by remember { mutableStateOf("") }
-    var parentalPinSetupError by remember { mutableStateOf<String?>(null) }
-    val storedParentalPin by viewModel.parentalPin.collectAsState()
     var selectedProgramDetail by remember { mutableStateOf<Pair<LiveStream, EpgProgram>?>(null) }
 
     LaunchedEffect(globalQuery) {
@@ -220,8 +214,6 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                         isParentalUnlocked = isParentalUnlocked,
                         onOpenCategoryManager = { showCategoryManagerDialog = true },
                         onOpenParentalDialog = {
-                            parentalPinInput = ""
-                            parentalPinError = false
                             showParentalPinDialog = true
                         },
                         onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
@@ -251,8 +243,6 @@ fun LiveTvScreen(viewModel: MainViewModel) {
                         },
                         onOpenCategoryManager = { showCategoryManagerDialog = true },
                         onOpenParentalDialog = {
-                            parentalPinInput = ""
-                            parentalPinError = false
                             showParentalPinDialog = true
                         },
                         onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
@@ -272,116 +262,9 @@ fun LiveTvScreen(viewModel: MainViewModel) {
 
         // --- EBEVEYN KİLİDİ PIN DİYALOGU ---
         if (showParentalPinDialog) {
-            val pinNotSet = storedParentalPin.isEmpty()
-            val closePinDialog = {
-                showParentalPinDialog = false
-                parentalPinInput = ""
-                parentalPinRepeat = ""
-                parentalPinError = false
-                parentalPinSetupError = null
-            }
-            AlertDialog(
-                onDismissRequest = closePinDialog,
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Lock, contentDescription = null, tint = Color(0xFFEF5350))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            if (pinNotSet) "Ebeveyn PIN'i belirle" else "Ebeveyn Kilidi",
-                            color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold
-                        )
-                    }
-                },
-                text = {
-                    Column {
-                        Text(
-                            if (pinNotSet) "+18 içerikleri korumak için 4 haneli bir PIN belirle."
-                            else "+18 içerikleri açmak için PIN'ini gir.",
-                            color = TiviTextSecondary,
-                            fontSize = 13.sp
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        OutlinedTextField(
-                            value = parentalPinInput,
-                            onValueChange = {
-                                if (it.length <= 4 && it.all { ch -> ch in '0'..'9' }) {
-                                    parentalPinInput = it
-                                    parentalPinError = false
-                                    parentalPinSetupError = null
-                                }
-                            },
-                            isError = parentalPinError || parentalPinSetupError != null,
-                            singleLine = true,
-                            label = if (pinNotSet) ({ Text("PIN") }) else null,
-                            placeholder = { Text("****") },
-                            keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
-                            visualTransformation = PasswordVisualTransformation(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = OpusCyan,
-                                errorBorderColor = Color.Red
-                            ),
-                            modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
-                        )
-                        if (pinNotSet) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            OutlinedTextField(
-                                value = parentalPinRepeat,
-                                onValueChange = {
-                                    if (it.length <= 4 && it.all { ch -> ch in '0'..'9' }) {
-                                        parentalPinRepeat = it
-                                        parentalPinSetupError = null
-                                    }
-                                },
-                                isError = parentalPinSetupError != null,
-                                singleLine = true,
-                                label = { Text("PIN tekrar") },
-                                placeholder = { Text("****") },
-                                keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
-                                visualTransformation = PasswordVisualTransformation(),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = OpusCyan,
-                                    errorBorderColor = Color.Red
-                                ),
-                                modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
-                            )
-                        }
-                        if (parentalPinError) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("Hatalı PIN kodu! Tekrar deneyin.", color = Color.Red, fontSize = 11.sp)
-                        }
-                        parentalPinSetupError?.let { msg ->
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(msg, color = Color.Red, fontSize = 11.sp)
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (pinNotSet) {
-                                val hata = ParentalPin.validateNewPin(parentalPinInput, parentalPinRepeat)
-                                if (hata == null && viewModel.createParentalPin(parentalPinInput, parentalPinRepeat)) {
-                                    closePinDialog()
-                                } else {
-                                    parentalPinSetupError = hata ?: "4 rakam gir"
-                                }
-                            } else if (viewModel.unlockParental(parentalPinInput)) {
-                                closePinDialog()
-                            } else {
-                                parentalPinError = true
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = OpusCyan)
-                    ) {
-                        Text(if (pinNotSet) "PIN'i Kaydet" else "Kilidi Aç", color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = closePinDialog) {
-                        Text("İptal", color = TiviTextSecondary)
-                    }
-                },
-                containerColor = TiviSurface
+            com.tivimax.player.ui.components.ParentalUnlockDialog(
+                viewModel = viewModel,
+                onDismiss = { showParentalPinDialog = false }
             )
         }
 
