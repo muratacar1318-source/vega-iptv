@@ -74,4 +74,34 @@ Ek olarak `proguard-rules.pro` sonuna şu bloğu ekle (alan adları bundan sonra
    Release APK'yı hiçbir yere yükleme.
 
 ## Agent raporu
-_(Agent doldurur: Adım 1'deki mapping satırları, hangi durum (A/B/C), değişen dosyalar, test sonuçları, sorunlar.)_
+**Durum: A** (v1.5.1'de alanlar kısaltılmış → eski kayıtlar kısa anahtarlarla yazılmış).
+
+Adım 1 — v1.5.1 (e0b7f46) release `mapping.txt` (ANDROID_HOME ortam değişkeniyle, düşük öncelikle derlendi; imza anahtarı yok → debug imzalı, hiçbir yere yüklenmedi):
+```
+com.tivimax.player.data.playlist.Playlist -> gc1:
+    java.lang.String id -> a
+    java.lang.String name -> b
+    java.lang.String serverUrl -> c
+    java.lang.String username -> d
+    java.lang.String password -> e
+    java.lang.String dbName -> f
+    long createdAt -> g
+    boolean isSynced -> h
+    java.lang.String lastSyncAt -> i
+com.tivimax.player.data.preferences.WatchProgress -> fi2:
+    int streamId -> a
+    long positionMs -> b
+    long durationMs -> c
+    long timestamp -> d
+```
+Sınıf adları da kısalmıştı (`gc1`, `fi2`) ve iki sınıf aynı kısa alan adlarını (`a`, `b`…) kullanıyor; ama farklı Gson türleri olduğundan çakışma yok. Sonuç: mevcut kullanıcıların DataStore'unda `[{"a":…,"b":…}]` biçiminde kayıt var; bu görev olmasa ilk alan eklemesinde okunamazdı.
+
+Yapılan:
+- `Playlist.kt`: her alana `@SerializedName(value = "<gerçek ad>", alternate = ["<kısa ad>"])` (a..i).
+- `UserPreferences.kt`: sadece `WatchProgress` alanlarına aynı anotasyon (a..d) + `SerializedName` import'u.
+- `proguard-rules.pro`: sona iki `-keep class … { <fields>; <init>(...); }` satırı.
+- Yeni `PlaylistJsonCompatTest.kt`: eski kısa anahtarlı JSON okunur (Playlist ve WatchProgress), yeni biçim gerçek anahtarlarla yazılır ve geri okunur (4 test).
+
+Test: `:app:testDebugUnitTest` → BUILD SUCCESSFUL (tüm testler geçti). Tekrar release derlendi (`:app:assembleRelease` BUILD SUCCESSFUL): yeni `mapping.txt`'te `Playlist` ve `WatchProgress` sınıf adları artık kendi adıyla (`… -> com.tivimax.player.data.playlist.Playlist`) ve alanları için hiç yeniden adlandırma satırı yok → alan adları korunuyor.
+
+Not/risk: `alternate` sayesinde eski kayıt okunur, ilk yazmada yeni biçime geçer. Bu sürüme güncelleme yapan gerçek bir cihazda elle doğrulama yapılmadı (emülatör açılmadı).
