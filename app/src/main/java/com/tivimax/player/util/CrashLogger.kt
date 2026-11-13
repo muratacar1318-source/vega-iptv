@@ -55,7 +55,16 @@ object CrashLogger {
     fun listReports(context: Context): List<File> = listReportFiles(crashDir(context))
 
     /** Son raporları birleştirip (en fazla ~50 KB) paylaşılabilir metin üretir. */
-    fun buildShareText(context: Context): String = buildShareText(crashDir(context))
+    fun buildShareText(context: Context): String {
+        val crashes = buildShareText(crashDir(context))
+        // G-062: Son oynatma olayları (varsa) metnin başına eklenir
+        val events = PlaybackEventLog.buildSection()
+        return when {
+            events.isEmpty() -> crashes
+            crashes.isEmpty() -> events
+            else -> events + "\n\n----------------------------------------\n\n" + crashes
+        }
+    }
 
     /** Tüm kayıtları siler. */
     fun clear(context: Context) {

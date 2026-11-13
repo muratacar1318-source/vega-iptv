@@ -1789,34 +1789,37 @@ private fun RenderSelectedSection(
                         Text(text = "Sürüm: ${AppConfig.APP_NAME} ${com.tivimax.player.BuildConfig.VERSION_NAME}", color = TiviTextSecondary, fontSize = 12.sp)
                     }
 
-                    // G-051: Çökme kaydı varsa raporu paylaşma / silme (yalnızca kayıt varken görünür)
+                    // G-051/G-062: "Sorun bildir" her zaman görünür (çökme olmasa da); çökme sayısı ve
+                    // "Kayıtları sil" yalnızca çökme kaydı varken görünür.
                     var crashCount by remember { mutableStateOf(CrashLogger.listReports(context).size) }
+                    Spacer(modifier = Modifier.height(10.dp))
                     if (crashCount > 0) {
-                        Spacer(modifier = Modifier.height(10.dp))
                         Text(text = "Son çökmeler: $crashCount kayıt", color = VegaColors.TextSecondary, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(8.dp))
-                        VegaButton(
-                            text = "Hata raporu gönder",
-                            variant = VegaButtonVariant.SECONDARY,
-                            modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                try {
-                                    val send = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_SUBJECT, "${AppConfig.APP_NAME} hata raporu")
-                                        putExtra(Intent.EXTRA_TEXT, CrashLogger.buildShareText(context))
-                                    }
-                                    val chooser = Intent.createChooser(send, "Hata raporunu gönder").apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    context.startActivity(chooser)
-                                } catch (e: Exception) {
-                                    // TV gibi paylaşım uygulaması olmayan cihazlarda çökme olmasın
-                                    Log.w("SettingsScreen", "Hata raporu paylaşılamadı: ${e.javaClass.simpleName}")
-                                    Toast.makeText(context, "Bu cihazda paylaşım uygulaması yok", Toast.LENGTH_SHORT).show()
+                    }
+                    VegaButton(
+                        text = "Sorun bildir",
+                        variant = VegaButtonVariant.SECONDARY,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            try {
+                                val send = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "${AppConfig.APP_NAME} hata raporu")
+                                    putExtra(Intent.EXTRA_TEXT, CrashLogger.buildShareText(context))
                                 }
+                                val chooser = Intent.createChooser(send, "Hata raporunu gönder").apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(chooser)
+                            } catch (e: Exception) {
+                                // TV gibi paylaşım uygulaması olmayan cihazlarda çökme olmasın
+                                Log.w("SettingsScreen", "Hata raporu paylaşılamadı: ${e.javaClass.simpleName}")
+                                Toast.makeText(context, "Bu cihazda paylaşım uygulaması yok", Toast.LENGTH_SHORT).show()
                             }
-                        )
+                        }
+                    )
+                    if (crashCount > 0) {
                         Spacer(modifier = Modifier.height(4.dp))
                         VegaButton(
                             text = "Kayıtları sil",
