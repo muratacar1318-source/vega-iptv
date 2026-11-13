@@ -317,37 +317,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Son İzlenen Önceki Canlı Kanal (Zapping Recall - Tek tuşla önceki kanala dönüş)
     val lastPlayedLiveChannel = MutableStateFlow<LiveStream?>(null)
 
-    // Kategori Yönetimi & Ebeveyn Kilidi
-    val hiddenCategories = preferences.lockedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
-    val pinnedCategories = preferences.pinnedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
-    val isParentalUnlocked = MutableStateFlow(false)
-    val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "")
+    // G-054: Kategori yönetimi ve ebeveyn kilidi ui/vm/CategoryAccessController.kt'ye taşındı.
+    // Eski public adlar aynen ileri yönlendirilir. Parça, aşağıdaki akışlardan ÖNCE kurulur (başlatma sırası).
+    private val categoryAccess = com.tivimax.player.ui.vm.CategoryAccessController(
+        scope = viewModelScope,
+        preferences = preferences,
+        liveCategories = liveCategories,
+        vodCategories = vodCategories,
+        seriesCategories = seriesCategories
+    )
+    val hiddenCategories: StateFlow<Set<String>> get() = categoryAccess.hiddenCategories
+    val pinnedCategories: StateFlow<Set<String>> get() = categoryAccess.pinnedCategories
+    val isParentalUnlocked: MutableStateFlow<Boolean> get() = categoryAccess.isParentalUnlocked
+    val parentalPin: StateFlow<String> get() = categoryAccess.parentalPin
+    val blockedLiveCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedLiveCategoryIds
+    val blockedVodCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedVodCategoryIds
+    val blockedSeriesCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedSeriesCategoryIds
+    val hasAdultLiveCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultLiveCategory
+    val hasAdultVodCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultVodCategory
+    val hasAdultSeriesCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultSeriesCategory
+    val visibleLiveCategories: StateFlow<List<LiveCategory>> get() = categoryAccess.visibleLiveCategories
+    val visibleVodCategories: StateFlow<List<VodCategory>> get() = categoryAccess.visibleVodCategories
+    val visibleSeriesCategories: StateFlow<List<SeriesCategory>> get() = categoryAccess.visibleSeriesCategories
 
-    // G-052: Engellenen kategori kimlikleri = kullanıcının gizledikleri ∪ (kilit kapalıyken) +18 olanlar.
-    // İçerik akışları bu kümeyle süzülür; böylece "Tümü" listesi, ekran içi arama ve ana sayfa da korunur.
-    val blockedLiveCategoryIds: StateFlow<Set<String>> =
-        combine(liveCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
-            AdultFilter.blockedIds(cats.map { it.categoryId to it.categoryName }, hidden, unlocked)
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
-    val blockedVodCategoryIds: StateFlow<Set<String>> =
-        combine(vodCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
-            AdultFilter.blockedIds(cats.map { it.categoryId to it.categoryName }, hidden, unlocked)
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
-    val blockedSeriesCategoryIds: StateFlow<Set<String>> =
-        combine(seriesCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
-            AdultFilter.blockedIds(cats.map { it.categoryId to it.categoryName }, hidden, unlocked)
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
-
-    /** Listede +18 kategori var mı? (Kilit düğmesi yalnız o zaman gösterilir; kilit açıkken de var sayılır.) */
-    val hasAdultLiveCategory: StateFlow<Boolean> = liveCategories
-        .map { cats -> cats.any { AdultFilter.isAdult(it.categoryName) } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
-    val hasAdultVodCategory: StateFlow<Boolean> = vodCategories
-        .map { cats -> cats.any { AdultFilter.isAdult(it.categoryName) } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
-    val hasAdultSeriesCategory: StateFlow<Boolean> = seriesCategories
-        .map { cats -> cats.any { AdultFilter.isAdult(it.categoryName) } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    fun isAdultCategory(name: String): Boolean = categoryAccess.isAdultCategory(name)
+    fun toggleCategoryHidden(categoryId: String, isHidden: Boolean) = categoryAccess.toggleCategoryHidden(categoryId, isHidden)
+    fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) = categoryAccess.setAllCategoriesHidden(categoryIds, isHidden)
+    fun toggleCategoryPinned(categoryId: String) = categoryAccess.toggleCategoryPinned(categoryId)
+    fun unlockParental(pin: String): Boolean = categoryAccess.unlockParental(pin)
+    fun createParentalPin(pin: String, repeat: String): Boolean = categoryAccess.createParentalPin(pin, repeat)
+    fun lockParental() = categoryAccess.lockParental()
+    fun setParentalPin(newPin: String) = categoryAccess.setParentalPin(newPin)
+    fun toggleCategoryHidden(categoryId: String) = categoryAccess.toggleCategoryHidden(categoryId)
 
     // Hızlı Kanal Numarasıyla Geçiş (Numeric Zapper)
     val zapperNumber = MutableStateFlow("")
@@ -421,44 +422,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun triggerLiveScrollToTop() {
         scrollToTopLiveEvent.tryEmit(Unit)
     }
-
-    fun isAdultCategory(name: String): Boolean = AdultFilter.isAdult(name)
-
-    val visibleLiveCategories: StateFlow<List<LiveCategory>> = combine(liveCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
-        cats.filter { cat ->
-            if (cat.categoryId == "all") return@filter true
-            if (hidden.contains(cat.categoryId)) return@filter false
-            if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
-            true
-        }.sortedWith(
-            compareByDescending<LiveCategory> { it.categoryId == "all" }
-                .thenByDescending { pinned.contains(it.categoryId) }
-        )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-
-    val visibleVodCategories: StateFlow<List<VodCategory>> = combine(vodCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
-        cats.filter { cat ->
-            if (cat.categoryId == "all") return@filter true
-            if (hidden.contains(cat.categoryId)) return@filter false
-            if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
-            true
-        }.sortedWith(
-            compareByDescending<VodCategory> { it.categoryId == "all" }
-                .thenByDescending { pinned.contains(it.categoryId) }
-        )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-
-    val visibleSeriesCategories: StateFlow<List<SeriesCategory>> = combine(seriesCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
-        cats.filter { cat ->
-            if (cat.categoryId == "all") return@filter true
-            if (hidden.contains(cat.categoryId)) return@filter false
-            if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
-            true
-        }.sortedWith(
-            compareByDescending<SeriesCategory> { it.categoryId == "all" }
-                .thenByDescending { pinned.contains(it.categoryId) }
-        )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Hız Testi Durumu
     val speedTestResult = MutableStateFlow<String?>(null)
@@ -1962,24 +1925,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun toggleCategoryHidden(categoryId: String, isHidden: Boolean) {
-        viewModelScope.launch {
-            preferences.setCategoryHidden(categoryId, isHidden)
-        }
-    }
-
-    fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) {
-        viewModelScope.launch {
-            preferences.setAllCategoriesHidden(categoryIds, isHidden)
-        }
-    }
-
-    fun toggleCategoryPinned(categoryId: String) {
-        viewModelScope.launch {
-            preferences.toggleCategoryPinned(categoryId)
-        }
-    }
-
     fun onNumericKeyPressed(digit: Int) {
         val current = zapperNumber.value
         val newNumber = if (current.length >= 4) digit.toString() else current + digit.toString()
@@ -2079,38 +2024,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 categoryId = channel.categoryId
             )
         )
-    }
-
-    fun unlockParental(pin: String): Boolean {
-        if (ParentalPin.canUnlock(parentalPin.value, pin)) {
-            isParentalUnlocked.value = true
-            return true
-        }
-        return false
-    }
-
-    /** PIN henüz belirlenmemişken ilk PIN'i kaydeder ve kilidi açar. Geçersizse false döner. */
-    fun createParentalPin(pin: String, repeat: String): Boolean {
-        if (parentalPin.value.isNotEmpty() || ParentalPin.validateNewPin(pin, repeat) != null) return false
-        setParentalPin(pin)
-        isParentalUnlocked.value = true
-        return true
-    }
-
-    fun lockParental() {
-        isParentalUnlocked.value = false
-    }
-
-    fun setParentalPin(newPin: String) {
-        viewModelScope.launch {
-            preferences.setParentalPin(newPin)
-        }
-    }
-
-    fun toggleCategoryHidden(categoryId: String) {
-        viewModelScope.launch {
-            preferences.toggleCategoryHidden(categoryId)
-        }
     }
 
     fun loadEpgForChannel(streamId: Int) {
@@ -2481,41 +2394,4 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         playerManager.release()
     }
-}
-
-/** Ebeveyn PIN'i kararları (saf fonksiyonlar; birim testle doğrulanır). */
-object ParentalPin {
-    /** Kayıtlı PIN boşsa (belirlenmemiş) hiçbir giriş kilidi açmaz. */
-    fun canUnlock(stored: String, entered: String): Boolean = stored.isNotEmpty() && entered == stored
-
-    /** Yeni PIN geçerliyse null, değilse kullanıcıya gösterilecek hata metni. */
-    fun validateNewPin(pin: String, repeat: String): String? = when {
-        pin.length != 4 || !pin.all { it in '0'..'9' } -> "4 rakam gir"
-        pin != repeat -> "PIN'ler aynı değil"
-        else -> null
-    }
-}
-
-/** G-052: +18 / gizli kategori süzmesi (saf fonksiyonlar; birim testle doğrulanır). */
-object AdultFilter {
-    private val keywords = listOf(
-        "+18", "18+", "+ 18", "18 +", "xxx", "adult", "for adults", "yetişkin", "erotik", "porn"
-    )
-    private val turkish = java.util.Locale.forLanguageTag("tr-TR")
-
-    /** Kategori adı yetişkin içeriği işaret ediyor mu? ("YETİŞKİN" gibi Türkçe büyük harfler de yakalanır.) */
-    fun isAdult(name: String): Boolean {
-        val forms = listOf(name.lowercase(turkish), name.lowercase(java.util.Locale.ROOT))
-        return forms.any { lower -> keywords.any { lower.contains(it) } }
-    }
-
-    /** Engellenen kategori kimlikleri: kullanıcının gizledikleri ∪ (kilit kapalıysa) yetişkin olanlar. */
-    fun blockedIds(categories: List<Pair<String, String>>, hidden: Set<String>, unlocked: Boolean): Set<String> {
-        val adult = if (unlocked) emptySet() else categories.filter { it.first != "all" && isAdult(it.second) }.map { it.first }
-        return hidden + adult
-    }
-
-    /** Engelli kategorideki kayıtları çıkarır; engel yoksa listeyi aynen döner. */
-    fun <T> filterBlocked(items: List<T>, blocked: Set<String>, categoryOf: (T) -> String): List<T> =
-        if (blocked.isEmpty()) items else items.filter { categoryOf(it) !in blocked }
 }
