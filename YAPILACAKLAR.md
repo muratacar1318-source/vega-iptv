@@ -41,7 +41,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
 | G-062 | Film/dizide ileri sarınca 10–15 sn "yenileniyor" beklemesi (deneme APK'sında görüldü) + hata raporuna oynatma günlüğü | 🔴 | ⏳ Bekliyor |
-| G-055 | PlayerScreen'i dosyalara böl | 🟡 | ⏳ Bekliyor |
+| G-055 | PlayerScreen'i dosyalara böl | 🟡 | 🔍 İncelemede (branch: refactor/playerscreen-bolme) |
 | G-060 | Toplu program rehberi arka planda indirilsin, rehber 2 gün ileri | 🟢 | ⏳ Bekliyor |
 | G-061 | Geri izleme: rehberde geçmiş programa tıklayıp izleme — **G-060'tan sonra** | 🟢 | ⏳ Bekliyor |
 | G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma yeri (TV odağı dahil) | 🟠 | ⏳ Bekliyor |
