@@ -33,4 +33,9 @@ CI normal push/PR'da sadece `./gradlew compileDebugKotlin` çalıştırıyor. Pr
 - PR açınca CI'ın test adımını çalıştırdığını ve yorumun geldiğini PR sayfasında gör; rapora yaz.
 
 ## Agent raporu
-_(Agent doldurur.)_
+Sonnet oturumunda workflow dosyasını düzenleme izni otomatik izin denetimince reddedildi. Kullanıcı 13 Kasım'da
+açıkça onay verdi ("Evet, izin ver"); değişikliği Claude (Opus) yaptı.
+- `else` dalı: `compileDebugKotlin` → `testDebugUnitTest` (derlemeyi de yapar). `workflow_dispatch` dalı aynen.
+- PR yorumu: başarıda "Derleme ve testler başarılı"; test hatasında başlığa "(birim testi)" eklenir; hata süzgecine `FAILED` eklendi.
+- Başarısızlıkta `app/build/reports/tests/testDebugUnitTest/` 7 gün saklanır (`birim-testi-raporu`).
+- İmza adımları, izinler, tetikleyiciler, concurrency değişmedi.
