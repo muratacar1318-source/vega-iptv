@@ -43,7 +43,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-055 | PlayerScreen'i dosyalara böl | 🟡 | ⏳ Bekliyor |
 | G-060 | Toplu program rehberi arka planda indirilsin, rehber 2 gün ileri | 🟢 | ⏳ Bekliyor |
 | G-061 | Geri izleme: rehberde geçmiş programa tıklayıp izleme — **G-060'tan sonra** | 🟢 | ⏳ Bekliyor |
-| G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma yeri (TV odağı dahil) | 🟠 | ⏳ Bekliyor |
+| G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma yeri (TV odağı dahil) | 🟠 | 🔍 İncelemede (branch: fix/geri-donus-ayni-afis) |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
 ---
