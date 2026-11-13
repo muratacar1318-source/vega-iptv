@@ -3,10 +3,12 @@ package com.tivimax.player
 import android.app.Application
 import android.database.CursorWindow
 import android.util.Log
+import com.tivimax.player.util.CrashLogger
 
 class VegaApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        CrashLogger.install(this)
         try {
             // IPTV listeleri (binlerce kanal, film ve EPG) için SQLite CursorWindow boyutunu 50MB'a genişlet
             val field = CursorWindow::class.java.getDeclaredField("sCursorWindowSize")
