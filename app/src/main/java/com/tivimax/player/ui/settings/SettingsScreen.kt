@@ -47,6 +47,8 @@ import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.ParentalPin
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.tivimax.player.ui.components.CategoryManagementDialog
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaButton
@@ -102,6 +104,10 @@ fun SettingsScreen(viewModel: MainViewModel) {
     var showPinDialog by remember { mutableStateOf(false) }
     var showDeviceModeDialog by remember { mutableStateOf(false) }
     var newPinInput by remember { mutableStateOf("") }
+    var currentPinInput by remember { mutableStateOf("") }
+    var repeatPinInput by remember { mutableStateOf("") }
+    var pinDialogError by remember { mutableStateOf<String?>(null) }
+    val storedParentalPin by viewModel.parentalPin.collectAsState()
     var pinSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     val configuration = LocalConfiguration.current
@@ -399,45 +405,69 @@ fun SettingsScreen(viewModel: MainViewModel) {
         )
     }
 
-    // PIN DEĞİŞTİRME DİYALOĞU
+    // PIN DEĞİŞTİRME / BELİRLEME DİYALOĞU
     if (showPinDialog) {
+        val pinSet = storedParentalPin.isNotEmpty()
+        val closeDialog = {
+            showPinDialog = false
+            newPinInput = ""
+            currentPinInput = ""
+            repeatPinInput = ""
+            pinDialogError = null
+        }
         AlertDialog(
-            onDismissRequest = { showPinDialog = false },
+            onDismissRequest = closeDialog,
             containerColor = TiviSurface,
-            title = { Text("Yeni şifre", color = TiviTextPrimary, fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    if (pinSet) "Ebeveyn PIN'ini değiştir" else "Ebeveyn PIN'i belirle",
+                    color = TiviTextPrimary, fontWeight = FontWeight.Bold
+                )
+            },
             text = {
                 Column {
                     Text(
-                        text = "4 haneli yeni şifreyi gir.",
+                        text = if (pinSet) "Önce mevcut PIN'ini, sonra yeni 4 haneli PIN'i gir."
+                        else "+18 içerikleri korumak için 4 haneli bir PIN belirle.",
                         color = TiviTextSecondary,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = newPinInput,
-                        onValueChange = { if (it.length <= 4) newPinInput = it },
-                        placeholder = { Text("••••") },
-                        singleLine = true,
-                        keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OpusCyan,
-                            unfocusedBorderColor = TiviCardBorder,
-                            focusedTextColor = TiviTextPrimary,
-                            unfocusedTextColor = TiviTextPrimary
-                        ),
-                        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
-                    )
+                    if (pinSet) {
+                        PinDialogField(value = currentPinInput, label = "Mevcut PIN", isError = pinDialogError != null) {
+                            currentPinInput = it; pinDialogError = null
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+                    PinDialogField(value = newPinInput, label = if (pinSet) "Yeni PIN" else "PIN", isError = pinDialogError != null) {
+                        newPinInput = it; pinDialogError = null
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    PinDialogField(value = repeatPinInput, label = "PIN tekrar", isError = pinDialogError != null) {
+                        repeatPinInput = it; pinDialogError = null
+                    }
+                    pinDialogError?.let { msg ->
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(msg, color = Color.Red, fontSize = 11.sp)
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (newPinInput.length == 4) {
+                        val hata = if (pinSet && !ParentalPin.canUnlock(storedParentalPin, currentPinInput)) {
+                            "Mevcut PIN yanlış"
+                        } else {
+                            ParentalPin.validateNewPin(newPinInput, repeatPinInput)
+                        }
+                        if (hata != null) {
+                            pinDialogError = hata
+                        } else {
+                            val yeniPin = newPinInput
                             scope.launch {
-                                viewModel.preferences.setParentalPin(newPinInput)
-                                pinSuccessMessage = "Şifre güncellendi."
-                                showPinDialog = false
-                                newPinInput = ""
+                                viewModel.preferences.setParentalPin(yeniPin)
+                                pinSuccessMessage = if (pinSet) "PIN güncellendi." else "PIN belirlendi."
+                                closeDialog()
                             }
                         }
                     },
@@ -447,7 +477,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showPinDialog = false }) {
+                TextButton(onClick = closeDialog) {
                     Text("İptal", color = TiviTextSecondary)
                 }
             }
@@ -461,6 +491,28 @@ fun SettingsScreen(viewModel: MainViewModel) {
             onDismiss = { showDeviceModeDialog = false }
         )
     }
+}
+
+@Composable
+private fun PinDialogField(value: String, label: String, isError: Boolean, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { if (it.length <= 4 && it.all { ch -> ch in '0'..'9' }) onChange(it) },
+        label = { Text(label) },
+        placeholder = { Text("••••") },
+        isError = isError,
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = OpusCyan,
+            unfocusedBorderColor = TiviCardBorder,
+            errorBorderColor = Color.Red,
+            focusedTextColor = TiviTextPrimary,
+            unfocusedTextColor = TiviTextPrimary
+        ),
+        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
+    )
 }
 
 @OptIn(coil.annotation.ExperimentalCoilApi::class)
