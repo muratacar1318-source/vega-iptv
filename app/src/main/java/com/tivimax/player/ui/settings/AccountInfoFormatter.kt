@@ -164,6 +164,8 @@ object AccountInfoFormatter {
 
         val parsedDate = try {
             val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+            // Okuma ve yazma aynı saat diliminde olmalı (uygulamada ikisi de cihaz saati; testte sabit dilim)
+            sdf.timeZone = java.util.TimeZone.getTimeZone(zoneId)
             sdf.parse(lastSyncStr)
         } catch (_: Exception) {
             null
