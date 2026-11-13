@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,7 +34,9 @@ import com.tivimax.player.ui.design.VegaShapes
 
 @Composable
 fun FavoritesScreen(viewModel: MainViewModel) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    // G-034: Seçili sekme ve ızgara konumu bellekte saklanır; detaydan dönünce aynı yerden başlar
+    val positionStore = viewModel.catalogPositions
+    var selectedTab by remember { mutableIntStateOf(positionStore.get("fav:sekme")?.firstIndex ?: 0) }
     val tabs = listOf("Tümü", "Canlı TV", "Filmler & Diziler")
 
     val isTvDevice = LocalIsTvDevice.current
@@ -51,6 +54,36 @@ fun FavoritesScreen(viewModel: MainViewModel) {
     val configuration = LocalConfiguration.current
     val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
     val gridColumns = if (isWideScreen) (configuration.screenWidthDp / 140).coerceIn(5, 7) else 3
+
+    val positionKey = "fav:$selectedTab"
+    val savedPosition = remember(positionKey) { positionStore.get(positionKey) }
+    val gridState = androidx.compose.runtime.saveable.rememberSaveable(
+        positionKey,
+        saver = androidx.compose.foundation.lazy.grid.LazyGridState.Saver
+    ) {
+        androidx.compose.foundation.lazy.grid.LazyGridState(savedPosition?.firstIndex ?: 0, savedPosition?.offset ?: 0)
+    }
+    DisposableEffect(positionKey) {
+        onDispose {
+            positionStore.save(positionKey, gridState.firstVisibleItemIndex, gridState.firstVisibleItemScrollOffset, 0)
+            positionStore.save("fav:sekme", selectedTab, 0, 0)
+        }
+    }
+    // G-034: TV'de dönüşte son açılan afişe odak ver (G-033/G-042/G-045 odak koduna dokunmadan)
+    val restoreFocusKey = remember(positionKey) { if (isTvDevice) positionStore.lastOpenedItemKey?.takeIf { it.startsWith("fav_") } else null }
+    val restoreFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(restoreFocusKey) {
+        if (restoreFocusKey == null) return@LaunchedEffect
+        withFrameNanos { }
+        withFrameNanos { }
+        try {
+            restoreFocusRequester.requestFocus()
+        } catch (_: Exception) {
+            withFrameNanos { }
+            try { restoreFocusRequester.requestFocus() } catch (_: Exception) { /* sessiz: öğe henüz yerleşmedi, odak vazgeçildi */ }
+        }
+        positionStore.lastOpenedItemKey = null
+    }
 
     Column(
         modifier = Modifier
@@ -150,6 +183,7 @@ fun FavoritesScreen(viewModel: MainViewModel) {
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridColumns),
+                state = gridState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 96.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -158,13 +192,19 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                 // CANLI TV FAVORİLERİ
                 if (selectedTab == 0 || selectedTab == 1) {
                     items(favChannels, key = { "fav_live_${it.streamId}" }) { channel ->
-                        MediaPosterCard(
-                            imageUrl = channel.streamIcon,
-                            title = channel.name,
-                            subtitle = "Canlı TV",
-                            rating = null,
-                            onClick = { viewModel.playLiveChannel(channel) }
-                        )
+                        val itemKey = "fav_live_${channel.streamId}"
+                        FocusRestoreSlot(itemKey, restoreFocusKey, restoreFocusRequester) {
+                            MediaPosterCard(
+                                imageUrl = channel.streamIcon,
+                                title = channel.name,
+                                subtitle = "Canlı TV",
+                                rating = null,
+                                onClick = {
+                                    positionStore.lastOpenedItemKey = itemKey
+                                    viewModel.playLiveChannel(channel)
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -172,13 +212,19 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                 if (selectedTab == 0 || selectedTab == 2) {
                     items(favMovies, key = { "fav_vod_${it.streamId}" }) { movie ->
                         val rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
-                        MediaPosterCard(
-                            imageUrl = movie.streamIcon,
-                            title = movie.name,
-                            subtitle = "Film",
-                            rating = rating,
-                            onClick = { viewModel.loadVodDetail(movie) }
-                        )
+                        val itemKey = "fav_vod_${movie.streamId}"
+                        FocusRestoreSlot(itemKey, restoreFocusKey, restoreFocusRequester) {
+                            MediaPosterCard(
+                                imageUrl = movie.streamIcon,
+                                title = movie.name,
+                                subtitle = "Film",
+                                rating = rating,
+                                onClick = {
+                                    positionStore.lastOpenedItemKey = itemKey
+                                    viewModel.loadVodDetail(movie)
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -187,16 +233,40 @@ fun FavoritesScreen(viewModel: MainViewModel) {
                     items(favSeries, key = { "fav_series_${it.seriesId}" }) { series ->
                         val rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
                         val releaseYear = series.releaseDate?.take(4)?.ifBlank { "2024" } ?: "2024"
-                        MediaPosterCard(
-                            imageUrl = series.cover,
-                            title = series.name,
-                            subtitle = "$releaseYear • Dizi",
-                            rating = rating,
-                            onClick = { viewModel.loadSeriesDetail(series) }
-                        )
+                        val itemKey = "fav_series_${series.seriesId}"
+                        FocusRestoreSlot(itemKey, restoreFocusKey, restoreFocusRequester) {
+                            MediaPosterCard(
+                                imageUrl = series.cover,
+                                title = series.name,
+                                subtitle = "$releaseYear • Dizi",
+                                rating = rating,
+                                onClick = {
+                                    positionStore.lastOpenedItemKey = itemKey
+                                    viewModel.loadSeriesDetail(series)
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * G-034: Dönüşte odak verilecek kartı (yalnızca eşleşen kartı) odak istemcisiyle sarar; diğer kartlar aynen çizilir.
+ * İstemci, kartın içindeki ilk odaklanabilir öğeye (dpadFocusable) odak aktarır.
+ */
+@Composable
+private fun FocusRestoreSlot(
+    itemKey: String,
+    restoreFocusKey: String?,
+    requester: androidx.compose.ui.focus.FocusRequester,
+    content: @Composable () -> Unit
+) {
+    if (restoreFocusKey != null && itemKey == restoreFocusKey) {
+        androidx.compose.foundation.layout.Box(modifier = Modifier.focusRequester(requester)) { content() }
+    } else {
+        content()
     }
 }

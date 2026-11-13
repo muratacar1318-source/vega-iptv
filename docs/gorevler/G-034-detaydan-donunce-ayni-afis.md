@@ -60,4 +60,24 @@ Telefonda da kaydırma kaybı var; TV'de en çok rahatsız eden odak kaybı.
   Cihaz yoksa raporda yaz; Claude birleştirmeden önce kullanıcıdan deneme ister.
 
 ## Agent raporu
-_(Agent doldurur.)_
+Ön koşul G-054 main'de (e9638a1). Tek commit; `:app:compileDebugKotlin` + `:app:testDebugUnitTest` → BUILD SUCCESSFUL (`CatalogPositionStoreTest` 5/5). Navigation.kt, `Screen`, `TvNavigationRail`, `HomeScreen.kt` (G-033/G-042 odak kodu), oynatıcı dosyaları, `focusRestorer()` ve G-045 `CategorySidebar` odak koduna dokunulmadı.
+
+**Depo:** `ui/vm/CatalogPositionStore.kt` (bellekte; `save/get/clear`, `lastOpenedItemKey`; `Saved(firstIndex, offset, visibleLimit)`). `MainViewModel`'e yalnızca örnek (`val catalogPositions`) eklendi ve `resetSessionState()` içinde `catalogPositions.clear()` çağrılıyor (liste değişimi/oturum sıfırlama). Ayrı cephe fonksiyonu gerekmedi: ekranlar `viewModel.catalogPositions`'ı doğrudan kullanıyor.
+
+**Izgaralar (film / dizi):**
+- `VodScreen`: anahtar `"vod:<kategoriId>"` (aramada `"vod:<kategoriId>:q:<metin>"`); `LazyGridState`, `rememberSaveable(positionKey, saver = LazyGridState.Saver)` ile kayıtlı `firstIndex/offset`'ten kurulur (dönüşte mağazadan, döndürmede kendi saver'ından); `DisposableEffect(positionKey)` çıkışta `save(...)`; `visibleLimit` başlangıcı `max(40, saved.visibleLimit)` (`remember(filteredMovies)` anahtarı aynı kaldı) ve grid içinde `rememberUpdatedState` ile güncel sınır kaydediliyor. `MoviePosterCard`'a `modifier: Modifier = Modifier` eklendi (focusRequester `dpadFocusable`'ın önünde).
+- `VegaMediaCatalogScreen` (dizi): anahtar `"series:<kategoriId>"`; aynı mekanizma. `visibleLimit` ve sayfalı liste, `else` dalından fonksiyon başına taşındı (hoist; böylece yükleniyor↔içerik geçişinde de korunur ve çıkışta kaydedilebilir). `VegaMediaContentGrid` imzasına `selectedCategory` ve `positionStore` eklendi (iki çağrı yeri güncellendi); `VegaMediaCard`'a `modifier` eklendi.
+- Karta tıklanınca (detay açılmadan hemen önce) `positionStore.lastOpenedItemKey = itemKey`. Hero "Hemen izle" düğmesi için anahtar yazılmadı (tarifte yalnız kartlar).
+
+**TV odağı:** `LocalIsTvDevice` ise ekran girişinde `lastOpenedItemKey` bir kez okunur; eşleşen kartın modifier'ına `focusRequester` bağlanır; `LaunchedEffect` bir kare bekler, gerekirse `scrollToItem(index)`, bir kare daha bekler, `requestFocus()`; istisna olursa bir kare sonra bir kez daha dener, olmazsa bırakır; sonra `lastOpenedItemKey = null`. `dpadFocusable` zaten `onFocusStateChange` ile hero/spotlight'ı güncellediği için odak geri gelince vitrin de doğru afişe döner.
+
+**Ana sayfa (`OpusDashboardScreen`):** sayfa dikey kaydırması `rememberScrollState(saved)` + çıkışta `"home:sayfa"` (değer olarak `scrollState.value`); dört `LazyRow` (`"home:devam"`, `"home:filmler"`, `"home:diziler"`, `"home:kanallar"`) küçük bir `rememberStoredLazyListState` yardımcısıyla; kartlara (`DashboardProgressCard`, `NewlyAddedVodCard`, `NewlyAddedSeriesCard`, `DashboardRecentChannelCard`) `modifier` parametresi eklendi, TV'de açılan kartın odağı geri verilir (anahtarlar `home:progress_/vod_/series_/recent_<id>`; ızgara anahtarlarıyla çakışmaz).
+
+**Favoriler (`FavoritesScreen`):** `"fav:<sekme>"` anahtarıyla ızgara konumu; seçili sekme de `"fav:sekme"` olarak saklanıp geri yükleniyor (önceden her dönüşte "Tümü"ye düşüyordu). `MediaPosterCard` `ui/components`'ta olduğu için (görev listesinde yok) değiştirilmedi; TV odağı için yalnız eşleşen kartı `Box(Modifier.focusRequester(...))` ile saran küçük `FocusRestoreSlot` eklendi (focusRequester, içindeki ilk odaklanabilir öğeye aktarır; bu yol cihazda doğrulanmadı).
+
+**Bilinen sınırlar / dikkat:**
+- Konumlar yalnızca bellekte (uygulama/ViewModel ömrü); liste değişince `clear()`.
+- Arama metni değiştikçe film ızgarası yeni anahtar kullanır (aramadaki konum ayrı).
+- Favorilerde ızgara yüksekliği değişirse (favori kaldırılırsa) kayıtlı indeks listeden büyük kalabilir; `LazyGridState` bunu kendisi sınırlar.
+- Ana sayfa şeritlerinde ilk açılışta kayıt yoksa davranış eskisi gibi (baştan).
+- **Elle denenmedi** (cihaz yok): TV'de Filmler → 3. kategori → 60. filme in → detay → geri → aynı afiş odakta mı; telefonda aynı kaydırma; 200. filmden dönüş; ana sayfa şeritleri; favoriler. Birleştirmeden önce kullanıcıdan istenmeli. En riskli yer: `focusRequester`'ın `dpadFocusable` zinciriyle (özellikle Favoriler'deki sarmalayıcı Box ile) cihazda gerçekten odak alması.
