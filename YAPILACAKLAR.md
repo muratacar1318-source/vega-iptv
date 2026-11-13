@@ -42,7 +42,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 |---|---|---|---|
 | G-052 | +18 kilidi her yerde: Tümü listesi, arama, ana sayfa; Film/Dizi ve TV'de kilit düğmesi | 🔴 | ⏳ Bekliyor |
 | G-053 | CI birim testlerini de çalıştırsın | 🟠 | ⏳ Bekliyor |
-| G-056 | İzleme ilerlemesi en fazla 500 kayıt, gereksiz yeniden ayrıştırma yok | 🟡 | ⏳ Bekliyor |
+| G-056 | İzleme ilerlemesi en fazla 500 kayıt, gereksiz yeniden ayrıştırma yok | 🟡 | 🔍 İncelemede (branch: perf/izleme-ilerlemesi-sinir) |
 | G-057 | Kalan sabit renkler tokenlara, veri/ağ katmanındaki sessiz hatalara log — **G-052 main'e alınınca** | 🟡 | ⏳ Bekliyor |
 | G-054 | MainViewModel'i parçalara böl (davranış değişmeden) — **G-052/053/056 main'e alınınca** | 🟠 | ⏳ Bekliyor |
 | G-055 | PlayerScreen'i dosyalara böl — **PR #63 kapanınca ve G-054'ten sonra** | 🟡 | ⏳ Bekliyor |
