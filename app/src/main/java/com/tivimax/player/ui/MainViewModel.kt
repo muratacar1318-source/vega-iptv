@@ -594,9 +594,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Canlı TV Kanal Listesi Kısa EPG Önbelleği (Kanal Kartlarında Anlık Program & İlerleme)
-    val epgSummaryMap = MutableStateFlow<Map<Int, EpgProgram>>(emptyMap())
-    val epgProgramsMap = MutableStateFlow<Map<Int, List<EpgProgram>>>(emptyMap())
+    // G-054: Kısa EPG önbelleği ui/vm/EpgCache.kt'ye taşındı; eski public adlar aynen ileri yönlendirilir.
+    private val epgCache = com.tivimax.player.ui.vm.EpgCache(viewModelScope, repository)
+    val epgSummaryMap: MutableStateFlow<Map<Int, EpgProgram>> get() = epgCache.epgSummaryMap
+    val epgProgramsMap: MutableStateFlow<Map<Int, List<EpgProgram>>> get() = epgCache.epgProgramsMap
 
     fun setVodBufferSeconds(seconds: Int) {
         viewModelScope.launch {
@@ -647,27 +648,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loadEpgSummary(streamId: Int) {
-        if (epgSummaryMap.value.containsKey(streamId)) return
-        viewModelScope.launch(Dispatchers.IO) {
-            repository.getShortEpg(streamId).onSuccess { list ->
-                if (list.isNotEmpty()) {
-                    val nowSec = System.currentTimeMillis() / 1000L
-                    val currentProgram = list.firstOrNull {
-                        it.nowPlaying == 1 || (it.startTimestamp > 0 && it.stopTimestamp > 0 && nowSec in it.startTimestamp..it.stopTimestamp)
-                    } ?: list.first()
-
-                    withContext(Dispatchers.Main) {
-                        epgSummaryMap.value = epgSummaryMap.value + (streamId to currentProgram)
-                        epgProgramsMap.value = epgProgramsMap.value + (streamId to list)
-                        if (BuildConfig.DEBUG) {
-                            Log.d("G005_EPG", "EPG parsed: streamId=$streamId, title='${currentProgram.getDecodedTitle()}', rawStart='${currentProgram.start}', startTimestamp=${currentProgram.startTimestamp}, getFormattedTime='${currentProgram.getFormattedTime()}', LiveTimeFormatter='${com.tivimax.player.ui.player.components.LiveTimeFormatter.formatTimeRange(currentProgram)}'")
-                        }
-                    }
-                }
-            }
-        }
-    }
+    fun loadEpgSummary(streamId: Int) = epgCache.loadEpgSummary(streamId)
 
     init {
         repository.cleanupSyncTempFiles()
