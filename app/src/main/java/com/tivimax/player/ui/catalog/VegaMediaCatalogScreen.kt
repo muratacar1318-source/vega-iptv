@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -152,6 +153,8 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                     onPortraitNavStyleChange = { viewModel.setPortraitCategoryNavStyle(it) },
                     isWideScreen = isWideScreen,
                     isSidebarActive = true,
+                    selectedCategory = selectedCategory,
+                    positionStore = viewModel.catalogPositions,
                     lockChip = {
                         if (!isTvDevice) {
                             val hasAdultSeries by viewModel.hasAdultSeriesCategory.collectAsState()
@@ -201,6 +204,8 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                     onPortraitNavStyleChange = { viewModel.setPortraitCategoryNavStyle(it) },
                     isWideScreen = isWideScreen,
                     isSidebarActive = false,
+                    selectedCategory = selectedCategory,
+                    positionStore = viewModel.catalogPositions,
                     lockChip = {
                         if (!isTvDevice) {
                             val hasAdultSeries by viewModel.hasAdultSeriesCategory.collectAsState()
@@ -224,9 +229,52 @@ private fun VegaMediaContentGrid(
     onPortraitNavStyleChange: (String) -> Unit,
     isWideScreen: Boolean,
     isSidebarActive: Boolean,
+    selectedCategory: String,
+    positionStore: com.tivimax.player.ui.vm.CatalogPositionStore,
     lockChip: @Composable () -> Unit = {}
 ) {
     var isSortMenuOpen by remember { mutableStateOf(false) }
+
+    // G-034: Dizi ızgarası kaydırma konumu ve sonsuz kaydırma sınırı bellekte saklanır; detaydan dönünce aynı yerden başlar
+    val positionKey = "series:$selectedCategory"
+    val savedPosition = remember(positionKey) { positionStore.get(positionKey) }
+    var visibleLimit by remember(seriesList) { mutableIntStateOf(maxOf(40, savedPosition?.visibleLimit ?: 0)) }
+    val pagedSeries = remember(seriesList, visibleLimit) { seriesList.take(visibleLimit) }
+    val gridState = androidx.compose.runtime.saveable.rememberSaveable(
+        positionKey,
+        saver = androidx.compose.foundation.lazy.grid.LazyGridState.Saver
+    ) {
+        androidx.compose.foundation.lazy.grid.LazyGridState(savedPosition?.firstIndex ?: 0, savedPosition?.offset ?: 0)
+    }
+    val latestVisibleLimit by rememberUpdatedState(visibleLimit)
+    DisposableEffect(positionKey) {
+        onDispose {
+            positionStore.save(positionKey, gridState.firstVisibleItemIndex, gridState.firstVisibleItemScrollOffset, latestVisibleLimit)
+        }
+    }
+    // G-034: TV'de dönüşte son açılan afişe odak ver (G-033/G-042/G-045 odak koduna dokunmadan)
+    val isTvForRestore = LocalIsTvDevice.current
+    val restoreFocusKey = remember(positionKey) { if (isTvForRestore) positionStore.lastOpenedItemKey else null }
+    val restoreFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(restoreFocusKey, pagedSeries.isEmpty()) {
+        val targetKey = restoreFocusKey ?: return@LaunchedEffect
+        if (pagedSeries.isEmpty()) return@LaunchedEffect
+        val index = pagedSeries.indexOfFirst { "series_${it.seriesId}_${it.num}" == targetKey }
+        if (index >= 0) {
+            withFrameNanos { }
+            if (gridState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
+                gridState.scrollToItem(index)
+            }
+            withFrameNanos { }
+            try {
+                restoreFocusRequester.requestFocus()
+            } catch (_: Exception) {
+                withFrameNanos { }
+                try { restoreFocusRequester.requestFocus() } catch (_: Exception) { /* sessiz: öğe henüz yerleşmedi, odak vazgeçildi */ }
+            }
+        }
+        positionStore.lastOpenedItemKey = null
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -343,20 +391,27 @@ private fun VegaMediaContentGrid(
             }
 
             // Sonsuz kaydırma: tüm diziler parça parça yüklenir (önceden ilk 60 ile sınırlıydı)
-            var visibleLimit by remember(seriesList) { mutableIntStateOf(40) }
-            val pagedSeries = remember(seriesList, visibleLimit) { seriesList.take(visibleLimit) }
-
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridColumns),
+                state = gridState,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(top = 8.dp, start = 8.dp, end = 8.dp, bottom = 96.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(pagedSeries, key = { "series_${it.seriesId}_${it.num}" }) { series ->
+                    val itemKey = "series_${series.seriesId}_${series.num}"
                     VegaMediaCard(
                         series = series,
-                        onClick = { onSeriesClick(series) }
+                        onClick = {
+                            positionStore.lastOpenedItemKey = itemKey
+                            onSeriesClick(series)
+                        },
+                        modifier = if (restoreFocusKey != null && itemKey == restoreFocusKey) {
+                            Modifier.focusRequester(restoreFocusRequester)
+                        } else {
+                            Modifier
+                        }
                     )
                 }
 
@@ -383,10 +438,11 @@ private fun VegaMediaContentGrid(
 @Composable
 private fun VegaMediaCard(
     series: SeriesStream,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .dpadFocusable(
                 focusedBorderColor = NeonCyan,

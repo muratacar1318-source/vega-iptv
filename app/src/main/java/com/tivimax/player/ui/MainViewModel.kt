@@ -529,6 +529,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // G-054: Kısa EPG önbelleği ui/vm/EpgCache.kt'ye taşındı; eski public adlar aynen ileri yönlendirilir.
     private val epgCache = com.tivimax.player.ui.vm.EpgCache(viewModelScope, repository)
+
+    // G-034: Izgara/şerit kaydırma konumları (detaydan dönünce aynı yere dönmek için); liste değişince sıfırlanır.
+    val catalogPositions = com.tivimax.player.ui.vm.CatalogPositionStore()
     val epgSummaryMap: MutableStateFlow<Map<Int, EpgProgram>> get() = epgCache.epgSummaryMap
     val epgProgramsMap: MutableStateFlow<Map<Int, List<EpgProgram>>> get() = epgCache.epgProgramsMap
 
@@ -889,6 +892,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         vodCategoriesJob?.cancel()
         seriesCategoriesJob?.cancel()
         universalSearch.cancelSearch()
+        catalogPositions.clear()
 
         liveCategories.value = emptyList()
         liveStreams.value = emptyList()
