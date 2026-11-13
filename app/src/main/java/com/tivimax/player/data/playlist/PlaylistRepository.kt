@@ -117,7 +117,8 @@ class PlaylistRepository(private val context: Context) {
         val type = object : TypeToken<List<Playlist>>() {}.type
         return try {
             gson.fromJson(json, type) ?: emptyList()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            logSilentFailure("Kayıtlı liste verisi okunamadı", e)
             emptyList()
         }
     }
@@ -236,5 +237,14 @@ class PlaylistRepository(private val context: Context) {
             }
         }
         return changed
+    }
+}
+
+/** G-057: Yutulan hatayı kaydeder. Mesajda adres/kimlik bilgisi olmasın diye yalnızca hata türü yazılır. */
+private fun logSilentFailure(what: String, e: Throwable) {
+    try {
+        android.util.Log.w("PlaylistRepository", "$what (${e.javaClass.simpleName})")
+    } catch (_: Throwable) {
+        // sessiz: JVM birim test ortamında Android Log mock'lu olmayabilir
     }
 }

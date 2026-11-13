@@ -338,6 +338,7 @@ class UserPreferences(private val context: Context) {
                 try {
                     gson.fromJson<Map<String, WatchProgress>>(json, type) ?: emptyMap()
                 } catch (e: Exception) {
+                    logSilentFailure("İzleme ilerlemesi verisi okunamadı", e)
                     emptyMap()
                 }
             }
@@ -439,6 +440,7 @@ class UserPreferences(private val context: Context) {
             val map: MutableMap<String, WatchProgress> = try {
                 gson.fromJson(json, type) ?: mutableMapOf()
             } catch (e: Exception) {
+                logSilentFailure("İzleme ilerlemesi verisi okunamadı", e)
                 mutableMapOf()
             }
             val entryKey = streamId.toString()
@@ -456,6 +458,7 @@ class UserPreferences(private val context: Context) {
         val map: Map<String, WatchProgress> = try {
             gson.fromJson(json, type) ?: emptyMap()
         } catch (e: Exception) {
+            logSilentFailure("İzleme ilerlemesi verisi okunamadı", e)
             emptyMap()
         }
         return map[streamId.toString()]
@@ -470,6 +473,7 @@ class UserPreferences(private val context: Context) {
             val map: MutableMap<String, WatchProgress> = try {
                 gson.fromJson(json, type) ?: mutableMapOf()
             } catch (e: Exception) {
+                logSilentFailure("İzleme ilerlemesi verisi okunamadı", e)
                 mutableMapOf()
             }
             map.remove(streamId.toString())
@@ -629,7 +633,8 @@ class UserPreferences(private val context: Context) {
         else {
             try {
                 DeviceMode.valueOf(modeStr)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logSilentFailure("Kayıtlı cihaz modu geçersiz", e)
                 null
             }
         }
@@ -719,7 +724,8 @@ class UserPreferences(private val context: Context) {
             try {
                 val type = object : TypeToken<List<String>>() {}.type
                 gson.fromJson<List<String>>(json, type) ?: emptyList()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logSilentFailure("Son aramalar verisi okunamadı", e)
                 emptyList()
             }
         }
@@ -737,7 +743,8 @@ class UserPreferences(private val context: Context) {
                     val type = object : TypeToken<List<String>>() {}.type
                     (gson.fromJson<List<String>>(currentJson, type) ?: emptyList()).toMutableList()
                 } else mutableListOf()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logSilentFailure("Son aramalar verisi okunamadı", e)
                 mutableListOf()
             }
             currentList.removeAll { it.equals(clean, ignoreCase = true) }
@@ -756,7 +763,8 @@ class UserPreferences(private val context: Context) {
             val currentList: MutableList<String> = try {
                 val type = object : TypeToken<List<String>>() {}.type
                 (gson.fromJson<List<String>>(currentJson, type) ?: emptyList()).toMutableList()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logSilentFailure("Son aramalar verisi okunamadı", e)
                 return@edit
             }
             currentList.removeAll { it.equals(clean, ignoreCase = true) }
@@ -795,5 +803,14 @@ class UserPreferences(private val context: Context) {
                 }
             }
         }
+    }
+}
+
+/** G-057: Yutulan hatayı kaydeder. Mesajda adres/kimlik bilgisi olmasın diye yalnızca hata türü yazılır. */
+private fun logSilentFailure(what: String, e: Throwable) {
+    try {
+        android.util.Log.w("UserPreferences", "$what (${e.javaClass.simpleName})")
+    } catch (_: Throwable) {
+        // sessiz: JVM birim test ortamında Android Log mock'lu olmayabilir
     }
 }
