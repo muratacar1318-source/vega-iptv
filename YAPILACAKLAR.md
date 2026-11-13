@@ -40,11 +40,10 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-054 | MainViewModel'i parçalara böl (davranış değişmeden) | 🟠 | 🔍 İncelemede (branch: refactor/mainviewmodel-bolme) |
-| G-055 | PlayerScreen'i dosyalara böl — **G-054'ten sonra** (PR #63 alındı) | 🟡 | ⏳ Bekliyor |
-| G-060 | Toplu program rehberi arka planda indirilsin, rehber 2 gün ileri — **G-054 main'e alınınca** | 🟢 | ⏳ Bekliyor |
+| G-055 | PlayerScreen'i dosyalara böl | 🟡 | ⏳ Bekliyor |
+| G-060 | Toplu program rehberi arka planda indirilsin, rehber 2 gün ileri | 🟢 | ⏳ Bekliyor |
 | G-061 | Geri izleme: rehberde geçmiş programa tıklayıp izleme — **G-060'tan sonra** | 🟢 | ⏳ Bekliyor |
-| G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma yeri (TV odağı dahil) — **G-054 main'e alınınca** | 🟠 | ⏳ Bekliyor |
+| G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma yeri (TV odağı dahil) | 🟠 | ⏳ Bekliyor |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
 ---
@@ -53,6 +52,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-054 | MainViewModel 5 parçaya bölündü (ui/vm/: arama, kategori/ebeveyn, EPG önbelleği, hesap, kanal geçişi); 2628 → 2185 satır, ekranlar değişmedi — PR #73 | 13 Kasım |
 | G-058 | Film/dizide takılma bekçisi: ilk kareden sonra 15 sn takılınca kalınan saniyeden yeniden bağlanıyor — PR #72 | 13 Kasım |
 | G-057 | Sabit renkler tokenlara, veri katmanında sessiz hatalara log (adres/şifre yok), ana sayfada uydurma "1 / 1 Hat" ve sabit "Abonelik aktif" kaldırıldı, açılışta +18 anlık görünme — PR #71 | 13 Kasım |
 | G-053 | CI her PR'da birim testlerini çalıştırıyor (100 test); CI'da çıkan saat dilimine bağlı eski test hatası düzeltildi — PR #70 | 13 Kasım |
@@ -128,6 +128,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 ## 💡 Fikirler
 
+- G-054b (G-054 raporundan): MainViewModel'de kalan büyük bloklar (liste yönetimi + senkronizasyon ~600 satır, oynatma ~350, içerik yükleme ~200) aynı cephe yöntemiyle taşınabilir. G-060 senkronizasyona dokunduğu için G-060'tan sonra.
 - G-057 notu: açılışta +18 anlık görünmeyi önleyen bekleme yalnız ilk açılışta; oynatma listesi değiştirilince kategoriler yeniden yüklenirken aynı kısa görünme olabilir. G-054'ten sonra küçük görev olarak yazılacak.
 - Karar (13 Kasım, Claude): `feat/mobil-tablet-mini-oynatici` birleştirilmeyecek (main'in 206 commit gerisinde, PlayerScreen/MainViewModel'e ağır dokunuyor). Mobil/tablette ana ekrana dönünce mini oynatıcıda kesintisiz oynatma fikri G-054/G-055 bölmelerinden sonra yeniden görev olarak yazılacak.
 - Karar (13 Kasım, Claude): PR #63 (ana sayfa üst şerit, buton taşmaları) main'e alındı; uydurma "1 / 1 Hat" ve sabit "Abonelik aktif" G-057 Bölüm C'de düzeltilecek.
