@@ -350,11 +350,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setParentalPin(newPin: String) = categoryAccess.setParentalPin(newPin)
     fun toggleCategoryHidden(categoryId: String) = categoryAccess.toggleCategoryHidden(categoryId)
 
-    // Hızlı Kanal Numarasıyla Geçiş (Numeric Zapper)
-    val zapperNumber = MutableStateFlow("")
-    val isZapperActive = MutableStateFlow(false)
-    val zapperMatchedChannel = MutableStateFlow<LiveStream?>(null)
-    private var zapperJob: Job? = null
+    // G-054: Kanal geçişi ui/vm/ZapController.kt'ye taşındı; eski public adlar aynen ileri yönlendirilir.
+    // Sonradan kurulan akışlar ve oynatma işlevleri lambda ile verilir (çağrı anında okunur).
+    private val zapper = com.tivimax.player.ui.vm.ZapController(
+        scope = viewModelScope,
+        appContext = application,
+        liveStreams = liveStreams,
+        lastPlayedLiveChannel = lastPlayedLiveChannel,
+        allLiveStreams = { allLiveStreams.value },
+        allLiveStreamsRaw = { allLiveStreamsRaw.value },
+        blockedLiveCategoryIds = { blockedLiveCategoryIds.value },
+        isTvMode = { deviceMode.value == com.tivimax.player.util.DeviceMode.TV },
+        showLiveTvTab = { setSelectedHomeTab(com.tivimax.player.ui.main.HomeTab.LIVE_TV) },
+        playLiveChannel = { playLiveChannel(it) },
+        scheduleTvZap = { scheduleTvZap(it) }
+    )
+    val zapperNumber: MutableStateFlow<String> get() = zapper.zapperNumber
+    val isZapperActive: MutableStateFlow<Boolean> get() = zapper.isZapperActive
+    val zapperMatchedChannel: MutableStateFlow<LiveStream?> get() = zapper.zapperMatchedChannel
+
+    fun onNumericKeyPressed(digit: Int) = zapper.onNumericKeyPressed(digit)
+    fun executeZapperSwitch() = zapper.executeZapperSwitch()
+    fun dismissZapper() = zapper.dismissZapper()
+    fun zapNextChannel(currentStreamId: Int): LiveStream? = zapper.zapNextChannel(currentStreamId)
+    fun zapPreviousChannel(currentStreamId: Int): LiveStream? = zapper.zapPreviousChannel(currentStreamId)
+    fun zapRecall(): LiveStream? = zapper.zapRecall()
 
     // Canlı TV Düzen Modu ("SHELF" = Raf Düzeni, "CLASSIC" = Klasik Düzen [Varsayılan])
     val liveLayoutMode: StateFlow<String> = preferences.liveLayoutModeFlow
@@ -1819,52 +1839,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun onNumericKeyPressed(digit: Int) {
-        val current = zapperNumber.value
-        val newNumber = if (current.length >= 4) digit.toString() else current + digit.toString()
-        zapperNumber.value = newNumber
-        isZapperActive.value = true
-
-        val targetNum = newNumber.toIntOrNull() ?: return
-        // G-052: Numara eşlemesi ham listede yapılır; engelli (+18 / gizli) kanal seçilirse geçilmez.
-        val allList = allLiveStreamsRaw.value.ifEmpty { liveStreams.value }
-        val found = allList.firstOrNull { it.num == targetNum }
-            ?: allList.firstOrNull { it.streamId == targetNum }
-            ?: allList.getOrNull(targetNum - 1)
-        val matched = if (found != null && found.categoryId in blockedLiveCategoryIds.value) {
-            Toast.makeText(getApplication(), "Bu kanal kilitli", Toast.LENGTH_SHORT).show()
-            null
-        } else {
-            found
-        }
-        zapperMatchedChannel.value = matched
-
-        zapperJob?.cancel()
-        zapperJob = viewModelScope.launch {
-            delay(1500L)
-            executeZapperSwitch()
-        }
-    }
-
-    fun executeZapperSwitch() {
-        zapperJob?.cancel()
-        val matched = zapperMatchedChannel.value
-        if (matched != null) {
-            if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-                setSelectedHomeTab(com.tivimax.player.ui.main.HomeTab.LIVE_TV)
-            }
-            playLiveChannel(matched)
-        }
-        dismissZapper()
-    }
-
-    fun dismissZapper() {
-        zapperJob?.cancel()
-        zapperNumber.value = ""
-        isZapperActive.value = false
-        zapperMatchedChannel.value = null
-    }
-
     fun previewChannel(channel: LiveStream) {
         val t0 = SystemClock.elapsedRealtime()
         if (BuildConfig.DEBUG) {
@@ -2014,52 +1988,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun tvGuidePreviewChannel(channel: LiveStream) {
         if (activePreviewChannel.value?.streamId == channel.streamId) return
         scheduleTvZap(channel)
-    }
-
-    fun zapNextChannel(currentStreamId: Int): LiveStream? {
-        val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
-            liveStreams.value
-        } else {
-            allLiveStreams.value.ifEmpty { liveStreams.value }
-        }
-        if (list.isEmpty()) return null
-        val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
-        val nextIndex = if (currentIndex != -1) (currentIndex + 1) % list.size else 0
-        val nextChannel = list[nextIndex]
-        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-            scheduleTvZap(nextChannel)
-        } else {
-            playLiveChannel(nextChannel)
-        }
-        return nextChannel
-    }
-
-    fun zapPreviousChannel(currentStreamId: Int): LiveStream? {
-        val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
-            liveStreams.value
-        } else {
-            allLiveStreams.value.ifEmpty { liveStreams.value }
-        }
-        if (list.isEmpty()) return null
-        val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
-        val prevIndex = if (currentIndex > 0) currentIndex - 1 else if (currentIndex == 0) list.size - 1 else 0
-        val prevChannel = list[prevIndex]
-        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-            scheduleTvZap(prevChannel)
-        } else {
-            playLiveChannel(prevChannel)
-        }
-        return prevChannel
-    }
-
-    fun zapRecall(): LiveStream? {
-        val prev = lastPlayedLiveChannel.value ?: return null
-        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-            scheduleTvZap(prev)
-        } else {
-            playLiveChannel(prev)
-        }
-        return prev
     }
 
     private var lastPlayActionTime = 0L
