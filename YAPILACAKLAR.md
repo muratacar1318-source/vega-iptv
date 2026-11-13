@@ -40,7 +40,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-062 | Film/dizide ileri sarınca 10–15 sn "yenileniyor" beklemesi (deneme APK'sında görüldü) + hata raporuna oynatma günlüğü | 🔴 | 🔍 İncelemede (branch: fix/sarma-sonrasi-takilma) |
 | G-060 | Toplu program rehberi arka planda indirilsin, rehber 2 gün ileri | 🟢 | ⏳ Bekliyor |
 | G-061 | Geri izleme: rehberde geçmiş programa tıklayıp izleme — **G-060'tan sonra** | 🟢 | ⏳ Bekliyor |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
@@ -51,6 +50,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-062 | Sarmadan sonra takılınca 5 sn'de, ilk deneme mesajsız yeniden bağlanma; tampon dışı sarmada eski bağlantılar kapatılıyor; Ayarlar → Hakkında → "Sorun bildir" son 80 oynatma olayını paylaşıyor — PR #76 (cihazda denenecek) | 13 Kasım |
 | G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma (sonsuz kaydırma sınırı dahil); TV'de odak aynı afişte — PR #75 (cihazda denenecek) | 13 Kasım |
 | G-055 | PlayerScreen 3902 → 3085 satır: çift ekran, video yüzeyi, göstergeler, hata katmanı, uyku zamanlayıcısı ayrı dosyalarda — PR #74 (cihazda denenecek) | 13 Kasım |
 | G-054 | MainViewModel 5 parçaya bölündü (ui/vm/: arama, kategori/ebeveyn, EPG önbelleği, hesap, kanal geçişi); 2628 → 2185 satır, ekranlar değişmedi — PR #73 | 13 Kasım |
