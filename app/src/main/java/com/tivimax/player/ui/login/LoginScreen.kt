@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tivimax.player.BuildConfig
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.design.VegaChoiceChip
@@ -384,28 +385,31 @@ fun LoginScreen(viewModel: MainViewModel) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // Demo girişi yalnızca geliştirici derlemesinde görünür (G-049)
+            if (BuildConfig.DEBUG) {
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Demo Modu ile Test Et Butonu
-            OutlinedButton(
-                onClick = { viewModel.loginDemo() },
-                shape = VegaShapes.Medium,
-                border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = VegaColors.SurfaceVariant,
-                    contentColor = VegaColors.TextPrimary
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-            ) {
-                Icon(imageVector = Icons.Default.PlayCircleOutline, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Hemen dene (canlı demo)",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                // Demo Modu ile Test Et Butonu
+                OutlinedButton(
+                    onClick = { viewModel.loginDemo() },
+                    shape = VegaShapes.Medium,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = VegaColors.SurfaceVariant,
+                        contentColor = VegaColors.TextPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.PlayCircleOutline, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Hemen dene (canlı demo)",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
