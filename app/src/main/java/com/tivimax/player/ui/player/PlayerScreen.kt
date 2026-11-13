@@ -1273,55 +1273,12 @@ fun PlayerScreen(
         // Hata Bildirimi Overlay (Yalnızca tüm otomatik denemeler tükendiğinde ve PiP dışında)
         if (errorMessage != null && reconnectStatus == null && !isInPipMode) {
             errorMessage?.let { error ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.85f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(24.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = null,
-                            tint = VegaColors.Danger,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = error,
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(18.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(
-                                onClick = { playerManager.retryCurrent() },
-                                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Tekrar dene", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            OutlinedButton(
-                                onClick = { playerManager.retryNextFallback() },
-                                shape = RoundedCornerShape(10.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent)
-                            ) {
-                                Text("Alternatif akış dene", color = VegaColors.Accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        TextButton(onClick = onBack) {
-                            Text("Listeye geri dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                }
+                PlayerErrorOverlay(
+                    error = error,
+                    onRetry = { playerManager.retryCurrent() },
+                    onRetryFallback = { playerManager.retryNextFallback() },
+                    onBack = onBack
+                )
             }
         }
 
