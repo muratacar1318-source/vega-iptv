@@ -67,4 +67,21 @@ Bu bir tahmin; Bölüm B ile gerçek cihazdan kanıt toplanacak.
 - Elle deneme kullanıcıda: film aç, 30 sn izle, 20 dk ileri sar → en geç ~5 sn'de, mesajsız devam etmeli.
 
 ## Agent raporu
-_(Agent doldurur.)_
+İki commit (A, B). Her commit'ten sonra `:app:compileDebugKotlin` + `:app:testDebugUnitTest` (BelowNormal, pencere açmadan, tek gradle) → BUILD SUCCESSFUL. `StallPolicyTest` 10/10, `PlaybackEventLogTest` 5/5, `CrashLoggerTest` 7/7. `PlayerScreen.kt`'ye dokunulmadı.
+
+**Bölüm A**
+- `StallPolicy.timeoutMs(isLive, firstFrameShown, msSinceSeek: Long? = null)`: canlı değişmedi (20/10 sn); film/dizi + ilk kare yok → `null`; film/dizi + sarmadan ≤3 sn içinde başlayan takılma → **5 sn**; diğer → 15 sn. Yeni `isSeekRelated(msSinceSeek)` (pencere 0..3000 ms), sabitler `SEEK_WINDOW_MS`, `SEEK_STALL_MS`.
+- Bekçi (`armLiveStallWatchdog`) `msSinceSeek`'i takılma anında hesaplar (`lastSeekTimestamp` 0 ise sarma olmamış → `null`). Sarma kaynaklı kurtarmanın **ilk denemesi sessiz**: `_reconnectStatus` yazılmıyor; 2. ve 3. denemede "Bağlantı yenileniyor... (n/3)" aynen.
+- `prepareVodSeek(target)` (özel yardımcı): film/dizide hedef tamponun dışındaysa (`target > bufferedPosition` ya da `target < currentPosition - 2000`) sarmadan hemen önce `streamingHttpClient.evictAll()`; tampon içindeyse hiçbir şey yapmaz; canlıda hiç çalışmaz.
+- **Kapsanan sarma yolları (hepsi `TiviPlayerManager` içinde):** `seekTo(positionMs)` (sarma çubuğu sürükleme/bırakma, +/-: çubuk ve dokunma yolları), `forward10Seconds`/`rewind10Seconds` (kumanda ◀▶ / çift dokunma), `forward30Seconds`/`rewind30Seconds`. Beşi de zaten `lastSeekTimestamp`'i dolduruyordu (ek doldurma gerekmedi) ve beşi de artık `prepareVodSeek` çağırıyor. `PlayerScreen.kt` bu fonksiyonları çağırıyor (`seekTo`, `forward10Seconds`, `rewind10Seconds`, `seekTo(0L)`); doğrudan `exoPlayer.seekTo` çağıran başka kullanıcı yolu bulunmadı (`TvPlayerOverlay` ve `MainActivity` sarma çağrısı yapmıyor); bu yüzden PlayerScreen'e dokunmaya gerek kalmadı. Yönetici içindeki diğer `seekTo` çağrıları (bekçi/ağ/dekoder kurtarma, açılış konumu) kullanıcı sarması değildir ve bilerek değişmedi.
+- Not: ikinci bekçi denemesi için sarmadan geçen süre >3 sn olacağından o deneme 15 sn kuralını kullanır (tarifte istenen buydu); gerekirse sonraki turda "kurtarma sürerken 5 sn" kuralı eklenebilir.
+
+**Bölüm B**
+- Yeni `util/PlaybackEventLog` (bellekte son 80 olay, `@Synchronized`, diske yazılmaz): satır biçimi `HH:mm:ss.SSS tür: ayrıntı`; her satır `CrashLogger.sanitize` ile temizlenir. `buildSection()` günlük boşsa boş metin, doluysa "Son oynatma olayları" bölümü.
+- `TiviPlayerManager` kancaları: oynatma başladı (canlı/film, konum, akış sırası), durum değişimi (BUFFERING/READY/IDLE/ENDED), ilk kare, kullanıcı sarması (hedef/şimdi/tampon sn, tampon içi/dışı, `evictAll`), bekçi tetiklendi (süre, deneme n/3, sarmaya bağlı mı, `evictAll`), oynatıcı hatası (`errorCodeName` + HTTP kodu; adres yok), yeniden deneme yolları (aynı akış/HTTP, dekoder, ağ koptu, yedek akış, kullanıcı "tekrar dene" / "alternatif akış"). `onPlayerError` mantığına dokunulmadı; yalnız log satırları eklendi.
+- `CrashLogger.buildShareText(context)`: günlük doluysa "Son oynatma olayları" bölümü metnin başına, ardından (varsa) çökme kayıtları. İç dosya tabanlı `buildShareText(dir)` aynen kaldı (mevcut testler etkilenmedi).
+- Ayarlar → Hakkında (`SettingsScreen`, yalnız G-051 bloğu): **"Sorun bildir"** düğmesi çökme olmasa da görünür (eski "Hata raporu gönder"); "Son çökmeler: N kayıt" satırı ve "Kayıtları sil" yalnız çökme kaydı varken. Paylaşım penceresi hatası yine yakalanıyor ("Bu cihazda paylaşım uygulaması yok"). `VegaButton` TV'de odaklanabilir.
+
+**Kullanıcıya not:** Sorunu yaşadıktan sonra uygulamayı KAPATMADAN Ayarlar → Hakkında → "Sorun bildir"e basıp raporu paylaşsın (olay günlüğü bellekte tutulur, uygulama kapanınca silinir).
+
+**Elle denenmedi** (cihaz yok). Beklenen: film aç, 30 sn izle, 20 dk ileri sar → en geç ~5 sn'de mesajsız devam. Kök neden (tek bağlantı sınırı) hâlâ tahmin; rapordaki olay satırları (`sarma ... tampon dışı, evictAll` → `bekçi ... sarmaya bağlı=true`) bunu doğrulayacak ya da çürütecek.
