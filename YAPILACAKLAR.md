@@ -46,7 +46,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-057 | Kalan sabit renkler tokenlara, veri/ağ katmanındaki sessiz hatalara log — **G-052 main'e alınınca** | 🟡 | ⏳ Bekliyor |
 | G-054 | MainViewModel'i parçalara böl (davranış değişmeden) — **G-052/053/056 main'e alınınca** | 🟠 | ⏳ Bekliyor |
 | G-055 | PlayerScreen'i dosyalara böl — **PR #63 kapanınca ve G-054'ten sonra** | 🟡 | ⏳ Bekliyor |
-| G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
+| G-058 | Film/dizide takılma bekçisi: 15 sn takılınca kalınan saniyeden yeniden bağlan | 🟠 | ⏳ Bekliyor |
+| G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma yeri (TV odağı dahil) — **G-054 main'e alınınca** | 🟠 | ⏳ Bekliyor |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
 ---

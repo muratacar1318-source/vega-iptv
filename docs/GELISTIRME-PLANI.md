@@ -130,11 +130,13 @@ G-048'den başlayan numaralarla, tarifleri `docs/gorevler/` altına yazılarak a
 
 Sıra: 1. tur G-052, G-053, G-056 (dosyaları ayrık) → birleştir → 2. tur G-057, G-054 → birleştir → G-055.
 
-### Faz 3 — TV ve mevcut bekleyenler (v1.6.0)
-- G-034 (TV'de geri dönünce aynı afişe dönüş) ve G-035 (TV ana sayfa yeni düzen) — tarifleri
-  yazılacak; G-035 için önce senin onayın.
-- G-058: Film/dizide takılma bekçisi (G-044'ün VOD karşılığı).
-- G-059: TV ana ekranında "İzlemeye devam et" kanalı + 320×180 banner.
+### Faz 3 — TV ve oynatma (görevler yazıldı, 13 Kasım)
+- G-058: Film/dizide takılma bekçisi (G-044'ün VOD karşılığı) — Faz 2 1. turdan sonra.
+- G-034: Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma (TV odağı dahil) — G-054'ten sonra.
+- G-035 (TV ana sayfa yeni düzen): telefondaki yeni ana sayfa (#58, #63) TV'de kullanılmıyor; TV'de Ana Sayfa sekmesi
+  aynı `OpusDashboardScreen`'i kumandayla gösteriyor. G-034 ve G-055'ten sonra TV için ayrı değerlendirilecek.
+- G-059 (TV ana ekran "İzlemeye devam et" kanalı + 320×180 banner): ertelendi — Google TV yan yüklenen uygulamaların
+  satırlarını göstermeyebilir, banner için logo/ad belli değil.
 
 ### Faz 4 — Büyük özellikler (v1.7.0)
 - G-060: Toplu EPG (xmltv) arka planda indirme + veritabanı + uzun ızgara.
