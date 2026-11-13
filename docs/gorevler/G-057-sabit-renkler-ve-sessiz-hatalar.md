@@ -36,8 +36,18 @@ yeniden deneme, varsayılan değer aynen kalır.
 - Log mesajlarında URL, kullanıcı adı, şifre, sunucu adresi **olmaz** (`e.message` Xtream adresi içerebilir:
   sadece `e.javaClass.simpleName` yaz ya da G-051'deki `CrashLogger.sanitize(...)` ile temizle).
 
+## Bölüm C — Ana sayfada uydurma değer (PR #63'ten kalan)
+`ui/main/OpusDashboardScreen.kt` (değişecek dosyalara eklenmiştir), üstteki kullanıcı kartı:
+- Bağlantı rozeti `activeCons`/`maxConnections` boşsa `"1"` uyduruyor ("1 / 1 Hat"). Değer bilinmiyorsa rozeti
+  hiç gösterme; biliniyorsa metin "N / M hat" (küçük harf).
+- "Abonelik aktif" her zaman yazıyor. `userInfo.status` gerçekten aktif değilse (ör. "Expired", "Banned",
+  "Disabled") ya da `expDate` geçmişse `VegaColors.Danger` ile "Abonelik süresi doldu" / "Abonelik aktif değil";
+  durum bilinmiyorsa satırı gizle. Durum metni karşılaştırması mevcut `AccountInfoFormatter` neyi kullanıyorsa onunla
+  (yeniden yazma, onu çağır).
+Commit: `fix(ana sayfa): bağlantı ve abonelik durumu sadece gerçek değerle gösteriliyor`
+
 ## 🚫 DOKUNMA
-- Renk dışı UI değişikliği, `catch` dışı kod değişikliği.
+- Renk dışı UI değişikliği (Bölüm C hariç), `catch` dışı kod değişikliği.
 - `AutoUpdateManager`, imza ayarları, `.github/workflows/`. Sürüm numarası. Release yapma.
 
 ## Kontrol

@@ -112,9 +112,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 ## 🧑 Kullanıcının yapması gerekenler (agent'lar bunlara dokunmaz)
 
-- [ ] **`feat/mobil-tablet-mini-oynatici` branch'i:** Daha önce bir agent tarafından yapılmış, main'e
-      alınmamış (6 dosya, PlayerScreen dahil). Alınacak mı, atılacak mı? Karar verilene kadar
-      G-001 ve G-002 bu branch'ten bağımsız, main üzerinden yapılır.
 - [ ] **Release anahtarı:** Yayınlanan tüm sürümler hâlâ derleme bilgisayarının geçici "Android Debug"
       anahtarıyla imzalı. `vega-release.jks` ve `keystore.properties` derleme bilgisayarına konmadı.
 
@@ -127,6 +124,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 ## 💡 Fikirler
 
+- Karar (13 Kasım, Claude): `feat/mobil-tablet-mini-oynatici` birleştirilmeyecek (main'in 206 commit gerisinde, PlayerScreen/MainViewModel'e ağır dokunuyor). Mobil/tablette ana ekrana dönünce mini oynatıcıda kesintisiz oynatma fikri G-054/G-055 bölmelerinden sonra yeniden görev olarak yazılacak.
+- Karar (13 Kasım, Claude): PR #63 (ana sayfa üst şerit, buton taşmaları) main'e alındı; uydurma "1 / 1 Hat" ve sabit "Abonelik aktif" G-057 Bölüm C'de düzeltilecek.
 - Karar (20 Ekim): TV canlı ana ekranındaki orta kanal listesi böyle kalacak — 1. OK önizlemede açar, 2. OK tam ekran. (G-047 iptal)
 
 - (Referans: Extreme InfiniTV) TV raflarında odaklanan kartın komşu afişlerini önceden yükleme (kaydırma akıcılığı)
