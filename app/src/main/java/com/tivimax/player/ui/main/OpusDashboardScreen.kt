@@ -33,6 +33,8 @@ import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.settings.AccountBadgeColor
+import com.tivimax.player.ui.settings.AccountInfoFormatter
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.util.LocalIsTvDevice
 
@@ -190,49 +192,62 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(VegaColors.Success)
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = "Abonelik aktif",
-                                color = VegaColors.Success,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                        // G-057: Durum gerçek hesap bilgisinden gelir; bilinmiyorsa satır gizlenir.
+                        val accountStatus = AccountInfoFormatter.accountStatus(userInfo)
+                        val statusLine: Pair<String, Color>? = when (accountStatus.colorType) {
+                            AccountBadgeColor.GREEN -> "Abonelik aktif" to VegaColors.Success
+                            AccountBadgeColor.RED ->
+                                (if (accountStatus.label == "Süresi doldu") "Abonelik süresi doldu" else "Abonelik aktif değil") to VegaColors.Danger
+                            else -> null
+                        }
+                        if (statusLine != null) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(statusLine.second)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = statusLine.first,
+                                    color = statusLine.second,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
                 }
 
                 // Sağ Taraf: Aktif Bağlantı / Hat Rozeti
-                val activeCons = userInfo?.activeCons?.ifEmpty { "1" } ?: "1"
-                val maxCons = userInfo?.maxConnections?.ifEmpty { "1" } ?: "1"
-                Surface(
-                    shape = VegaShapes.Pill,
-                    color = VegaColors.Card,
-                    border = BorderStroke(1.dp, VegaColors.Border)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                // G-057: Değerler bilinmiyorsa rozet hiç gösterilmez (uydurma "1 / 1" yok).
+                val activeCons = userInfo?.activeCons?.trim().orEmpty()
+                val maxCons = userInfo?.maxConnections?.trim().orEmpty()
+                if (activeCons.isNotEmpty() && maxCons.isNotEmpty()) {
+                    Surface(
+                        shape = VegaShapes.Pill,
+                        color = VegaColors.Card,
+                        border = BorderStroke(1.dp, VegaColors.Border)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Wifi,
-                            contentDescription = null,
-                            tint = VegaColors.Accent,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = "$activeCons / $maxCons Hat",
-                            color = VegaColors.TextSecondary,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Wifi,
+                                contentDescription = null,
+                                tint = VegaColors.Accent,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = "$activeCons / $maxCons hat",
+                                color = VegaColors.TextSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }

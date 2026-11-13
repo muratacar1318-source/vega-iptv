@@ -448,7 +448,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     }
                     pinDialogError?.let { msg ->
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(msg, color = Color.Red, fontSize = 11.sp)
+                        Text(msg, color = VegaColors.Danger, fontSize = 11.sp)
                     }
                 }
             },
@@ -507,7 +507,7 @@ private fun PinDialogField(value: String, label: String, isError: Boolean, onCha
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = OpusCyan,
             unfocusedBorderColor = TiviCardBorder,
-            errorBorderColor = Color.Red,
+            errorBorderColor = VegaColors.Danger,
             focusedTextColor = TiviTextPrimary,
             unfocusedTextColor = TiviTextPrimary
         ),

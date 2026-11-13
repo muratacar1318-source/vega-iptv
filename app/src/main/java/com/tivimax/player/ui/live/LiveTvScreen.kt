@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.live
 
+import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.activity.compose.BackHandler
@@ -594,15 +595,15 @@ fun LiveTvPortraitLayout(
                                     else onOpenParentalDialog()
                                 },
                                 shape = RoundedCornerShape(8.dp),
-                                color = if (isParentalUnlocked) Color(0xFFEF5350).copy(alpha = 0.2f) else TiviCard,
-                                border = BorderStroke(1.dp, if (isParentalUnlocked) Color(0xFFEF5350) else TiviCardBorder),
+                                color = if (isParentalUnlocked) VegaColors.Danger.copy(alpha = 0.2f) else TiviCard,
+                                border = BorderStroke(1.dp, if (isParentalUnlocked) VegaColors.Danger else TiviCardBorder),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(modifier = Modifier.padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(if (isParentalUnlocked) Icons.Default.LockOpen else Icons.Default.Lock, contentDescription = null, tint = if (isParentalUnlocked) Color(0xFFEF5350) else TiviTextSecondary, modifier = Modifier.size(16.dp))
+                                    Icon(if (isParentalUnlocked) Icons.Default.LockOpen else Icons.Default.Lock, contentDescription = null, tint = if (isParentalUnlocked) VegaColors.Danger else TiviTextSecondary, modifier = Modifier.size(16.dp))
                                     if (isSidebarExpanded) {
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(if (isParentalUnlocked) "+18 Açık (Kilitle)" else "+18 Korumalı", color = if (isParentalUnlocked) Color(0xFFEF5350) else TiviTextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                        Text(if (isParentalUnlocked) "+18 Açık (Kilitle)" else "+18 Korumalı", color = if (isParentalUnlocked) VegaColors.Danger else TiviTextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }

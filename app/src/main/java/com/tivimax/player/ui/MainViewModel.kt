@@ -872,6 +872,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         // Reaktif Room DB Akışları (Arama & Kategori & Sıralama Değişimlerinde SQL Index Tabanlı Anlık Filtreleme)
         viewModelScope.launch {
+            // G-057: Açılışta Canlı kategorileri yüklenmeden içerik gösterme (+18 anlık görünmesin);
+            // en fazla 2 sn beklenir, yalnız ilk açılışta bir kez (collectLatest dışında).
+            kotlinx.coroutines.withTimeoutOrNull(2_000L) { liveCategories.first { it.isNotEmpty() } }
             combine(selectedLiveCategory, liveSearchQuery, liveSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
@@ -892,6 +895,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
+            // G-057: Açılışta Film kategorileri yüklenmeden içerik gösterme (+18 anlık görünmesin);
+            // en fazla 2 sn beklenir, yalnız ilk açılışta bir kez (collectLatest dışında).
+            kotlinx.coroutines.withTimeoutOrNull(2_000L) { vodCategories.first { it.isNotEmpty() } }
             combine(selectedVodCategory, vodSearchQuery, vodSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
@@ -912,6 +918,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
+            // G-057: Açılışta Dizi kategorileri yüklenmeden içerik gösterme (+18 anlık görünmesin);
+            // en fazla 2 sn beklenir, yalnız ilk açılışta bir kez (collectLatest dışında).
+            kotlinx.coroutines.withTimeoutOrNull(2_000L) { seriesCategories.first { it.isNotEmpty() } }
             combine(selectedSeriesCategory, seriesSearchQuery, seriesSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }

@@ -239,7 +239,7 @@ class XtreamRepository(private val context: Context? = null) {
                 if (!resp.isSuccessful) {
                     try {
                         android.util.Log.w("XtreamRepository", "Authentication failed with HTTP code ${resp.code}")
-                    } catch (_: Throwable) {}
+                    } catch (_: Throwable) {} // sessiz: günlük yazılamazsa akış etkilenmesin
                     return@withContext Result.failure(Exception("Sunucu şu an yanıt vermiyor. Biraz sonra tekrar dene."))
                 }
                 val body = resp.body?.string() ?: ""
@@ -262,7 +262,7 @@ class XtreamRepository(private val context: Context? = null) {
         } catch (e: Exception) {
             try {
                 android.util.Log.w("XtreamRepository", "Authentication error", e)
-            } catch (_: Throwable) {}
+            } catch (_: Throwable) {} // sessiz: günlük yazılamazsa akış etkilenmesin
             Result.failure(Exception(toUserMessage(e)))
         }
     }
@@ -349,7 +349,7 @@ class XtreamRepository(private val context: Context? = null) {
                                 chunk.clear()
                             }
                         } catch (e: Exception) {
-                            try { jsonReader.skipValue() } catch (_: Exception) {}
+                            try { jsonReader.skipValue() } catch (_: Exception) {} // sessiz: bozuk kayıt atlanıyor; her kayıtta çalışan sıcak yol
                         }
                     }
 
@@ -363,7 +363,7 @@ class XtreamRepository(private val context: Context? = null) {
                         chunk.clear()
                     }
 
-                    try { jsonReader.endArray() } catch (_: Exception) {}
+                    try { jsonReader.endArray() } catch (_: Exception) {} // sessiz: akış sonu temizliği
                 }
             } finally {
                 tempFile.delete()
@@ -429,7 +429,7 @@ class XtreamRepository(private val context: Context? = null) {
                         chunk.clear()
                     }
                 } catch (e: Exception) {
-                    try { jsonReader.skipValue() } catch (_: Exception) {}
+                    try { jsonReader.skipValue() } catch (_: Exception) {} // sessiz: bozuk kayıt atlanıyor; her kayıtta çalışan sıcak yol
                 }
             }
             if (chunk.isNotEmpty()) {
@@ -447,7 +447,7 @@ class XtreamRepository(private val context: Context? = null) {
                 onChunkInserted(toInsert.size)
                 chunk.clear()
             }
-            try { jsonReader.endArray() } catch (_: Exception) {}
+            try { jsonReader.endArray() } catch (_: Exception) {} // sessiz: akış sonu temizliği
         } else {
             throw Exception("HTTP Hatası: geçersiz yanıt")
         }
@@ -491,7 +491,7 @@ class XtreamRepository(private val context: Context? = null) {
                         chunk.clear()
                     }
                 } catch (e: Exception) {
-                    try { jsonReader.skipValue() } catch (_: Exception) {}
+                    try { jsonReader.skipValue() } catch (_: Exception) {} // sessiz: bozuk kayıt atlanıyor; her kayıtta çalışan sıcak yol
                 }
             }
             if (chunk.isNotEmpty()) {
@@ -509,7 +509,7 @@ class XtreamRepository(private val context: Context? = null) {
                 onChunkInserted(toInsert.size)
                 chunk.clear()
             }
-            try { jsonReader.endArray() } catch (_: Exception) {}
+            try { jsonReader.endArray() } catch (_: Exception) {} // sessiz: akış sonu temizliği
         } else {
             throw Exception("HTTP Hatası: geçersiz yanıt")
         }
@@ -579,7 +579,7 @@ class XtreamRepository(private val context: Context? = null) {
                         delay(2000)
                     }
                 } finally {
-                    try { response?.close() } catch (_: Exception) {}
+                    try { response?.close() } catch (_: Exception) {} // sessiz: kapanış temizliği
                 }
             }
 
@@ -659,7 +659,7 @@ class XtreamRepository(private val context: Context? = null) {
                                         lastExceptionRef.set(catEx)
                                         android.util.Log.w("XtreamRepository", "Category ${cat.categoryName} (${cat.categoryId}) VOD sync failed: ${catEx.message}")
                                     } finally {
-                                        try { catResponse?.close() } catch (_: Exception) {}
+                                        try { catResponse?.close() } catch (_: Exception) {} // sessiz: kapanış temizliği
                                         val curCatIdx = processedCategories.incrementAndGet()
                                         val currentTotal = totalSavedAtomic.get()
                                         onProgress?.invoke(
@@ -771,7 +771,7 @@ class XtreamRepository(private val context: Context? = null) {
                         delay(2000)
                     }
                 } finally {
-                    try { response?.close() } catch (_: Exception) {}
+                    try { response?.close() } catch (_: Exception) {} // sessiz: kapanış temizliği
                 }
             }
 
@@ -850,7 +850,7 @@ class XtreamRepository(private val context: Context? = null) {
                                         lastExceptionRef.set(catEx)
                                         android.util.Log.w("XtreamRepository", "Category ${cat.categoryName} (${cat.categoryId}) Series sync failed: ${catEx.message}")
                                     } finally {
-                                        try { catResponse?.close() } catch (_: Exception) {}
+                                        try { catResponse?.close() } catch (_: Exception) {} // sessiz: kapanış temizliği
                                         val curCatIdx = processedCategories.incrementAndGet()
                                         val currentTotal = totalSavedAtomic.get()
                                         onProgress?.invoke(
@@ -974,10 +974,10 @@ class XtreamRepository(private val context: Context? = null) {
                             seenCategoryIds.add(cat.categoryId)
                         }
                     } catch (e: Exception) {
-                        try { jsonReader.skipValue() } catch (_: Exception) {}
+                        try { jsonReader.skipValue() } catch (_: Exception) {} // sessiz: bozuk kayıt atlanıyor; her kayıtta çalışan sıcak yol
                     }
                 }
-                try { jsonReader.endArray() } catch (_: Exception) {}
+                try { jsonReader.endArray() } catch (_: Exception) {} // sessiz: akış sonu temizliği
             }
 
             db.liveDao().insertCategories(categories.map { it.toEntity() })
@@ -1035,7 +1035,7 @@ class XtreamRepository(private val context: Context? = null) {
                                 chunk.clear()
                             }
                         } catch (e: Exception) {
-                            try { jsonReader.skipValue() } catch (_: Exception) {}
+                            try { jsonReader.skipValue() } catch (_: Exception) {} // sessiz: bozuk kayıt atlanıyor; her kayıtta çalışan sıcak yol
                         }
                     }
 
@@ -1046,7 +1046,7 @@ class XtreamRepository(private val context: Context? = null) {
                         chunk.clear()
                     }
 
-                    try { jsonReader.endArray() } catch (_: Exception) {}
+                    try { jsonReader.endArray() } catch (_: Exception) {} // sessiz: akış sonu temizliği
                 } else {
                     jsonReader.skipValue()
                 }
@@ -1146,10 +1146,10 @@ class XtreamRepository(private val context: Context? = null) {
                             seenCategoryIds.add(cat.categoryId)
                         }
                     } catch (e: Exception) {
-                        try { jsonReader.skipValue() } catch (_: Exception) {}
+                        try { jsonReader.skipValue() } catch (_: Exception) {} // sessiz: bozuk kayıt atlanıyor; her kayıtta çalışan sıcak yol
                     }
                 }
-                try { jsonReader.endArray() } catch (_: Exception) {}
+                try { jsonReader.endArray() } catch (_: Exception) {} // sessiz: akış sonu temizliği
             }
 
             db.vodDao().insertCategories(categories.map { it.toEntity() })
@@ -1207,7 +1207,7 @@ class XtreamRepository(private val context: Context? = null) {
                                 chunk.clear()
                             }
                         } catch (e: Exception) {
-                            try { jsonReader.skipValue() } catch (_: Exception) {}
+                            try { jsonReader.skipValue() } catch (_: Exception) {} // sessiz: bozuk kayıt atlanıyor; her kayıtta çalışan sıcak yol
                         }
                     }
 
@@ -1218,7 +1218,7 @@ class XtreamRepository(private val context: Context? = null) {
                         chunk.clear()
                     }
 
-                    try { jsonReader.endArray() } catch (_: Exception) {}
+                    try { jsonReader.endArray() } catch (_: Exception) {} // sessiz: akış sonu temizliği
                 } else {
                     jsonReader.skipValue()
                 }
@@ -1318,10 +1318,10 @@ class XtreamRepository(private val context: Context? = null) {
                             seenCategoryIds.add(cat.categoryId)
                         }
                     } catch (e: Exception) {
-                        try { jsonReader.skipValue() } catch (_: Exception) {}
+                        try { jsonReader.skipValue() } catch (_: Exception) {} // sessiz: bozuk kayıt atlanıyor; her kayıtta çalışan sıcak yol
                     }
                 }
-                try { jsonReader.endArray() } catch (_: Exception) {}
+                try { jsonReader.endArray() } catch (_: Exception) {} // sessiz: akış sonu temizliği
             }
 
             db.seriesDao().insertCategories(categories.map { it.toEntity() })
@@ -1379,7 +1379,7 @@ class XtreamRepository(private val context: Context? = null) {
                                 chunk.clear()
                             }
                         } catch (e: Exception) {
-                            try { jsonReader.skipValue() } catch (_: Exception) {}
+                            try { jsonReader.skipValue() } catch (_: Exception) {} // sessiz: bozuk kayıt atlanıyor; her kayıtta çalışan sıcak yol
                         }
                     }
 
@@ -1390,7 +1390,7 @@ class XtreamRepository(private val context: Context? = null) {
                         chunk.clear()
                     }
 
-                    try { jsonReader.endArray() } catch (_: Exception) {}
+                    try { jsonReader.endArray() } catch (_: Exception) {} // sessiz: akış sonu temizliği
                 } else {
                     jsonReader.skipValue()
                 }
@@ -1699,5 +1699,11 @@ internal fun formatMegabytes(bytes: Long): String =
 internal fun clearSyncTempDir(dir: java.io.File) {
     try {
         dir.listFiles()?.forEach { it.delete() }
-    } catch (_: Throwable) {}
+    } catch (e: Throwable) {
+        try {
+            android.util.Log.w("XtreamRepository", "Geçici klasör temizlenemedi (${e.javaClass.simpleName})")
+        } catch (_: Throwable) {
+            // sessiz: JVM birim test ortamında Android Log mock'lu olmayabilir
+        }
+    }
 }
