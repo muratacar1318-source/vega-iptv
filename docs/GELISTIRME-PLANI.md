@@ -141,8 +141,8 @@ Sıra: 1. tur G-052, G-053, G-056 (dosyaları ayrık) → birleştir → 2. tur 
 ### Faz 4 — Büyük özellikler (v1.7.0) — G-060, G-061 görevleri yazıldı (13 Kasım)
 - G-060: Toplu EPG (xmltv) arka planda indirme + veritabanı + uzun ızgara.
 - G-061: Geri izleme (catch-up) — G-060'a bağlı.
-- G-062: Program hatırlatıcı — G-060'a bağlı.
-- G-063: Media3 + FFmpeg eklentisi yükseltmesi (tek başına, geniş test).
+- G-064: Program hatırlatıcı — G-060'a bağlı.
+- G-065: Media3 + FFmpeg eklentisi yükseltmesi (tek başına, geniş test).
 
 ### Faz 5 — İsteğe bağlı
 - Çoklu profil, "VLC'de aç", M3U desteği, Chromecast, yeni ad ve simge (ad belli olunca).
