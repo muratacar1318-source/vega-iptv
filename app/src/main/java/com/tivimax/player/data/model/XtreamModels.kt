@@ -53,6 +53,9 @@ data class LiveStream(
     @SerializedName("custom_sid") val customSid: String? = null,
     @SerializedName("tv_archive") val tvArchive: Int = 0,
     @SerializedName("direct_source") val directSource: String? = null,
+    // G-060: Sunucu bu alanı sayı, metin ("3") ya da boş gönderebilir; bozuk değer kanalı düşürmesin diye hoşgörülü okunur.
+    @com.google.gson.annotations.JsonAdapter(LenientIntAdapter::class)
+    @SerializedName("tv_archive_duration") val tvArchiveDuration: Int = 0,
     val currentProgram: String? = null,
     val nextProgram: String? = null,
     val programStart: String? = null,
@@ -285,5 +288,27 @@ fun String?.decodeBase64IfNeeded(defaultText: String = ""): String {
         }
     } catch (e: Throwable) {
         trimmed
+    }
+}
+
+/** G-060: Sayı, sayı gibi metin, boş ya da beklenmeyen JSON değerini hata vermeden Int'e çevirir (bozuk = 0). */
+class LenientIntAdapter : com.google.gson.TypeAdapter<Int>() {
+    override fun write(out: com.google.gson.stream.JsonWriter, value: Int?) {
+        out.value((value ?: 0).toLong())
+    }
+
+    override fun read(reader: com.google.gson.stream.JsonReader): Int {
+        return when (reader.peek()) {
+            com.google.gson.stream.JsonToken.NULL -> {
+                reader.nextNull()
+                0
+            }
+            com.google.gson.stream.JsonToken.NUMBER -> reader.nextDouble().toInt()
+            com.google.gson.stream.JsonToken.STRING -> reader.nextString().trim().toDoubleOrNull()?.toInt() ?: 0
+            else -> {
+                reader.skipValue()
+                0
+            }
+        }
     }
 }

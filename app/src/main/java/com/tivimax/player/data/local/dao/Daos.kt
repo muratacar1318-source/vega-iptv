@@ -71,6 +71,10 @@ interface LiveDao {
     @Query("SELECT streamId FROM live_streams")
     suspend fun getAllStreamIds(): List<Int>
 
+    // G-060: Toplu program rehberine yazılacak kanalların kimlikleri
+    @Query("SELECT DISTINCT epgChannelId FROM live_streams WHERE epgChannelId IS NOT NULL AND epgChannelId != ''")
+    suspend fun getDistinctEpgChannelIds(): List<String>
+
     @Query("DELETE FROM live_streams WHERE streamId IN (:ids)")
     suspend fun deleteStreamsByIds(ids: List<Int>)
 
@@ -275,4 +279,39 @@ interface SeriesDao {
 
     @Query("SELECT * FROM series_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
     fun getPagedSearchStreams(query: String): PagingSource<Int, SeriesStreamEntity>
+}
+
+/** G-060: Toplu program rehberi (XMLTV) tablosu. */
+@Dao
+interface EpgDao {
+    @Insert
+    suspend fun insertAll(programs: List<EpgProgramEntity>)
+
+    @Query("DELETE FROM epg_programs WHERE endMs < :ms")
+    suspend fun deleteOlderThan(ms: Long)
+
+    @Query("DELETE FROM epg_programs")
+    suspend fun deleteAll()
+
+    @Query("SELECT COUNT(*) FROM epg_programs")
+    suspend fun count(): Int
+
+    /** [fromMs, toMs] aralığıyla çakışan programlar, başlangıca göre sıralı. */
+    @Query("SELECT * FROM epg_programs WHERE channelEpgId = :channelEpgId AND endMs > :fromMs AND startMs < :toMs ORDER BY startMs ASC")
+    suspend fun programsFor(channelEpgId: String, fromMs: Long, toMs: Long): List<EpgProgramEntity>
+
+    /**
+     * Her kanal için şu an oynayan ve sonraki program (bitişi [nowMs]'den sonra olan ilk iki program).
+     * Çok sayıda kimlik için çağıran 500'lük parçalara bölmelidir (SQLite değişken sınırı).
+     */
+    @Query(
+        """
+        SELECT p.* FROM epg_programs p
+        WHERE p.channelEpgId IN (:channelEpgIds) AND p.endMs > :nowMs
+          AND (SELECT COUNT(*) FROM epg_programs q
+               WHERE q.channelEpgId = p.channelEpgId AND q.endMs > :nowMs AND q.startMs < p.startMs) < 2
+        ORDER BY p.channelEpgId ASC, p.startMs ASC
+        """
+    )
+    suspend fun nowAndNext(channelEpgIds: List<String>, nowMs: Long): List<EpgProgramEntity>
 }

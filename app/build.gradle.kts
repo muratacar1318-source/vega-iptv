@@ -127,6 +127,8 @@ dependencies {
   // Local tests: jUnit, coroutines, Android runner
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
+  // G-060: JVM'de XmlPullParser (XMLTV ayrıştırıcı testi)
+  testImplementation("net.sf.kxml:kxml2:2.3.0")
 
   // Instrumented tests: jUnit rules and runners
   androidTestImplementation(libs.androidx.test.core)
@@ -170,4 +172,9 @@ dependencies {
   val pagingVersion = "3.3.6"
   implementation("androidx.paging:paging-runtime:$pagingVersion")
   implementation("androidx.paging:paging-compose:$pagingVersion")
+}
+
+// G-060: Room şema JSON'ları (geçiş SQL'i bunlardan alınır ve testle doğrulanır)
+ksp {
+  arg("room.schemaLocation", "$projectDir/schemas")
 }
