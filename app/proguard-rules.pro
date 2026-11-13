@@ -86,3 +86,7 @@
 -keepclassmembers class com.tivimax.player.data.local.** { *; }
 -dontwarn androidx.room.paging.**
 -dontwarn androidx.paging.**
+
+# G-048: DataStore'da JSON olarak saklanan sınıflar (alan adları JSON anahtarıdır)
+-keep class com.tivimax.player.data.playlist.Playlist { <fields>; <init>(...); }
+-keep class com.tivimax.player.data.preferences.WatchProgress { <fields>; <init>(...); }

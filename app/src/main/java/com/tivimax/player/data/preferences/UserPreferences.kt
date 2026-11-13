@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.util.DeviceMode
@@ -21,10 +22,15 @@ import kotlinx.coroutines.flow.map
 
 val Context.appDataStore by preferencesDataStore(name = "tivimax_preferences")
 
+// JSON anahtarları sabittir (G-048): v1.5.1 ve öncesinde R8'in kısalttığı adlar (a..d) okurken kabul edilir.
 data class WatchProgress(
+    @SerializedName(value = "streamId", alternate = ["a"])
     val streamId: Int,
+    @SerializedName(value = "positionMs", alternate = ["b"])
     val positionMs: Long,
+    @SerializedName(value = "durationMs", alternate = ["c"])
     val durationMs: Long,
+    @SerializedName(value = "timestamp", alternate = ["d"])
     val timestamp: Long = System.currentTimeMillis()
 ) {
     val isWatched: Boolean get() = durationMs > 0 && positionMs >= (durationMs * 0.88)
