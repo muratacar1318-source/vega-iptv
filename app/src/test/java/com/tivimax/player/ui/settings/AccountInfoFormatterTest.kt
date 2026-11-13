@@ -167,7 +167,8 @@ class AccountInfoFormatterTest {
         assertEquals("Henüz yapılmadı", AccountInfoFormatter.formatLastSync(""))
 
         // Format is dd.MM.yyyy HH:mm
-        val cal = java.util.Calendar.getInstance()
+        // Takvim de sabit dilimde kurulur; aksi halde CI (UTC) ile yerel (İstanbul) sonuç farklı çıkar
+        val cal = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone(fixedZone))
         cal.set(2026, java.util.Calendar.OCTOBER, 17, 23, 56, 0)
         cal.set(java.util.Calendar.MILLISECOND, 0)
         val syncDateStr = "17.10.2026 23:56"
