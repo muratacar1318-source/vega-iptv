@@ -42,7 +42,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 |---|---|---|---|
 | G-048 | Kayıtlı listeler ve "kaldığın yer" sürüm güncellemesinde kaybolmasın (R8 dayanıklılığı) | 🔴 | 🔍 İncelemede (branch: fix/kayitli-veri-r8) |
 | G-049 | Demo girişi sadece geliştirici derlemesinde | 🔴 | 🔍 İncelemede (branch: fix/demo-sadece-debug) |
-| G-050 | Ebeveyn kilidi: 0000 her zaman açıyor → düzelt, ilk kullanımda PIN belirle; yedekleme kuralları | 🔴 | ⏳ Bekliyor |
+| G-050 | Ebeveyn kilidi: 0000 her zaman açıyor → düzelt, ilk kullanımda PIN belirle; yedekleme kuralları | 🔴 | 🔍 İncelemede (branch: fix/ebeveyn-pin-yedekleme) |
 | G-051 | Çökme günlüğü ve Ayarlar'da "Hata raporu gönder" | 🟠 | ⏳ Bekliyor |
 | G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |

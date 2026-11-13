@@ -428,7 +428,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val hiddenCategories = preferences.lockedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val pinnedCategories = preferences.pinnedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val isParentalUnlocked = MutableStateFlow(false)
-    val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "0000")
+    val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     // Hızlı Kanal Numarasıyla Geçiş (Numeric Zapper)
     val zapperNumber = MutableStateFlow("")
@@ -998,6 +998,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * G-050: Liste "kuruldu" görünse de yedekten dönüşte içerik veritabanı boş gelir
+     * (veritabanları yedeğe alınmaz). Canlı kanal, film ve dizi sayısı sıfırsa içerik yeniden indirilmeli.
+     * Sayım IO iş parçacığında yapılır; okunamazsa eski davranış korunur (true).
+     */
+    private suspend fun hasLocalContent(): Boolean = withContext(Dispatchers.IO) {
+        val db = repository.database ?: return@withContext true
+        try {
+            db.liveDao().getTotalStreamCount() > 0 ||
+                db.vodDao().getTotalStreamCount() > 0 ||
+                db.seriesDao().getTotalStreamCount() > 0
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "hasLocalContent sayımı başarısız: ${e.message}")
+            true
+        }
+    }
+
     fun checkUserLoginAndNavigate() {
         viewModelScope.launch {
             // G-025 Tek seferlik geçiş (Migration)
@@ -1034,7 +1051,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     auth = 1
                 )
 
-                if (activePl.isSynced) {
+                if (activePl.isSynced && hasLocalContent()) {
                     _currentScreen.value = Screen.Home
                     loadInitialData()
                 } else {
@@ -1128,7 +1145,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoggedIn.value = true
 
                 // 5. Yönlendir
-                if (targetPlaylist.isSynced) {
+                if (targetPlaylist.isSynced && hasLocalContent()) {
                     _currentScreen.value = Screen.Home
                     loadInitialData()
                 } else {
@@ -2124,11 +2141,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun unlockParental(pin: String): Boolean {
-        if (pin == parentalPin.value || pin == "0000") {
+        if (ParentalPin.canUnlock(parentalPin.value, pin)) {
             isParentalUnlocked.value = true
             return true
         }
         return false
+    }
+
+    /** PIN henüz belirlenmemişken ilk PIN'i kaydeder ve kilidi açar. Geçersizse false döner. */
+    fun createParentalPin(pin: String, repeat: String): Boolean {
+        if (parentalPin.value.isNotEmpty() || ParentalPin.validateNewPin(pin, repeat) != null) return false
+        setParentalPin(pin)
+        isParentalUnlocked.value = true
+        return true
     }
 
     fun lockParental() {
@@ -2514,5 +2539,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         playerManager.release()
+    }
+}
+
+/** Ebeveyn PIN'i kararları (saf fonksiyonlar; birim testle doğrulanır). */
+object ParentalPin {
+    /** Kayıtlı PIN boşsa (belirlenmemiş) hiçbir giriş kilidi açmaz. */
+    fun canUnlock(stored: String, entered: String): Boolean = stored.isNotEmpty() && entered == stored
+
+    /** Yeni PIN geçerliyse null, değilse kullanıcıya gösterilecek hata metni. */
+    fun validateNewPin(pin: String, repeat: String): String? = when {
+        pin.length != 4 || !pin.all { it in '0'..'9' } -> "4 rakam gir"
+        pin != repeat -> "PIN'ler aynı değil"
+        else -> null
     }
 }

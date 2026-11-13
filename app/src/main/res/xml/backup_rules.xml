@@ -1,13 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Otomatik yedekleme kuralları (Android 11 ve öncesi). G-050.
+   İçerik veritabanları (vega_iptv.db, vega_pl_*.db) yedeğe GİRMEZ: on binlerce kanal/film
+   25 MB sınırını aşıp yedeğin tamamını bozuyordu. Tercihler (listeler, favoriler, izleme
+   ilerlemesi) yedekte kalır. Yedekten dönüşte içerik yeniden indirilir.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="database" path="." />
 </full-backup-content>
