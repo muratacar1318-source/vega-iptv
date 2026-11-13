@@ -36,4 +36,8 @@ müşteri için de kafa karıştırıcı.
 - `grep -n "BuildConfig.DEBUG" app/src/main/java/com/tivimax/player/ui/login/LoginScreen.kt` → en az 1 satır.
 
 ## Agent raporu
-_(Agent doldurur.)_
+- `LoginScreen.kt`: "Hemen dene (canlı demo)" düğmesi ve öncesindeki `Spacer` artık `if (BuildConfig.DEBUG) { … }` içinde (`BuildConfig` import edildi). Release'de ikisi de çizilmez.
+- `MainViewModel.kt`: `loginDemo()` ilk satırı `if (!BuildConfig.DEBUG) return`. Fonksiyonun geri kalanına dokunulmadı.
+- TV yolu: demo düğmesi yalnızca bu dosyada var (`grep` ile başka giriş ekranında demo yok); giriş ekranı TV'de de aynı dosyadan geliyor, ek iş yok.
+- Odak sırası: `LoginScreen.kt`'de `focusRequester`/`focusProperties` yok, alanlar `LocalFocusManager.moveFocus` ile ilerliyor; demo düğmesine bağlı özel odak yok → "Giriş yap"tan aşağı basınca boşluğa düşme riski yok. TV'de elle denenmedi.
+- Test: `:app:compileDebugKotlin` ve `:app:compileReleaseKotlin` → BUILD SUCCESSFUL. `grep "BuildConfig.DEBUG" LoginScreen.kt` → 389. satır.

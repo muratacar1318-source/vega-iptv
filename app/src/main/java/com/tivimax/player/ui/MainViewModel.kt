@@ -1903,6 +1903,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loginDemo() {
+        if (!BuildConfig.DEBUG) return
         _isLoggedIn.value = true
         userInfo.value = XtreamUserInfo(
             username = "Demo Kullanıcı",
