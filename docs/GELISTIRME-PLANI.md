@@ -138,7 +138,7 @@ Sıra: 1. tur G-052, G-053, G-056 (dosyaları ayrık) → birleştir → 2. tur 
 - G-059 (TV ana ekran "İzlemeye devam et" kanalı + 320×180 banner): ertelendi — Google TV yan yüklenen uygulamaların
   satırlarını göstermeyebilir, banner için logo/ad belli değil.
 
-### Faz 4 — Büyük özellikler (v1.7.0)
+### Faz 4 — Büyük özellikler (v1.7.0) — G-060, G-061 görevleri yazıldı (13 Kasım)
 - G-060: Toplu EPG (xmltv) arka planda indirme + veritabanı + uzun ızgara.
 - G-061: Geri izleme (catch-up) — G-060'a bağlı.
 - G-062: Program hatırlatıcı — G-060'a bağlı.
