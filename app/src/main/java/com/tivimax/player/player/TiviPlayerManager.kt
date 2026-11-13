@@ -628,6 +628,8 @@ class TiviPlayerManager(private val context: Context) {
     private var pendingRetryJob: Job? = null
 
     // G-044: Canlı yayın takılma bekçisi — "yükleniyor"da uzun kalırsa aynı kanala yeniden bağlanır
+    // G-058: Film/dizide de çalışır (ilk kare görüntülendikten sonra 15 sn); kalınan saniyeden yeniden bağlanır.
+    // (Değişken adları canlı için yazıldığı gibi kaldı; canlı + film/dizi ortak kullanır.)
     private var liveStallJob: Job? = null
     private var liveStallRecoveries = 0
 
@@ -638,26 +640,41 @@ class TiviPlayerManager(private val context: Context) {
 
     private fun armLiveStallWatchdog() {
         cancelLiveStallWatchdog()
-        if (!isLiveStream) return
+        val liveAtArm = isLiveStream
+        val timeoutMs = StallPolicy.timeoutMs(liveAtArm, hasRenderedFirstFrameOrReady) ?: return
         val urlAtArm = currentPlayingUrl ?: return
-        val timeoutMs = if (hasRenderedFirstFrameOrReady) 10_000L else 20_000L
         liveStallJob = scope.launch {
             delay(timeoutMs)
             val p = exoPlayer ?: return@launch
-            if (!isLiveStream || currentPlayingUrl != urlAtArm) return@launch
+            if (isLiveStream != liveAtArm || currentPlayingUrl != urlAtArm) return@launch
             if (p.playbackState != Player.STATE_BUFFERING || !p.playWhenReady) return@launch
             if (isReconnecting) return@launch
             if (liveStallRecoveries >= 3) {
                 _reconnectStatus.value = null
-                _errorMessage.value = "Kanal şu an yanıt vermiyor. Biraz sonra tekrar dene ya da başka bir kanal aç."
+                _errorMessage.value = if (liveAtArm) {
+                    "Kanal şu an yanıt vermiyor. Biraz sonra tekrar dene ya da başka bir kanal aç."
+                } else {
+                    "Bağlantı çok yavaş. Biraz sonra tekrar dene."
+                }
                 return@launch
             }
             liveStallRecoveries++
-            android.util.Log.w("VegaIPTV", "Canlı yayın ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
-            _reconnectStatus.value = "Yayın yeniden bağlanıyor... ($liveStallRecoveries/3)"
-            p.stop()
-            streamingHttpClient.evictAll()
-            p.seekToDefaultPosition()
+            if (liveAtArm) {
+                android.util.Log.w("VegaIPTV", "Canlı yayın ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
+                _reconnectStatus.value = "Yayın yeniden bağlanıyor... ($liveStallRecoveries/3)"
+                p.stop()
+                streamingHttpClient.evictAll()
+                p.seekToDefaultPosition()
+            } else {
+                // G-058: Konum, durdurmadan ÖNCE alınır; kurtarma kalınan saniyeden devam eder
+                // (izleme ilerlemesi kaydı ve altyazı gecikmesi etkilenmez).
+                val pos = p.currentPosition
+                android.util.Log.w("VegaIPTV", "Film/dizi ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
+                _reconnectStatus.value = "Bağlantı yenileniyor... ($liveStallRecoveries/3)"
+                p.stop()
+                streamingHttpClient.evictAll()
+                p.seekTo(pos)
+            }
             p.prepare()
             p.play()
         }
@@ -1730,5 +1747,19 @@ class TiviPlayerManager(private val context: Context) {
         streamingHttpClient.evictAll()
         _isBuffering.value = false
         _isPlaying.value = false
+    }
+}
+
+/**
+ * G-058: Takılma bekçisinin süre kuralı (saf; birim testle doğrulanır).
+ * Dönüş değeri null ise bekçi kurulmaz.
+ * - Canlı: ilk kare öncesi 20 sn, sonrası 10 sn (G-044, değişmedi).
+ * - Film/dizi: açılışta kurulmaz (açılış yavaşlığı G-027'nin işi); ilk kare görüldükten sonra 15 sn.
+ */
+object StallPolicy {
+    fun timeoutMs(isLive: Boolean, firstFrameShown: Boolean): Long? = when {
+        isLive -> if (firstFrameShown) 10_000L else 20_000L
+        firstFrameShown -> 15_000L
+        else -> null
     }
 }

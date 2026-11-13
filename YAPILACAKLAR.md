@@ -43,7 +43,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | G-057 | Kalan sabit renkler tokenlara, sessiz hatalara log, ana sayfada uydurma değerler, açılışta +18 anlık görünme | 🟡 | ⏳ Bekliyor |
 | G-054 | MainViewModel'i parçalara böl (davranış değişmeden) — **G-057 main'e alınınca** | 🟠 | ⏳ Bekliyor |
 | G-055 | PlayerScreen'i dosyalara böl — **PR #63 kapanınca ve G-054'ten sonra** | 🟡 | ⏳ Bekliyor |
-| G-058 | Film/dizide takılma bekçisi: 15 sn takılınca kalınan saniyeden yeniden bağlan | 🟠 | ⏳ Bekliyor |
+| G-058 | Film/dizide takılma bekçisi: 15 sn takılınca kalınan saniyeden yeniden bağlan | 🟠 | 🔍 İncelemede (branch: fix/vod-takilma-bekcisi) |
 | G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma yeri (TV odağı dahil) — **G-054 main'e alınınca** | 🟠 | ⏳ Bekliyor |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 

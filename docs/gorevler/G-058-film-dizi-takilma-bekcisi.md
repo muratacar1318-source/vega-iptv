@@ -50,4 +50,9 @@ Kurallar:
 - Elle deneme (cihaz varsa): film oynarken Wi-Fi'yi 20 sn kapat-aç → kalınan saniyeden devam etmeli. Yoksa raporda belirt.
 
 ## Agent raporu
-_(Agent doldurur.)_
+- `TiviPlayerManager.kt` (yalnızca G-044 bekçi bölümü + dosya sonuna `object StallPolicy`): `timeoutMs(isLive, firstFrameShown): Long?` — canlı: ilk kare öncesi 20 sn / sonrası 10 sn (değişmedi); film/dizi: ilk kare yokken `null` (bekçi kurulmaz), ilk kare görülünce 15 sn.
+- `armLiveStallWatchdog()`: `if (!isLiveStream) return` yerine `StallPolicy` kararı; kurtarma `isLiveStream`'e göre dallanıyor. Canlı yol birebir aynı (stop → evictAll → seekToDefaultPosition → prepare → play, aynı metin). Film/dizi: konum durdurmadan ÖNCE `val pos = p.currentPosition` alınır → stop → evictAll → `seekTo(pos)` → prepare → play; durum metni "Bağlantı yenileniyor... (n/3)"; 3 denemeden sonra `_errorMessage` = "Bağlantı çok yavaş. Biraz sonra tekrar dene." (canlı için eski metin korunuyor).
+- Mevcut iptal noktaları (READY, IDLE, hata, yeni içerik, `stopAndClear`, `release`), `isReconnecting` ve `!playWhenReady` kontrolleri, `liveStallRecoveries` sıfırlaması aynen VOD için de geçerli; değişken adları yeniden adlandırılmadı, yalnız yorum eklendi. Gecikme sonrası kontrol `!isLiveStream` yerine `isLiveStream != kurulduğundaki değer` (içerik türü değiştiyse tetiklenmez).
+- Yeni `StallPolicyTest.kt` (4 test): canlı 20 000 / 10 000; film ilk kare yok → null, ilk kare var → 15 000.
+- Test: `:app:testDebugUnitTest` ve `:app:compileReleaseKotlin` → BUILD SUCCESSFUL.
+- Elle denenmedi (cihaz yok): film oynarken Wi-Fi'yi 20 sn kapat-aç senaryosu doğrulanmadı. Not: kullanıcı oynatma sırasında uzak bir konuma sarınca tampon dolana kadar 15 sn'den uzun bekleyen çok yavaş bağlantılarda da bekçi kalınan konumdan yeniden bağlanır (istenen davranış).
