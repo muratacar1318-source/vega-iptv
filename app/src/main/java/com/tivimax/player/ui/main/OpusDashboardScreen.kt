@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -139,12 +140,36 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
     var currentSpotlight by remember { mutableStateOf<SpotlightContent?>(null) }
     val activeSpotlight = currentSpotlight ?: initialSpotlight
 
+    // G-034: Sayfa ve şerit kaydırma konumları bellekte saklanır; detaydan/oynatıcıdan dönünce aynı yerden başlar
+    val positionStore = viewModel.catalogPositions
+    val pageScrollSaved = remember { positionStore.get("home:sayfa") }
+    val pageScrollState = rememberScrollState(pageScrollSaved?.firstIndex ?: 0)
+    DisposableEffect(Unit) {
+        onDispose { positionStore.save("home:sayfa", pageScrollState.value, 0, 0) }
+    }
+    // G-034: TV'de dönüşte son açılan afişe odak ver (G-033/G-042/G-045 odak koduna dokunmadan)
+    val isTvForRestore = LocalIsTvDevice.current
+    val restoreHomeKey = remember { if (isTvForRestore) positionStore.lastOpenedItemKey?.takeIf { it.startsWith("home:") } else null }
+    val restoreFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(restoreHomeKey) {
+        if (restoreHomeKey == null) return@LaunchedEffect
+        withFrameNanos { }
+        withFrameNanos { }
+        try {
+            restoreFocusRequester.requestFocus()
+        } catch (_: Exception) {
+            withFrameNanos { }
+            try { restoreFocusRequester.requestFocus() } catch (_: Exception) { /* sessiz: öğe henüz yerleşmedi, odak vazgeçildi */ }
+        }
+        positionStore.lastOpenedItemKey = null
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(VegaColors.Background)
             .padding(horizontal = 16.dp, vertical = 10.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(pageScrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ==========================================
@@ -333,17 +358,23 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
             )
 
             LazyRow(
+                state = rememberStoredLazyListState(positionStore, "home:devam"),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(vertical = 4.dp)
             ) {
                 items(continueWatching, key = { "progress_${it.first.streamId}" }) { (progress, movie) ->
+                    val itemKey = "home:progress_${movie.streamId}"
                     DashboardProgressCard(
                         movie = movie,
                         progress = progress,
                         onFocusChange = { focused ->
                             if (focused) currentSpotlight = SpotlightContent.Progress(progress, movie)
                         },
-                        onClick = { viewModel.playVod(movie, resume = true) }
+                        onClick = {
+                            positionStore.lastOpenedItemKey = itemKey
+                            viewModel.playVod(movie, resume = true)
+                        },
+                        modifier = if (restoreHomeKey == itemKey) Modifier.focusRequester(restoreFocusRequester) else Modifier
                     )
                 }
             }
@@ -362,16 +393,22 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
             )
 
             LazyRow(
+                state = rememberStoredLazyListState(positionStore, "home:filmler"),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(vertical = 4.dp)
             ) {
                 items(newlyAddedVodList, key = { "new_vod_${it.streamId}" }) { movie ->
+                    val itemKey = "home:vod_${movie.streamId}"
                     NewlyAddedVodCard(
                         movie = movie,
                         onFocusChange = { focused ->
                             if (focused) currentSpotlight = SpotlightContent.Movie(movie)
                         },
-                        onClick = { viewModel.loadVodDetail(movie) }
+                        onClick = {
+                            positionStore.lastOpenedItemKey = itemKey
+                            viewModel.loadVodDetail(movie)
+                        },
+                        modifier = if (restoreHomeKey == itemKey) Modifier.focusRequester(restoreFocusRequester) else Modifier
                     )
                 }
             }
@@ -390,16 +427,22 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
             )
 
             LazyRow(
+                state = rememberStoredLazyListState(positionStore, "home:diziler"),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(vertical = 4.dp)
             ) {
                 items(newlyAddedSeriesList, key = { "new_series_${it.seriesId}" }) { series ->
+                    val itemKey = "home:series_${series.seriesId}"
                     NewlyAddedSeriesCard(
                         series = series,
                         onFocusChange = { focused ->
                             if (focused) currentSpotlight = SpotlightContent.Series(series)
                         },
-                        onClick = { viewModel.loadSeriesDetail(series) }
+                        onClick = {
+                            positionStore.lastOpenedItemKey = itemKey
+                            viewModel.loadSeriesDetail(series)
+                        },
+                        modifier = if (restoreHomeKey == itemKey) Modifier.focusRequester(restoreFocusRequester) else Modifier
                     )
                 }
             }
@@ -418,13 +461,19 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
             )
 
             LazyRow(
+                state = rememberStoredLazyListState(positionStore, "home:kanallar"),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(vertical = 4.dp)
             ) {
                 items(recentChannels.take(12), key = { "recent_${it.streamId}" }) { channel ->
+                    val itemKey = "home:recent_${channel.streamId}"
                     DashboardRecentChannelCard(
                         channel = channel,
-                        onClick = { viewModel.playLiveChannel(channel) }
+                        onClick = {
+                            positionStore.lastOpenedItemKey = itemKey
+                            viewModel.playLiveChannel(channel)
+                        },
+                        modifier = if (restoreHomeKey == itemKey) Modifier.focusRequester(restoreFocusRequester) else Modifier
                     )
                 }
             }
@@ -802,7 +851,8 @@ private fun DashboardProgressCard(
     movie: VodStream,
     progress: WatchProgress,
     onFocusChange: (Boolean) -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val progressFraction = if (progress.durationMs > 0) {
         (progress.positionMs.toFloat() / progress.durationMs.toFloat()).coerceIn(0f, 1f)
@@ -818,7 +868,7 @@ private fun DashboardProgressCard(
         shape = VegaShapes.Medium,
         colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
         border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier
+        modifier = modifier
             .width(220.dp)
             .height(125.dp)
             .dpadFocusable(
@@ -916,13 +966,14 @@ private fun DashboardProgressCard(
 private fun NewlyAddedVodCard(
     movie: VodStream,
     onFocusChange: (Boolean) -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
         shape = VegaShapes.Medium,
         colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
         border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier
+        modifier = modifier
             .width(130.dp)
             .height(190.dp)
             .dpadFocusable(
@@ -1014,13 +1065,14 @@ private fun NewlyAddedVodCard(
 private fun NewlyAddedSeriesCard(
     series: SeriesStream,
     onFocusChange: (Boolean) -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
         shape = VegaShapes.Medium,
         colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
         border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier
+        modifier = modifier
             .width(130.dp)
             .height(190.dp)
             .dpadFocusable(
@@ -1111,13 +1163,14 @@ private fun NewlyAddedSeriesCard(
 @Composable
 private fun DashboardRecentChannelCard(
     channel: LiveStream,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
         shape = VegaShapes.Medium,
         colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
         border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier
+        modifier = modifier
             .width(150.dp)
             .height(84.dp)
             .dpadFocusable(
@@ -1180,4 +1233,18 @@ private fun DashboardRecentChannelCard(
             )
         }
     }
+}
+
+/** G-034: Şerit kaydırma konumunu bellekten geri yükler, ekrandan çıkınca kaydeder. */
+@Composable
+private fun rememberStoredLazyListState(
+    store: com.tivimax.player.ui.vm.CatalogPositionStore,
+    key: String
+): androidx.compose.foundation.lazy.LazyListState {
+    val saved = remember(key) { store.get(key) }
+    val state = androidx.compose.foundation.lazy.rememberLazyListState(saved?.firstIndex ?: 0, saved?.offset ?: 0)
+    DisposableEffect(key) {
+        onDispose { store.save(key, state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset, 0) }
+    }
+    return state
 }

@@ -38,6 +38,7 @@ import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import coil.compose.AsyncImage
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.focus.focusRequester
 import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.data.model.VodStream
 import com.tivimax.player.data.preferences.WatchProgress
@@ -64,7 +65,11 @@ fun VodScreen(viewModel: MainViewModel) {
 
     val filteredMovies = movies
 
-    var visibleLimit by remember(filteredMovies) { mutableIntStateOf(40) }
+    // G-034: Detaydan dönünce sonsuz kaydırma sınırı da geri gelir (yoksa 200. filme dönülemez)
+    val savedPosition = remember(selectedCategory, searchQuery) {
+        viewModel.catalogPositions.get(vodPositionKey(selectedCategory, searchQuery))
+    }
+    var visibleLimit by remember(filteredMovies) { mutableIntStateOf(maxOf(40, savedPosition?.visibleLimit ?: 0)) }
     val pagedMovies = remember(filteredMovies, visibleLimit) {
         filteredMovies.take(visibleLimit)
     }
@@ -266,6 +271,46 @@ private fun VodMediaContentGrid(
     onLoadMore: () -> Unit
 ) {
     var isSortMenuOpen by remember { mutableStateOf(false) }
+
+    // G-034: Izgara kaydırma konumu bellekte saklanır; detaydan dönünce aynı yerden başlar
+    val positionStore = viewModel.catalogPositions
+    val positionKey = vodPositionKey(selectedCategory, searchQuery)
+    val savedPosition = remember(positionKey) { positionStore.get(positionKey) }
+    val gridState = androidx.compose.runtime.saveable.rememberSaveable(
+        positionKey,
+        saver = androidx.compose.foundation.lazy.grid.LazyGridState.Saver
+    ) {
+        androidx.compose.foundation.lazy.grid.LazyGridState(savedPosition?.firstIndex ?: 0, savedPosition?.offset ?: 0)
+    }
+    val latestVisibleLimit by rememberUpdatedState(visibleLimit)
+    DisposableEffect(positionKey) {
+        onDispose {
+            positionStore.save(positionKey, gridState.firstVisibleItemIndex, gridState.firstVisibleItemScrollOffset, latestVisibleLimit)
+        }
+    }
+    // G-034: TV'de dönüşte son açılan afişe odak ver (G-033/G-042/G-045 odak koduna dokunmadan)
+    val isTvForRestore = LocalIsTvDevice.current
+    val restoreFocusKey = remember(positionKey) { if (isTvForRestore) positionStore.lastOpenedItemKey else null }
+    val restoreFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    LaunchedEffect(restoreFocusKey, pagedMovies.isEmpty()) {
+        val targetKey = restoreFocusKey ?: return@LaunchedEffect
+        if (pagedMovies.isEmpty()) return@LaunchedEffect
+        val index = pagedMovies.indexOfFirst { "${it.streamId}_${it.num}" == targetKey }
+        if (index >= 0) {
+            withFrameNanos { }
+            if (gridState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
+                gridState.scrollToItem(index)
+            }
+            withFrameNanos { }
+            try {
+                restoreFocusRequester.requestFocus()
+            } catch (_: Exception) {
+                withFrameNanos { }
+                try { restoreFocusRequester.requestFocus() } catch (_: Exception) { /* sessiz: öğe henüz yerleşmedi, odak vazgeçildi */ }
+            }
+        }
+        positionStore.lastOpenedItemKey = null
+    }
 
     Column(
         modifier = Modifier
@@ -554,6 +599,7 @@ private fun VodMediaContentGrid(
 
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(gridColumns),
+                                state = gridState,
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 96.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -565,11 +611,20 @@ private fun VodMediaContentGrid(
                                     contentType = { "vod_movie" }
                                 ) { movie ->
                                     val progress = watchProgressMap[movie.streamId.toString()]
+                                    val itemKey = "${movie.streamId}_${movie.num}"
                                     MoviePosterCard(
                                         movie = movie,
                                         watchProgress = progress,
                                         onFocused = { onSelectHeroMovie(movie) },
-                                        onClick = { viewModel.loadVodDetail(movie) }
+                                        onClick = {
+                                            positionStore.lastOpenedItemKey = itemKey
+                                            viewModel.loadVodDetail(movie)
+                                        },
+                                        modifier = if (restoreFocusKey != null && itemKey == restoreFocusKey) {
+                                            Modifier.focusRequester(restoreFocusRequester)
+                                        } else {
+                                            Modifier
+                                        }
                                     )
                                 }
 
@@ -620,10 +675,11 @@ fun MoviePosterCard(
     movie: VodStream,
     watchProgress: com.tivimax.player.data.preferences.WatchProgress? = null,
     onFocused: (() -> Unit)? = null,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .dpadFocusable(
                 focusedBorderColor = VegaColors.Accent,
@@ -737,3 +793,7 @@ fun MoviePosterCard(
         )
     }
 }
+
+/** G-034: Film ızgarası konum anahtarı: "vod:<kategoriId>" (aramada arama metni de eklenir). */
+private fun vodPositionKey(selectedCategory: String, searchQuery: String): String =
+    if (searchQuery.isBlank()) "vod:$selectedCategory" else "vod:$selectedCategory:q:$searchQuery"
