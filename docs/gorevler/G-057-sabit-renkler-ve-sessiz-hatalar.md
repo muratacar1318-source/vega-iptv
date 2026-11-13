@@ -1,7 +1,7 @@
 # G-057 — Kalan sabit renkler tasarım tokenlarına, sessiz hatalara log
 
 - **Öncelik:** 🟡
-- **Agent dağılımı:** Tek agent. **Ön koşul:** G-052 main'e alınmış olmalı (LiveTvScreen'e o da dokunuyor).
+- **Agent dağılımı:** Tek agent. (G-052 main'e alındı, ön koşul sağlandı.)
 - **Branch:** `chore/renk-token-ve-loglar` (main'den aç)
 - **Commit mesajları:** Bölüm A `style(ui): kalan sabit renkler tasarım tokenlarına çevrildi`,
   Bölüm B `chore(log): veri ve ağ katmanındaki sessiz hatalar loglanıyor`
@@ -45,6 +45,17 @@ yeniden deneme, varsayılan değer aynen kalır.
   durum bilinmiyorsa satırı gizle. Durum metni karşılaştırması mevcut `AccountInfoFormatter` neyi kullanıyorsa onunla
   (yeniden yazma, onu çağır).
 Commit: `fix(ana sayfa): bağlantı ve abonelik durumu sadece gerçek değerle gösteriliyor`
+
+## Bölüm D — Açılışta +18 içeriğin anlık görünmesi (G-052 raporundan)
+`ui/MainViewModel.kt` (değişecek dosyalara eklenmiştir), yalnızca üç içerik toplayıcısı (`getLive/Vod/SeriesStreamsFilteredFlow`
+ile `blocked…CategoryIds`'i birleştiren `combine` blokları). Uygulama açılırken içerik listesi kategorilerden önce gelirse
+engel kümesi boştur ve +18 afişler (ana sayfa dahil) bir an görünebilir.
+- Her toplayıcıda, ilgili kategori akışı (`liveCategories`/`vodCategories`/`seriesCategories`) **ilk kez boş olmayan değer
+  verene kadar ya da en fazla 2 sn** bekle (`withTimeoutOrNull(2_000) { xxxCategories.first { it.isNotEmpty() } }`), sonra
+  birleştirmeye başla. Hiç kategorisi olmayan sağlayıcıda 2 sn sonra eski davranış.
+- Bekleme yalnız ilk açılışta bir kez olmalı (kategori/arama değişimlerinde tekrar beklenmesin): bekleme `collectLatest`'in
+  dışında, toplayıcı başlamadan önce yapılır.
+Commit: `fix(ebeveyn): açılışta kategoriler yüklenmeden +18 içerik görünmüyor`
 
 ## 🚫 DOKUNMA
 - Renk dışı UI değişikliği (Bölüm C hariç), `catch` dışı kod değişikliği.
