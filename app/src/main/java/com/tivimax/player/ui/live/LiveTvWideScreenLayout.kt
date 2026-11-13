@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.live
 
+import com.tivimax.player.ui.design.VegaColors
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
@@ -339,13 +340,13 @@ fun LiveTvWideScreenLayout(
                         else onOpenParentalDialog()
                     },
                     shape = RoundedCornerShape(8.dp),
-                    color = if (isParentalUnlocked) Color(0xFFEF5350).copy(alpha = 0.2f) else TiviCardDark,
-                    border = BorderStroke(1.dp, if (isParentalUnlocked) Color(0xFFEF5350) else TiviCardBorder),
+                    color = if (isParentalUnlocked) VegaColors.Danger.copy(alpha = 0.2f) else TiviCardDark,
+                    border = BorderStroke(1.dp, if (isParentalUnlocked) VegaColors.Danger else TiviCardBorder),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 4.dp)
                         .dpadFocusable(
-                            focusedBorderColor = Color(0xFFEF5350),
+                            focusedBorderColor = VegaColors.Danger,
                             shape = RoundedCornerShape(8.dp),
                             onClick = {
                                 if (isParentalUnlocked) viewModel.lockParental()
@@ -360,13 +361,13 @@ fun LiveTvWideScreenLayout(
                         Icon(
                             imageVector = if (isParentalUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,
                             contentDescription = null,
-                            tint = if (isParentalUnlocked) Color(0xFFEF5350) else TiviTextSecondary,
+                            tint = if (isParentalUnlocked) VegaColors.Danger else TiviTextSecondary,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = if (isParentalUnlocked) "+18 Açık" else "+18 Kilitli",
-                            color = if (isParentalUnlocked) Color(0xFFEF5350) else TiviTextSecondary,
+                            color = if (isParentalUnlocked) VegaColors.Danger else TiviTextSecondary,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -526,7 +527,7 @@ fun LiveTvWideScreenLayout(
                                         modifier = Modifier
                                             .size(26.dp)
                                             .clip(RoundedCornerShape(5.dp))
-                                            .background(Color(0xFF0F141F))
+                                            .background(VegaColors.Card)
                                             .padding(1.dp),
                                         placeholderIcon = Icons.Default.Tv
                                     )

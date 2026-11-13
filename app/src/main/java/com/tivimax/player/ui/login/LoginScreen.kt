@@ -67,7 +67,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                     colors = listOf(
                         VegaColors.Surface,
                         VegaColors.Background,
-                        Color(0xFF000000)
+                        Color.Black
                     )
                 )
             ),

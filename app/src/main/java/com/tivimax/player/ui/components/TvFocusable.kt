@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.components
 
+import com.tivimax.player.ui.design.VegaColors
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -81,12 +82,12 @@ fun extractQualityBadges(channelName: String): List<String> {
 @Composable
 fun QualityBadge(tag: String) {
     val (bg, textColor) = when (tag) {
-        "4K" -> Color(0xFFFFB300) to Color.Black
-        "FHD" -> Color(0xFF6366F1) to Color.White
-        "HD" -> Color(0xFF10B981) to Color.White
-        "100FPS" -> Color(0xFF00E5FF) to Color.Black
-        "50FPS" -> Color(0xFF38BDF8) to Color.Black
-        else -> Color(0xFF334155) to Color.White
+        "4K" -> VegaColors.Gold to Color.Black
+        "FHD" -> Color(0xFF6366F1) to Color.White // G-057: karşılığı yok (rozet ayrımı için indigo korundu)
+        "HD" -> VegaColors.Success to Color.White
+        "100FPS" -> VegaColors.Accent to Color.Black
+        "50FPS" -> VegaColors.Accent.copy(alpha = 0.7f) to Color.Black
+        else -> VegaColors.SurfaceVariant to Color.White
     }
     Box(
         modifier = Modifier
