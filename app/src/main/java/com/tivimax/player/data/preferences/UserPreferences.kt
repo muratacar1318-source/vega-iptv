@@ -219,7 +219,7 @@ class UserPreferences(private val context: Context) {
         context.appDataStore.data.map { it[stringSetPreferencesKey(keyFor("fav_series", id))] ?: emptySet() }
     }
 
-    val parentalPinFlow: Flow<String> = context.appDataStore.data.map { it[KEY_PARENTAL_PIN] ?: "0000" }
+    val parentalPinFlow: Flow<String> = context.appDataStore.data.map { it[KEY_PARENTAL_PIN] ?: "" } // boş = PIN henüz belirlenmemiş (G-050)
     val streamFormatFlow: Flow<String> = context.appDataStore.data.map { it[KEY_STREAM_FORMAT] ?: "TS" }
     val fastZappingFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_FAST_ZAPPING] ?: true }
     val aspectRatioFlow: Flow<String> = context.appDataStore.data.map { it[KEY_ASPECT_RATIO] ?: "FIT" }

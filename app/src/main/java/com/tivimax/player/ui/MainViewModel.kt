@@ -428,7 +428,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val hiddenCategories = preferences.lockedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val pinnedCategories = preferences.pinnedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val isParentalUnlocked = MutableStateFlow(false)
-    val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "0000")
+    val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     // Hızlı Kanal Numarasıyla Geçiş (Numeric Zapper)
     val zapperNumber = MutableStateFlow("")
@@ -2123,11 +2123,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun unlockParental(pin: String): Boolean {
-        if (pin == parentalPin.value || pin == "0000") {
+        if (ParentalPin.canUnlock(parentalPin.value, pin)) {
             isParentalUnlocked.value = true
             return true
         }
         return false
+    }
+
+    /** PIN henüz belirlenmemişken ilk PIN'i kaydeder ve kilidi açar. Geçersizse false döner. */
+    fun createParentalPin(pin: String, repeat: String): Boolean {
+        if (parentalPin.value.isNotEmpty() || ParentalPin.validateNewPin(pin, repeat) != null) return false
+        setParentalPin(pin)
+        isParentalUnlocked.value = true
+        return true
     }
 
     fun lockParental() {
@@ -2513,5 +2521,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         playerManager.release()
+    }
+}
+
+/** Ebeveyn PIN'i kararları (saf fonksiyonlar; birim testle doğrulanır). */
+object ParentalPin {
+    /** Kayıtlı PIN boşsa (belirlenmemiş) hiçbir giriş kilidi açmaz. */
+    fun canUnlock(stored: String, entered: String): Boolean = stored.isNotEmpty() && entered == stored
+
+    /** Yeni PIN geçerliyse null, değilse kullanıcıya gösterilecek hata metni. */
+    fun validateNewPin(pin: String, repeat: String): String? = when {
+        pin.length != 4 || !pin.all { it in '0'..'9' } -> "4 rakam gir"
+        pin != repeat -> "PIN'ler aynı değil"
+        else -> null
     }
 }
