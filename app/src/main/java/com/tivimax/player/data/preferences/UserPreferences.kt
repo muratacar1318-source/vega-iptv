@@ -16,6 +16,7 @@ import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.OrientationManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -34,6 +35,28 @@ data class WatchProgress(
     val timestamp: Long = System.currentTimeMillis()
 ) {
     val isWatched: Boolean get() = durationMs > 0 && positionMs >= (durationMs * 0.88)
+}
+
+/** G-056: İzleme ilerlemesi kaydında tutulacak en fazla kayıt sayısı. */
+const val MAX_WATCH_PROGRESS_ENTRIES = 500
+
+/**
+ * G-056: Kayıt sayısı [max]'ı aşarsa `timestamp`'ı en eski olanları atar. [keepKey] verilirse (az önce
+ * eklenen kayıt) o hiçbir zaman atılmaz; zaman damgaları eşit olsa bile korunur.
+ */
+fun trimProgress(
+    map: Map<String, WatchProgress>,
+    max: Int = MAX_WATCH_PROGRESS_ENTRIES,
+    keepKey: String? = null
+): Map<String, WatchProgress> {
+    if (map.size <= max) return map
+    val kept = map.entries
+        .sortedWith(
+            compareByDescending<Map.Entry<String, WatchProgress>> { it.key == keepKey }
+                .thenByDescending { it.value.timestamp }
+        )
+        .take(max)
+    return kept.associate { it.key to it.value }
 }
 
 class UserPreferences(private val context: Context) {
@@ -305,15 +328,19 @@ class UserPreferences(private val context: Context) {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val watchProgressMapFlow: Flow<Map<String, WatchProgress>> = activePlaylistIdFlow.flatMapLatest { id ->
-        context.appDataStore.data.map { prefs ->
-            val json = prefs[stringPreferencesKey(keyFor("watch_progress_json", id))] ?: "{}"
-            val type = object : TypeToken<Map<String, WatchProgress>>() {}.type
-            try {
-                gson.fromJson(json, type) ?: emptyMap()
-            } catch (e: Exception) {
-                emptyMap()
+        val key = stringPreferencesKey(keyFor("watch_progress_json", id))
+        context.appDataStore.data
+            .map { prefs -> prefs[key] ?: "{}" }
+            // G-056: Başka bir ayar (favori, tema, ses…) değişince JSON aynı kalır; yeniden ayrıştırma yapma.
+            .distinctUntilChanged()
+            .map { json ->
+                val type = object : TypeToken<Map<String, WatchProgress>>() {}.type
+                try {
+                    gson.fromJson<Map<String, WatchProgress>>(json, type) ?: emptyMap()
+                } catch (e: Exception) {
+                    emptyMap()
+                }
             }
-        }
     }
 
     suspend fun saveCredentials(username: String, pass: String, serverUrl: String) {
@@ -414,8 +441,9 @@ class UserPreferences(private val context: Context) {
             } catch (e: Exception) {
                 mutableMapOf()
             }
-            map[streamId.toString()] = WatchProgress(streamId, positionMs, durationMs)
-            prefs[key] = gson.toJson(map)
+            val entryKey = streamId.toString()
+            map[entryKey] = WatchProgress(streamId, positionMs, durationMs)
+            prefs[key] = gson.toJson(trimProgress(map, MAX_WATCH_PROGRESS_ENTRIES, keepKey = entryKey)) // G-056
         }
     }
 

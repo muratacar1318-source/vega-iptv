@@ -40,4 +40,10 @@
 - `./gradlew :app:testDebugUnitTest` (düşük öncelikle, pencere açmadan) → geçmeli.
 
 ## Agent raporu
-_(Agent doldurur.)_
+- `UserPreferences.kt` (yalnızca izleme ilerlemesi kısımları + `distinctUntilChanged` importu): yeni üst düzey `trimProgress(map, max = 500, keepKey = null)` ve `MAX_WATCH_PROGRESS_ENTRIES = 500`. Sayı `max`'ı aşarsa `timestamp`'ı en eski olanlar atılır; `keepKey` (az önce eklenen kayıt) zaman damgası eşit/eski olsa bile asla atılmaz (görev tarifindeki `trimProgress(map, max)` imzasına isteğe bağlı üçüncü parametre eklendi).
+- `saveWatchProgress`: yazmadan önce `trimProgress(map, 500, keepKey = <kaydedilen streamId>)` uygulanıyor.
+- `watchProgressMapFlow`: `flatMapLatest` (aktif liste) yapısı korundu; içeride `map { prefs[key] ?: "{}" }.distinctUntilChanged().map { parse }` — başka bir ayar (favori, tema, ses…) değişince ham JSON aynı kaldığı için yeniden ayrıştırma yapılmıyor.
+- `WatchProgress` sınıfı, `@SerializedName` anotasyonları, DataStore anahtar adları, `PlayerScreen` ve kaydetme sıklığı değişmedi (G-048 uyumu korundu).
+- Yeni `WatchProgressTrimTest.kt` (6 test): 499 ve 500 kayıt aynen kalır; 501 kayıtta 500 kalır ve en eski zaman damgalı gider; 1200 kayıtta en yeni 500 kalır; yeni eklenen (zaman damgası en eski olsa da) atılmaz; özel sınır.
+- Test: `:app:testDebugUnitTest` → BUILD SUCCESSFUL.
+- Not: Akışın "başka ayar değişince ayrıştırma yapılmaz" davranışı birim testle ölçülmedi (DataStore gerektirir); kod incelemesiyle doğrulandı. Cihazda elle denenmedi.
