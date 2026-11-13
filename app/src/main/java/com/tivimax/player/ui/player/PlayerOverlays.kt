@@ -176,3 +176,64 @@ internal fun PlayerErrorOverlay(
         }
     }
 }
+
+/** Sol kenardaki dikey parlaklık göstergesi. */
+@Composable
+internal fun BoxScope.BrightnessFeedbackBar(brightnessFeedback: Int?) {
+    AnimatedVisibility(
+        visible = brightnessFeedback != null,
+        enter = fadeIn(tween(150)),
+        exit = fadeOut(tween(300)),
+        modifier = Modifier
+            .align(Alignment.CenterStart)
+            .padding(start = 24.dp)
+    ) {
+        brightnessFeedback?.let { pct ->
+            val fraction = (pct / 100f).coerceIn(0f, 1f)
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = VegaColors.OverlayPanel,
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                modifier = Modifier
+                    .width(42.dp)
+                    .height(180.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BrightnessMedium,
+                        contentDescription = null,
+                        tint = VegaColors.Gold,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(5.dp)
+                            .height(105.dp)
+                            .clip(RoundedCornerShape(2.5.dp))
+                            .background(Color.White.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(fraction)
+                                .background(VegaColors.Gold)
+                        )
+                    }
+                    Text(
+                        text = "%$pct",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
