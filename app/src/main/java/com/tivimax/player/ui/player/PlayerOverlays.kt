@@ -298,3 +298,52 @@ internal fun BoxScope.VolumeFeedbackBar(volumeFeedback: Int?) {
         }
     }
 }
+
+/** Uyku zamanlayıcısı seçim diyaloğu. */
+@Composable
+internal fun SleepTimerDialog(
+    sleepTimerSeconds: Int?,
+    onSetTimer: (Int) -> Unit,
+    onCancelTimer: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { onDismiss() },
+        containerColor = VegaColors.Surface,
+        title = { Text("Uyku zamanlayıcısı", color = VegaColors.TextPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(15, 30, 45, 60, 90).forEach { mins ->
+                    Button(
+                        onClick = {
+                            onSetTimer(mins)
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.SurfaceVariant, contentColor = VegaColors.TextPrimary),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("$mins dakika sonra kapat")
+                    }
+                }
+                if (sleepTimerSeconds != null) {
+                    OutlinedButton(
+                        onClick = {
+                            onCancelTimer()
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Zamanlayıcıyı kapat", color = VegaColors.Danger)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onDismiss() }) {
+                Text("Vazgeç", color = VegaColors.TextSecondary)
+            }
+        }
+    )
+}

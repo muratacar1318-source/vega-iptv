@@ -2987,44 +2987,11 @@ fun PlayerScreen(
 
         // UYKU ZAMANLAYICISI MODAL DİYALOĞU
         if (showSleepTimerDialog) {
-            AlertDialog(
-                onDismissRequest = { showSleepTimerDialog = false },
-                containerColor = VegaColors.Surface,
-                title = { Text("Uyku zamanlayıcısı", color = VegaColors.TextPrimary, fontWeight = FontWeight.Bold) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(15, 30, 45, 60, 90).forEach { mins ->
-                            Button(
-                                onClick = {
-                                    playerManager.setSleepTimer(mins)
-                                    showSleepTimerDialog = false
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = VegaColors.SurfaceVariant, contentColor = VegaColors.TextPrimary),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("$mins dakika sonra kapat")
-                            }
-                        }
-                        if (sleepTimerSeconds != null) {
-                            OutlinedButton(
-                                onClick = {
-                                    playerManager.cancelSleepTimer()
-                                    showSleepTimerDialog = false
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Zamanlayıcıyı kapat", color = VegaColors.Danger)
-                            }
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { showSleepTimerDialog = false }) {
-                        Text("Vazgeç", color = VegaColors.TextSecondary)
-                    }
-                }
+            SleepTimerDialog(
+                sleepTimerSeconds = sleepTimerSeconds,
+                onSetTimer = { playerManager.setSleepTimer(it) },
+                onCancelTimer = { playerManager.cancelSleepTimer() },
+                onDismiss = { showSleepTimerDialog = false }
             )
         }
 
