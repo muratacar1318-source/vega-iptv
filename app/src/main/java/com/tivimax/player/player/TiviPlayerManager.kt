@@ -641,7 +641,10 @@ class TiviPlayerManager(private val context: Context) {
     private fun armLiveStallWatchdog() {
         cancelLiveStallWatchdog()
         val liveAtArm = isLiveStream
-        val timeoutMs = StallPolicy.timeoutMs(liveAtArm, hasRenderedFirstFrameOrReady) ?: return
+        // G-062: Son kullanıcı sarmasından bu yana geçen süre (hiç sarma olmadıysa null)
+        val msSinceSeek = if (lastSeekTimestamp > 0L) System.currentTimeMillis() - lastSeekTimestamp else null
+        val timeoutMs = StallPolicy.timeoutMs(liveAtArm, hasRenderedFirstFrameOrReady, msSinceSeek) ?: return
+        val seekRelated = !liveAtArm && StallPolicy.isSeekRelated(msSinceSeek)
         val urlAtArm = currentPlayingUrl ?: return
         liveStallJob = scope.launch {
             delay(timeoutMs)
@@ -670,7 +673,10 @@ class TiviPlayerManager(private val context: Context) {
                 // (izleme ilerlemesi kaydı ve altyazı gecikmesi etkilenmez).
                 val pos = p.currentPosition
                 android.util.Log.w("VegaIPTV", "Film/dizi ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
-                _reconnectStatus.value = "Bağlantı yenileniyor... ($liveStallRecoveries/3)"
+                // G-062: Sarma kaynaklı kurtarmanın ilk denemesi sessiz (normal yükleniyor yuvarlağı görünür)
+                if (!(seekRelated && liveStallRecoveries == 1)) {
+                    _reconnectStatus.value = "Bağlantı yenileniyor... ($liveStallRecoveries/3)"
+                }
                 p.stop()
                 streamingHttpClient.evictAll()
                 p.seekTo(pos)
@@ -1140,6 +1146,20 @@ class TiviPlayerManager(private val context: Context) {
 
     private var lastSeekTimestamp = 0L
 
+    /**
+     * G-062: Film/dizide kullanıcı sarması tamponun dışına düşüyorsa, sarmadan HEMEN ÖNCE boşta kalan eski
+     * bağlantıları kapatır (tek bağlantı sınırı olan sağlayıcılarda yeni istek eski bağlantı yüzünden bekletilmesin).
+     * Tampon içindeki sarmada çağrılırsa hiçbir şey yapmaz (gereksiz yeniden bağlantı olmasın).
+     */
+    private fun prepareVodSeek(target: Long) {
+        if (isLiveStream) return
+        val p = exoPlayer ?: return
+        val outsideBuffer = target > p.bufferedPosition || target < p.currentPosition - 2000L
+        if (outsideBuffer) {
+            streamingHttpClient.evictAll()
+        }
+    }
+
     fun seekTo(positionMs: Long) {
         val target = positionMs.coerceAtLeast(0L)
         lastSeekTimestamp = System.currentTimeMillis()
@@ -1151,6 +1171,7 @@ class TiviPlayerManager(private val context: Context) {
             seekTargetMs = target
         }
         _currentPosition.value = target
+        prepareVodSeek(target)
         exoPlayer?.seekTo(target)
     }
 
@@ -1167,6 +1188,7 @@ class TiviPlayerManager(private val context: Context) {
                 seekTargetMs = target
             }
             _currentPosition.value = target
+            prepareVodSeek(target)
             it.seekTo(target)
         }
     }
@@ -1183,6 +1205,7 @@ class TiviPlayerManager(private val context: Context) {
                 seekTargetMs = target
             }
             _currentPosition.value = target
+            prepareVodSeek(target)
             it.seekTo(target)
         }
     }
@@ -1200,6 +1223,7 @@ class TiviPlayerManager(private val context: Context) {
                 seekTargetMs = target
             }
             _currentPosition.value = target
+            prepareVodSeek(target)
             it.seekTo(target)
         }
     }
@@ -1216,6 +1240,7 @@ class TiviPlayerManager(private val context: Context) {
                 seekTargetMs = target
             }
             _currentPosition.value = target
+            prepareVodSeek(target)
             it.seekTo(target)
         }
     }
@@ -1754,12 +1779,21 @@ class TiviPlayerManager(private val context: Context) {
  * G-058: Takılma bekçisinin süre kuralı (saf; birim testle doğrulanır).
  * Dönüş değeri null ise bekçi kurulmaz.
  * - Canlı: ilk kare öncesi 20 sn, sonrası 10 sn (G-044, değişmedi).
- * - Film/dizi: açılışta kurulmaz (açılış yavaşlığı G-027'nin işi); ilk kare görüldükten sonra 15 sn.
+ * - Film/dizi: açılışta kurulmaz (açılış yavaşlığı G-027'nin işi); ilk kare görüldükten sonra 15 sn;
+ *   kullanıcı sarmasından ≤3 sn sonra başlayan takılmada 5 sn (G-062).
  */
 object StallPolicy {
-    fun timeoutMs(isLive: Boolean, firstFrameShown: Boolean): Long? = when {
+    /** G-062: Kullanıcı sarmasından bu yana bu süre içinde başlayan takılma "sarma kaynaklı" sayılır. */
+    const val SEEK_WINDOW_MS = 3_000L
+    /** G-062: Sarma kaynaklı takılmada bekçi süresi. */
+    const val SEEK_STALL_MS = 5_000L
+
+    /** Takılma, kullanıcı sarmasından hemen sonra mı başladı? ([msSinceSeek] null = hiç sarma olmadı) */
+    fun isSeekRelated(msSinceSeek: Long?): Boolean = msSinceSeek != null && msSinceSeek in 0..SEEK_WINDOW_MS
+
+    fun timeoutMs(isLive: Boolean, firstFrameShown: Boolean, msSinceSeek: Long? = null): Long? = when {
         isLive -> if (firstFrameShown) 10_000L else 20_000L
-        firstFrameShown -> 15_000L
+        firstFrameShown -> if (isSeekRelated(msSinceSeek)) SEEK_STALL_MS else 15_000L
         else -> null
     }
 }
