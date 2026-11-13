@@ -532,6 +532,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // G-034: Izgara/şerit kaydırma konumları (detaydan dönünce aynı yere dönmek için); liste değişince sıfırlanır.
     val catalogPositions = com.tivimax.player.ui.vm.CatalogPositionStore()
+
+    // G-060: Toplu program rehberi (XMLTV) arka planda indirilir; arayüzü bekletmez, aynı anda tek indirme.
+    private val epgRepository = com.tivimax.player.data.epg.EpgRepository(application, repository, preferences)
+    val epgDownloadEnabled = preferences.epgDownloadEnabledFlow.stateIn(viewModelScope, SharingStarted.Eagerly, true)
+
+    private fun scheduleEpgSync() {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Yeni rehber yazıldıysa ekrandaki kanalların bilgisi veritabanından tazelenir
+            if (epgRepository.syncIfNeeded()) epgCache.refreshFromDatabase()
+        }
+    }
+
+    fun setEpgDownloadEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferences.setEpgDownloadEnabled(enabled)
+            if (enabled) scheduleEpgSync()
+        }
+    }
     val epgSummaryMap: MutableStateFlow<Map<Int, EpgProgram>> get() = epgCache.epgSummaryMap
     val epgProgramsMap: MutableStateFlow<Map<Int, List<EpgProgram>>> get() = epgCache.epgProgramsMap
 
@@ -868,6 +886,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (activePl.isSynced && hasLocalContent()) {
                     _currentScreen.value = Screen.Home
                     loadInitialData()
+                    scheduleEpgSync() // G-060: son indirmeden 12 saat geçtiyse yenilenir
                 } else {
                     _currentScreen.value = Screen.PlaylistSync
                     startPlaylistSync(fromStep = 1)
@@ -963,6 +982,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (targetPlaylist.isSynced && hasLocalContent()) {
                     _currentScreen.value = Screen.Home
                     loadInitialData()
+                    scheduleEpgSync()
                 } else {
                     _currentScreen.value = Screen.PlaylistSync
                     startPlaylistSync(fromStep = 1)
@@ -1377,6 +1397,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 preferences.setPlaylistSynced(true, nowStr)
                 val activeId = playlistRepository.getActivePlaylistId()
                 playlistRepository.markSynced(activeId, nowStr)
+                scheduleEpgSync() // G-060: canlı kanallar hazır olunca program rehberi arka planda iner
                 if (!background) {
                     loadLiveCategories()
                     loadLiveStreams("all")

@@ -54,6 +54,7 @@ import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaButton
 import com.tivimax.player.ui.design.VegaButtonVariant
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaSwitchRow
 import com.tivimax.player.util.CrashLogger
 import com.tivimax.player.ui.design.VegaShapes
 import kotlinx.coroutines.launch
@@ -841,6 +842,21 @@ private fun RenderSelectedSection(
                             colors = SwitchDefaults.colors(checkedThumbColor = OpusCyan, checkedTrackColor = OpusCyan.copy(alpha = 0.35f))
                         )
                     }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
+
+                    // G-060: Program rehberini toplu indir (zayıf TV kutularında kapatılabilir)
+                    val epgDownloadEnabled by viewModel.epgDownloadEnabled.collectAsState()
+                    VegaSwitchRow(
+                        title = "Program rehberini indir",
+                        description = if (epgDownloadEnabled) {
+                            "Önümüzdeki 2 günün yayın akışı arka planda bir kez indirilir. Zayıf cihazlarda kapatabilirsin."
+                        } else {
+                            "Kapalı. Her kanalın programı ayrı ayrı istenir."
+                        },
+                        checked = epgDownloadEnabled,
+                        onCheckedChange = { viewModel.setEpgDownloadEnabled(it) }
+                    )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp), color = TiviCardBorder)
 

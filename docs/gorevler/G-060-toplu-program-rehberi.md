@@ -82,4 +82,16 @@ Rakip oynatıcılar (TiviMate vb.) XMLTV'yi bir kez indirip 1–3 günlük rehbe
 - Elle deneme (cihaz varsa): güncellemeden sonra liste yeniden inmiyor; rehber 1 dk içinde doluyor. Yoksa raporda belirt.
 
 ## Agent raporu
-_(Agent doldurur.)_
+4 commit (A veritabanı+geçiş, B indirme+ayrıştırma, C tetikleme+Ayarlar anahtarı, D kullanım). `:app:compileDebugKotlin`, `:app:testDebugUnitTest`, `:app:compileReleaseKotlin` → BUILD SUCCESSFUL (AppDatabaseMigrationSqlTest 5/5, XmltvParserTest 7/7).
+
+**Geçiş (YIKICI DEĞİL):** `exportSchema = true` + KSP `room.schemaLocation=$projectDir/schemas`; `app/schemas/com.tivimax.player.data.local.AppDatabase/3.json` üretildi ve commit'li. Sürüm 2 → 3, `AppDatabaseMigrations.MIGRATION_2_3` (`fallbackToDestructiveMigration` yalnız bilinmeyen eski sürümler için kaldı). `epg_programs` tablosu VE `live_streams.tvArchiveDuration` sütunu tek geçişte.
+SQL, 3.json `createSql` değerlerinden kopyalandı (`${TABLE_NAME}` → tablo adı):
+- Geçiş[0] = `CREATE TABLE IF NOT EXISTS `epg_programs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `channelEpgId` TEXT NOT NULL, `startMs` INTEGER NOT NULL, `endMs` INTEGER NOT NULL, `title` TEXT NOT NULL, `description` TEXT)` — 3.json ile aynı.
+- Geçiş[1] = `CREATE INDEX IF NOT EXISTS `index_epg_programs_channelEpgId_startMs` ON `epg_programs` (`channelEpgId`, `startMs`)` — 3.json ile aynı.
+- Geçiş[2] = `ALTER TABLE `live_streams` ADD COLUMN `tvArchiveDuration` INTEGER NOT NULL DEFAULT 0` — 3.json'da live_streams tanımının son sütunu aynen `tvArchiveDuration` INTEGER NOT NULL DEFAULT 0 (`@ColumnInfo(defaultValue = "0")`).
+Doğrulama: `AppDatabaseMigrationSqlTest` bu dizgileri 3.json ile JVM'de eşitler (DROP/DELETE yok, v2 tanımı sütun çıkarılınca `directSource` TEXT, PRIMARY KEY ile biter). Sürüm 2 için şema JSON'u yoktu (exportSchema kapalıydı); v2 şeması, v1.5.1'den beri değişmeyen entity'lerden çıkarıldı. Cihazda gerçek 2→3 geçişi (MigrationTestHelper) ÇALIŞTIRILMADI.
+
+**B:** `XmltvParser` (XmlPullParser, akış, pencere −6 sa/+48 sa, çakışma esaslı, bozuk kayıt atlanır, bölgesiz = UTC, kanal kimliği küçük harf), `EpgRepository` (önce dosyaya indirme `cacheDir/epg`, gzip otomatik, tek `withTransaction`: `deleteAll` + 2000'lik partiler, boş sonuç/hata → geri alınır, eski rehber kalır; tek indirme; log yalnız hata türü), `XtreamRepository.downloadXmltvToFile` (G-028 yardımcısı aynen kullanıldı). `LiveStream.tvArchiveDuration` hoşgörülü `LenientIntAdapter` ile okunur (bozuk değer kanalı düşürmez).
+**C:** Ayarlar'da "Program rehberini indir" (varsayılan açık); canlı kanallar hazır olunca, açılışta ve liste değişiminde `scheduleEpgSync` (12 saat kuralı, liste başına `epg_last_sync`). `BackgroundSyncBanner` ile gösterim YAPILMADI (isteğe bağlıydı).
+**D:** `EpgCache` önce veritabanı (şimdi −15 dk … +24 sa), yoksa `get_short_epg`; başlıklar mevcut arayüz çözümü için Base64 verilir; yeni rehber inince bellekteki kanallar tazelenir. `TvEpgGridScreen`: geçmiş programlar soluk (alpha 0.45). `nowAndNext` DAO'su hazır ama kullanılmıyor.
+**Açık/denenmedi:** cihaz yok; gerçek XMLTV (50–200 MB) süre/bellek ölçülmedi; indirme iş parçacığı önceliği düşürülmedi; ızgara yalnız şu andan 15 dk geriyi gösteriyor (G-061'de geçmiş).

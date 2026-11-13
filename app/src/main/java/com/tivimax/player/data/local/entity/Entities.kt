@@ -1,5 +1,6 @@
 package com.tivimax.player.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -48,7 +49,9 @@ data class LiveStreamEntity(
     val categoryId: String = "",
     val customSid: String? = null,
     val tvArchive: Int = 0,
-    val directSource: String? = null
+    val directSource: String? = null,
+    // G-060: Geri izleme süresi (gün). G-061 için şimdiden eklendi; varsayılan 0 = geri izleme yok.
+    @ColumnInfo(defaultValue = "0") val tvArchiveDuration: Int = 0
 ) {
     fun toModel(): LiveStream = LiveStream(
         num = num,
@@ -61,7 +64,8 @@ data class LiveStreamEntity(
         categoryId = categoryId,
         customSid = customSid,
         tvArchive = tvArchive,
-        directSource = directSource
+        directSource = directSource,
+        tvArchiveDuration = tvArchiveDuration
     )
 }
 
@@ -76,7 +80,8 @@ fun LiveStream.toEntity(): LiveStreamEntity = LiveStreamEntity(
     categoryId = categoryId ?: "",
     customSid = customSid,
     tvArchive = tvArchive,
-    directSource = directSource
+    directSource = directSource,
+    tvArchiveDuration = tvArchiveDuration
 )
 
 // --- VOD (FİLM) TABLOLARI ---
@@ -234,4 +239,23 @@ fun SeriesStream.toEntity(): SeriesStreamEntity = SeriesStreamEntity(
     categoryId = categoryId ?: "",
     added = added,
     lastModified = lastModified
+)
+
+// --- TOPLU PROGRAM REHBERİ (G-060) ---
+
+/**
+ * Toplu program rehberinden (XMLTV) gelen tek bir program. `channelEpgId` küçük harfe çevrilmiş
+ * ve kırpılmış olarak saklanır (kanalın `epgChannelId` değeriyle aynı biçimde aranır).
+ */
+@Entity(
+    tableName = "epg_programs",
+    indices = [Index(value = ["channelEpgId", "startMs"])]
+)
+data class EpgProgramEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val channelEpgId: String,
+    val startMs: Long,
+    val endMs: Long,
+    val title: String,
+    val description: String? = null
 )
