@@ -41,7 +41,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
 | G-053 | CI birim testlerini de çalıştırsın | 🟠 | ⏸️ Kullanıcı onayı bekliyor — workflow dosyası (agent'ın düzenleme izni reddedildi) |
-| G-057 | Kalan sabit renkler tokenlara, sessiz hatalara log, ana sayfada uydurma değerler, açılışta +18 anlık görünme | 🟡 | ⏳ Bekliyor |
+| G-057 | Kalan sabit renkler tokenlara, sessiz hatalara log, ana sayfada uydurma değerler, açılışta +18 anlık görünme | 🟡 | 🔍 İncelemede (branch: chore/renk-token-ve-loglar) |
 | G-054 | MainViewModel'i parçalara böl (davranış değişmeden) — **G-057 main'e alınınca** | 🟠 | ⏳ Bekliyor |
 | G-055 | PlayerScreen'i dosyalara böl — **PR #63 kapanınca ve G-054'ten sonra** | 🟡 | ⏳ Bekliyor |
 | G-058 | Film/dizide takılma bekçisi: 15 sn takılınca kalınan saniyeden yeniden bağlan | 🟠 | ⏳ Bekliyor |

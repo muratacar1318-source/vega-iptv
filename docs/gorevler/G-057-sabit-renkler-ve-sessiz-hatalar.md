@@ -65,4 +65,18 @@ Commit: `fix(ebeveyn): açılışta kategoriler yüklenmeden +18 içerik görün
 - `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest` (düşük öncelikle, pencere açmadan) → geçmeli.
 
 ## Agent raporu
-_(Agent doldurur.)_
+**A — Sabit renkler (commit 1):** `Color(0xFFEF5350)` (LiveTvScreen, LiveTvWideScreenLayout) ve `Color.Red` (SettingsScreen, G-050'den kalan 2 yer) → `VegaColors.Danger`; shimmer gradyanı (`AsyncShimmerImage`) → `Card / SurfaceVariant / Card`; `LiveTvWideScreenLayout` kanal logosu zemini `0xFF0F141F` → `VegaColors.Card`; `LoginScreen` gradyan ucu `Color(0xFF000000)` → `Color.Black`; `QualityBadge` (`TvFocusable`): 4K → `Gold`, HD → `Success`, 100FPS → `Accent`, 50FPS → `Accent.copy(alpha = 0.7f)` (en yakın), diğer → `SurfaceVariant`. (`VegaColors` importları eklendi.)
+Tokenlara çevrilmeyip KALAN `Color(0x…)` (gerekçeli):
+- `TvFocusable.kt:86` FHD rozeti `0xFF6366F1` (indigo): kalite rozetlerinin birbirinden ayrışması için karşılığı olan bir token yok (indigo vurgu rengi değil, tasarım kuralı; ama Accent/Success/Gold zaten diğer rozetlerde kullanılıyor). Karar gerekirse ayrı görev.
+- `PlayerSettingsPanel.kt:583-586` ve `SettingsScreen.kt:1225-1227` altyazı rengi seçenekleri (Beyaz/Sarı/Yeşil/Mavi): bunlar tema rengi değil, kullanıcının seçtiği ve oynatıcıda aynen kullanılan altyazı renkleridir; token'a çevirmek altyazı rengini değiştirirdi.
+`grep "Color(0x" ui/ | grep -v "ui/design|theme/"` artık yalnızca yukarıdaki 8 satırı döndürüyor.
+
+**B — Sessiz hatalar (commit 2):** `Log.w` (yalnızca hata türü: `e.javaClass.simpleName`; URL/kullanıcı adı/şifre/adres YOK; JVM testlerinde `android.util.Log` mock'suz olduğundan try/catch'li küçük yardımcıyla) eklendi: `AppDatabase.close()`, `BoundedDns` son kurtarma sorgusu, `StreamingHttpClient.evictAll`, `PlaylistRepository.parsePlaylists`, `UserPreferences` (izleme ilerlemesi okuma 4 yer, cihaz modu, son aramalar 3 yer). Akış/dönen değerler değişmedi.
+Sessiz bırakılıp `// sessiz: <neden>` yorumu eklenenler (sıcak yol ya da günlük sarmalayıcı): `XtreamRepository`'de kayıt başına çalışan `jsonReader.skipValue()` catch'leri, `endArray()`/`response.close()` kapanış temizlikleri (toplam 24 satır) ve günlük yazma sarmalayıcıları; `BoundedDns/StreamingHttpClient/XtreamRepository` içindeki log fallback'leri. `XtreamRepository.clearSyncTempDir` catch'ine log eklendi. `SecurityUtils`'e dokunulmadı.
+Not (kapsam dışı, dokunulmadı): `XtreamRepository` satır ~577 ve ~769'daki mevcut `Log.w(..., e.message)` çağrıları hata metnini yazıyor; IOException mesajı sunucu adresi içerebilir. Ayrı küçük görev olabilir.
+
+**C — Ana sayfa (commit 3):** `OpusDashboardScreen`: rozet yalnızca `activeCons` ve `maxConnections` ikisi de dolu iken "N / M hat" (küçük harf) gösterilir; uydurma "1" kalktı. Abonelik satırı `AccountInfoFormatter.accountStatus(userInfo)` sonucundan: GREEN → "Abonelik aktif" (Success); RED → "Süresi doldu" ise "Abonelik süresi doldu", "Askıya alındı" ise "Abonelik aktif değil" (ikisi `VegaColors.Danger`); GRAY/AMBER (bilinmiyor) → satır gizli. Formatter'a dokunulmadı.
+
+**D — Açılışta +18 (commit 4):** `MainViewModel`: üç içerik toplayıcısının her birinde `combine/collectLatest`'ten ÖNCE bir kez `withTimeoutOrNull(2_000L) { xxxCategories.first { it.isNotEmpty() } }` (kategori/arama değişiminde tekrar beklenmez). Not: `allLiveStreams` (raf düzeni, CH+/CH−) bu beklemeyi kullanmaz; o hâlâ kategoriler gelene kadar boş engel kümesiyle çalışabilir (görev yalnız üç toplayıcıyı istiyordu).
+
+**Test:** `:app:compileDebugKotlin` + `:app:testDebugUnitTest` → BUILD SUCCESSFUL (her bölüm sonrası). Cihazda görsel doğrulama yok (rozet/abonelik satırı, 2 sn bekleme).
