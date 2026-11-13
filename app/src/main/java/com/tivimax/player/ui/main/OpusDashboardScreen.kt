@@ -146,66 +146,140 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // ==========================================
-        // 1. ÜST KULLANICI & HIZLI KATEGORİ GEÇİŞ HAPLARI
+        // 1. KULLANICI HOŞ GELDİN & DURUM ÇUBUĞU
         // ==========================================
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        Surface(
+            shape = VegaShapes.Medium,
+            color = VegaColors.SurfaceVariant.copy(alpha = 0.5f),
+            border = BorderStroke(1.dp, VegaColors.Border),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Kullanıcı ve Bağlantı Durumu
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(VegaColors.Accent.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Kullanıcı ve Abonelik Durumu
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null,
-                        tint = VegaColors.Accent,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(
-                        text = userInfo?.username ?: "Hoş geldin",
-                        color = VegaColors.TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(VegaColors.Success)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(VegaColors.Accent.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = null,
+                            tint = VegaColors.Accent,
+                            modifier = Modifier.size(22.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
                         Text(
-                            text = "Abonelik aktif",
-                            color = VegaColors.Success,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium
+                            text = if (!userInfo?.username.isNullOrBlank()) "Merhaba, ${userInfo?.username}" else "Hoş geldin",
+                            color = VegaColors.TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(VegaColors.Success)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = "Abonelik aktif",
+                                color = VegaColors.Success,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                // Sağ Taraf: Aktif Bağlantı / Hat Rozeti
+                val activeCons = userInfo?.activeCons?.ifEmpty { "1" } ?: "1"
+                val maxCons = userInfo?.maxConnections?.ifEmpty { "1" } ?: "1"
+                Surface(
+                    shape = VegaShapes.Pill,
+                    color = VegaColors.Card,
+                    border = BorderStroke(1.dp, VegaColors.Border)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Wifi,
+                            contentDescription = null,
+                            tint = VegaColors.Accent,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "$activeCons / $maxCons Hat",
+                            color = VegaColors.TextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             }
+        }
 
-            // Hızlı Kategori Butonları
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                QuickNavPill(title = "Canlı", icon = Icons.Default.LiveTv) { viewModel.setSelectedHomeTab(HomeTab.LIVE_TV) }
-                QuickNavPill(title = "Filmler", icon = Icons.Default.Movie) { viewModel.setSelectedHomeTab(HomeTab.MOVIES) }
-                QuickNavPill(title = "Diziler", icon = Icons.Default.VideoLibrary) { viewModel.setSelectedHomeTab(HomeTab.SERIES) }
-                QuickNavPill(title = "Favoriler", icon = Icons.Default.Star) { viewModel.setSelectedHomeTab(HomeTab.FAVORITES) }
+        // ==========================================
+        // 2. HIZLI KATEGORİ GEÇİŞ RAYI (CANLI TV, FİLMLER, DİZİLER, FAVORİLER)
+        // ==========================================
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 1.dp)
+        ) {
+            item {
+                QuickNavPill(
+                    title = "Canlı TV",
+                    icon = Icons.Default.LiveTv,
+                    accentTint = VegaColors.Live,
+                    badgeText = "Canlı",
+                    onClick = { viewModel.setSelectedHomeTab(HomeTab.LIVE_TV) }
+                )
+            }
+            item {
+                QuickNavPill(
+                    title = "Filmler",
+                    icon = Icons.Default.Movie,
+                    accentTint = VegaColors.Accent,
+                    badgeText = if (vodStreams.isNotEmpty()) "${vodStreams.size}" else null,
+                    onClick = { viewModel.setSelectedHomeTab(HomeTab.MOVIES) }
+                )
+            }
+            item {
+                QuickNavPill(
+                    title = "Diziler",
+                    icon = Icons.Default.VideoLibrary,
+                    accentTint = VegaColors.Accent,
+                    badgeText = if (seriesStreams.isNotEmpty()) "${seriesStreams.size}" else null,
+                    onClick = { viewModel.setSelectedHomeTab(HomeTab.SERIES) }
+                )
+            }
+            item {
+                QuickNavPill(
+                    title = "Favoriler",
+                    icon = Icons.Default.Star,
+                    accentTint = VegaColors.Gold,
+                    onClick = { viewModel.setSelectedHomeTab(HomeTab.FAVORITES) }
+                )
             }
         }
 
@@ -565,7 +639,8 @@ private fun CinematicHeroSpotlight(
                         shape = VegaShapes.Medium,
                         color = VegaColors.Accent,
                         modifier = Modifier
-                            .height(if (isTvDevice) 42.dp else 36.dp)
+                            .height(if (isTvDevice) 48.dp else 44.dp)
+                            .clickable { onPlayClick() }
                             .dpadFocusable(
                                 focusedBorderColor = Color.White,
                                 shape = VegaShapes.Medium,
@@ -574,21 +649,23 @@ private fun CinematicHeroSpotlight(
                             )
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
                                 tint = VegaColors.OnAccent,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Hemen izle",
                                 color = VegaColors.OnAccent,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -599,7 +676,8 @@ private fun CinematicHeroSpotlight(
                         color = VegaColors.SurfaceVariant,
                         border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
-                            .height(if (isTvDevice) 42.dp else 36.dp)
+                            .height(if (isTvDevice) 48.dp else 44.dp)
+                            .clickable { onDetailClick() }
                             .dpadFocusable(
                                 focusedBorderColor = VegaColors.Accent,
                                 shape = VegaShapes.Medium,
@@ -608,21 +686,23 @@ private fun CinematicHeroSpotlight(
                             )
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = null,
                                 tint = VegaColors.TextPrimary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Detaylar",
                                 color = VegaColors.TextPrimary,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -639,37 +719,62 @@ private fun CinematicHeroSpotlight(
 private fun QuickNavPill(
     title: String,
     icon: ImageVector,
+    accentTint: Color = VegaColors.Accent,
+    badgeText: String? = null,
     onClick: () -> Unit
 ) {
+    val isTvDevice = LocalIsTvDevice.current
     Surface(
-        shape = VegaShapes.Pill,
+        shape = VegaShapes.Medium,
         color = VegaColors.SurfaceVariant,
         border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
+            .height(if (isTvDevice) 48.dp else 44.dp)
+            .clickable { onClick() }
             .dpadFocusable(
                 focusedBorderColor = VegaColors.Accent,
-                shape = VegaShapes.Pill,
+                shape = VegaShapes.Medium,
                 scale = 1.05f,
                 onClick = onClick
             )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = VegaColors.Accent,
-                modifier = Modifier.size(13.dp)
+                tint = accentTint,
+                modifier = Modifier.size(18.dp)
             )
-            Spacer(modifier = Modifier.width(5.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = title,
                 color = VegaColors.TextPrimary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+            if (!badgeText.isNullOrBlank() && badgeText != "0") {
+                Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    shape = VegaShapes.Pill,
+                    color = if (badgeText == "Canlı") VegaColors.Live.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
+                    border = BorderStroke(0.5.dp, if (badgeText == "Canlı") VegaColors.Live else VegaColors.Border)
+                ) {
+                    Text(
+                        text = badgeText,
+                        color = if (badgeText == "Canlı") VegaColors.Live else VegaColors.TextMuted,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        maxLines = 1
+                    )
+                }
+            }
         }
     }
 }

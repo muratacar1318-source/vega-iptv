@@ -155,48 +155,50 @@ fun CategoryManagementDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Arama ve Hızlı Aksiyonlar
+                OutlinedTextField(
+                    keyboardOptions = tvKeyboardOptions(),
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Kategori ara...", fontSize = 13.sp, color = VegaColors.TextMuted) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = VegaColors.TextSecondary) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Temizle", tint = VegaColors.TextSecondary)
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = VegaColors.Accent,
+                        unfocusedBorderColor = VegaColors.Border,
+                        focusedTextColor = VegaColors.TextPrimary,
+                        unfocusedTextColor = VegaColors.TextPrimary,
+                        focusedContainerColor = VegaColors.Card,
+                        unfocusedContainerColor = VegaColors.Card
+                    ),
+                    modifier = Modifier.tvOpenKeyboardOnOk()
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = VegaShapes.Medium
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
-                        keyboardOptions = tvKeyboardOptions(),
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("Kategori ara...", fontSize = 13.sp, color = VegaColors.TextMuted) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = VegaColors.TextSecondary) },
-                        trailingIcon = {
-                            if (searchQuery.isNotEmpty()) {
-                                IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Temizle", tint = VegaColors.TextSecondary)
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = VegaColors.Accent,
-                            unfocusedBorderColor = VegaColors.Border,
-                            focusedTextColor = VegaColors.TextPrimary,
-                            unfocusedTextColor = VegaColors.TextPrimary,
-                            focusedContainerColor = VegaColors.Card,
-                            unfocusedContainerColor = VegaColors.Card
-                        ),
-                        modifier = Modifier.tvOpenKeyboardOnOk()
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = VegaShapes.Medium
-                    )
-
                     Button(
                         onClick = {
                             viewModel.setAllCategoriesHidden(currentRawCategories.map { it.first }, isHidden = false)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = VegaColors.SurfaceVariant),
                         shape = VegaShapes.Medium,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f).height(38.dp)
                     ) {
-                        Text("Tümünü göster", fontSize = 11.sp, color = VegaColors.TextPrimary)
+                        Text("Tümünü göster", fontSize = 11.sp, color = VegaColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
 
                     Button(
@@ -205,9 +207,10 @@ fun CategoryManagementDialog(
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = VegaColors.SurfaceVariant),
                         shape = VegaShapes.Medium,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f).height(38.dp)
                     ) {
-                        Text("Tümünü gizle", fontSize = 11.sp, color = VegaColors.Danger)
+                        Text("Tümünü gizle", fontSize = 11.sp, color = VegaColors.Danger, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
 

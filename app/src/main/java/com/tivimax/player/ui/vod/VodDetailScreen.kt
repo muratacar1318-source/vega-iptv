@@ -496,9 +496,11 @@ fun VodDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Kaldığın yerden devam et ($resumeTimeStr)",
+                                    text = "Devam et ($resumeTimeStr)",
                                     fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
 
@@ -525,7 +527,9 @@ fun VodDetailScreen(
                                 Text(
                                     text = "Baştan izle",
                                     color = VegaColors.TextPrimary,
-                                    fontSize = 13.sp
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         } else {
@@ -553,7 +557,9 @@ fun VodDetailScreen(
                                 Text(
                                     text = "Filmi izle",
                                     fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -586,7 +592,9 @@ fun VodDetailScreen(
                                 text = if (isFavorite) "Listede" else "Listeme ekle",
                                 color = if (isFavorite) VegaColors.Gold else VegaColors.TextPrimary,
                                 fontSize = 13.sp,
-                                fontWeight = if (isFavorite) FontWeight.Bold else FontWeight.Medium
+                                fontWeight = if (isFavorite) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -615,7 +623,9 @@ fun VodDetailScreen(
                                 Text(
                                     text = "Fragman",
                                     color = VegaColors.TextPrimary,
-                                    fontSize = 13.sp
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -888,9 +898,11 @@ fun VodDetailScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Kaldığın yerden devam et ($resumeTimeStr)",
+                            text = "Devam et ($resumeTimeStr)",
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -918,7 +930,9 @@ fun VodDetailScreen(
                         Text(
                             text = "Baştan izle",
                             color = VegaColors.TextPrimary,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 } else {
@@ -947,7 +961,9 @@ fun VodDetailScreen(
                         Text(
                             text = "Filmi izle",
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -985,7 +1001,9 @@ fun VodDetailScreen(
                         Text(
                             text = if (isFavorite) "Listede" else "Listeme ekle",
                             color = if (isFavorite) VegaColors.Gold else VegaColors.TextPrimary,
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -1012,7 +1030,9 @@ fun VodDetailScreen(
                             Text(
                                 text = "Fragman",
                                 color = VegaColors.TextPrimary,
-                                fontSize = 13.sp
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

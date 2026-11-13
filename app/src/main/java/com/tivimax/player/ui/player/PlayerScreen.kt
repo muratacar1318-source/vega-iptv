@@ -1306,19 +1306,19 @@ fun PlayerScreen(
                             ) {
                                 Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Tekrar dene")
+                                Text("Tekrar dene", maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                             OutlinedButton(
                                 onClick = { playerManager.retryNextFallback() },
                                 shape = RoundedCornerShape(10.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent)
                             ) {
-                                Text("Alternatif akış dene", color = VegaColors.Accent)
+                                Text("Alternatif akış dene", color = VegaColors.Accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         TextButton(onClick = onBack) {
-                            Text("Listeye geri dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp)
+                            Text("Listeye geri dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
@@ -2455,11 +2455,11 @@ fun PlayerScreen(
 
                                 PlayerPillButton(
                                     text = when (aspectRatio) {
-                                        AspectRatioMode.FIT -> "Görüntü: Orijinal"
-                                        AspectRatioMode.FILL -> "Görüntü: Doldur"
-                                        AspectRatioMode.ZOOM -> "Görüntü: Zoom"
-                                        AspectRatioMode.RATIO_16_9 -> "Görüntü: 16:9"
-                                        AspectRatioMode.RATIO_4_3 -> "Görüntü: 4:3"
+                                        AspectRatioMode.FIT -> "Orijinal"
+                                        AspectRatioMode.FILL -> "Doldur"
+                                        AspectRatioMode.ZOOM -> "Yakınlaştır"
+                                        AspectRatioMode.RATIO_16_9 -> "16:9"
+                                        AspectRatioMode.RATIO_4_3 -> "4:3"
                                     },
                                     icon = Icons.Default.AspectRatio,
                                     onClick = {

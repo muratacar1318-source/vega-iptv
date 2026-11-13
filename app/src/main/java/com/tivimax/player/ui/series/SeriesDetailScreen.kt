@@ -354,7 +354,7 @@ fun SeriesDetailScreen(
                                     val secs = ((nextEpProgress.positionMs % 60000) / 1000)
                                     "Devam et (S${nextEp.season}:B${nextEp.episodeNum} • ${String.format("%02d:%02d", mins, secs)})"
                                 } else {
-                                    "Sezon ${nextEp.season}, ${nextEp.episodeNum}. bölümü başlat"
+                                    "Bölümü oynat (S${nextEp.season}:B${nextEp.episodeNum})"
                                 },
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
@@ -398,7 +398,9 @@ fun SeriesDetailScreen(
                                 text = if (isFavorite) "Listede" else "Listeme ekle",
                                 color = if (isFavorite) VegaColors.Gold else VegaColors.TextPrimary,
                                 fontSize = 12.sp,
-                                fontWeight = if (isFavorite) FontWeight.Bold else FontWeight.Medium
+                                fontWeight = if (isFavorite) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -425,7 +427,9 @@ fun SeriesDetailScreen(
                                 Text(
                                     text = "Fragman",
                                     color = VegaColors.TextPrimary,
-                                    fontSize = 12.sp
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -885,10 +889,12 @@ fun SeriesDetailScreen(
                                     val secs = ((nextEpProgress.positionMs % 60000) / 1000)
                                     "Devam et (S${nextEp.season}:B${nextEp.episodeNum} • ${String.format("%02d:%02d", mins, secs)})"
                                 } else {
-                                    "Sezon ${nextEp.season}, ${nextEp.episodeNum}. bölümü başlat"
+                                    "Bölümü oynat (S${nextEp.season}:B${nextEp.episodeNum})"
                                 },
                                 fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                         Spacer(modifier = Modifier.height(10.dp))
@@ -925,7 +931,9 @@ fun SeriesDetailScreen(
                             Text(
                                 text = if (isFavorite) "Listede" else "Listeme ekle",
                                 color = if (isFavorite) VegaColors.Gold else VegaColors.TextPrimary,
-                                fontSize = 13.sp
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -952,7 +960,9 @@ fun SeriesDetailScreen(
                                 Text(
                                     text = "Fragman",
                                     color = VegaColors.TextPrimary,
-                                    fontSize = 13.sp
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
