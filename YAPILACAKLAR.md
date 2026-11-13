@@ -40,7 +40,7 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-054 | MainViewModel'i parçalara böl (davranış değişmeden) | 🟠 | ⏳ Bekliyor |
+| G-054 | MainViewModel'i parçalara böl (davranış değişmeden) | 🟠 | 🔍 İncelemede (branch: refactor/mainviewmodel-bolme) |
 | G-055 | PlayerScreen'i dosyalara böl — **G-054'ten sonra** (PR #63 alındı) | 🟡 | ⏳ Bekliyor |
 | G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma yeri (TV odağı dahil) — **G-054 main'e alınınca** | 🟠 | ⏳ Bekliyor |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
