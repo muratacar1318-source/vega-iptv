@@ -257,6 +257,8 @@ class UserPreferences(private val context: Context) {
     val vodSortFlow: Flow<String> = context.appDataStore.data.map { it[KEY_VOD_SORT] ?: "DEFAULT" }
     val seriesSortFlow: Flow<String> = context.appDataStore.data.map { it[KEY_SERIES_SORT] ?: "DEFAULT" }
     val autoSyncLiveFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_SYNC_LIVE] ?: true }
+    /** G-060: "Program rehberini indir" anahtarı (varsayılan açık). */
+    val epgDownloadEnabledFlow: Flow<Boolean> = context.appDataStore.data.map { it[booleanPreferencesKey("epg_download_enabled")] ?: true }
     val autoPipFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_AUTO_PIP] ?: true }
     val vodBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_VOD_BUFFER_SECONDS] ?: 180 }
     val liveBufferSecondsFlow: Flow<Int> = context.appDataStore.data.map { it[KEY_LIVE_BUFFER_SECONDS] ?: 2 }
@@ -276,6 +278,21 @@ class UserPreferences(private val context: Context) {
 
     suspend fun setAutoSyncLive(enabled: Boolean) {
         context.appDataStore.edit { it[KEY_AUTO_SYNC_LIVE] = enabled }
+    }
+
+    suspend fun setEpgDownloadEnabled(enabled: Boolean) {
+        context.appDataStore.edit { it[booleanPreferencesKey("epg_download_enabled")] = enabled }
+    }
+
+    /** G-060: Aktif listenin toplu program rehberini son indirme zamanı (ms); hiç indirilmediyse 0. */
+    suspend fun getEpgLastSyncMs(playlistId: String? = null): Long {
+        val plId = playlistId ?: getActivePlaylistId()
+        return context.appDataStore.data.first()[longPreferencesKey(keyFor("epg_last_sync", plId))] ?: 0L
+    }
+
+    suspend fun setEpgLastSyncMs(ms: Long, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        context.appDataStore.edit { it[longPreferencesKey(keyFor("epg_last_sync", plId))] = ms }
     }
 
     suspend fun setAutoPip(enabled: Boolean) {
@@ -791,7 +808,7 @@ class UserPreferences(private val context: Context) {
             "recent_live_channels_json",
             "recent_searches_json",
             "last_played_stream_id",
-            "is_playlist_synced", "last_sync_timestamp",
+            "is_playlist_synced", "last_sync_timestamp", "epg_last_sync",
             "exp_date", "max_connections", "active_connections", "status", "is_trial", "created_at"
         )
         context.appDataStore.edit { prefs ->

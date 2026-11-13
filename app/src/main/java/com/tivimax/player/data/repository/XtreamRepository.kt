@@ -156,6 +156,21 @@ class XtreamRepository(private val context: Context? = null) {
     }
 
     /**
+     * G-060: Toplu program rehberini (XMLTV) önce dosyaya indirir (G-028 yardımcısıyla, akış halinde).
+     * Adres kullanıcı adı ve şifre içerir: hiçbir log'a ya da hata metnine yazılmaz.
+     */
+    suspend fun downloadXmltvToFile(dir: java.io.File): java.io.File = withContext(Dispatchers.IO) {
+        val url = "$serverUrl/xmltv.php?username=$username&password=$password"
+        val response = client.newCall(Request.Builder().url(url).get().build()).execute()
+        if (!response.isSuccessful) {
+            val code = response.code
+            response.close()
+            throw java.io.IOException("HTTP $code")
+        }
+        downloadBodyToFile(response, dir, "xmltv")
+    }
+
+    /**
      * Ortak yeniden deneme motoru:
      * HTTP 429, 503, 502 ve SocketTimeout / IO istisnalarında en fazla 3 deneme yapar.
      * Bekleme süresi Retry-After başlığından okunur; yoksa sırasıyla 2s, 5s, 10s uygulanır.
