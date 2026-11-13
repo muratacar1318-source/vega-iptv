@@ -96,4 +96,25 @@ veritabanlarını (`vega_iptv.db`, `vega_pl_*.db` — on binlerce kanal/film) Go
 - `./gradlew :app:testDebugUnitTest` (düşük öncelikle, pencere açmadan) → geçmeli.
 
 ## Agent raporu
-_(Agent doldurur: iki bölümün değişiklikleri, +18 kapsamı bulgusu, test sonuçları, sorunlar.)_
+**Bölüm A — Ebeveyn kilidi**
+- `UserPreferences.parentalPinFlow`: kayıt yoksa `""` (boş = PIN belirlenmemiş). `MainViewModel.parentalPin` başlangıç değeri de `""`.
+- `MainViewModel.kt`: yeni saf yardımcı `object ParentalPin` (`canUnlock(stored, entered)`, `validateNewPin(pin, repeat)`); `unlockParental()` artık sadece `ParentalPin.canUnlock` kullanıyor, `|| pin == "0000"` istisnası TAMAMEN kaldırıldı. Yeni `createParentalPin(pin, repeat)` ilk PIN'i kaydedip kilidi açar.
+- `LiveTvScreen.kt` PIN diyaloğu: PIN yoksa "Ebeveyn PIN'i belirle" modu (PIN + PIN tekrar, "4 rakam gir" / "PIN'ler aynı değil" hataları); PIN varsa "+18 içerikleri açmak için PIN'ini gir." ("(Varsayılan: 0000)" kalktı). Alanlar `tvKeyboardOptions` + `tvOpenKeyboardOnOk` ile TV kumandasından açılır (mevcut düzenle aynı).
+- `SettingsScreen.kt` PIN diyaloğu: PIN belirliyse önce "Mevcut PIN" sorulur (yanlışsa "Mevcut PIN yanlış", kaydetmez), sonra yeni PIN iki kez; belirli değilse doğrudan yeni PIN iki kez. Alanlar için küçük `PinDialogField` bileşeni eklendi (aynı dosyada, private). Ayrıca rakam dışı karakter artık girilemiyor.
+- Mevcut kullanıcılar: PIN'ini değiştirmiş olan kendi PIN'iyle devam eder; hiç değiştirmemiş olan (kayıt yok) ilk denemede PIN belirler. Geçiş kodu yok.
+- Yeni `ParentalPinTest.kt` (6 test): kayıtlı 1234/girilen 0000 → false (eski açık), 1234/1234 → true, kayıtlı boş → hiçbir giriş açmaz, "12a4"/"123"/"12345"/boş → "4 rakam gir", eşleşmeyen tekrar → "PIN'ler aynı değil".
+
+**Bölüm B — Yedekleme**
+- `backup_rules.xml` ve `data_extraction_rules.xml` (hem `<cloud-backup>` hem `<device-transfer>`): `<exclude domain="database" path="." />`. Tercihler (DataStore) yedekte kalır.
+- `AndroidManifest.xml`: `<application>`'a yalnızca `android:fullBackupContent="@xml/backup_rules"` ve `android:dataExtractionRules="@xml/data_extraction_rules"` eklendi.
+- `MainViewModel.kt`: yeni `hasLocalContent()` (IO'da; hazır DAO sorguları `getTotalStreamCount()` canlı+film+dizi). Açılıştaki `if (activePl.isSynced)` dalı ve `switchPlaylist` içindeki `targetPlaylist.isSynced` dalı artık `isSynced && hasLocalContent()`; üçü de 0 ise `Screen.PlaylistSync` + `startPlaylistSync(fromStep = 1)`. Sayım okunamazsa eski davranış (true). `Daos.kt` değişmedi (sayım sorguları zaten vardı).
+- Not: gerçekten içeriği hiç olmayan (üçü de 0) bir sağlayıcıda liste her açılışta yeniden senkron akışına girer; görev tarifi böyle istediği için bırakıldı.
+- Emülatör/cihaz bağlı değildi (`adb devices` boş) → `bmgr backupnow` kontrolü ATLANDI, elle doğrulanmadı.
+
+**Test:** `:app:testDebugUnitTest` ve `:app:processReleaseResources` → BUILD SUCCESSFUL (ParentalPinTest dahil).
+
+**+18 kapsamı bulgusu (kod yazılmadı):**
+- Kategori adına göre süzme (`isAdultCategory`: "+18", "18+", "xxx", "adult", "yetişkin", "erotik", "porn") `MainViewModel`'de Canlı TV, Film (`visibleVodCategories`, `VodScreen`) ve Dizi (`visibleSeriesCategories`, `VegaMediaCatalogScreen`) kategorilerinin üçüne de aynı `isParentalUnlocked` bayrağıyla uygulanıyor; yani film/dizide de yetişkin kategoriler kilit açılana kadar gizli.
+- AMA PIN soran diyalog ve kilit düğmesi sadece Canlı TV ekranında (`LiveTvScreen`). Film/Dizi ekranlarında kilidi açma yolu yok: bu kategoriler ancak Canlı TV'den kilit açılırsa (oturum boyunca) görünür.
+- Süzme yalnız kategori ADINA bakıyor; adı bu kelimeleri içermeyen kategorideki yetişkin içerik, "Tümü" kategorisi ve aramada kilitsiz görünebilir (arama/"Tümü" için ayrı doğrulama gerekir; kontrol edilmedi). Ayrıca `isParentalUnlocked` oturum bayrağı uygulama kapanınca sıfırlanıyor, ekran/uygulama arka plana gidince kilitlenme davranışı incelenmedi.
+- Ayrı görev önerisi: Film/Dizi ekranlarına da PIN diyaloğu + kilit düğmesi, "Tümü"/arama süzmesi.

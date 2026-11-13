@@ -998,6 +998,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * G-050: Liste "kuruldu" görünse de yedekten dönüşte içerik veritabanı boş gelir
+     * (veritabanları yedeğe alınmaz). Canlı kanal, film ve dizi sayısı sıfırsa içerik yeniden indirilmeli.
+     * Sayım IO iş parçacığında yapılır; okunamazsa eski davranış korunur (true).
+     */
+    private suspend fun hasLocalContent(): Boolean = withContext(Dispatchers.IO) {
+        val db = repository.database ?: return@withContext true
+        try {
+            db.liveDao().getTotalStreamCount() > 0 ||
+                db.vodDao().getTotalStreamCount() > 0 ||
+                db.seriesDao().getTotalStreamCount() > 0
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "hasLocalContent sayımı başarısız: ${e.message}")
+            true
+        }
+    }
+
     fun checkUserLoginAndNavigate() {
         viewModelScope.launch {
             // G-025 Tek seferlik geçiş (Migration)
@@ -1034,7 +1051,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     auth = 1
                 )
 
-                if (activePl.isSynced) {
+                if (activePl.isSynced && hasLocalContent()) {
                     _currentScreen.value = Screen.Home
                     loadInitialData()
                 } else {
@@ -1128,7 +1145,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoggedIn.value = true
 
                 // 5. Yönlendir
-                if (targetPlaylist.isSynced) {
+                if (targetPlaylist.isSynced && hasLocalContent()) {
                     _currentScreen.value = Screen.Home
                     loadInitialData()
                 } else {
