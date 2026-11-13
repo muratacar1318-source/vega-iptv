@@ -128,7 +128,13 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                 title = "KATEGORİLER",
                 totalCount = totalSeriesCount,
                 allLabel = "Tüm Diziler",
-                tvFocusBehavior = com.tivimax.player.util.LocalIsTvDevice.current // G-045
+                tvFocusBehavior = com.tivimax.player.util.LocalIsTvDevice.current, // G-045
+                footer = if (isTvDevice) {
+                    {
+                        val hasAdultSeries by viewModel.hasAdultSeriesCategory.collectAsState()
+                        com.tivimax.player.ui.components.ParentalLockRow(viewModel, hasAdultSeries)
+                    }
+                } else null
             )
 
             Box(
@@ -145,7 +151,13 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                     portraitNavStyle = portraitNavStyle,
                     onPortraitNavStyleChange = { viewModel.setPortraitCategoryNavStyle(it) },
                     isWideScreen = isWideScreen,
-                    isSidebarActive = true
+                    isSidebarActive = true,
+                    lockChip = {
+                        if (!isTvDevice) {
+                            val hasAdultSeries by viewModel.hasAdultSeriesCategory.collectAsState()
+                            com.tivimax.player.ui.components.ParentalLockChip(viewModel, hasAdultSeries)
+                        }
+                    }
                 )
             }
         }
@@ -188,7 +200,13 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                     portraitNavStyle = portraitNavStyle,
                     onPortraitNavStyleChange = { viewModel.setPortraitCategoryNavStyle(it) },
                     isWideScreen = isWideScreen,
-                    isSidebarActive = false
+                    isSidebarActive = false,
+                    lockChip = {
+                        if (!isTvDevice) {
+                            val hasAdultSeries by viewModel.hasAdultSeriesCategory.collectAsState()
+                            com.tivimax.player.ui.components.ParentalLockChip(viewModel, hasAdultSeries)
+                        }
+                    }
                 )
             }
         }
@@ -205,7 +223,8 @@ private fun VegaMediaContentGrid(
     portraitNavStyle: String,
     onPortraitNavStyleChange: (String) -> Unit,
     isWideScreen: Boolean,
-    isSidebarActive: Boolean
+    isSidebarActive: Boolean,
+    lockChip: @Composable () -> Unit = {}
 ) {
     var isSortMenuOpen by remember { mutableStateOf(false) }
 
@@ -228,6 +247,7 @@ private fun VegaMediaContentGrid(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                lockChip()
                 if (!isWideScreen) {
                     CategoryNavStyleToggleButton(
                         currentStyle = portraitNavStyle,

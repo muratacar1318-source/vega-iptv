@@ -430,6 +430,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val isParentalUnlocked = MutableStateFlow(false)
     val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
+    // G-052: Engellenen kategori kimlikleri = kullanıcının gizledikleri ∪ (kilit kapalıyken) +18 olanlar.
+    // İçerik akışları bu kümeyle süzülür; böylece "Tümü" listesi, ekran içi arama ve ana sayfa da korunur.
+    val blockedLiveCategoryIds: StateFlow<Set<String>> =
+        combine(liveCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
+            AdultFilter.blockedIds(cats.map { it.categoryId to it.categoryName }, hidden, unlocked)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    val blockedVodCategoryIds: StateFlow<Set<String>> =
+        combine(vodCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
+            AdultFilter.blockedIds(cats.map { it.categoryId to it.categoryName }, hidden, unlocked)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+    val blockedSeriesCategoryIds: StateFlow<Set<String>> =
+        combine(seriesCategories, hiddenCategories, isParentalUnlocked) { cats, hidden, unlocked ->
+            AdultFilter.blockedIds(cats.map { it.categoryId to it.categoryName }, hidden, unlocked)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
+    /** Listede +18 kategori var mı? (Kilit düğmesi yalnız o zaman gösterilir; kilit açıkken de var sayılır.) */
+    val hasAdultLiveCategory: StateFlow<Boolean> = liveCategories
+        .map { cats -> cats.any { AdultFilter.isAdult(it.categoryName) } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val hasAdultVodCategory: StateFlow<Boolean> = vodCategories
+        .map { cats -> cats.any { AdultFilter.isAdult(it.categoryName) } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val hasAdultSeriesCategory: StateFlow<Boolean> = seriesCategories
+        .map { cats -> cats.any { AdultFilter.isAdult(it.categoryName) } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     // Hızlı Kanal Numarasıyla Geçiş (Numeric Zapper)
     val zapperNumber = MutableStateFlow("")
     val isZapperActive = MutableStateFlow(false)
@@ -453,8 +479,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Tüm Canlı Kanallar (Raf Düzeni Kategorizasyonu ve Hızlı Erişim İçin)
-    val allLiveStreams: StateFlow<List<LiveStream>> = repository.getLiveStreamsFilteredFlow(null, "", "DEFAULT")
+    // G-052: Ham liste yalnızca "Bu kanal kilitli" kararı için tutulur; dışarıya süzülmüşü verilir.
+    private val allLiveStreamsRaw: StateFlow<List<LiveStream>> = repository.getLiveStreamsFilteredFlow(null, "", "DEFAULT")
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val allLiveStreams: StateFlow<List<LiveStream>> =
+        combine(allLiveStreamsRaw, blockedLiveCategoryIds) { list, blocked ->
+            AdultFilter.filterBlocked(list, blocked) { it.categoryId }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun refreshLiveChannels() {
         loadLiveStreams(selectedLiveCategory.value, forceRefresh = true)
@@ -498,12 +529,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         scrollToTopLiveEvent.tryEmit(Unit)
     }
 
-    fun isAdultCategory(name: String): Boolean {
-        val clean = name.lowercase()
-        return clean.contains("+18") || clean.contains("18+") || clean.contains("xxx") ||
-                clean.contains("adult") || clean.contains("yetişkin") || clean.contains("erotik") ||
-                clean.contains("porn")
-    }
+    fun isAdultCategory(name: String): Boolean = AdultFilter.isAdult(name)
 
     val visibleLiveCategories: StateFlow<List<LiveCategory>> = combine(liveCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
         cats.filter { cat ->
@@ -852,7 +878,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all" || cat == "favorites" || cat == "recents") null else cat
-                repository.getLiveStreamsFilteredFlow(filterCat, q, sort.name)
+                combine(repository.getLiveStreamsFilteredFlow(filterCat, q, sort.name), blockedLiveCategoryIds) { list, blocked ->
+                    AdultFilter.filterBlocked(list, blocked) { it.categoryId }
+                }
                     .catch { e -> Log.w("MainViewModel", "Live streams filtered flow error", e) }
                     .collect { streams ->
                         liveStreams.value = streams
@@ -870,7 +898,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all") null else cat
-                repository.getVodStreamsFilteredFlow(filterCat, q, sort.name)
+                combine(repository.getVodStreamsFilteredFlow(filterCat, q, sort.name), blockedVodCategoryIds) { list, blocked ->
+                    AdultFilter.filterBlocked(list, blocked) { it.categoryId }
+                }
                     .catch { e -> Log.w("MainViewModel", "Vod streams filtered flow error", e) }
                     .collect { streams ->
                         vodStreams.value = streams
@@ -888,7 +918,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all") null else cat
-                repository.getSeriesStreamsFilteredFlow(filterCat, q, sort.name)
+                combine(repository.getSeriesStreamsFilteredFlow(filterCat, q, sort.name), blockedSeriesCategoryIds) { list, blocked ->
+                    AdultFilter.filterBlocked(list, blocked) { it.categoryId }
+                }
                     .catch { e -> Log.w("MainViewModel", "Series streams filtered flow error", e) }
                     .collect { streams ->
                         seriesStreams.value = streams
@@ -2053,10 +2085,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         isZapperActive.value = true
 
         val targetNum = newNumber.toIntOrNull() ?: return
-        val allList = allLiveStreams.value.ifEmpty { liveStreams.value }
-        val matched = allList.firstOrNull { it.num == targetNum }
+        // G-052: Numara eşlemesi ham listede yapılır; engelli (+18 / gizli) kanal seçilirse geçilmez.
+        val allList = allLiveStreamsRaw.value.ifEmpty { liveStreams.value }
+        val found = allList.firstOrNull { it.num == targetNum }
             ?: allList.firstOrNull { it.streamId == targetNum }
             ?: allList.getOrNull(targetNum - 1)
+        val matched = if (found != null && found.categoryId in blockedLiveCategoryIds.value) {
+            Toast.makeText(getApplication(), "Bu kanal kilitli", Toast.LENGTH_SHORT).show()
+            null
+        } else {
+            found
+        }
         zapperMatchedChannel.value = matched
 
         zapperJob?.cancel()
@@ -2553,4 +2592,28 @@ object ParentalPin {
         pin != repeat -> "PIN'ler aynı değil"
         else -> null
     }
+}
+
+/** G-052: +18 / gizli kategori süzmesi (saf fonksiyonlar; birim testle doğrulanır). */
+object AdultFilter {
+    private val keywords = listOf(
+        "+18", "18+", "+ 18", "18 +", "xxx", "adult", "for adults", "yetişkin", "erotik", "porn"
+    )
+    private val turkish = java.util.Locale.forLanguageTag("tr-TR")
+
+    /** Kategori adı yetişkin içeriği işaret ediyor mu? ("YETİŞKİN" gibi Türkçe büyük harfler de yakalanır.) */
+    fun isAdult(name: String): Boolean {
+        val forms = listOf(name.lowercase(turkish), name.lowercase(java.util.Locale.ROOT))
+        return forms.any { lower -> keywords.any { lower.contains(it) } }
+    }
+
+    /** Engellenen kategori kimlikleri: kullanıcının gizledikleri ∪ (kilit kapalıysa) yetişkin olanlar. */
+    fun blockedIds(categories: List<Pair<String, String>>, hidden: Set<String>, unlocked: Boolean): Set<String> {
+        val adult = if (unlocked) emptySet() else categories.filter { it.first != "all" && isAdult(it.second) }.map { it.first }
+        return hidden + adult
+    }
+
+    /** Engelli kategorideki kayıtları çıkarır; engel yoksa listeyi aynen döner. */
+    fun <T> filterBlocked(items: List<T>, blocked: Set<String>, categoryOf: (T) -> String): List<T> =
+        if (blocked.isEmpty()) items else items.filter { categoryOf(it) !in blocked }
 }
