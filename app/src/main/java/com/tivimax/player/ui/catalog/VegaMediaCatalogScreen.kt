@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -14,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuOpen
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +35,8 @@ import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.*
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.main.StreamVaultSectionHeader
 
 private val NeonCyan = VegaColors.Accent
 private val GlassBorder = VegaColors.Border
@@ -113,40 +117,189 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
         )
     }
 
-    if (isWideScreen || portraitNavStyle == UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) {
+    var useShelfMode by remember { mutableStateOf(true) }
+    val favoriteSeriesIds by viewModel.favoriteSeriesIds.collectAsState()
+
+    if (isWideScreen && useShelfMode && !hasActiveCategory && !hasSearch && !isLoading && seriesList.isNotEmpty()) {
+        // STREAMVAULT MODERN DİZİ RAFLARI GÖRÜNÜMÜ
+        val seriesByCat = remember(seriesList) { seriesList.groupBy { it.categoryId } }
+        val topSeries = remember(seriesList) {
+            seriesList
+                .sortedByDescending { it.rating?.replace(',', '.')?.toFloatOrNull() ?: (it.rating5Based?.toFloat()?.times(2f) ?: 0f) }
+                .take(18)
+        }
+        val shelfCategories = remember(uiCategories, seriesByCat) {
+            uiCategories.mapNotNull { cat ->
+                val list = seriesByCat[cat.id]?.take(16)
+                if (!list.isNullOrEmpty()) cat to list else null
+            }.take(20)
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 6.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            item(key = "series_shelf_controls") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Diziler ($totalSeriesCount)",
+                        color = VegaColors.TextPrimary,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Surface(
+                        shape = VegaShapes.Pill,
+                        color = VegaColors.SurfaceElevated,
+                        border = BorderStroke(1.dp, VegaColors.Border),
+                        modifier = Modifier.dpadFocusable(
+                            shape = VegaShapes.Pill,
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            onClick = { useShelfMode = false }
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.MenuOpen, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(14.dp))
+                            Text("Klasik liste", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+
+            if (topSeries.isNotEmpty()) {
+                item(key = "series_shelf_top") {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(topSeries, key = { "top_ser_${it.seriesId}" }) { series ->
+                            Box(modifier = Modifier.width(152.dp)) {
+                                MediaPosterCard(
+                                    imageUrl = series.cover,
+                                    title = series.name,
+                                    subtitle = "",
+                                    rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                    isFavorite = favoriteSeriesIds.contains(series.seriesId.toString()),
+                                    onClick = { viewModel.loadSeriesDetail(series) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            items(shelfCategories, key = { "ser_shelf_${it.first.id}" }) { (cat, catSeries) ->
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    StreamVaultSectionHeader(
+                        title = cat.name,
+                        onSeeAllClick = { viewModel.loadSeriesStreams(cat.id) }
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(catSeries, key = { "shelf_${cat.id}_${it.seriesId}" }) { series ->
+                            Box(modifier = Modifier.width(148.dp)) {
+                                MediaPosterCard(
+                                    imageUrl = series.cover,
+                                    title = series.name,
+                                    subtitle = "",
+                                    rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                    isFavorite = favoriteSeriesIds.contains(series.seriesId.toString()),
+                                    onClick = { viewModel.loadSeriesDetail(series) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else if (isWideScreen || portraitNavStyle == UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) {
         // İki bölmeli Klasik Düzen (Yatay ekran veya kullanıcının seçtiği sol panel modu)
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             CategorySidebar(
                 categories = uiCategories,
                 selectedCategoryId = selectedCategory,
                 onCategorySelected = { viewModel.loadSeriesStreams(it) },
-                title = "KATEGORİLER",
+                title = "Kategoriler",
                 totalCount = totalSeriesCount,
                 allLabel = "Tüm Diziler",
                 tvFocusBehavior = com.tivimax.player.util.LocalIsTvDevice.current // G-045
             )
 
-            Box(
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                VegaMediaContentGrid(
-                    isLoading = isLoading,
-                    seriesList = seriesList,
-                    currentSort = currentSort,
-                    onSortSelected = { sort -> viewModel.setSeriesSort(sort) },
-                    onSeriesClick = { series -> viewModel.loadSeriesDetail(series) },
-                    portraitNavStyle = portraitNavStyle,
-                    onPortraitNavStyleChange = { viewModel.setPortraitCategoryNavStyle(it) },
-                    isWideScreen = isWideScreen,
-                    isSidebarActive = true
-                )
+                if (isWideScreen) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = selectedCategoryName,
+                            color = VegaColors.TextPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = VegaColors.Accent.copy(alpha = 0.14f),
+                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.30f)),
+                            modifier = Modifier.dpadFocusable(
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                onClick = {
+                                    useShelfMode = true
+                                    if (hasActiveCategory) viewModel.loadSeriesStreams("all")
+                                }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(Icons.Default.ViewCarousel, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(14.dp))
+                                Text("Raf görünümü", color = VegaColors.Accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    VegaMediaContentGrid(
+                        isLoading = isLoading,
+                        seriesList = seriesList,
+                        currentSort = currentSort,
+                        onSortSelected = { sort -> viewModel.setSeriesSort(sort) },
+                        onSeriesClick = { series -> viewModel.loadSeriesDetail(series) },
+                        portraitNavStyle = portraitNavStyle,
+                        onPortraitNavStyleChange = { viewModel.setPortraitCategoryNavStyle(it) },
+                        isWideScreen = isWideScreen,
+                        isSidebarActive = true
+                    )
+                }
             }
         }
     } else {

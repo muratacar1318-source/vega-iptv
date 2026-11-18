@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,14 +30,12 @@ import com.tivimax.player.data.model.VodStream
 import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.MediaPosterCard
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.util.LocalIsTvDevice
 
-/**
- * Öne Çıkan Vitrin (Hero Spotlight) İçerik Modeli
- */
 private sealed class SpotlightContent {
     data class Movie(val movie: VodStream) : SpotlightContent()
     data class Series(val series: SeriesStream) : SpotlightContent()
@@ -65,10 +62,10 @@ private sealed class SpotlightContent {
             is Progress -> movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
         }
 
-    val badgeLabel: String
+    val eyebrow: String
         get() = when (this) {
-            is Movie -> "Öne Çıkan Film"
-            is Series -> "Popüler Dizi"
+            is Movie -> "Filmler"
+            is Series -> "Diziler"
             is Progress -> "Kaldığın Yerden"
         }
 
@@ -82,45 +79,53 @@ private sealed class SpotlightContent {
     val description: String
         get() = when (this) {
             is Movie -> "Yüksek çözünürlüklü sinema keyfi. Hemen izlemeye başla veya detayları incele."
-            is Series -> if (!series.plot.isNullOrBlank()) series.plot!! else "Tüm sezon ve bölümleriyle keyifle izleyin."
+            is Series -> if (!series.plot.isNullOrBlank()) series.plot!! else "Tüm sezon ve bölümleriyle keyifle izle."
             is Progress -> "Kaldığın dakikadan kesintisiz devam et."
         }
 }
 
 /**
- * VEGA SİNEMATİK ANA SAYFA (CINEMATIC HERO DASHBOARD)
- * Üstte büyük vitrin (Spotlight Billboard), TV kumandasıyla odaklanılan içeriğe dinamik geçiş,
- * 16:9 yatay Kaldığın Yerden Devam Et şeridi ve dikey sinematik içerik rayları.
+ * VEGA ANA SAYFA (STREAMVAULT RAF VE VİTRİN DÜZENİ)
+ * Derin gece arka planı üzerinde vitrin kartı, yatay StreamVault rafları
+ * (Kaldığın Yerden, Favori Kanallar, Son İzlenen Kanallar, Son Eklenen Filmler, Popüler Diziler).
  */
 @Composable
 fun OpusDashboardScreen(viewModel: MainViewModel) {
-    val userInfo by viewModel.userInfo.collectAsState()
+    val isTvDevice = LocalIsTvDevice.current
     val continueWatching by viewModel.continueWatchingMovies.collectAsState()
     val recentChannels by viewModel.recentChannels.collectAsState()
+    val favoriteLiveIds by viewModel.favoriteLiveIds.collectAsState()
+    val allLiveStreams by viewModel.allLiveStreams.collectAsState()
     val vodStreams by viewModel.vodStreams.collectAsState()
     val seriesStreams by viewModel.seriesStreams.collectAsState()
+    val favoriteVodIds by viewModel.favoriteVodIds.collectAsState()
+    val favoriteSeriesIds by viewModel.favoriteSeriesIds.collectAsState()
+    val watchProgressMap by viewModel.watchProgressMap.collectAsState()
+    val epgSummaryMap by viewModel.epgSummaryMap.collectAsState()
 
-    // En Son Eklenen Filmler
+    val favoriteChannels = remember(allLiveStreams, favoriteLiveIds) {
+        if (favoriteLiveIds.isEmpty()) emptyList()
+        else allLiveStreams.filter { favoriteLiveIds.contains(it.streamId.toString()) }.take(15)
+    }
+
     val newlyAddedVodList = remember(vodStreams) {
         vodStreams
             .filter { !it.added.isNullOrBlank() }
             .sortedByDescending { it.added?.toLongOrNull() ?: 0L }
-            .distinctBy { (it.name ?: "").trim().lowercase() }
-            .take(16)
-            .ifEmpty { vodStreams.take(12) }
+            .distinctBy { it.name.trim().lowercase() }
+            .take(18)
+            .ifEmpty { vodStreams.take(14) }
     }
 
-    // En Son Eklenen Diziler
     val newlyAddedSeriesList = remember(seriesStreams) {
         seriesStreams
             .filter { !it.added.isNullOrBlank() || !it.lastModified.isNullOrBlank() }
             .sortedByDescending { (it.lastModified?.toLongOrNull() ?: it.added?.toLongOrNull() ?: 0L) }
-            .distinctBy { (it.name ?: "").trim().lowercase() }
-            .take(16)
-            .ifEmpty { seriesStreams.take(12) }
+            .distinctBy { it.name.trim().lowercase() }
+            .take(18)
+            .ifEmpty { seriesStreams.take(14) }
     }
 
-    // Başlangıç Vitrin İçeriği
     val initialSpotlight = remember(continueWatching, newlyAddedVodList, newlyAddedSeriesList) {
         when {
             continueWatching.isNotEmpty() -> {
@@ -133,87 +138,19 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
         }
     }
 
-    // Kumanda ile alt listelerde gezinirken vitrinin dinamik güncellenmesi
     var currentSpotlight by remember { mutableStateOf<SpotlightContent?>(null) }
     val activeSpotlight = currentSpotlight ?: initialSpotlight
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(VegaColors.Background)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = if (isTvDevice) 18.dp else 14.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // ==========================================
-        // 1. ÜST KULLANICI & HIZLI KATEGORİ GEÇİŞ HAPLARI
-        // ==========================================
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // Kullanıcı ve Bağlantı Durumu
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(VegaColors.Accent.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = null,
-                        tint = VegaColors.Accent,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(
-                        text = userInfo?.username ?: "Hoş geldin",
-                        color = VegaColors.TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(VegaColors.Success)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Abonelik aktif",
-                            color = VegaColors.Success,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-
-            // Hızlı Kategori Butonları
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                QuickNavPill(title = "Canlı", icon = Icons.Default.LiveTv) { viewModel.setSelectedHomeTab(HomeTab.LIVE_TV) }
-                QuickNavPill(title = "Filmler", icon = Icons.Default.Movie) { viewModel.setSelectedHomeTab(HomeTab.MOVIES) }
-                QuickNavPill(title = "Diziler", icon = Icons.Default.VideoLibrary) { viewModel.setSelectedHomeTab(HomeTab.SERIES) }
-                QuickNavPill(title = "Favoriler", icon = Icons.Default.Star) { viewModel.setSelectedHomeTab(HomeTab.FAVORITES) }
-            }
-        }
-
-        // ==========================================
-        // 2. SİNEMATİK BÜYÜK VİTRİN (HERO SPOTLIGHT BILLBOARD)
-        // ==========================================
+        // 1. STREAMVAULT HERO VİTRİN PANELİ
         activeSpotlight?.let { spotlight ->
-            CinematicHeroSpotlight(
+            StreamVaultHeroPanel(
                 spotlight = spotlight,
                 onPlayClick = {
                     when (spotlight) {
@@ -232,184 +169,232 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
             )
         }
 
-        // ==========================================
-        // 3. KALDIĞIN YERDEN DEVAM ET (16:9 SİNEMATİK ŞERİT)
-        // ==========================================
+        // 2. KALDIĞIN YERDEN DEVAM ET RAFI
         if (continueWatching.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(2.dp))
-            SectionHeader(
-                title = "Kaldığın Yerden Devam Et",
-                icon = Icons.Default.History,
-                iconColor = VegaColors.Accent
-            )
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(vertical = 4.dp)
-            ) {
-                items(continueWatching, key = { "progress_${it.first.streamId}" }) { (progress, movie) ->
-                    DashboardProgressCard(
-                        movie = movie,
-                        progress = progress,
-                        onFocusChange = { focused ->
-                            if (focused) currentSpotlight = SpotlightContent.Progress(progress, movie)
-                        },
-                        onClick = { viewModel.playVod(movie, resume = true) }
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                StreamVaultSectionHeader(title = "Kaldığın Yerden Devam Et")
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    items(continueWatching, key = { "progress_${it.first.streamId}" }) { (progress, movie) ->
+                        DashboardProgressCard(
+                            movie = movie,
+                            progress = progress,
+                            onFocusChange = { focused ->
+                                if (focused) currentSpotlight = SpotlightContent.Progress(progress, movie)
+                            },
+                            onClick = { viewModel.playVod(movie, resume = true) }
+                        )
+                    }
                 }
             }
         }
 
-        // ==========================================
-        // 4. SON EKLENEN SİNEMA FİLMLERİ
-        // ==========================================
-        if (newlyAddedVodList.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(2.dp))
-            SectionHeader(
-                title = "Son Eklenen Sinema Filmleri",
-                icon = Icons.Default.Whatshot,
-                iconColor = VegaColors.Live,
-                onSeeAllClick = { viewModel.setSelectedHomeTab(HomeTab.MOVIES) }
-            )
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(vertical = 4.dp)
-            ) {
-                items(newlyAddedVodList, key = { "new_vod_${it.streamId}" }) { movie ->
-                    NewlyAddedVodCard(
-                        movie = movie,
-                        onFocusChange = { focused ->
-                            if (focused) currentSpotlight = SpotlightContent.Movie(movie)
-                        },
-                        onClick = { viewModel.loadVodDetail(movie) }
-                    )
+        // 3. FAVORİ KANALLAR RAFI (StreamVault DashboardChannelCard)
+        if (favoriteChannels.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                StreamVaultSectionHeader(
+                    title = "Favori Kanallar",
+                    onSeeAllClick = {
+                        viewModel.selectedLiveCategory.value = "favorites"
+                        viewModel.setSelectedHomeTab(HomeTab.LIVE_TV)
+                    }
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    items(favoriteChannels, key = { "fav_ch_${it.streamId}" }) { channel ->
+                        val epg = epgSummaryMap[channel.streamId]
+                        StreamVaultChannelCard(
+                            channel = channel,
+                            programTitle = epg?.getDecodedTitle() ?: channel.currentProgram,
+                            progress = epg?.getProgressFraction(),
+                            isFavorite = true,
+                            onClick = { viewModel.playLiveChannel(channel) }
+                        )
+                    }
                 }
             }
         }
 
-        // ==========================================
-        // 5. POPÜLER VE YENİ DİZİLER
-        // ==========================================
-        if (newlyAddedSeriesList.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(2.dp))
-            SectionHeader(
-                title = "Popüler ve Yeni Diziler",
-                icon = Icons.Default.VideoLibrary,
-                iconColor = VegaColors.Accent,
-                onSeeAllClick = { viewModel.setSelectedHomeTab(HomeTab.SERIES) }
-            )
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(vertical = 4.dp)
-            ) {
-                items(newlyAddedSeriesList, key = { "new_series_${it.seriesId}" }) { series ->
-                    NewlyAddedSeriesCard(
-                        series = series,
-                        onFocusChange = { focused ->
-                            if (focused) currentSpotlight = SpotlightContent.Series(series)
-                        },
-                        onClick = { viewModel.loadSeriesDetail(series) }
-                    )
-                }
-            }
-        }
-
-        // ==========================================
-        // 6. TREND CANLI TV KANALLARI
-        // ==========================================
+        // 4. SON İZLENEN CANLI KANALLAR RAFI
         if (recentChannels.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(2.dp))
-            SectionHeader(
-                title = "Son İzlenen Canlı Kanallar",
-                icon = Icons.Default.Tv,
-                iconColor = VegaColors.Gold,
-                onSeeAllClick = { viewModel.setSelectedHomeTab(HomeTab.LIVE_TV) }
-            )
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(vertical = 4.dp)
-            ) {
-                items(recentChannels.take(12), key = { "recent_${it.streamId}" }) { channel ->
-                    DashboardRecentChannelCard(
-                        channel = channel,
-                        onClick = { viewModel.playLiveChannel(channel) }
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                StreamVaultSectionHeader(
+                    title = "Son İzlenen Canlı Kanallar",
+                    onSeeAllClick = { viewModel.setSelectedHomeTab(HomeTab.LIVE_TV) }
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    items(recentChannels.take(14), key = { "recent_${it.streamId}" }) { channel ->
+                        val epg = epgSummaryMap[channel.streamId]
+                        StreamVaultChannelCard(
+                            channel = channel,
+                            programTitle = epg?.getDecodedTitle() ?: channel.currentProgram,
+                            progress = epg?.getProgressFraction(),
+                            isFavorite = favoriteLiveIds.contains(channel.streamId.toString()),
+                            onClick = { viewModel.playLiveChannel(channel) }
+                        )
+                    }
                 }
             }
         }
 
-        // Alt navigasyon barı arkasında içerik kalmaması için alt boşluk
-        Spacer(modifier = Modifier.height(80.dp))
+        // 5. SON EKLENEN FİLMLER RAFI (StreamVault Movies.png poster şeridi)
+        if (newlyAddedVodList.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                StreamVaultSectionHeader(
+                    title = "Son Eklenen Filmler",
+                    onSeeAllClick = { viewModel.setSelectedHomeTab(HomeTab.MOVIES) }
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    items(newlyAddedVodList, key = { "new_vod_${it.streamId}" }) { movie ->
+                        val prog = watchProgressMap[movie.streamId.toString()]
+                        val progFraction = if (prog != null && prog.durationMs > 0L) {
+                            (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
+                        } else 0f
+                        Box(modifier = Modifier.width(if (isTvDevice) 144.dp else 130.dp)) {
+                            MediaPosterCard(
+                                imageUrl = movie.streamIcon,
+                                title = movie.name,
+                                subtitle = "",
+                                rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                watchProgress = progFraction,
+                                isFavorite = favoriteVodIds.contains(movie.streamId.toString()),
+                                onFocusChange = { focused ->
+                                    if (focused) currentSpotlight = SpotlightContent.Movie(movie)
+                                },
+                                onClick = { viewModel.loadVodDetail(movie) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. POPÜLER VE YENİ DİZİLER RAFI
+        if (newlyAddedSeriesList.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                StreamVaultSectionHeader(
+                    title = "Popüler ve Yeni Diziler",
+                    onSeeAllClick = { viewModel.setSelectedHomeTab(HomeTab.SERIES) }
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp)
+                ) {
+                    items(newlyAddedSeriesList, key = { "new_series_${it.seriesId}" }) { series ->
+                        Box(modifier = Modifier.width(if (isTvDevice) 144.dp else 130.dp)) {
+                            MediaPosterCard(
+                                imageUrl = series.cover,
+                                title = series.name,
+                                subtitle = "",
+                                rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                isFavorite = favoriteSeriesIds.contains(series.seriesId.toString()),
+                                onFocusChange = { focused ->
+                                    if (focused) currentSpotlight = SpotlightContent.Series(series)
+                                },
+                                onClick = { viewModel.loadSeriesDetail(series) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(if (isTvDevice) 24.dp else 72.dp))
     }
 }
 
 /**
- * ŞERİT BAŞLIK BİLEŞENİ
+ * STREAMVAULT RAF BAŞLIĞI + "Tümünü gör" HAPI (Movies.png ile birebir)
  */
 @Composable
-private fun SectionHeader(
+fun StreamVaultSectionHeader(
     title: String,
-    icon: ImageVector,
-    iconColor: Color = VegaColors.Accent,
+    subtitle: String? = null,
     onSeeAllClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 2.dp, vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(horizontal = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                fontSize = 15.sp,
+                color = VegaColors.TextPrimary,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
-                color = VegaColors.TextPrimary
+                letterSpacing = (-0.2).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    color = VegaColors.TextMuted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
+
         if (onSeeAllClick != null) {
-            Text(
-                text = "Tümünü gör >",
-                color = VegaColors.Accent,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(VegaShapes.Small)
-                    .clickable { onSeeAllClick() }
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            )
+            Surface(
+                shape = VegaShapes.Pill,
+                color = VegaColors.Accent.copy(alpha = 0.14f),
+                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.28f)),
+                modifier = Modifier.dpadFocusable(
+                    shape = VegaShapes.Pill,
+                    focusedBorderColor = VegaColors.FocusBorder,
+                    scale = 1.04f,
+                    onClick = onSeeAllClick
+                )
+            ) {
+                Text(
+                    text = "Tümünü gör",
+                    color = VegaColors.Accent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                )
+            }
         }
     }
 }
 
 /**
- * SİNEMATİK BÜYÜK VİTRİN BİLEŞENİ (CINEMATIC HERO SPOTLIGHT)
+ * STREAMVAULT HERO VİTRİN PANELİ (browse_hero_panel.png + MovieInfo.png görsel dili)
  */
 @Composable
-private fun CinematicHeroSpotlight(
+private fun StreamVaultHeroPanel(
     spotlight: SpotlightContent,
     onPlayClick: () -> Unit,
     onDetailClick: () -> Unit
 ) {
     val isTvDevice = LocalIsTvDevice.current
-    val heroHeight = if (isTvDevice) 340.dp else 285.dp
+    val heroHeight = if (isTvDevice) 270.dp else 230.dp
 
     Card(
-        shape = VegaShapes.Large,
-        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        shape = VegaShapes.Hero,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.SurfaceElevated),
         border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .fillMaxWidth()
             .height(heroHeight)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // 1. Arka Plan Sinematik Görsel
             AsyncShimmerImage(
                 model = spotlight.imageUrl,
                 contentDescription = spotlight.title,
@@ -418,17 +403,17 @@ private fun CinematicHeroSpotlight(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // 2. Çok Katmanlı Sinematik Gradyanlar (Üstten, Alttan ve Soldan Karartma)
+            // StreamVault derin gece soldan sağa gradyanı
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.horizontalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.92f),
-                                Color.Black.copy(alpha = 0.65f),
-                                Color.Black.copy(alpha = 0.2f),
-                                Color.Transparent
+                            colorStops = arrayOf(
+                                0.0f to VegaColors.Background.copy(alpha = 0.96f),
+                                0.45f to VegaColors.Surface.copy(alpha = 0.84f),
+                                0.78f to VegaColors.Surface.copy(alpha = 0.32f),
+                                1.0f to VegaColors.Background.copy(alpha = 0.25f)
                             )
                         )
                     )
@@ -439,98 +424,55 @@ private fun CinematicHeroSpotlight(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.35f),
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.85f),
-                                Color.Black
+                                VegaColors.Background.copy(alpha = 0.65f),
+                                VegaColors.Background.copy(alpha = 0.92f)
                             )
                         )
                     )
             )
 
-            // 3. İçerik ve Aksiyon Alanı
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 18.dp, vertical = 16.dp),
+                    .padding(horizontal = if (isTvDevice) 26.dp else 18.dp, vertical = if (isTvDevice) 22.dp else 16.dp),
                 verticalArrangement = Arrangement.Bottom
             ) {
-                // Etiket Rozeti
-                Surface(
-                    shape = VegaShapes.Pill,
-                    color = VegaColors.Accent.copy(alpha = 0.18f),
-                    border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.45f))
-                ) {
-                    Text(
-                        text = spotlight.badgeLabel,
-                        color = VegaColors.Accent,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Başlık
                 Text(
-                    text = spotlight.title,
-                    color = VegaColors.TextPrimary,
-                    fontSize = if (isTvDevice) 24.sp else 20.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = if (isTvDevice) 28.sp else 24.sp
+                    text = spotlight.eyebrow,
+                    color = VegaColors.Accent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Rozetler Satırı (Puan, 4K, Kategori)
+                Text(
+                    text = spotlight.title,
+                    color = VegaColors.TextPrimary,
+                    fontSize = if (isTvDevice) 26.sp else 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.4).sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = if (isTvDevice) 30.sp else 24.sp
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Noktalı Meta Bilgi Şeridi
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    if (!spotlight.rating.isNullOrBlank() && spotlight.rating != "0" && spotlight.rating != "0.0") {
-                        Surface(
-                            shape = VegaShapes.Small,
-                            color = Color.Black.copy(alpha = 0.7f),
-                            border = BorderStroke(0.5.dp, VegaColors.Gold.copy(alpha = 0.4f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = VegaColors.Gold,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = spotlight.rating!!,
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                    val rating = spotlight.rating
+                    if (!rating.isNullOrBlank() && rating != "0" && rating != "0.0") {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(13.dp))
+                            Text(text = rating, color = VegaColors.Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
+                        Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(VegaColors.TextMuted))
                     }
-
-                    Surface(
-                        shape = VegaShapes.Small,
-                        color = Color.Black.copy(alpha = 0.5f),
-                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.25f))
-                    ) {
-                        Text(
-                            text = "4K UHD",
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-
                     Text(
                         text = spotlight.categorySubtitle,
                         color = VegaColors.TextSecondary,
@@ -541,88 +483,86 @@ private fun CinematicHeroSpotlight(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Kısa Açıklama
                 Text(
                     text = spotlight.description,
                     color = VegaColors.TextSecondary,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    lineHeight = 16.sp,
-                    modifier = Modifier.fillMaxWidth(0.9f)
+                    lineHeight = 17.sp,
+                    modifier = Modifier.fillMaxWidth(if (isTvDevice) 0.65f else 0.95f)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Aksiyon Butonları
+                // StreamVault Aksiyon Butonları
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Birincil Buton: Hemen Oynat
                     Surface(
                         shape = VegaShapes.Medium,
                         color = VegaColors.Accent,
                         modifier = Modifier
-                            .height(if (isTvDevice) 42.dp else 36.dp)
+                            .height(if (isTvDevice) 44.dp else 40.dp)
                             .dpadFocusable(
                                 focusedBorderColor = Color.White,
                                 shape = VegaShapes.Medium,
-                                scale = 1.05f,
+                                scale = 1.04f,
                                 onClick = onPlayClick
                             )
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
                                 contentDescription = null,
                                 tint = VegaColors.OnAccent,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(19.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Hemen izle",
+                                text = "Oynat",
                                 color = VegaColors.OnAccent,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
                             )
                         }
                     }
 
-                    // İkincil Buton: Detaylar
                     Surface(
                         shape = VegaShapes.Medium,
-                        color = VegaColors.SurfaceVariant,
+                        color = VegaColors.SurfaceAccent,
                         border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
-                            .height(if (isTvDevice) 42.dp else 36.dp)
+                            .height(if (isTvDevice) 44.dp else 40.dp)
                             .dpadFocusable(
-                                focusedBorderColor = VegaColors.Accent,
+                                focusedBorderColor = VegaColors.FocusBorder,
                                 shape = VegaShapes.Medium,
-                                scale = 1.05f,
+                                scale = 1.04f,
                                 onClick = onDetailClick
                             )
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = null,
                                 tint = VegaColors.TextPrimary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(17.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Detaylar",
                                 color = VegaColors.TextPrimary,
                                 fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
                             )
                         }
                     }
@@ -633,49 +573,128 @@ private fun CinematicHeroSpotlight(
 }
 
 /**
- * HIZLI KATEGORİ GEÇİŞ HAPI
+ * STREAMVAULT KANAL KARTI (210x118dp — Logo + Canlı rozeti + EPG + İlerleme çubuğu)
  */
 @Composable
-private fun QuickNavPill(
-    title: String,
-    icon: ImageVector,
+private fun StreamVaultChannelCard(
+    channel: LiveStream,
+    programTitle: String?,
+    progress: Float?,
+    isFavorite: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
-        shape = VegaShapes.Pill,
-        color = VegaColors.SurfaceVariant,
+    val cardShape = RoundedCornerShape(10.dp)
+    Card(
+        shape = cardShape,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.SurfaceElevated),
         border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
+            .width(206.dp)
+            .height(116.dp)
             .dpadFocusable(
-                focusedBorderColor = VegaColors.Accent,
-                shape = VegaShapes.Pill,
-                scale = 1.05f,
+                focusedBorderColor = VegaColors.FocusBorder,
+                shape = cardShape,
+                scale = 1.035f,
                 onClick = onClick
             )
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(VegaColors.SurfaceVariant.copy(alpha = 0.65f), VegaColors.Surface)
+                    )
+                )
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = VegaColors.Accent,
-                modifier = Modifier.size(13.dp)
+            // Kanal Logosu (merkez üstte)
+            AsyncShimmerImage(
+                model = channel.streamIcon,
+                contentDescription = channel.name,
+                contentScale = ContentScale.Fit,
+                placeholderIcon = Icons.Default.Tv,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(10.dp)
+                    .size(44.dp)
+                    .clip(VegaShapes.Small)
+                    .background(VegaColors.SurfaceAccent)
+                    .padding(5.dp)
             )
-            Spacer(modifier = Modifier.width(5.dp))
-            Text(
-                text = title,
-                color = VegaColors.TextPrimary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+
+            // Sağ Üst: Canlı ve Favori Rozeti
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isFavorite) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = VegaColors.Gold,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(VegaColors.Live.copy(alpha = 0.18f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "Canlı",
+                        color = VegaColors.Live,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Alt: Kanal Adı + Program + İlerleme Çubuğu
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = channel.name,
+                    color = VegaColors.TextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = programTitle?.takeIf { it.isNotBlank() } ?: "Canlı yayın",
+                    color = VegaColors.TextSecondary,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (progress != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    LinearProgressIndicator(
+                        progress = { progress.coerceIn(0f, 1f) },
+                        color = VegaColors.Accent,
+                        trackColor = VegaColors.SurfaceAccent,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .clip(VegaShapes.Pill)
+                    )
+                }
+            }
         }
     }
 }
 
 /**
- * KALDIĞIN YERDEN DEVAM ET KARTI (16:9 SİNEMATİK)
+ * KALDIĞIN YERDEN DEVAM ET KARTI (16:9)
  */
 @Composable
 private fun DashboardProgressCard(
@@ -694,17 +713,18 @@ private fun DashboardProgressCard(
         if (mins > 60) "${mins / 60} sa ${mins % 60} dk kaldı" else "$mins dk kaldı"
     } else "Kaldığın yer"
 
+    val cardShape = RoundedCornerShape(10.dp)
     Card(
-        shape = VegaShapes.Medium,
-        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        shape = cardShape,
+        colors = CardDefaults.cardColors(containerColor = VegaColors.SurfaceElevated),
         border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
-            .width(220.dp)
-            .height(125.dp)
+            .width(214.dp)
+            .height(120.dp)
             .dpadFocusable(
-                focusedBorderColor = VegaColors.Accent,
-                shape = VegaShapes.Medium,
-                scale = 1.05f,
+                focusedBorderColor = VegaColors.FocusBorder,
+                shape = cardShape,
+                scale = 1.035f,
                 onClick = onClick,
                 onFocusStateChange = onFocusChange
             )
@@ -714,350 +734,70 @@ private fun DashboardProgressCard(
                 model = movie.streamIcon,
                 contentDescription = movie.name,
                 contentScale = ContentScale.Crop,
+                placeholderIcon = Icons.Default.Movie,
                 modifier = Modifier.fillMaxSize()
             )
-
-            // Scrim
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.88f))
+                            listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.5f),
+                                Color.Black.copy(alpha = 0.92f)
+                            )
                         )
                     )
             )
 
-            // Ortada Transparan Oynat İkonu
             Box(
                 modifier = Modifier
+                    .align(Alignment.Center)
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .align(Alignment.Center),
+                    .background(VegaColors.Accent.copy(alpha = 0.90f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = VegaColors.Accent,
-                    modifier = Modifier.size(20.dp)
+                    tint = VegaColors.OnAccent,
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
-            // Alt İçerik
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .align(Alignment.BottomStart)
-                    .padding(8.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = movie.name,
-                        color = VegaColors.TextPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = remainingText,
-                        color = VegaColors.TextSecondary,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Normal
-                    )
-                }
+                Text(
+                    text = movie.name,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = remainingText,
+                    color = VegaColors.TextSecondary,
+                    fontSize = 10.sp,
+                    maxLines = 1
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 LinearProgressIndicator(
                     progress = { progressFraction },
                     color = VegaColors.Accent,
-                    trackColor = Color.White.copy(alpha = 0.2f),
+                    trackColor = Color.White.copy(alpha = 0.22f),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(3.dp)
-                        .clip(VegaShapes.Small)
+                        .clip(VegaShapes.Pill)
                 )
             }
-        }
-    }
-}
-
-/**
- * SON EKLENEN SİNEMA FİLMİ KARTI (2:3 DİKEY)
- */
-@Composable
-private fun NewlyAddedVodCard(
-    movie: VodStream,
-    onFocusChange: (Boolean) -> Unit,
-    onClick: () -> Unit
-) {
-    Card(
-        shape = VegaShapes.Medium,
-        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
-        border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier
-            .width(130.dp)
-            .height(190.dp)
-            .dpadFocusable(
-                focusedBorderColor = VegaColors.Accent,
-                shape = VegaShapes.Medium,
-                scale = 1.05f,
-                onClick = onClick,
-                onFocusStateChange = onFocusChange
-            )
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            AsyncShimmerImage(
-                model = movie.streamIcon,
-                contentDescription = movie.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.88f))
-                        )
-                    )
-            )
-
-            // "Yeni" rozeti
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .clip(RoundedCornerShape(bottomEnd = 8.dp))
-                    .background(VegaColors.Live)
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = "Yeni",
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Puan rozeti
-            val rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
-            if (!rating.isNullOrBlank() && rating != "0" && rating != "0.0") {
-                Surface(
-                    shape = VegaShapes.Small,
-                    color = Color.Black.copy(alpha = 0.7f),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(10.dp))
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(rating, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            // Film İsmi
-            Text(
-                text = movie.name,
-                color = VegaColors.TextPrimary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 14.sp,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            )
-        }
-    }
-}
-
-/**
- * POPÜLER DİZİ KARTI (2:3 DİKEY)
- */
-@Composable
-private fun NewlyAddedSeriesCard(
-    series: SeriesStream,
-    onFocusChange: (Boolean) -> Unit,
-    onClick: () -> Unit
-) {
-    Card(
-        shape = VegaShapes.Medium,
-        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
-        border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier
-            .width(130.dp)
-            .height(190.dp)
-            .dpadFocusable(
-                focusedBorderColor = VegaColors.Accent,
-                shape = VegaShapes.Medium,
-                scale = 1.05f,
-                onClick = onClick,
-                onFocusStateChange = onFocusChange
-            )
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            AsyncShimmerImage(
-                model = series.cover,
-                contentDescription = series.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.88f))
-                        )
-                    )
-            )
-
-            // "Dizi" rozeti
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .clip(RoundedCornerShape(bottomEnd = 8.dp))
-                    .background(VegaColors.Accent)
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = "Dizi",
-                    color = VegaColors.OnAccent,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Puan rozeti
-            val rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
-            if (!rating.isNullOrBlank() && rating != "0" && rating != "0.0") {
-                Surface(
-                    shape = VegaShapes.Small,
-                    color = Color.Black.copy(alpha = 0.7f),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.15f)),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(10.dp))
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(rating, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            // Dizi İsmi
-            Text(
-                text = series.name,
-                color = VegaColors.TextPrimary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 14.sp,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            )
-        }
-    }
-}
-
-/**
- * TREND CANLI TV KANALI KARTI (16:9 YATAY)
- */
-@Composable
-private fun DashboardRecentChannelCard(
-    channel: LiveStream,
-    onClick: () -> Unit
-) {
-    Card(
-        shape = VegaShapes.Medium,
-        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
-        border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier
-            .width(150.dp)
-            .height(84.dp)
-            .dpadFocusable(
-                focusedBorderColor = VegaColors.Accent,
-                shape = VegaShapes.Medium,
-                scale = 1.05f,
-                onClick = onClick
-            )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(VegaColors.SurfaceVariant, VegaColors.Card)
-                    )
-                )
-                .padding(8.dp)
-        ) {
-            // Canlı Sinyal Rozeti
-            Row(
-                modifier = Modifier.align(Alignment.TopStart),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(VegaColors.Live)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "Canlı",
-                    color = VegaColors.Live,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Kanal Logosu Ortada
-            AsyncShimmerImage(
-                model = channel.streamIcon,
-                contentDescription = channel.name,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(VegaShapes.Small)
-                    .align(Alignment.Center)
-            )
-
-            // Kanal İsmi Altta
-            Text(
-                text = channel.name,
-                color = VegaColors.TextPrimary,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
         }
     }
 }

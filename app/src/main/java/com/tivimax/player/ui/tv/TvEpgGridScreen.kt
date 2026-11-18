@@ -31,6 +31,8 @@ import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.ui.design.vegaBackdrop
+import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import java.text.SimpleDateFormat
@@ -87,24 +89,22 @@ fun TvEpgGridScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(VegaColors.Background)
-            .padding(12.dp)
+            .vegaBackdrop()
+            .padding(14.dp)
     ) {
         // ==========================================
-        // 1. ÜST HEADER: SAAT & ODAKLANILAN PROGRAM DETAY BANNER'I
+        // 1. ÜST HEADER: STREAMVAULT GUIDE HERO KARTI (Guide.png)
         // ==========================================
-        Card(
-            shape = VegaShapes.Medium,
-            colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
-            border = BorderStroke(1.dp, VegaColors.Border),
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(110.dp)
+                .height(126.dp)
+                .vegaPanel(VegaShapes.Large)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
+                    .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -116,60 +116,69 @@ fun TvEpgGridScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (currentChannel != null) {
-                        AsyncShimmerImage(
-                            model = currentChannel.streamIcon,
-                            contentDescription = currentChannel.name,
-                            contentScale = ContentScale.Fit,
+                        Box(
                             modifier = Modifier
-                                .size(48.dp)
-                                .clip(VegaShapes.Small)
-                                .background(Color.Black),
-                            placeholderIcon = Icons.Default.Tv
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                .size(54.dp)
+                                .clip(VegaShapes.Medium)
+                                .background(VegaColors.SurfaceAccent)
+                                .padding(6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncShimmerImage(
+                                model = currentChannel.streamIcon,
+                                contentDescription = currentChannel.name,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize(),
+                                placeholderIcon = Icons.Default.Tv
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
                                 Text(
                                     text = "${currentChannel.num}. ${currentChannel.name}",
                                     color = VegaColors.TextPrimary,
-                                    fontSize = VegaText.BodyProminent,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
                                 if (currentEpg != null) {
-                                    Surface(
-                                        shape = VegaShapes.Small,
-                                        color = VegaColors.Accent.copy(alpha = 0.18f),
-                                        border = BorderStroke(1.dp, VegaColors.Accent)
-                                    ) {
-                                        Text(
-                                            text = currentEpg.getFormattedTime(),
-                                            color = VegaColors.Accent,
-                                            fontSize = VegaText.Caption,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
+                                    Text(
+                                        text = currentEpg.getFormattedTime(),
+                                        color = VegaColors.TextMuted,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(4.dp))
-
                             Text(
                                 text = currentEpg?.getDecodedTitle() ?: currentChannel.currentProgram ?: "Canlı yayın",
-                                color = VegaColors.TextPrimary,
-                                fontSize = VegaText.Secondary,
+                                color = VegaColors.TextPrimary.copy(alpha = 0.92f),
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
 
-                            Spacer(modifier = Modifier.height(2.dp))
+                            if (currentEpg != null) {
+                                StreamVaultProgressBar(
+                                    progress = currentEpg.getProgressFraction() ?: 0f,
+                                    modifier = Modifier.fillMaxWidth(0.85f)
+                                )
+                            }
 
                             Text(
-                                text = currentEpg?.getDecodedDescription()?.takeIf { it.isNotBlank() } ?: "Bu yayın için EPG rehber detayı sunucudan iletilmedi.",
+                                text = currentEpg?.getDecodedDescription()?.takeIf { it.isNotBlank() } ?: "Bu yayın için program özeti sunucudan iletilmedi.",
                                 color = VegaColors.TextSecondary,
-                                fontSize = VegaText.Caption,
+                                fontSize = 11.sp,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -185,17 +194,24 @@ fun TvEpgGridScreen(
                     verticalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxHeight()
                 ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .dpadFocusable(
-                                shape = VegaShapes.Pill,
-                                focusedBorderColor = VegaColors.Accent,
-                                onClick = onBack
-                            )
+                    Surface(
+                        shape = VegaShapes.Medium,
+                        color = VegaColors.SurfaceAccent,
+                        border = BorderStroke(1.dp, VegaColors.Border),
+                        modifier = Modifier.dpadFocusable(
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            onClick = onBack
+                        )
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = VegaColors.TextPrimary)
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = VegaColors.TextPrimary, modifier = Modifier.size(15.dp))
+                            Text("Geri", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {

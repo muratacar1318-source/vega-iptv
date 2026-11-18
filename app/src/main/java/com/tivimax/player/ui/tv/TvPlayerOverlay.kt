@@ -530,7 +530,61 @@ fun TvPlayerOverlay(
             }
         }
 
-        // 2. SAĞ ÜST KÖŞE: SAAT & TIVIMATE RAKAM TUŞLAMA OVERLAY
+        // 2A. SOL ÜST KÖŞE: STREAMVAULT GERİ DÜĞMESİ VE CANLI GÖSTERGESİ (ChannelView.png)
+        AnimatedVisibility(
+            visible = showInfoCard || showActionTray,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 20.dp, start = 24.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = VegaShapes.Pill,
+                    color = VegaColors.OverlayPill,
+                    border = BorderStroke(1.dp, VegaColors.Border),
+                    modifier = Modifier
+                        .size(38.dp)
+                        .dpadFocusable(
+                            shape = VegaShapes.Pill,
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            onClick = onCloseFullScreen
+                        )
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Geri",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(VegaShapes.Pill)
+                            .background(VegaColors.Live)
+                    )
+                    Text(
+                        text = "Canlı",
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        // 2B. SAĞ ÜST KÖŞE: SAAT & RAKAM TUŞLAMA OVERLAY
         Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -573,7 +627,7 @@ fun TvPlayerOverlay(
             }
         }
 
-        // 3. TIVIMATE ALT BİLGİ KARTI (BOTTOM INFO CARD)
+        // 3. STREAMVAULT CAM ALT BİLGİ KARTI VE AKSİYON KAROLARI (ChannelView.png)
         AnimatedVisibility(
             visible = showInfoCard,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -581,124 +635,141 @@ fun TvPlayerOverlay(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, bottom = 18.dp)
+                .padding(start = 24.dp, end = 24.dp, bottom = 20.dp)
         ) {
             val epg = epgSummaryMap[activeChannel.streamId]
             val currentTitle = epg?.getDecodedTitle() ?: activeChannel.currentProgram ?: "Canlı yayın"
             val timeString = epg?.getFormattedTime() ?: if (epg?.start != null && epg.end != null) "${epg.start} - ${epg.end}" else ""
             val progress = epg?.getProgressFraction()
             val nextTitle = activeChannel.nextProgram ?: epg?.getDecodedDescription() ?: ""
+            val qualityBadges = remember(activeChannel.name) { extractQualityBadges(activeChannel.name) }
 
             Surface(
-                shape = VegaShapes.Large,
+                shape = RoundedCornerShape(18.dp),
                 color = VegaColors.OverlayPanel,
-                border = BorderStroke(
-                    1.dp,
-                    Brush.horizontalGradient(
-                        listOf(VegaColors.Accent.copy(alpha = 0.5f), VegaColors.Border, VegaColors.Border)
-                    )
-                )
+                border = BorderStroke(1.dp, VegaColors.Border)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        // SOL: Kanal No & Logo
-                        if (activeChannel.num > 0) {
-                            Text(
-                                text = "${activeChannel.num}",
-                                color = VegaColors.Accent,
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                modifier = Modifier.padding(end = 14.dp)
+                        // SOL: Kare Kanal Logosu
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(VegaShapes.Medium)
+                                .background(VegaColors.SurfaceAccent)
+                                .padding(6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncShimmerImage(
+                                model = activeChannel.streamIcon,
+                                contentDescription = activeChannel.name,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize(),
+                                placeholderIcon = Icons.Default.Tv
                             )
                         }
 
-                        AsyncShimmerImage(
-                            model = activeChannel.streamIcon,
-                            contentDescription = activeChannel.name,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(VegaShapes.Medium)
-                                .background(Color.Black),
-                            placeholderIcon = Icons.Default.Tv
-                        )
-
-                        Spacer(modifier = Modifier.width(14.dp))
-
-                        // ORTA: EPG & Yayın Bilgileri
-                        Column(modifier = Modifier.weight(1f)) {
+                        // ORTA: [Kanal 8] + Kanal Adı + [1080p · 50fps] + Program + Parlayan İlerleme Çubuğu
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                if (activeChannel.num > 0) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = VegaColors.SurfaceAccent.copy(alpha = 0.9f),
+                                        border = BorderStroke(1.dp, VegaColors.Border)
+                                    ) {
+                                        Text(
+                                            text = "Kanal ${activeChannel.num}",
+                                            color = VegaColors.TextPrimary,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+
                                 Text(
                                     text = activeChannel.name,
                                     color = VegaColors.TextPrimary,
-                                    fontSize = VegaText.SectionTitle,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-
-                                // Rozetler (Kalite ve Teknik Teşhis)
-                                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                    val qualityBadges = remember(activeChannel.name) { extractQualityBadges(activeChannel.name) }
-                                    qualityBadges.forEach { tag ->
-                                        QualityBadge(tag = tag)
-                                    }
-                                    if (streamDiagnostics.resolutionBadge.isNotBlank() && qualityBadges.none { it.equals(streamDiagnostics.resolutionBadge, true) }) {
-                                        TechBadge(text = streamDiagnostics.resolutionBadge, isHighlight = true)
-                                    }
-                                    if (streamDiagnostics.frameRateBadge.isNotBlank()) {
-                                        TechBadge(text = streamDiagnostics.frameRateBadge)
-                                    }
-                                    if (streamDiagnostics.bufferHealthSecs.isNotBlank()) {
-                                        TechBadge(text = "Tampon: ${streamDiagnostics.bufferHealthSecs}")
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = currentTitle,
-                                    color = VegaColors.TextPrimary,
-                                    fontSize = VegaText.Body,
+                                    fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
-                                if (timeString.isNotBlank()) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("($timeString)", color = VegaColors.TextSecondary, fontSize = VegaText.Secondary)
+
+                                // Çözünürlük · FPS Rozeti (ChannelView.png)
+                                val techSummary = listOf(
+                                    streamDiagnostics.resolutionBadge.ifBlank { qualityBadges.firstOrNull().orEmpty() },
+                                    streamDiagnostics.frameRateBadge
+                                ).filter { it.isNotBlank() }.joinToString(" · ")
+
+                                if (techSummary.isNotBlank()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = VegaColors.SurfaceAccent.copy(alpha = 0.85f),
+                                        border = BorderStroke(1.dp, VegaColors.Border)
+                                    ) {
+                                        Text(
+                                            text = techSummary,
+                                            color = VegaColors.TextSecondary,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
                                 }
                             }
 
-                            if (progress != null) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                LinearProgressIndicator(
-                                    progress = { progress },
-                                    color = VegaColors.Accent,
-                                    trackColor = VegaColors.Border,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(3.dp)
-                                        .clip(VegaShapes.Small)
-                                )
+                            Text(
+                                text = currentTitle,
+                                color = VegaColors.TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                if (timeString.isNotBlank()) {
+                                    Text(
+                                        text = timeString,
+                                        color = VegaColors.TextSecondary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                if (progress != null) {
+                                    StreamVaultProgressBar(
+                                        progress = progress,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
 
                             if (nextTitle.isNotBlank()) {
-                                Spacer(modifier = Modifier.height(3.dp))
                                 Text(
                                     text = "Sonraki: $nextTitle",
-                                    color = VegaColors.TextSecondary,
-                                    fontSize = VegaText.Caption,
+                                    color = VegaColors.TextMuted,
+                                    fontSize = 11.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -707,7 +778,6 @@ fun TvPlayerOverlay(
                     }
 
                     if (com.tivimax.player.BuildConfig.DEBUG && startupDebugInfo.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Açılış ölçümü: $startupDebugInfo",
                             color = VegaColors.TextMuted,
@@ -717,29 +787,23 @@ fun TvPlayerOverlay(
                     }
 
                     if (!showActionTray) {
-                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "▲▼ Kanal değiştir   ◀ Kanal listesi   ▶ Menü",
+                            text = "▲▼ Kanal değiştir   ◀ Kanal listesi   ▶ Kontrol çubuğu",
                             color = VegaColors.TextMuted,
                             fontSize = VegaText.Caption,
                             maxLines = 1
                         )
                     }
 
-                    // 4. KATMAN A & B: RECENT CHANNELS & ACTION CHIPS (▶ TUŞU İLE AÇILIR)
+                    // 4. STREAMVAULT İKİ SATIRLI AKSİYON KAROLARI (ChannelView.png — ▶ TUŞU İLE AÇILIR)
                     AnimatedVisibility(
                         visible = showActionTray,
                         enter = expandVertically() + fadeIn(),
                         exit = shrinkVertically() + fadeOut()
                     ) {
-                        Column(modifier = Modifier.padding(top = 12.dp)) {
-                            HorizontalDivider(color = VegaColors.Border, thickness = 1.dp)
-
-                            // KATMAN A: SON İZLENEN KANAL ŞERİDİ
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            // Son İzlenenler Şeridi
                             if (recentChannels.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("Son izlenen kanallar", color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(4.dp))
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier.fillMaxWidth()
@@ -747,23 +811,23 @@ fun TvPlayerOverlay(
                                     items(recentChannels.take(10), key = { "rec_${it.streamId}" }) { rec ->
                                         Surface(
                                             shape = VegaShapes.Small,
-                                            color = VegaColors.Card,
+                                            color = VegaColors.SurfaceElevated,
                                             border = BorderStroke(1.dp, VegaColors.Border),
                                             modifier = Modifier.dpadFocusable(
-                                                focusedBorderColor = VegaColors.Accent,
+                                                focusedBorderColor = VegaColors.FocusBorder,
                                                 shape = VegaShapes.Small,
                                                 onClick = { viewModel.playLiveChannel(rec) }
                                             )
                                         ) {
                                             Row(
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 AsyncShimmerImage(
                                                     model = rec.streamIcon,
                                                     contentDescription = rec.name,
                                                     contentScale = ContentScale.Fit,
-                                                    modifier = Modifier.size(20.dp).clip(VegaShapes.Small)
+                                                    modifier = Modifier.size(18.dp).clip(VegaShapes.Small)
                                                 )
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Text(rec.name, color = VegaColors.TextPrimary, fontSize = VegaText.Caption, maxLines = 1)
@@ -773,49 +837,58 @@ fun TvPlayerOverlay(
                                 }
                             }
 
-                            // KATMAN B: YATAY KONTROL İKONLARI (ACTION DOCK)
-                            Spacer(modifier = Modifier.height(10.dp))
+                            // StreamVault Alt Kontrol Karoları (ChannelView.png)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .horizontalScroll(rememberScrollState()),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                PlayerPillButton(
-                                    text = "Ses ve altyazı",
-                                    icon = Icons.Default.Subtitles,
-                                    onClick = { showTrackSheet = true },
-                                    isPortrait = false,
+                                StreamVaultPlayerTile(
+                                    eyebrow = "OYNATMA",
+                                    value = if (isPlaying) "Duraklat" else "Oynat",
+                                    onClick = { playerManager.togglePlayPause() },
                                     modifier = Modifier.focusRequester(actionDockFocusRequester)
                                 )
-                                PlayerPillButton(
-                                    text = when (aspectRatio) {
+                                StreamVaultPlayerTile(
+                                    eyebrow = "SES / ALTYAZI",
+                                    value = "Parçalar",
+                                    onClick = { showTrackSheet = true }
+                                )
+                                StreamVaultPlayerTile(
+                                    eyebrow = "GÖRÜNTÜ",
+                                    value = when (aspectRatio) {
                                         AspectRatioMode.FIT -> "Orijinal"
                                         AspectRatioMode.FILL -> "Doldur"
-                                        AspectRatioMode.ZOOM -> "Zoom"
+                                        AspectRatioMode.ZOOM -> "Yakınlaştır"
                                         AspectRatioMode.RATIO_16_9 -> "16:9"
                                         else -> "Orijinal"
                                     },
-                                    icon = Icons.Default.AspectRatio,
-                                    onClick = { playerManager.cycleAspectRatio() },
-                                    isPortrait = false
+                                    onClick = { playerManager.cycleAspectRatio() }
                                 )
-                                PlayerPillButton(
-                                    text = if (isFavorite) "Favorilerde" else "Favoriye ekle",
-                                    icon = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                    onClick = { viewModel.toggleFavoriteLive(activeChannel.streamId.toString()) },
+                                StreamVaultPlayerTile(
+                                    eyebrow = "FAVORİ",
+                                    value = if (isFavorite) "Kayıtlı" else "Ekle",
                                     isActive = isFavorite,
-                                    activeColor = VegaColors.Gold,
-                                    isPortrait = false
+                                    onClick = { viewModel.toggleFavoriteLive(activeChannel.streamId.toString()) }
                                 )
                                 if (onOpenEpgGrid != null) {
-                                    PlayerPillButton(
-                                        text = "Program rehberi",
-                                        icon = Icons.Default.Schedule,
-                                        onClick = onOpenEpgGrid,
-                                        isPortrait = false
+                                    StreamVaultPlayerTile(
+                                        eyebrow = "REHBER",
+                                        value = "Program",
+                                        onClick = onOpenEpgGrid
                                     )
                                 }
+                                StreamVaultPlayerTile(
+                                    eyebrow = "KANALLAR",
+                                    value = "Liste",
+                                    onClick = {
+                                        guideNavigated = false
+                                        showOverlayGuide = true
+                                        showInfoCard = false
+                                        showActionTray = false
+                                    }
+                                )
                             }
                         }
                     }
@@ -1199,6 +1272,75 @@ fun TvPlayerOverlay(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StreamVaultPlayerTile(
+    eyebrow: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isActive: Boolean = false
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val tileShape = RoundedCornerShape(11.dp)
+
+    val containerColor = when {
+        isFocused -> VegaColors.Accent
+        isActive -> VegaColors.Accent.copy(alpha = 0.22f)
+        else -> VegaColors.SurfaceElevated.copy(alpha = 0.92f)
+    }
+    val eyebrowColor = when {
+        isFocused -> VegaColors.OnAccent.copy(alpha = 0.78f)
+        isActive -> VegaColors.Gold
+        else -> VegaColors.Accent
+    }
+    val valueColor = when {
+        isFocused -> VegaColors.OnAccent
+        else -> VegaColors.TextPrimary
+    }
+
+    Surface(
+        shape = tileShape,
+        color = containerColor,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isFocused) Color.White else VegaColors.Border
+        ),
+        modifier = modifier
+            .widthIn(min = 96.dp)
+            .height(50.dp)
+            .dpadFocusable(
+                focusedBorderColor = Color.White,
+                shape = tileShape,
+                scale = 1.04f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
+            )
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = eyebrow,
+                color = eyebrowColor,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.height(1.dp))
+            Text(
+                text = value,
+                color = valueColor,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -20,7 +21,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -33,7 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import com.tivimax.player.data.model.VodStream
 import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.ui.MainViewModel
@@ -43,18 +42,23 @@ import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
-import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.ui.design.vegaBackdrop
 import kotlinx.coroutines.delay
 
+/**
+ * STREAMVAULT FİLM DETAY EKRANI (MovieInfo.png ile birebir görsel dil)
+ * - Tam ekran sinematik arka plan görseli + derin gece gradyanı
+ * - Sol üst "Kütüphaneye dön" hapı
+ * - Solda 2:3 afiş, sağda [Filmler] + [★ 8.2/10] rozetleri, büyük başlık, noktalı meta şerit,
+ *   StreamVault aksiyon butonları (Oynat, Baştan izle, Fragman, yuvarlak ♡ Favori) ve özet
+ */
 @Composable
 fun VodDetailScreen(
     movie: VodStream,
     viewModel: MainViewModel,
     onBack: () -> Unit
 ) {
-    BackHandler {
-        onBack()
-    }
+    BackHandler { onBack() }
 
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -71,7 +75,7 @@ fun VodDetailScreen(
         watchProgress = viewModel.preferences.getWatchProgress(movie.streamId)
     }
 
-    // VOD Akıllı Ön Isıtma (1.500 ms sonra ilk URL'yi ısıt, çıkınca iptal et)
+    // VOD Akıllı Ön Isıtma
     DisposableEffect(movie.streamId) {
         if (movie.streamId !in listOf(101, 102, 103, 201)) {
             val urls = viewModel.repository.buildVodStreamUrls(movie.streamId, movie.containerExtension)
@@ -85,7 +89,6 @@ fun VodDetailScreen(
         }
     }
 
-    // Detay ekranı açıldığı anda otomatik olarak "Filmi İzle" / "Devam Et" butonuna focus ver
     LaunchedEffect(Unit) {
         delay(180)
         try {
@@ -94,172 +97,301 @@ fun VodDetailScreen(
     }
 
     val info = vodDetail?.info
-    val movieTitle = info?.name ?: movie.name
+    val movieTitle = info?.name?.takeIf { it.isNotBlank() } ?: movie.name
     val backdropUrl = info?.movieImage ?: info?.coverBig ?: movie.streamIcon
     val posterUrl = info?.coverBig ?: info?.movieImage ?: movie.streamIcon
 
     val qualityBadges = remember(movie.name, info?.name) {
-        val detected = extractQualityBadges(movie.name + " " + (info?.name ?: ""))
-        if (detected.isEmpty()) listOf("FHD") else detected
+        extractQualityBadges(movie.name + " " + (info?.name ?: ""))
     }
-
     val durationText = remember(info?.duration, info?.durationMinutes, info?.durationSecs) {
         formatVodDuration(info?.duration, info?.durationMinutes, info?.durationSecs)
     }
-
-    val genreList = remember(info?.genre) {
-        info?.genre?.split(',', '/', '•')?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
-    }
-
+    val releaseDate = info?.releaseDate?.takeIf { it.isNotBlank() }
+    val genreText = info?.genre?.takeIf { it.isNotBlank() }
     val castList = remember(info?.cast, info?.actors) {
         val raw = info?.cast?.takeIf { it.isNotBlank() } ?: info?.actors
         raw?.split(',', ';')?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
     }
-
+    val ratingText = remember(info?.rating, movie.rating, movie.rating5Based) {
+        val raw = info?.rating ?: movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+        val num = raw?.trim()?.substringBefore("/")?.replace(',', '.')?.toFloatOrNull()
+        if (num != null && num > 0f) {
+            val f = if (num == num.toInt().toFloat()) "${num.toInt()}" else String.format(java.util.Locale.US, "%.1f", num)
+            if (num <= 5f) "$f/5" else "$f/10"
+        } else null
+    }
     val trailerUrl = info?.youtubeTrailer
+    val hasResume = watchProgress != null && watchProgress!!.positionMs > 10_000L
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(VegaColors.Background)
+            .vegaBackdrop()
     ) {
-        // ==========================================
-        // 1. SİNEMATİK ARKA PLAN (VIP BACKDROP & GRADIENT BLEED)
-        // ==========================================
+        // 1. SİNEMATİK ARKA PLAN GÖRSELİ (StreamVault MovieInfo.png — net görsel + yumuşak karartma)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(if (isWideScreen) 1f else 0.58f)
-                .align(Alignment.TopEnd)
+                .height(if (isWideScreen) 440.dp else 300.dp)
+                .align(Alignment.TopCenter)
         ) {
             AsyncShimmerImage(
                 model = backdropUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 placeholderIcon = Icons.Default.Movie,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                            Modifier.blur(14.dp)
-                        } else {
-                            Modifier
-                        }
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to VegaColors.Background.copy(alpha = 0.35f),
+                                0.45f to VegaColors.Background.copy(alpha = 0.65f),
+                                0.85f to VegaColors.Background.copy(alpha = 0.94f),
+                                1.0f to VegaColors.Background
+                            )
+                        )
                     )
             )
-
-            // Sinematik Karartma Maskeleri (OLED Siyaha Yumuşak Geçiş)
-            if (isWideScreen) {
-                // Yatay / TV: Soldan sağa derin karartma (sol %38 tam siyah, orta transparan, sağ hafif vignette)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.horizontalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to VegaColors.Background,
-                                    0.36f to VegaColors.Background,
-                                    0.55f to VegaColors.Background.copy(alpha = 0.90f),
-                                    0.75f to VegaColors.Background.copy(alpha = 0.50f),
-                                    1.0f to VegaColors.Background.copy(alpha = 0.70f)
-                                )
-                            )
-                        )
-                )
-                // Alttan yukarı dikey geçiş
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color.Transparent,
-                                    0.65f to Color.Transparent,
-                                    1.0f to VegaColors.Background
-                                )
-                            )
-                        )
-                )
-            } else {
-                // Dikey Mod: Üstten alta derin karartma
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color.Transparent,
-                                    0.35f to VegaColors.Background.copy(alpha = 0.40f),
-                                    0.75f to VegaColors.Background.copy(alpha = 0.92f),
-                                    1.0f to VegaColors.Background
-                                )
-                            )
-                        )
-                )
-            }
-        }
-
-        // ==========================================
-        // 2. GERİ DÖNÜŞ BUTONU
-        // ==========================================
-        Surface(
-            onClick = onBack,
-            shape = CircleShape,
-            color = VegaColors.OverlayPill,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
-            modifier = Modifier
-                .statusBarsPadding()
-                .padding(start = if (isWideScreen) 28.dp else 16.dp, top = 16.dp)
-                .size(44.dp)
-                .zIndex(10f)
-                .dpadFocusable(
-                    focusedBorderColor = VegaColors.Accent,
-                    shape = CircleShape,
-                    scale = 1.08f
-                )
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Geri",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        // ==========================================
-        // 3. İÇERİK DÜZENİ (YATAY/TV: 2 SÜTUN, DİKEY: AKICI SAYFA)
-        // ==========================================
-        if (isWideScreen) {
-            // YATAY / TV EKRANI: 2 Sütunlu Sinematik Vitrin
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 90.dp, end = 36.dp, top = 28.dp, bottom = 28.dp),
-                horizontalArrangement = Arrangement.spacedBy(36.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .background(
+                        Brush.horizontalGradient(
+                            colorStops = arrayOf(
+                                0.0f to VegaColors.Background.copy(alpha = 0.85f),
+                                0.45f to VegaColors.Background.copy(alpha = 0.35f),
+                                1.0f to VegaColors.Background.copy(alpha = 0.55f)
+                            )
+                        )
+                    )
+            )
+        }
+
+        // 2. KAYDIRILABİLİR İÇERİK
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    horizontal = if (isWideScreen) 48.dp else 16.dp,
+                    vertical = if (isWideScreen) 24.dp else 14.dp
+                ),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // SOL ÜST: StreamVault "Kütüphaneye dön" Hap Butonu
+            Surface(
+                shape = VegaShapes.Medium,
+                color = VegaColors.TextPrimary,
+                modifier = Modifier
+                    .height(40.dp)
+                    .dpadFocusable(
+                        focusedBorderColor = VegaColors.FocusBorder,
+                        shape = VegaShapes.Medium,
+                        scale = 1.04f,
+                        onClick = onBack
+                    )
             ) {
-                // SOL SÜTUN: 2:3 Sinematik Afiş
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxHeight()
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = null,
+                        tint = VegaColors.Background,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Kütüphaneye dön",
+                        color = VegaColors.Background,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            if (isWideScreen) {
+                // YATAY / TV DÜZENİ (StreamVault MovieInfo.png ile birebir 2 sütun)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(32.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    // SOL: 2:3 Afiş Kartı
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .width(228.dp)
+                                .aspectRatio(2f / 3f)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(VegaColors.SurfaceElevated)
+                                .border(1.dp, VegaColors.Border, RoundedCornerShape(14.dp))
+                        ) {
+                            AsyncShimmerImage(
+                                model = posterUrl,
+                                contentDescription = movieTitle,
+                                contentScale = ContentScale.Crop,
+                                placeholderIcon = Icons.Default.Movie,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        if (hasResume && watchProgress!!.durationMs > 0L) {
+                            val frac = (watchProgress!!.positionMs.toFloat() / watchProgress!!.durationMs.toFloat()).coerceIn(0f, 1f)
+                            Spacer(modifier = Modifier.height(10.dp))
+                            LinearProgressIndicator(
+                                progress = { frac },
+                                color = VegaColors.Accent,
+                                trackColor = VegaColors.SurfaceAccent,
+                                modifier = Modifier
+                                    .width(210.dp)
+                                    .height(4.dp)
+                                    .clip(VegaShapes.Pill)
+                            )
+                        }
+                    }
+
+                    // SAĞ: Rozetler, Başlık, Meta, StreamVault Butonları ve Özet
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Rozetler Satırı: [Filmler]  [★ 8.2/10]  [4K]
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = VegaColors.SurfaceAccent.copy(alpha = 0.85f),
+                                border = BorderStroke(1.dp, VegaColors.Border)
+                            ) {
+                                Text(
+                                    text = "Filmler",
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+
+                            if (ratingText != null) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = VegaColors.Gold.copy(alpha = 0.16f),
+                                    border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.35f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(13.dp))
+                                        Text(text = ratingText, color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            qualityBadges.forEach { badge -> QualityBadge(tag = badge) }
+                        }
+
+                        // Büyük Film Başlığı
+                        Text(
+                            text = movieTitle,
+                            color = VegaColors.TextPrimary,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.5).sp,
+                            lineHeight = 34.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        // Noktalı Meta Bilgi Şeridi (2026 • 01:21:42 • Bilim Kurgu)
+                        val metaValues = listOfNotNull(releaseDate, durationText, genreText)
+                        if (metaValues.isNotEmpty()) {
+                            StreamVaultMetaStrip(values = metaValues)
+                        }
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        // StreamVault Aksiyon Butonları
+                        VodActionRow(
+                            hasResume = hasResume,
+                            resumeTimeStr = if (hasResume) formatDuration(watchProgress!!.positionMs) else null,
+                            isFavorite = isFavorite,
+                            trailerUrl = trailerUrl,
+                            playButtonFocusRequester = playButtonFocusRequester,
+                            onPlayResume = { viewModel.playVod(movie, resume = true) },
+                            onPlayStart = { viewModel.playVod(movie, resume = false) },
+                            onToggleFavorite = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
+                            onOpenTrailer = { openTrailer(context, trailerUrl) }
+                        )
+
+                        // Konu Özeti
+                        val plot = info?.plot ?: info?.description
+                        if (!plot.isNullOrBlank()) {
+                            Text(
+                                text = plot,
+                                color = VegaColors.TextSecondary,
+                                fontSize = 14.sp,
+                                lineHeight = 21.sp,
+                                maxLines = 5,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // Yönetmen
+                        info?.director?.takeIf { it.isNotBlank() }?.let { dir ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "Yönetmen:", color = VegaColors.TextMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                Text(text = dir, color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+
+                        // Oyuncular
+                        if (castList.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            StreamVaultDetailHeading(title = "Oyuncular")
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(castList.take(10)) { actor ->
+                                    Surface(
+                                        shape = VegaShapes.Medium,
+                                        color = VegaColors.SurfaceElevated,
+                                        border = BorderStroke(1.dp, VegaColors.Border)
+                                    ) {
+                                        Text(
+                                            text = actor,
+                                            color = VegaColors.TextPrimary,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // DİKEY TELEFON DÜZENİ (StreamVault kompakt)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.Bottom
                 ) {
                     Box(
                         modifier = Modifier
-                            .weight(1f, fill = false)
-                            .aspectRatio(0.68f)
-                            .clip(VegaShapes.Large)
-                            .background(VegaColors.Card)
-                            .border(
-                                BorderStroke(
-                                    1.dp,
-                                    Brush.verticalGradient(
-                                        listOf(Color.White.copy(alpha = 0.25f), Color.Transparent)
-                                    )
-                                ),
-                                VegaShapes.Large
-                            )
+                            .width(126.dp)
+                            .aspectRatio(2f / 3f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(VegaColors.SurfaceElevated)
+                            .border(1.dp, VegaColors.Border, RoundedCornerShape(12.dp))
                     ) {
                         AsyncShimmerImage(
                             model = posterUrl,
@@ -270,825 +402,310 @@ fun VodDetailScreen(
                         )
                     }
 
-                    // Kaldığın Yer İlerleme Şeridi (Afiş Altı)
-                    if (watchProgress != null && watchProgress!!.durationMs > 0 && watchProgress!!.positionMs > 10_000L) {
-                        val progressFraction = (watchProgress!!.positionMs.toFloat() / watchProgress!!.durationMs.toFloat()).coerceIn(0f, 1f)
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Box(
-                            modifier = Modifier
-                                .width(180.dp)
-                                .height(4.dp)
-                                .clip(VegaShapes.Pill)
-                                .background(Color.White.copy(alpha = 0.15f))
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(progressFraction)
-                                    .fillMaxHeight()
-                                    .background(VegaColors.Accent)
-                            )
-                        }
-                    }
-                }
-
-                // SAĞ SÜTUN: Başlık, VIP Rozetler, Butonlar, Özet ve Oyuncular
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    // İçerik Türü Etiketi (Kompakt Üst Bilgi)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Surface(
-                            shape = VegaShapes.Small,
-                            color = VegaColors.Accent.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f))
-                        ) {
-                            Text(
-                                text = "FİLM",
-                                color = VegaColors.Accent,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                            )
-                        }
-
-                        if (!info?.originalName.isNullOrBlank() && info?.originalName != movieTitle) {
-                            Text(
-                                text = info?.originalName.orEmpty(),
-                                color = VegaColors.TextMuted,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Film Başlığı
-                    Text(
-                        text = movieTitle,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = VegaColors.TextPrimary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 30.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // VIP Rozetler Şeridi (IMDb, Kalite, Süre, Yıl, Yaş)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val rating = info?.rating ?: movie.rating
-                        if (!rating.isNullOrEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                             Surface(
-                                shape = VegaShapes.Small,
-                                color = VegaColors.Gold.copy(alpha = 0.18f),
-                                border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.4f))
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = null,
-                                        tint = VegaColors.Gold,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "IMDb $rating",
-                                        color = VegaColors.Gold,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-
-                        // Kalite Rozetleri (4K / FHD / HEVC)
-                        qualityBadges.forEach { badge ->
-                            QualityBadge(tag = badge)
-                        }
-
-                        // Yayın Yılı
-                        val releaseYear = info?.releaseDate?.take(4)
-                        if (!releaseYear.isNullOrEmpty()) {
-                            Surface(
-                                shape = VegaShapes.Small,
-                                color = VegaColors.SurfaceVariant,
+                                shape = RoundedCornerShape(6.dp),
+                                color = VegaColors.SurfaceAccent,
                                 border = BorderStroke(1.dp, VegaColors.Border)
                             ) {
-                                Text(
-                                    text = releaseYear,
-                                    color = VegaColors.TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                                Text("Filmler", color = VegaColors.TextPrimary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
                             }
-                        }
-
-                        // Süre
-                        if (!durationText.isNullOrEmpty()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.AccessTime,
-                                    contentDescription = null,
-                                    tint = VegaColors.TextMuted,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Text(
-                                    text = durationText,
-                                    color = VegaColors.TextSecondary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-
-                        // Yaş Sınırı
-                        if (!info?.age.isNullOrBlank()) {
-                            Surface(
-                                shape = VegaShapes.Small,
-                                color = Color.White.copy(alpha = 0.08f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
-                            ) {
-                                Text(
-                                    text = "${info?.age}+",
-                                    color = VegaColors.TextSecondary,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Tür Hapları (Genre Pills)
-                    if (genreList.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            genreList.take(4).forEach { genre ->
+                            if (ratingText != null) {
                                 Surface(
-                                    shape = VegaShapes.Pill,
-                                    color = VegaColors.SurfaceVariant.copy(alpha = 0.6f),
-                                    border = BorderStroke(1.dp, VegaColors.Border)
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = VegaColors.Gold.copy(alpha = 0.16f),
+                                    border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.35f))
                                 ) {
-                                    Text(
-                                        text = genre,
-                                        color = VegaColors.TextSecondary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // Aksiyon Butonları (TV D-Pad Odaklanabilir)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val hasResume = watchProgress != null && watchProgress!!.positionMs > 10_000L
-
-                        if (hasResume) {
-                            val resumeTimeStr = formatDuration(watchProgress!!.positionMs)
-                            Button(
-                                onClick = { viewModel.playVod(movie, resume = true) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = VegaColors.Accent,
-                                    contentColor = VegaColors.OnAccent
-                                ),
-                                shape = VegaShapes.Medium,
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .focusRequester(playButtonFocusRequester)
-                                    .dpadFocusable(
-                                        focusedBorderColor = Color.White,
-                                        shape = VegaShapes.Medium
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = VegaColors.OnAccent
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Kaldığın yerden devam et ($resumeTimeStr)",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = { viewModel.playVod(movie, resume = false) },
-                                shape = VegaShapes.Medium,
-                                border = BorderStroke(1.dp, VegaColors.Border),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = VegaColors.SurfaceVariant
-                                ),
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .dpadFocusable(
-                                        focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Replay,
-                                    contentDescription = null,
-                                    tint = VegaColors.TextPrimary
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Baştan izle",
-                                    color = VegaColors.TextPrimary,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        } else {
-                            Button(
-                                onClick = { viewModel.playVod(movie, resume = false) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = VegaColors.Accent,
-                                    contentColor = VegaColors.OnAccent
-                                ),
-                                shape = VegaShapes.Medium,
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .focusRequester(playButtonFocusRequester)
-                                    .dpadFocusable(
-                                        focusedBorderColor = Color.White,
-                                        shape = VegaShapes.Medium
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = VegaColors.OnAccent
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Filmi izle",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        // Listeme Ekle / Favori Butonu
-                        OutlinedButton(
-                            onClick = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
-                            shape = VegaShapes.Medium,
-                            border = BorderStroke(
-                                1.dp,
-                                if (isFavorite) VegaColors.Gold.copy(alpha = 0.5f) else VegaColors.Border
-                            ),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isFavorite) VegaColors.Gold.copy(alpha = 0.12f) else VegaColors.SurfaceVariant
-                            ),
-                            modifier = Modifier
-                                .height(48.dp)
-                                .dpadFocusable(
-                                    focusedBorderColor = VegaColors.Accent,
-                                    shape = VegaShapes.Medium
-                                )
-                        ) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.BookmarkAdded else Icons.Default.BookmarkBorder,
-                                contentDescription = null,
-                                tint = if (isFavorite) VegaColors.Gold else VegaColors.TextSecondary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (isFavorite) "Listede" else "Listeme ekle",
-                                color = if (isFavorite) VegaColors.Gold else VegaColors.TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = if (isFavorite) FontWeight.Bold else FontWeight.Medium
-                            )
-                        }
-
-                        // Fragman Butonu (Mevcutsa)
-                        if (!trailerUrl.isNullOrBlank()) {
-                            OutlinedButton(
-                                onClick = { openTrailer(context, trailerUrl) },
-                                shape = VegaShapes.Medium,
-                                border = BorderStroke(1.dp, VegaColors.Border),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    containerColor = VegaColors.SurfaceVariant
-                                ),
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .dpadFocusable(
-                                        focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayCircleOutline,
-                                    contentDescription = null,
-                                    tint = VegaColors.TextSecondary
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Fragman",
-                                    color = VegaColors.TextPrimary,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Kaydırılabilir Özet, Yönetmen ve Oyuncu Kadrosu
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f, fill = false)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        val plot = info?.plot ?: info?.description
-                        if (!plot.isNullOrEmpty()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(3.dp)
-                                        .height(13.dp)
-                                        .clip(VegaShapes.Pill)
-                                        .background(VegaColors.Accent)
-                                )
-                                Text(
-                                    text = "Konu Özeti",
-                                    color = VegaColors.TextPrimary,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = plot,
-                                color = VegaColors.TextSecondary,
-                                fontSize = 13.sp,
-                                lineHeight = 19.sp
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
-
-                        // Yönetmen
-                        info?.director?.takeIf { it.isNotBlank() }?.let { directorName ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MovieFilter,
-                                    contentDescription = null,
-                                    tint = VegaColors.TextMuted,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "Yönetmen: ",
-                                    color = VegaColors.TextMuted,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = directorName,
-                                    color = VegaColors.TextPrimary,
-                                    fontSize = 12.sp
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-
-                        // Oyuncu Kadrosu Çipleri
-                        if (castList.isNotEmpty()) {
-                            Text(
-                                text = "Oyuncular",
-                                color = VegaColors.TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                contentPadding = PaddingValues(end = 16.dp)
-                            ) {
-                                items(castList.take(12)) { actor ->
-                                    Surface(
-                                        shape = VegaShapes.Pill,
-                                        color = VegaColors.SurfaceVariant,
-                                        border = BorderStroke(1.dp, VegaColors.Border),
-                                        modifier = Modifier.dpadFocusable(
-                                            focusedBorderColor = VegaColors.Accent,
-                                            shape = VegaShapes.Pill
-                                        )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Person,
-                                                contentDescription = null,
-                                                tint = VegaColors.TextMuted,
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(5.dp))
-                                            Text(
-                                                text = actor,
-                                                color = VegaColors.TextPrimary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(11.dp))
+                                        Text(ratingText, color = VegaColors.Gold, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
                         }
-                    }
-                }
-            }
-        } else {
-            // ==========================================
-            // DİKEY MOD (Telefon / Tablet Dikey)
-            // ==========================================
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
-            ) {
-                Spacer(modifier = Modifier.height(210.dp))
 
-                // Üst Rozet & Başlık
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        shape = VegaShapes.Small,
-                        color = VegaColors.Accent.copy(alpha = 0.15f),
-                        border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f))
-                    ) {
                         Text(
-                            text = "FİLM",
-                            color = VegaColors.Accent,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            text = movieTitle,
+                            color = VegaColors.TextPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            lineHeight = 24.sp
                         )
-                    }
 
-                    qualityBadges.firstOrNull()?.let { badge ->
-                        QualityBadge(tag = badge)
+                        val metaValues = listOfNotNull(releaseDate, durationText)
+                        if (metaValues.isNotEmpty()) {
+                            StreamVaultMetaStrip(values = metaValues)
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = movieTitle,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = VegaColors.TextPrimary,
-                    lineHeight = 28.sp
+                VodActionRow(
+                    hasResume = hasResume,
+                    resumeTimeStr = if (hasResume) formatDuration(watchProgress!!.positionMs) else null,
+                    isFavorite = isFavorite,
+                    trailerUrl = trailerUrl,
+                    playButtonFocusRequester = playButtonFocusRequester,
+                    onPlayResume = { viewModel.playVod(movie, resume = true) },
+                    onPlayStart = { viewModel.playVod(movie, resume = false) },
+                    onToggleFavorite = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
+                    onOpenTrailer = { openTrailer(context, trailerUrl) }
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Meta Bilgiler
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    val rating = info?.rating ?: movie.rating
-                    if (!rating.isNullOrEmpty()) {
-                        Surface(
-                            shape = VegaShapes.Small,
-                            color = VegaColors.Gold.copy(alpha = 0.18f),
-                            border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.4f))
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = VegaColors.Gold,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "IMDb $rating",
-                                    color = VegaColors.Gold,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-
-                    if (!durationText.isNullOrEmpty()) {
-                        Text(
-                            text = durationText,
-                            color = VegaColors.TextSecondary,
-                            fontSize = 13.sp
-                        )
-                    }
-
-                    val releaseYear = info?.releaseDate?.take(4)
-                    if (!releaseYear.isNullOrEmpty()) {
-                        Text(
-                            text = releaseYear,
-                            color = VegaColors.TextSecondary,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-
-                if (genreList.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        genreList.take(3).forEach { genre ->
-                            Surface(
-                                shape = VegaShapes.Pill,
-                                color = VegaColors.SurfaceVariant,
-                                border = BorderStroke(1.dp, VegaColors.Border)
-                            ) {
-                                Text(
-                                    text = genre,
-                                    color = VegaColors.TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // Dikey Aksiyon Butonları
-                val hasResume = watchProgress != null && watchProgress!!.positionMs > 10_000L
-                if (hasResume) {
-                    val resumeTimeStr = formatDuration(watchProgress!!.positionMs)
-                    Button(
-                        onClick = { viewModel.playVod(movie, resume = true) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = VegaColors.Accent,
-                            contentColor = VegaColors.OnAccent
-                        ),
-                        shape = VegaShapes.Medium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .focusRequester(playButtonFocusRequester)
-                            .dpadFocusable(
-                                focusedBorderColor = Color.White,
-                                shape = VegaShapes.Medium
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = VegaColors.OnAccent
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Kaldığın yerden devam et ($resumeTimeStr)",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedButton(
-                        onClick = { viewModel.playVod(movie, resume = false) },
-                        shape = VegaShapes.Medium,
-                        border = BorderStroke(1.dp, VegaColors.Border),
-                        colors = ButtonDefaults.outlinedButtonColors(containerColor = VegaColors.SurfaceVariant),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .dpadFocusable(
-                                focusedBorderColor = VegaColors.Accent,
-                                shape = VegaShapes.Medium
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Replay,
-                            contentDescription = null,
-                            tint = VegaColors.TextPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Baştan izle",
-                            color = VegaColors.TextPrimary,
-                            fontSize = 14.sp
-                        )
-                    }
-                } else {
-                    Button(
-                        onClick = { viewModel.playVod(movie, resume = false) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = VegaColors.Accent,
-                            contentColor = VegaColors.OnAccent
-                        ),
-                        shape = VegaShapes.Medium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .focusRequester(playButtonFocusRequester)
-                            .dpadFocusable(
-                                focusedBorderColor = Color.White,
-                                shape = VegaShapes.Medium
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = VegaColors.OnAccent
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Filmi izle",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
-                        shape = VegaShapes.Medium,
-                        border = BorderStroke(
-                            1.dp,
-                            if (isFavorite) VegaColors.Gold.copy(alpha = 0.5f) else VegaColors.Border
-                        ),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = if (isFavorite) VegaColors.Gold.copy(alpha = 0.12f) else VegaColors.SurfaceVariant
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .dpadFocusable(
-                                focusedBorderColor = VegaColors.Accent,
-                                shape = VegaShapes.Medium
-                            )
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Default.BookmarkAdded else Icons.Default.BookmarkBorder,
-                            contentDescription = null,
-                            tint = if (isFavorite) VegaColors.Gold else VegaColors.TextSecondary
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isFavorite) "Listede" else "Listeme ekle",
-                            color = if (isFavorite) VegaColors.Gold else VegaColors.TextPrimary,
-                            fontSize = 13.sp
-                        )
-                    }
-
-                    if (!trailerUrl.isNullOrBlank()) {
-                        OutlinedButton(
-                            onClick = { openTrailer(context, trailerUrl) },
-                            shape = VegaShapes.Medium,
-                            border = BorderStroke(1.dp, VegaColors.Border),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = VegaColors.SurfaceVariant),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .dpadFocusable(
-                                    focusedBorderColor = VegaColors.Accent,
-                                    shape = VegaShapes.Medium
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayCircleOutline,
-                                contentDescription = null,
-                                tint = VegaColors.TextSecondary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Fragman",
-                                color = VegaColors.TextPrimary,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(22.dp))
-
                 val plot = info?.plot ?: info?.description
-                if (!plot.isNullOrEmpty()) {
-                    Text(
-                        text = "Konu Özeti",
-                        color = VegaColors.TextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
+                if (!plot.isNullOrBlank()) {
+                    StreamVaultDetailHeading(title = "Özet")
                     Text(
                         text = plot,
                         color = VegaColors.TextSecondary,
                         fontSize = 14.sp,
-                        lineHeight = 21.sp
+                        lineHeight = 20.sp
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
-
-                info?.director?.takeIf { it.isNotBlank() }?.let { dir ->
-                    Text(
-                        text = "Yönetmen: $dir",
-                        color = VegaColors.TextSecondary,
-                        fontSize = 13.sp
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
                 }
 
                 if (castList.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Oyuncular",
-                        color = VegaColors.TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        contentPadding = PaddingValues(end = 16.dp)
-                    ) {
+                    StreamVaultDetailHeading(title = "Oyuncular")
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(castList.take(10)) { actor ->
                             Surface(
-                                shape = VegaShapes.Pill,
-                                color = VegaColors.SurfaceVariant,
+                                shape = VegaShapes.Medium,
+                                color = VegaColors.SurfaceElevated,
                                 border = BorderStroke(1.dp, VegaColors.Border)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = VegaColors.TextMuted,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text(
-                                        text = actor,
-                                        color = VegaColors.TextPrimary,
-                                        fontSize = 12.sp
-                                    )
-                                }
+                                Text(
+                                    text = actor,
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun VodActionRow(
+    hasResume: Boolean,
+    resumeTimeStr: String?,
+    isFavorite: Boolean,
+    trailerUrl: String?,
+    playButtonFocusRequester: FocusRequester,
+    onPlayResume: () -> Unit,
+    onPlayStart: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onOpenTrailer: () -> Unit
+) {
+    val actionShape = RoundedCornerShape(11.dp)
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (hasResume) {
+            item(key = "act_resume") {
+                Surface(
+                    shape = actionShape,
+                    color = VegaColors.Accent,
+                    modifier = Modifier
+                        .height(44.dp)
+                        .focusRequester(playButtonFocusRequester)
+                        .dpadFocusable(
+                            focusedBorderColor = Color.White,
+                            shape = actionShape,
+                            scale = 1.04f,
+                            onClick = onPlayResume
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(20.dp))
+                        Text(
+                            text = if (!resumeTimeStr.isNullOrBlank()) "Devam et ($resumeTimeStr)" else "Devam et",
+                            color = VegaColors.OnAccent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+            item(key = "act_restart") {
+                Surface(
+                    shape = actionShape,
+                    color = VegaColors.SurfaceAccent,
+                    border = BorderStroke(1.dp, VegaColors.Border),
+                    modifier = Modifier
+                        .height(44.dp)
+                        .dpadFocusable(
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            shape = actionShape,
+                            scale = 1.04f,
+                            onClick = onPlayStart
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Default.Replay, contentDescription = null, tint = VegaColors.TextPrimary, modifier = Modifier.size(18.dp))
+                        Text("Baştan izle", color = VegaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        } else {
+            item(key = "act_play") {
+                Surface(
+                    shape = actionShape,
+                    color = VegaColors.Accent,
+                    modifier = Modifier
+                        .height(44.dp)
+                        .focusRequester(playButtonFocusRequester)
+                        .dpadFocusable(
+                            focusedBorderColor = Color.White,
+                            shape = actionShape,
+                            scale = 1.04f,
+                            onClick = onPlayStart
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 22.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(20.dp))
+                        Text("Oynat", color = VegaColors.OnAccent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        if (!trailerUrl.isNullOrBlank()) {
+            item(key = "act_trailer") {
+                Surface(
+                    shape = actionShape,
+                    color = VegaColors.SurfaceAccent,
+                    border = BorderStroke(1.dp, VegaColors.Border),
+                    modifier = Modifier
+                        .height(44.dp)
+                        .dpadFocusable(
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            shape = actionShape,
+                            scale = 1.04f,
+                            onClick = onOpenTrailer
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("Fragman", color = VegaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        // StreamVault Yuvarlak Kalp / Favori Düğmesi (MovieInfo.png)
+        item(key = "act_fav") {
+            Surface(
+                shape = CircleShape,
+                color = if (isFavorite) VegaColors.Live.copy(alpha = 0.20f) else VegaColors.SurfaceAccent,
+                border = BorderStroke(1.dp, if (isFavorite) VegaColors.Live.copy(alpha = 0.55f) else VegaColors.Border),
+                modifier = Modifier
+                    .size(44.dp)
+                    .dpadFocusable(
+                        focusedBorderColor = VegaColors.FocusBorder,
+                        shape = CircleShape,
+                        scale = 1.06f,
+                        onClick = onToggleFavorite
+                    )
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
+                        tint = if (isFavorite) VegaColors.Live else VegaColors.TextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun StreamVaultDetailHeading(
+    title: String,
+    subtitle: String? = null
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(if (subtitle == null) 22.dp else 36.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(VegaColors.Accent)
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = title,
+                color = VegaColors.TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    color = VegaColors.TextSecondary,
+                    fontSize = 12.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun StreamVaultMetaStrip(values: List<String>) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        values.forEachIndexed { idx, value ->
+            Text(
+                text = value,
+                color = VegaColors.TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (idx < values.lastIndex) {
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(VegaColors.TextMuted)
+                )
             }
         }
     }
@@ -1123,14 +740,14 @@ private fun formatVodDuration(durationStr: String?, minutesStr: String?, duratio
     if (durationSecs != null && durationSecs > 0) {
         val h = durationSecs / 3600
         val m = (durationSecs % 3600) / 60
-        return if (h > 0) "${h} sa ${m} dk" else "${m} dk"
+        return if (h > 0) "$h sa $m dk" else "$m dk"
     }
     if (!minutesStr.isNullOrBlank()) {
         val mins = minutesStr.toIntOrNull()
         if (mins != null && mins > 0) {
             val h = mins / 60
             val m = mins % 60
-            return if (h > 0) "${h} sa ${m} dk" else "${m} dk"
+            return if (h > 0) "$h sa $m dk" else "$m dk"
         }
     }
     if (!durationStr.isNullOrBlank()) {
@@ -1138,8 +755,8 @@ private fun formatVodDuration(durationStr: String?, minutesStr: String?, duratio
         if (parts.size >= 2) {
             val h = parts[0].toIntOrNull() ?: 0
             val m = parts[1].toIntOrNull() ?: 0
-            if (h > 0) return "${h} sa ${m} dk"
-            if (m > 0) return "${m} dk"
+            if (h > 0) return "$h sa $m dk"
+            if (m > 0) return "$m dk"
         }
         return durationStr
     }
