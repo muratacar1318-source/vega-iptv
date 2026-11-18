@@ -30,7 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -106,13 +108,18 @@ fun TiviOverlayGuide(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable(onClick = onClose) // Boşluğa dokununca kapat
+                .background(VegaColors.Scrim)
+                .pointerInput(onClose) {
+                    detectTapGestures { onClose() }
+                } // Boşluğa dokununca kapat (D-pad odak tuzağı oluşturmaz)
         ) {
             Surface(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(520.dp)
-                    .clickable(enabled = false) {} // Tıklamayı arka plana geçirme
+                    .pointerInput(Unit) {
+                        detectTapGestures { /* Tıklamayı arka plana geçirme */ }
+                    }
                     .border(
                         1.dp,
                         VegaColors.Border,
@@ -147,10 +154,34 @@ fun TiviOverlayGuide(
                                 color = VegaColors.Accent,
                                 fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.sp
+                                letterSpacing = 0.5.sp
                             )
-                            IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Kapat", tint = VegaColors.TextSecondary)
+                            var closeFocused by remember { mutableStateOf(false) }
+                            Surface(
+                                shape = VegaShapes.Pill,
+                                color = if (closeFocused) VegaColors.Accent else VegaColors.OverlayPill,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (closeFocused) Color.White else VegaColors.Border
+                                ),
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .dpadFocusable(
+                                        shape = VegaShapes.Pill,
+                                        focusedBorderColor = Color.White,
+                                        scale = 1.05f,
+                                        onClick = onClose,
+                                        onFocusStateChange = { closeFocused = it }
+                                    )
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Kapat",
+                                        tint = if (closeFocused) VegaColors.OnAccent else VegaColors.TextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
 
@@ -327,8 +358,8 @@ private fun GuideCategoryItem(
                 else Color.Transparent
             )
             .border(
-                width = if (isFocused) 2.dp else if (isSelected) 1.dp else 0.dp,
-                color = if (isFocused) VegaColors.Accent else if (isSelected) VegaColors.Accent.copy(alpha = 0.6f) else Color.Transparent,
+                width = if (!isFocused && isSelected) 1.dp else 0.dp,
+                color = if (!isFocused && isSelected) VegaColors.Accent.copy(alpha = 0.6f) else Color.Transparent,
                 shape = VegaShapes.Small
             )
     ) {
@@ -393,8 +424,8 @@ private fun GuideChannelItem(
                 else Color.Transparent
             )
             .border(
-                width = if (isFocused) 2.dp else if (isPlaying) 1.dp else 0.5.dp,
-                color = if (isFocused) VegaColors.Accent else if (isPlaying) VegaColors.Accent.copy(alpha = 0.8f) else VegaColors.Border,
+                width = if (isFocused) 0.dp else if (isPlaying) 1.dp else 0.5.dp,
+                color = if (isFocused) Color.Transparent else if (isPlaying) VegaColors.Accent.copy(alpha = 0.8f) else VegaColors.Border,
                 shape = VegaShapes.Medium
             )
     ) {
@@ -444,7 +475,7 @@ private fun GuideChannelItem(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram.decodeBase64IfNeeded().ifBlank { "Yayın Akışı Mevcut Değil" }
+                val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram.decodeBase64IfNeeded().ifBlank { "Yayın akışı mevcut değil" }
                 Text(
                     text = programTitle,
                     color = if (isFocused || isPlaying) VegaColors.Accent.copy(alpha = 0.9f) else VegaColors.TextSecondary,
@@ -531,18 +562,19 @@ fun TiviBottomInfoCard(
         ) {
             Surface(
                 modifier = Modifier
-                    .then(if (!isPortrait) Modifier.widthIn(max = 760.dp) else Modifier.fillMaxWidth())
+                    .then(if (!isPortrait) Modifier.widthIn(max = 820.dp) else Modifier.fillMaxWidth())
                     .padding(
                         horizontal = if (isPortrait) 8.dp else 16.dp,
                         vertical = if (isPortrait) 4.dp else 8.dp
                     )
                     .then(cardDragModifier),
-                shape = VegaShapes.Large,
+                shape = RoundedCornerShape(18.dp),
                 color = VegaColors.OverlayPanel,
-                border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border)
+                border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
+                shadowElevation = 12.dp
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     // Sahte "Canlı Yayın" kaldırıldı; yoksa boş string
                     val currentTitle = epg?.getDecodedTitle() ?: channel.currentProgram.decodeBase64IfNeeded().trim()
@@ -651,44 +683,36 @@ fun TiviBottomInfoCard(
                                 Spacer(modifier = Modifier.width(2.dp))
                             }
 
-                            // Favori Butonu (40dp)
-                            IconButton(
-                                onClick = onToggleFavorite,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                    contentDescription = "Favorilere ekle veya çıkar",
-                                    tint = if (isFavorite) VegaColors.Gold else VegaColors.TextMuted,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            // Favori Butonu (Tek odak + tıklama)
+                            BottomInfoIconAction(
+                                icon = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = "Favorilere ekle veya çıkar",
+                                tint = if (isFavorite) VegaColors.Gold else VegaColors.TextMuted,
+                                onClick = onToggleFavorite
+                            )
 
-                            // Genişlet Oku (40dp)
-                            IconButton(
-                                onClick = { isExpanded = !isExpanded },
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                    contentDescription = if (isExpanded) "Detayları kapat" else "Detayları göster",
-                                    tint = VegaColors.TextSecondary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            // Genişlet Oku (Tek odak + tıklama)
+                            BottomInfoIconAction(
+                                icon = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                contentDescription = if (isExpanded) "Detayları kapat" else "Detayları göster",
+                                tint = VegaColors.TextSecondary,
+                                onClick = { isExpanded = !isExpanded }
+                            )
                         }
 
-                        // SADECE gerçek EPG varsa 2dp ince ilerleme çubuğu
+                        // SADECE gerçek EPG varsa 3dp StreamVault ilerleme çubuğu
                         if (progress != null) {
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             LinearProgressIndicator(
                                 progress = { progress },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(2.dp)
-                                    .clip(RoundedCornerShape(1.dp)),
+                                    .height(3.dp)
+                                    .clip(VegaShapes.Pill),
                                 color = VegaColors.Accent,
-                                trackColor = VegaColors.Border
+                                trackColor = VegaColors.SurfaceAccent
                             )
                         }
                     } else {
@@ -762,44 +786,36 @@ fun TiviBottomInfoCard(
                                 )
                             }
 
-                            // Favori Butonu (40dp)
-                            IconButton(
-                                onClick = onToggleFavorite,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                    contentDescription = "Favorilere ekle veya çıkar",
-                                    tint = if (isFavorite) VegaColors.Gold else VegaColors.TextMuted,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            // Favori Butonu (Tek odak + tıklama)
+                            BottomInfoIconAction(
+                                icon = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                contentDescription = "Favorilere ekle veya çıkar",
+                                tint = if (isFavorite) VegaColors.Gold else VegaColors.TextMuted,
+                                onClick = onToggleFavorite
+                            )
 
-                            // Genişlet Oku (40dp)
-                            IconButton(
-                                onClick = { isExpanded = !isExpanded },
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
-                                    contentDescription = if (isExpanded) "Detayları kapat" else "Detayları göster",
-                                    tint = VegaColors.TextSecondary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            // Genişlet Oku (Tek odak + tıklama)
+                            BottomInfoIconAction(
+                                icon = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                contentDescription = if (isExpanded) "Detayları kapat" else "Detayları göster",
+                                tint = VegaColors.TextSecondary,
+                                onClick = { isExpanded = !isExpanded }
+                            )
                         }
 
-                        // SADECE gerçek EPG varsa 2dp ince ilerleme çubuğu
+                        // SADECE gerçek EPG varsa 3dp StreamVault ilerleme çubuğu
                         if (progress != null) {
-                            Spacer(modifier = Modifier.height(3.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             LinearProgressIndicator(
                                 progress = { progress },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(2.dp)
-                                    .clip(RoundedCornerShape(1.dp)),
+                                    .height(3.dp)
+                                    .clip(VegaShapes.Pill),
                                 color = VegaColors.Accent,
-                                trackColor = VegaColors.Border
+                                trackColor = VegaColors.SurfaceAccent
                             )
                         }
 
@@ -930,6 +946,43 @@ fun TiviBottomInfoCard(
 }
 
 @Composable
+private fun BottomInfoIconAction(
+    icon: ImageVector,
+    contentDescription: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    Surface(
+        shape = VegaShapes.Pill,
+        color = if (isFocused) VegaColors.Accent else VegaColors.OverlayPill,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (isFocused) Color.White else VegaColors.Border
+        ),
+        modifier = Modifier
+            .size(40.dp)
+            .dpadFocusable(
+                shape = VegaShapes.Pill,
+                focusedBorderColor = Color.White,
+                scale = 1.05f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
+            )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = if (isFocused) VegaColors.OnAccent else tint,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
 fun TechBadge(text: String, isHighlight: Boolean = false) {
     Box(
         modifier = Modifier
@@ -989,14 +1042,14 @@ fun TiviRecentChannelsBar(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(Icons.Default.History, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(16.dp))
                         Text(
-                            text = "Son İzlenen Kanallar (${recentChannels.size})",
+                            text = "Son izlenen kanallar (${recentChannels.size})",
                             color = VegaColors.TextPrimary,
                             fontSize = VegaText.Body,
                             fontWeight = FontWeight.Bold
                         )
                     }
                     Text(
-                        text = "Geçiş yapmak için dokun",
+                        text = "Geçiş yapmak için seç",
                         color = VegaColors.TextMuted,
                         fontSize = VegaText.Caption
                     )
@@ -1010,15 +1063,31 @@ fun TiviRecentChannelsBar(
                 ) {
                     items(recentChannels, key = { it.streamId }) { ch ->
                         val isCurrent = ch.streamId == currentStreamId
+                        var isCardFocused by remember { mutableStateOf(false) }
                         Surface(
-                            onClick = { onChannelSelected(ch) },
                             shape = VegaShapes.Medium,
-                            color = if (isCurrent) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
+                            color = when {
+                                isCardFocused -> VegaColors.Accent
+                                isCurrent -> VegaColors.Accent.copy(alpha = 0.18f)
+                                else -> VegaColors.SurfaceVariant
+                            },
                             border = androidx.compose.foundation.BorderStroke(
                                 1.dp,
-                                if (isCurrent) VegaColors.Accent else VegaColors.Border
+                                when {
+                                    isCardFocused -> Color.White
+                                    isCurrent -> VegaColors.Accent
+                                    else -> VegaColors.Border
+                                }
                             ),
-                            modifier = Modifier.width(135.dp)
+                            modifier = Modifier
+                                .width(135.dp)
+                                .dpadFocusable(
+                                    shape = VegaShapes.Medium,
+                                    focusedBorderColor = Color.White,
+                                    scale = 1.04f,
+                                    onClick = { onChannelSelected(ch) },
+                                    onFocusStateChange = { isCardFocused = it }
+                                )
                         ) {
                             Column(
                                 modifier = Modifier.padding(8.dp),
@@ -1045,7 +1114,11 @@ fun TiviRecentChannelsBar(
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = ch.name,
-                                    color = if (isCurrent) VegaColors.Accent else VegaColors.TextPrimary,
+                                    color = when {
+                                        isCardFocused -> VegaColors.OnAccent
+                                        isCurrent -> VegaColors.Accent
+                                        else -> VegaColors.TextPrimary
+                                    },
                                     fontSize = VegaText.Caption,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
@@ -1055,8 +1128,8 @@ fun TiviRecentChannelsBar(
                                 if (ch.num > 0) {
                                     Text(
                                         text = "Kanal ${ch.num}",
-                                        color = VegaColors.TextSecondary,
-                                        fontSize = 9.5.sp
+                                        color = if (isCardFocused) VegaColors.OnAccent.copy(alpha = 0.8f) else VegaColors.TextSecondary,
+                                        fontSize = VegaText.Caption
                                     )
                                 }
                             }
@@ -1175,15 +1248,23 @@ fun NumericKeypadDialog(
     onEnterClicked: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val firstDigitFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        repeat(4) {
+            delay(60)
+            if (runCatching { firstDigitFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+        }
+    }
+
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = VegaShapes.Large,
-            color = VegaColors.Surface,
+            color = VegaColors.OverlayPanel,
             border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
-            modifier = Modifier.width(260.dp)
+            modifier = Modifier.width(268.dp)
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -1207,7 +1288,10 @@ fun NumericKeypadDialog(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         row.forEach { d ->
-                            KeypadButton(text = "$d") { onDigitClicked(d) }
+                            KeypadButton(
+                                text = "$d",
+                                modifier = if (d == 1) Modifier.focusRequester(firstDigitFocus) else Modifier
+                            ) { onDigitClicked(d) }
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1217,9 +1301,17 @@ fun NumericKeypadDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    KeypadButton(text = "✕", color = VegaColors.Danger) { onDismiss() }
+                    KeypadButton(
+                        icon = Icons.Default.Close,
+                        contentDescription = "Kapat",
+                        color = VegaColors.Danger
+                    ) { onDismiss() }
                     KeypadButton(text = "0") { onDigitClicked(0) }
-                    KeypadButton(text = "✓", color = VegaColors.Accent) { onEnterClicked(); onDismiss() }
+                    KeypadButton(
+                        icon = Icons.Default.Check,
+                        contentDescription = "Onayla",
+                        color = VegaColors.Accent
+                    ) { onEnterClicked(); onDismiss() }
                 }
             }
         }
@@ -1228,24 +1320,45 @@ fun NumericKeypadDialog(
 
 @Composable
 private fun KeypadButton(
-    text: String,
+    text: String = "",
+    icon: ImageVector? = null,
+    contentDescription: String? = null,
     color: Color = Color.White,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     Surface(
-        onClick = onClick,
         shape = VegaShapes.Medium,
-        color = VegaColors.SurfaceVariant,
-        border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier.size(56.dp)
+        color = if (isFocused) VegaColors.Accent else VegaColors.SurfaceVariant,
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isFocused) Color.White else VegaColors.Border),
+        modifier = modifier
+            .size(56.dp)
+            .dpadFocusable(
+                shape = VegaShapes.Medium,
+                focusedBorderColor = Color.White,
+                scale = 1.05f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
+            )
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = text,
-                color = color,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    tint = if (isFocused) VegaColors.OnAccent else color,
+                    modifier = Modifier.size(22.dp)
+                )
+            } else {
+                Text(
+                    text = text,
+                    color = if (isFocused) VegaColors.OnAccent else color,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
@@ -1317,25 +1430,19 @@ fun TiviPlayerHUD(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (selectedTab == 0) "Kontrol merkezi" else "Yayın teşhisi (HUD)",
+                            text = if (selectedTab == 0) "Kontrol merkezi" else "Yayın bilgisi",
                             color = VegaColors.TextPrimary,
                             fontSize = VegaText.Body,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 0.8.sp
+                            fontWeight = FontWeight.ExtraBold
                         )
                     }
 
-                    IconButton(
-                        onClick = onClose,
-                        modifier = Modifier.size(26.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
-                            tint = VegaColors.TextSecondary,
-                            modifier = Modifier.size(17.dp)
-                        )
-                    }
+                    BottomInfoIconAction(
+                        icon = Icons.Default.Close,
+                        contentDescription = "Kapat",
+                        tint = VegaColors.TextSecondary,
+                        onClick = onClose
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -1350,56 +1457,84 @@ fun TiviPlayerHUD(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     // Tab 1: Ses ve Ekran
+                    var tab0Focused by remember { mutableStateOf(false) }
                     Surface(
-                        onClick = { selectedTab = 0 },
                         shape = VegaShapes.Small,
-                        color = if (selectedTab == 0) VegaColors.Accent.copy(alpha = 0.22f) else Color.Transparent,
-                        border = if (selectedTab == 0) androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.6f)) else null,
+                        color = when {
+                            tab0Focused -> VegaColors.Accent
+                            selectedTab == 0 -> VegaColors.Accent.copy(alpha = 0.22f)
+                            else -> Color.Transparent
+                        },
+                        border = if (selectedTab == 0 || tab0Focused) androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (tab0Focused) Color.White else VegaColors.Accent.copy(alpha = 0.6f)
+                        ) else null,
                         modifier = Modifier
                             .weight(1f)
-                            .height(30.dp)
+                            .height(34.dp)
+                            .dpadFocusable(
+                                shape = VegaShapes.Small,
+                                focusedBorderColor = Color.White,
+                                scale = 1.02f,
+                                onClick = { selectedTab = 0 },
+                                onFocusStateChange = { tab0Focused = it }
+                            )
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Icon(
                                     imageVector = Icons.Default.Tune,
                                     contentDescription = null,
-                                    tint = if (selectedTab == 0) VegaColors.Accent else VegaColors.TextSecondary,
+                                    tint = if (tab0Focused) VegaColors.OnAccent else if (selectedTab == 0) VegaColors.Accent else VegaColors.TextSecondary,
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Text(
                                     text = "Ses ve ekran",
-                                    color = if (selectedTab == 0) VegaColors.Accent else VegaColors.TextSecondary,
+                                    color = if (tab0Focused) VegaColors.OnAccent else if (selectedTab == 0) VegaColors.Accent else VegaColors.TextSecondary,
                                     fontSize = VegaText.Caption,
-                                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (selectedTab == 0 || tab0Focused) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
                         }
                     }
 
-                    // Tab 2: Yayın Teşhis
+                    // Tab 2: Yayın bilgisi
+                    var tab1Focused by remember { mutableStateOf(false) }
                     Surface(
-                        onClick = { selectedTab = 1 },
                         shape = VegaShapes.Small,
-                        color = if (selectedTab == 1) VegaColors.Accent.copy(alpha = 0.22f) else Color.Transparent,
-                        border = if (selectedTab == 1) androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.6f)) else null,
+                        color = when {
+                            tab1Focused -> VegaColors.Accent
+                            selectedTab == 1 -> VegaColors.Accent.copy(alpha = 0.22f)
+                            else -> Color.Transparent
+                        },
+                        border = if (selectedTab == 1 || tab1Focused) androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            if (tab1Focused) Color.White else VegaColors.Accent.copy(alpha = 0.6f)
+                        ) else null,
                         modifier = Modifier
                             .weight(1f)
-                            .height(30.dp)
+                            .height(34.dp)
+                            .dpadFocusable(
+                                shape = VegaShapes.Small,
+                                focusedBorderColor = Color.White,
+                                scale = 1.02f,
+                                onClick = { selectedTab = 1 },
+                                onFocusStateChange = { tab1Focused = it }
+                            )
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Icon(
                                     imageVector = Icons.Default.Info,
                                     contentDescription = null,
-                                    tint = if (selectedTab == 1) VegaColors.Accent else VegaColors.TextSecondary,
+                                    tint = if (tab1Focused) VegaColors.OnAccent else if (selectedTab == 1) VegaColors.Accent else VegaColors.TextSecondary,
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Text(
-                                    text = "Yayın teşhis",
-                                    color = if (selectedTab == 1) VegaColors.Accent else VegaColors.TextSecondary,
+                                    text = "Yayın bilgisi",
+                                    color = if (tab1Focused) VegaColors.OnAccent else if (selectedTab == 1) VegaColors.Accent else VegaColors.TextSecondary,
                                     fontSize = VegaText.Caption,
-                                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (selectedTab == 1 || tab1Focused) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
                         }
@@ -1601,34 +1736,48 @@ fun TiviPlayerHUD(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         listOf(
-                            AspectRatioMode.FIT to "FIT",
+                            AspectRatioMode.FIT to "Orijinal",
                             AspectRatioMode.FILL to "Doldur",
-                            AspectRatioMode.ZOOM to "Zoom",
+                            AspectRatioMode.ZOOM to "Yakınlaştır",
                             AspectRatioMode.RATIO_16_9 to "16:9"
                         ).forEach { (mode, label) ->
                             val isCurrent = aspectRatio == mode
+                            var isModeFocused by remember { mutableStateOf(false) }
                             Surface(
-                                onClick = { onAspectRatioChange(mode) },
                                 shape = VegaShapes.Small,
-                                color = if (isCurrent) VegaColors.Accent.copy(alpha = 0.25f) else VegaColors.SurfaceVariant,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (isCurrent) VegaColors.Accent else VegaColors.Border),
+                                color = when {
+                                    isModeFocused -> VegaColors.Accent
+                                    isCurrent -> VegaColors.Accent.copy(alpha = 0.22f)
+                                    else -> VegaColors.SurfaceVariant
+                                },
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isModeFocused) Color.White else if (isCurrent) VegaColors.Accent else VegaColors.Border
+                                ),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(28.dp)
+                                    .height(32.dp)
+                                    .dpadFocusable(
+                                        shape = VegaShapes.Small,
+                                        focusedBorderColor = Color.White,
+                                        scale = 1.03f,
+                                        onClick = { onAspectRatioChange(mode) },
+                                        onFocusStateChange = { isModeFocused = it }
+                                    )
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
                                         text = label,
-                                        color = if (isCurrent) VegaColors.Accent else VegaColors.TextSecondary,
-                                        fontSize = 10.5.sp,
-                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium
+                                        color = if (isModeFocused) VegaColors.OnAccent else if (isCurrent) VegaColors.Accent else VegaColors.TextSecondary,
+                                        fontSize = VegaText.Caption,
+                                        fontWeight = if (isCurrent || isModeFocused) FontWeight.Bold else FontWeight.Medium
                                     )
                                 }
                             }
                         }
                     }
                 } else {
-                    // TAB 1: YAYIN TEŞHİS & AKIŞ DETAYLARI
+                    // TAB 1: YAYIN BİLGİSİ & AKIŞ DETAYLARI
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         // 2x3 Grid Teknik Metrik Kartları
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1650,14 +1799,14 @@ fun TiviPlayerHUD(
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             DiagnosticMetricCard(
-                                title = "Video kodek",
+                                title = "Video biçimi",
                                 value = diagnostics.videoCodec,
                                 badge = diagnostics.videoCodecBadge,
                                 badgeColor = VegaColors.Accent,
                                 modifier = Modifier.weight(1f)
                             )
                             DiagnosticMetricCard(
-                                title = "Ses formatı",
+                                title = "Ses biçimi",
                                 value = diagnostics.audioCodec,
                                 badge = diagnostics.audioCodecBadge,
                                 badgeColor = VegaColors.Accent,
@@ -1667,16 +1816,16 @@ fun TiviPlayerHUD(
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             DiagnosticMetricCard(
-                                title = "Anlık bitrate",
+                                title = "Veri hızı",
                                 value = diagnostics.bitrate,
-                                badge = "AĞ",
+                                badge = "Ağ",
                                 badgeColor = VegaColors.Gold,
                                 modifier = Modifier.weight(1f)
                             )
                             DiagnosticMetricCard(
-                                title = "Tampon sağlığı",
+                                title = "Önbellek durumu",
                                 value = diagnostics.bufferHealthSecs,
-                                badge = "CANLI",
+                                badge = "Canlı",
                                 badgeColor = VegaColors.Accent,
                                 modifier = Modifier.weight(1f)
                             )
@@ -1684,7 +1833,7 @@ fun TiviPlayerHUD(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Canlı Tampon Doluluk Göstergesi
+                        // Canlı Önbellek Doluluk Göstergesi
                         val bufferSecs = diagnostics.bufferHealthSecs.replace("s", "").trim().toFloatOrNull() ?: 3f
                         val bufferProgress = (bufferSecs / 10f).coerceIn(0.05f, 1f)
                         Column(
@@ -1699,9 +1848,9 @@ fun TiviPlayerHUD(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Tampon doluluk oranı", color = VegaColors.TextSecondary, fontSize = 10.5.sp)
-                                val bufferText = if (diagnostics.bufferHealthSecs.isNotBlank()) "${diagnostics.bufferHealthSecs} / 10s" else "—"
-                                Text(bufferText, color = VegaColors.Accent, fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                                Text("Önbellek doluluk oranı", color = VegaColors.TextSecondary, fontSize = VegaText.Caption)
+                                val bufferText = if (diagnostics.bufferHealthSecs.isNotBlank()) "${diagnostics.bufferHealthSecs} / 10 sn" else "—"
+                                Text(bufferText, color = VegaColors.Accent, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             LinearProgressIndicator(
@@ -1790,8 +1939,8 @@ fun PlayerPillButton(
 
     val scale by animateFloatAsState(
         targetValue = when {
-            isPressed -> 0.91f
-            isFocused -> 1.08f
+            isPressed -> 0.92f
+            isFocused -> 1.04f
             else -> 1.0f
         },
         animationSpec = spring(
@@ -1890,19 +2039,19 @@ fun BouncyIconButton(
     val scale by animateFloatAsState(
         targetValue = when {
             isPressed -> pressedScale
-            isFocused -> 1.12f
+            isFocused -> 1.06f
             else -> 1f
         },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            stiffness = Spring.StiffnessMedium
         ),
         label = "BouncyIconScale"
     )
 
     val bgAnimated by animateColorAsState(
         targetValue = when {
-            isFocused -> VegaColors.Accent.copy(alpha = 0.45f)
+            isFocused -> VegaColors.Accent
             isPressed -> backgroundColor.copy(alpha = (backgroundColor.alpha + 0.25f).coerceAtMost(1f))
             else -> backgroundColor
         },
@@ -1921,7 +2070,7 @@ fun BouncyIconButton(
             .clip(shape)
             .background(bgAnimated)
             .then(
-                if (isFocused) Modifier.border(2.dp, VegaColors.Accent, shape)
+                if (isFocused) Modifier.border(2.dp, Color.White, shape)
                 else if (border != null) Modifier.border(border, shape)
                 else Modifier
             )
@@ -1937,7 +2086,7 @@ fun BouncyIconButton(
             ),
         contentAlignment = Alignment.Center
     ) {
-        CompositionLocalProvider(LocalContentColor provides if (isFocused) VegaColors.Accent else contentColor) {
+        CompositionLocalProvider(LocalContentColor provides if (isFocused) VegaColors.OnAccent else contentColor) {
             content()
         }
     }

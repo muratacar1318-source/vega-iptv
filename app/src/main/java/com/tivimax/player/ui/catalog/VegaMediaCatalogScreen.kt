@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+
 package com.tivimax.player.ui.catalog
 
 import androidx.activity.compose.BackHandler
@@ -11,38 +13,35 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuOpen
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.SeriesStream
+import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.data.preferences.UserPreferences
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.*
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.main.StreamVaultSectionHeader
-
-private val NeonCyan = VegaColors.Accent
-private val GlassBorder = VegaColors.Border
-private val GlassSurface = VegaColors.Card
-private val GlassSurfaceLight = VegaColors.SurfaceVariant
+import kotlinx.coroutines.delay
 
 @Composable
 fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
@@ -97,8 +96,15 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
     val hasActiveCategory = selectedCategory != "all" && selectedCategory.isNotEmpty()
     val hasSearch = searchQuery.isNotBlank()
 
+    var useShelfMode by remember { mutableStateOf(true) }
+    val favoriteSeriesIds by viewModel.favoriteSeriesIds.collectAsState()
+    val hasAdultSeries by viewModel.hasAdultSeriesCategory.collectAsState()
+    var shelfSortMenuOpen by remember { mutableStateOf(false) }
+
+    // TV'de "Tümünü gör" ile açılan kategoriden Geri tuşuyla doğrudan raflara dön
     BackHandler(
-        enabled = !isTvDevice && (showCategorySheet || hasSearch || hasActiveCategory)
+        enabled = (isTvDevice && useShelfMode && hasActiveCategory) ||
+            (!isTvDevice && (showCategorySheet || hasSearch || hasActiveCategory))
     ) {
         when {
             showCategorySheet -> showCategorySheet = false
@@ -118,11 +124,8 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
         )
     }
 
-    var useShelfMode by remember { mutableStateOf(true) }
-    val favoriteSeriesIds by viewModel.favoriteSeriesIds.collectAsState()
-
     if (isWideScreen && useShelfMode && !hasActiveCategory && !hasSearch && !isLoading && seriesList.isNotEmpty()) {
-        // STREAMVAULT MODERN DİZİ RAFLARI GÖRÜNÜMÜ
+        // STREAMVAULT MODERN DİZİ RAFLARI GÖRÜNÜMÜ (Movies.png ile birebir görsel dil)
         val seriesByCat = remember(seriesList) { seriesList.groupBy { it.categoryId } }
         val topSeries = remember(seriesList) {
             seriesList
@@ -135,56 +138,151 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                 if (!list.isNullOrEmpty()) cat to list else null
             }.take(20)
         }
+        val shelfPosterWidth = if (isTvDevice) 160.dp else 148.dp
+        val topPosterWidth = if (isTvDevice) 160.dp else 152.dp
 
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = 6.dp, bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = if (isTvDevice) 20.dp else 16.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 36.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isTvDevice) 24.dp else 20.dp)
         ) {
+            // Üst Kontrol Şeridi (Arama, Sıralama, Görünüm Değiştirme, Yetişkin Kilidi)
             item(key = "series_shelf_controls") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Diziler ($totalSeriesCount)",
-                        color = VegaColors.TextPrimary,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Surface(
-                        shape = VegaShapes.Pill,
-                        color = VegaColors.SurfaceElevated,
-                        border = BorderStroke(1.dp, VegaColors.Border),
-                        modifier = Modifier.dpadFocusable(
-                            shape = VegaShapes.Pill,
-                            focusedBorderColor = VegaColors.FocusBorder,
-                            onClick = { useShelfMode = false }
-                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        Text(
+                            text = "Diziler",
+                            color = VegaColors.TextPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = VegaColors.SurfaceVariant,
+                            border = BorderStroke(1.dp, VegaColors.Border)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.MenuOpen, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(14.dp))
-                            Text("Klasik liste", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = "$totalSeriesCount dizi",
+                                color = VegaColors.TextSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ParentalLockChip(viewModel, hasAdultSeries)
+
+                        // Arama Hapı
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = VegaColors.SurfaceElevated,
+                            border = BorderStroke(1.dp, VegaColors.Border),
+                            modifier = Modifier.dpadFocusable(
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                scale = 1.04f,
+                                onClick = { viewModel.navigateTo(Screen.Search) }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(Icons.Default.Search, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
+                                Text("Ara", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+
+                        // Sıralama Seçici
+                        Box {
+                            val sortLabel = when (currentSort) {
+                                SortOption.ADDED_DESC -> "Eklenme"
+                                SortOption.RATING_DESC -> "Puan"
+                                SortOption.NAME_ASC -> "A - Z"
+                                SortOption.NAME_DESC -> "Z - A"
+                                SortOption.DEFAULT -> "Sırala"
+                            }
+                            Surface(
+                                shape = VegaShapes.Pill,
+                                color = if (currentSort != SortOption.DEFAULT) VegaColors.Accent.copy(alpha = 0.16f) else VegaColors.SurfaceElevated,
+                                border = BorderStroke(1.dp, if (currentSort != SortOption.DEFAULT) VegaColors.Accent.copy(alpha = 0.4f) else VegaColors.Border),
+                                modifier = Modifier.dpadFocusable(
+                                    shape = VegaShapes.Pill,
+                                    focusedBorderColor = VegaColors.FocusBorder,
+                                    scale = 1.04f,
+                                    onClick = { shelfSortMenuOpen = true }
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
+                                    Text(sortLabel, color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            SeriesSortDropdownMenu(
+                                expanded = shelfSortMenuOpen,
+                                currentSort = currentSort,
+                                onSelect = {
+                                    viewModel.setSeriesSort(it)
+                                    shelfSortMenuOpen = false
+                                },
+                                onDismiss = { shelfSortMenuOpen = false }
+                            )
+                        }
+
+                        // Klasik Liste Görünümü
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = VegaColors.SurfaceElevated,
+                            border = BorderStroke(1.dp, VegaColors.Border),
+                            modifier = Modifier.dpadFocusable(
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                scale = 1.04f,
+                                onClick = { useShelfMode = false }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.MenuOpen, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
+                                Text("Klasik liste", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 }
             }
 
+            // Üst Vitrin Rafı (Büyük 160.dp posterler)
             if (topSeries.isNotEmpty()) {
                 item(key = "series_shelf_top") {
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth().focusRestorer()
                     ) {
                         items(topSeries, key = { "top_ser_${it.seriesId}" }) { series ->
-                            Box(modifier = Modifier.width(152.dp)) {
+                            Box(modifier = Modifier.width(topPosterWidth)) {
                                 MediaPosterCard(
                                     imageUrl = series.cover,
                                     title = series.name,
@@ -199,18 +297,22 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                 }
             }
 
+            // Kategori Rafları (Öğe sayısı + "Tümünü gör" mavi hapı)
             items(shelfCategories, key = { "ser_shelf_${it.first.id}" }) { (cat, catSeries) ->
+                val catTotalCount = cat.count.takeIf { it > 0 } ?: seriesByCat[cat.id]?.size
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     StreamVaultSectionHeader(
                         title = cat.name,
+                        count = catTotalCount,
                         onSeeAllClick = { viewModel.loadSeriesStreams(cat.id) }
                     )
                     LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(vertical = 4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth().focusRestorer()
                     ) {
                         items(catSeries, key = { "shelf_${cat.id}_${it.seriesId}" }) { series ->
-                            Box(modifier = Modifier.width(148.dp)) {
+                            Box(modifier = Modifier.width(shelfPosterWidth)) {
                                 MediaPosterCard(
                                     imageUrl = series.cover,
                                     title = series.name,
@@ -226,28 +328,39 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
             }
         }
     } else if (isWideScreen || portraitNavStyle == UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) {
-        // İki bölmeli Klasik Düzen (Yatay ekran veya kullanıcının seçtiği sol panel modu)
+        val backToShelvesFocusRequester = remember { FocusRequester() }
+        LaunchedEffect(selectedCategory, useShelfMode) {
+            if (isTvDevice && isWideScreen && hasActiveCategory && useShelfMode && viewModel.catalogPositions.lastOpenedItemKey == null) {
+                repeat(3) {
+                    withFrameNanos { }
+                    delay(70)
+                    if (runCatching { backToShelvesFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                }
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            CategorySidebar(
-                categories = uiCategories,
-                selectedCategoryId = selectedCategory,
-                onCategorySelected = { viewModel.loadSeriesStreams(it) },
-                title = "Kategoriler",
-                totalCount = totalSeriesCount,
-                allLabel = "Tüm Diziler",
-                tvFocusBehavior = com.tivimax.player.util.LocalIsTvDevice.current, // G-045
-                footer = if (isTvDevice) {
-                    {
-                        val hasAdultSeries by viewModel.hasAdultSeriesCategory.collectAsState()
-                        com.tivimax.player.ui.components.ParentalLockRow(viewModel, hasAdultSeries)
-                    }
-                } else null
-            )
+            if (!isWideScreen || !useShelfMode) {
+                CategorySidebar(
+                    categories = uiCategories,
+                    selectedCategoryId = selectedCategory,
+                    onCategorySelected = { viewModel.loadSeriesStreams(it) },
+                    title = "Kategoriler",
+                    totalCount = totalSeriesCount,
+                    allLabel = "Tüm Diziler",
+                    tvFocusBehavior = isTvDevice, // G-045
+                    footer = if (isTvDevice) {
+                        {
+                            ParentalLockRow(viewModel, hasAdultSeries)
+                        }
+                    } else null
+                )
+            }
 
             Column(
                 modifier = Modifier
@@ -258,38 +371,69 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = selectedCategoryName,
-                            color = VegaColors.TextPrimary,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Surface(
-                            shape = VegaShapes.Pill,
-                            color = VegaColors.Accent.copy(alpha = 0.14f),
-                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.30f)),
-                            modifier = Modifier.dpadFocusable(
-                                shape = VegaShapes.Pill,
-                                focusedBorderColor = VegaColors.FocusBorder,
-                                onClick = {
-                                    useShelfMode = true
-                                    if (hasActiveCategory) viewModel.loadSeriesStreams("all")
-                                }
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            Surface(
+                                shape = VegaShapes.Pill,
+                                color = VegaColors.Accent.copy(alpha = 0.16f),
+                                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f)),
+                                modifier = Modifier
+                                    .focusRequester(backToShelvesFocusRequester)
+                                    .dpadFocusable(
+                                        shape = VegaShapes.Pill,
+                                        focusedBorderColor = VegaColors.FocusBorder,
+                                        scale = 1.04f,
+                                        onClick = {
+                                            useShelfMode = true
+                                            if (hasActiveCategory) viewModel.loadSeriesStreams("all")
+                                        }
+                                    )
                             ) {
-                                Icon(Icons.Default.ViewCarousel, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(14.dp))
-                                Text("Raf görünümü", color = VegaColors.Accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
+                                    Text("Raflara dön", color = VegaColors.Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            Text(
+                                text = selectedCategoryName,
+                                color = VegaColors.TextPrimary,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        if (useShelfMode) {
+                            Surface(
+                                shape = VegaShapes.Pill,
+                                color = VegaColors.SurfaceElevated,
+                                border = BorderStroke(1.dp, VegaColors.Border),
+                                modifier = Modifier.dpadFocusable(
+                                    shape = VegaShapes.Pill,
+                                    focusedBorderColor = VegaColors.FocusBorder,
+                                    scale = 1.04f,
+                                    onClick = { useShelfMode = false }
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.MenuOpen, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(14.dp))
+                                    Text("Kategoriler", color = VegaColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                }
                             }
                         }
                     }
@@ -298,19 +442,19 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                     VegaMediaContentGrid(
                         isLoading = isLoading,
                         seriesList = seriesList,
+                        favoriteSeriesIds = favoriteSeriesIds,
                         currentSort = currentSort,
                         onSortSelected = { sort -> viewModel.setSeriesSort(sort) },
                         onSeriesClick = { series -> viewModel.loadSeriesDetail(series) },
                         portraitNavStyle = portraitNavStyle,
                         onPortraitNavStyleChange = { viewModel.setPortraitCategoryNavStyle(it) },
                         isWideScreen = isWideScreen,
-                        isSidebarActive = true,
+                        isSidebarActive = !isWideScreen || !useShelfMode,
                         selectedCategory = selectedCategory,
                         positionStore = viewModel.catalogPositions,
                         lockChip = {
                             if (!isTvDevice) {
-                                val hasAdultSeries by viewModel.hasAdultSeriesCategory.collectAsState()
-                                com.tivimax.player.ui.components.ParentalLockChip(viewModel, hasAdultSeries)
+                                ParentalLockChip(viewModel, hasAdultSeries)
                             }
                         }
                     )
@@ -350,6 +494,7 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                 VegaMediaContentGrid(
                     isLoading = isLoading,
                     seriesList = seriesList,
+                    favoriteSeriesIds = favoriteSeriesIds,
                     currentSort = currentSort,
                     onSortSelected = { sort -> viewModel.setSeriesSort(sort) },
                     onSeriesClick = { series -> viewModel.loadSeriesDetail(series) },
@@ -361,8 +506,7 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
                     positionStore = viewModel.catalogPositions,
                     lockChip = {
                         if (!isTvDevice) {
-                            val hasAdultSeries by viewModel.hasAdultSeriesCategory.collectAsState()
-                            com.tivimax.player.ui.components.ParentalLockChip(viewModel, hasAdultSeries)
+                            ParentalLockChip(viewModel, hasAdultSeries)
                         }
                     }
                 )
@@ -372,11 +516,52 @@ fun VegaMediaCatalogScreen(viewModel: MainViewModel) {
 }
 
 @Composable
+private fun SeriesSortDropdownMenu(
+    expanded: Boolean,
+    currentSort: SortOption,
+    onSelect: (SortOption) -> Unit,
+    onDismiss: () -> Unit
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = Modifier.background(VegaColors.Surface)
+    ) {
+        DropdownMenuItem(
+            text = { Text("Eklenme tarihi (yeni)", color = if (currentSort == SortOption.ADDED_DESC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+            leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(16.dp)) },
+            onClick = { onSelect(SortOption.ADDED_DESC) }
+        )
+        DropdownMenuItem(
+            text = { Text("Puan sıralaması (en yüksek)", color = if (currentSort == SortOption.RATING_DESC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+            leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(16.dp)) },
+            onClick = { onSelect(SortOption.RATING_DESC) }
+        )
+        DropdownMenuItem(
+            text = { Text("A - Z (isme göre)", color = if (currentSort == SortOption.NAME_ASC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+            leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(16.dp)) },
+            onClick = { onSelect(SortOption.NAME_ASC) }
+        )
+        DropdownMenuItem(
+            text = { Text("Z - A (isme göre ters)", color = if (currentSort == SortOption.NAME_DESC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+            leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(16.dp)) },
+            onClick = { onSelect(SortOption.NAME_DESC) }
+        )
+        DropdownMenuItem(
+            text = { Text("Varsayılan sıra", color = if (currentSort == SortOption.DEFAULT) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
+            leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(16.dp)) },
+            onClick = { onSelect(SortOption.DEFAULT) }
+        )
+    }
+}
+
+@Composable
 private fun VegaMediaContentGrid(
     isLoading: Boolean,
     seriesList: List<SeriesStream>,
-    currentSort: com.tivimax.player.data.model.SortOption,
-    onSortSelected: (com.tivimax.player.data.model.SortOption) -> Unit,
+    favoriteSeriesIds: Set<String>,
+    currentSort: SortOption,
+    onSortSelected: (SortOption) -> Unit,
     onSeriesClick: (SeriesStream) -> Unit,
     portraitNavStyle: String,
     onPortraitNavStyleChange: (String) -> Unit,
@@ -408,7 +593,7 @@ private fun VegaMediaContentGrid(
     // G-034: TV'de dönüşte son açılan afişe odak ver (G-033/G-042/G-045 odak koduna dokunmadan)
     val isTvForRestore = LocalIsTvDevice.current
     val restoreFocusKey = remember(positionKey) { if (isTvForRestore) positionStore.lastOpenedItemKey else null }
-    val restoreFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    val restoreFocusRequester = remember { FocusRequester() }
     LaunchedEffect(restoreFocusKey, pagedSeries.isEmpty()) {
         val targetKey = restoreFocusKey ?: return@LaunchedEffect
         if (pagedSeries.isEmpty()) return@LaunchedEffect
@@ -433,14 +618,14 @@ private fun VegaMediaContentGrid(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${seriesList.size} Dizi",
-                color = TiviTextSecondary,
-                fontSize = 12.sp,
+                text = "${seriesList.size} dizi",
+                color = VegaColors.TextSecondary,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
 
@@ -458,97 +643,59 @@ private fun VegaMediaContentGrid(
 
                 Box {
                     val sortLabel = when (currentSort) {
-                        com.tivimax.player.data.model.SortOption.ADDED_DESC -> "Eklenme"
-                        com.tivimax.player.data.model.SortOption.RATING_DESC -> "Puan"
-                        com.tivimax.player.data.model.SortOption.NAME_ASC -> "A - Z"
-                        com.tivimax.player.data.model.SortOption.NAME_DESC -> "Z - A"
-                        com.tivimax.player.data.model.SortOption.DEFAULT -> "Sırala"
+                        SortOption.ADDED_DESC -> "Eklenme"
+                        SortOption.RATING_DESC -> "Puan"
+                        SortOption.NAME_ASC -> "A - Z"
+                        SortOption.NAME_DESC -> "Z - A"
+                        SortOption.DEFAULT -> "Sırala"
                     }
 
                     ActionChipButton(
                         text = sortLabel,
-                        icon = Icons.Default.FilterList,
+                        icon = Icons.AutoMirrored.Filled.Sort,
                         onClick = { isSortMenuOpen = true }
                     )
 
-                DropdownMenu(
-                    expanded = isSortMenuOpen,
-                    onDismissRequest = { isSortMenuOpen = false },
-                    modifier = Modifier.background(com.tivimax.player.theme.TiviSurface)
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Eklenme Tarihi (Yeni)", color = if (currentSort == com.tivimax.player.data.model.SortOption.ADDED_DESC) NeonCyan else Color.White, fontSize = 12.sp) },
-                        leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp)) },
-                        onClick = {
-                            onSortSelected(com.tivimax.player.data.model.SortOption.ADDED_DESC)
+                    SeriesSortDropdownMenu(
+                        expanded = isSortMenuOpen,
+                        currentSort = currentSort,
+                        onSelect = {
+                            onSortSelected(it)
                             isSortMenuOpen = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Puan Sıralaması (En Yüksek)", color = if (currentSort == com.tivimax.player.data.model.SortOption.RATING_DESC) NeonCyan else Color.White, fontSize = 12.sp) },
-                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(16.dp)) },
-                        onClick = {
-                            onSortSelected(com.tivimax.player.data.model.SortOption.RATING_DESC)
-                            isSortMenuOpen = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("A - Z (İsme Göre)", color = if (currentSort == com.tivimax.player.data.model.SortOption.NAME_ASC) NeonCyan else Color.White, fontSize = 12.sp) },
-                        leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp)) },
-                        onClick = {
-                            onSortSelected(com.tivimax.player.data.model.SortOption.NAME_ASC)
-                            isSortMenuOpen = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Z - A (İsme Göre Ters)", color = if (currentSort == com.tivimax.player.data.model.SortOption.NAME_DESC) NeonCyan else Color.White, fontSize = 12.sp) },
-                        leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp)) },
-                        onClick = {
-                            onSortSelected(com.tivimax.player.data.model.SortOption.NAME_DESC)
-                            isSortMenuOpen = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Varsayılan Sıra", color = if (currentSort == com.tivimax.player.data.model.SortOption.DEFAULT) NeonCyan else Color.White, fontSize = 12.sp) },
-                        leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp)) },
-                        onClick = {
-                            onSortSelected(com.tivimax.player.data.model.SortOption.DEFAULT)
-                            isSortMenuOpen = false
-                        }
+                        },
+                        onDismiss = { isSortMenuOpen = false }
                     )
                 }
             }
         }
-    }
 
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = NeonCyan, strokeWidth = 2.dp, modifier = Modifier.size(32.dp))
+                CircularProgressIndicator(color = VegaColors.Accent, strokeWidth = 2.dp, modifier = Modifier.size(32.dp))
             }
         } else if (seriesList.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = "Bu kategoride içerik bulunamadı.",
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontSize = 12.sp
+                    color = VegaColors.TextSecondary,
+                    fontSize = 13.sp
                 )
             }
         } else {
             val configuration = LocalConfiguration.current
             val gridColumns = if (isWideScreen) {
-                (configuration.screenWidthDp / 140).coerceIn(5, 7)
+                (configuration.screenWidthDp / 155).coerceIn(4, 7)
             } else if (isSidebarActive) {
                 2
             } else {
                 3
             }
 
-            // Sonsuz kaydırma: tüm diziler parça parça yüklenir (önceden ilk 60 ile sınırlıydı)
             LazyVerticalGrid(
                 columns = GridCells.Fixed(gridColumns),
                 state = gridState,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
                 contentPadding = PaddingValues(top = 8.dp, start = 8.dp, end = 8.dp, bottom = 96.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -556,6 +703,7 @@ private fun VegaMediaContentGrid(
                     val itemKey = "series_${series.seriesId}_${series.num}"
                     VegaMediaCard(
                         series = series,
+                        isFavorite = favoriteSeriesIds.contains(series.seriesId.toString()),
                         onClick = {
                             positionStore.lastOpenedItemKey = itemKey
                             onSeriesClick(series)
@@ -579,7 +727,7 @@ private fun VegaMediaContentGrid(
                                 .padding(16.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = NeonCyan, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                            CircularProgressIndicator(color = VegaColors.Accent, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
                         }
                     }
                 }
@@ -591,102 +739,21 @@ private fun VegaMediaContentGrid(
 @Composable
 private fun VegaMediaCard(
     series: SeriesStream,
+    isFavorite: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    val releaseYear = series.releaseDate?.take(4)?.ifBlank { "" } ?: ""
+    val genreText = series.genre?.split(",")?.firstOrNull()?.trim()?.ifBlank { "" } ?: ""
+    val subText = listOf(releaseYear, genreText).filter { it.isNotBlank() }.joinToString(" • ")
+
+    MediaPosterCardBox(
+        imageUrl = series.cover,
+        title = series.name,
+        subtitle = subText,
+        rating = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+        isFavorite = isFavorite,
+        onClick = onClick,
         modifier = modifier
-            .fillMaxWidth()
-            .dpadFocusable(
-                focusedBorderColor = NeonCyan,
-                shape = RoundedCornerShape(12.dp),
-                onClick = onClick
-            )
-    ) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = GlassSurface),
-            border = BorderStroke(1.dp, GlassBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(2f / 3f)
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                AsyncShimmerImage(
-                    model = series.cover,
-                    contentDescription = series.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
-                            )
-                        )
-                )
-
-                val ratingText = series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
-                if (!ratingText.isNullOrBlank() && ratingText != "0" && ratingText != "0.0") {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = Color.Black.copy(alpha = 0.65f),
-                        border = BorderStroke(0.5.dp, GlassBorder),
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = "Puan",
-                                tint = VegaColors.Gold,
-                                modifier = Modifier.size(10.dp)
-                            )
-                            Text(
-                                text = ratingText,
-                                color = Color.White,
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = series.name,
-            color = Color.White,
-            fontSize = 11.5.sp,
-            fontWeight = FontWeight.SemiBold,
-            minLines = 2,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            lineHeight = 14.sp
-        )
-
-        Spacer(modifier = Modifier.height(2.dp))
-
-        val releaseYear = series.releaseDate?.take(4)?.ifBlank { "" } ?: ""
-        val genreText = series.genre?.split(",")?.firstOrNull()?.trim()?.ifBlank { "Dizi" } ?: "Dizi"
-        val subText = if (releaseYear.isNotBlank()) "$releaseYear • $genreText" else genreText
-        Text(
-            text = subText,
-            color = Color.White.copy(alpha = 0.5f),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Normal,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
+    )
 }

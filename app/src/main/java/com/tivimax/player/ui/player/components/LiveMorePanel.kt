@@ -8,15 +8,20 @@ import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,14 +32,7 @@ import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
 
 /**
- * Canlı TV Oynatıcı "⋯ Daha fazla" Yan Paneli (G-023).
- *
- * Kompakt 52dp satırlar:
- * 1. Kanal listesi (onOpenChannelDrawer)
- * 2. Kanal numarası gir (onOpenNumpad)
- * 3. Çift ekran (onOpenDualView, aktifse sağda "Açık" rozeti)
- * 4. Uyku zamanlayıcısı (onOpenSleepTimer, açıksa sağda kalan süre / "30 dk")
- * 5. Yayın bilgisi (DiagnosticsFooter)
+ * Canlı TV Oynatıcı "Daha fazla" Yan Paneli (StreamVault cam panel uyumlu, tek odaklı satırlar).
  */
 @Composable
 fun LiveMorePanel(
@@ -58,13 +56,14 @@ fun LiveMorePanel(
         onClose = onClose,
         modifier = modifier,
         isPortrait = isPortrait,
-        firstFocusRequester = firstFocus
+        firstFocusRequester = firstFocus,
+        headerIcon = Icons.Default.Tune
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f, fill = false),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // 1. Kanal listesi
             MoreActionRow(
@@ -118,21 +117,40 @@ private fun MoreActionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    val containerColor = when {
+        isFocused -> VegaColors.Accent
+        isHighlighted -> VegaColors.Accent.copy(alpha = 0.18f)
+        else -> VegaColors.SurfaceVariant
+    }
+    val contentColor = when {
+        isFocused -> VegaColors.OnAccent
+        isHighlighted -> VegaColors.Accent
+        else -> VegaColors.TextPrimary
+    }
+
+    // Tek odak + tıklama hedefi: Surface(onClick) KULLANILMAZ, sadece dpadFocusable(onClick) kullanılır.
     Surface(
-        onClick = onClick,
-        shape = VegaShapes.Small,
-        color = if (isHighlighted) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
+        shape = VegaShapes.Medium,
+        color = containerColor,
         border = BorderStroke(
             1.dp,
-            if (isHighlighted) VegaColors.Accent else VegaColors.Border
+            when {
+                isFocused -> Color.White
+                isHighlighted -> VegaColors.Accent
+                else -> VegaColors.Border
+            }
         ),
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)
             .dpadFocusable(
-                shape = VegaShapes.Small,
-                focusedBorderColor = VegaColors.Accent,
-                onClick = onClick
+                shape = VegaShapes.Medium,
+                focusedBorderColor = Color.White,
+                scale = 1.02f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
             )
     ) {
         Row(
@@ -144,16 +162,16 @@ private fun MoreActionRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isHighlighted) VegaColors.Accent else VegaColors.TextPrimary,
-                modifier = Modifier.size(22.dp)
+                tint = contentColor,
+                modifier = Modifier.size(20.dp)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
 
             Text(
                 text = title,
-                color = VegaColors.TextPrimary,
-                fontSize = VegaText.BodyProminent,
+                color = if (isFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
+                fontSize = VegaText.Body,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
             )
@@ -161,12 +179,12 @@ private fun MoreActionRow(
             if (!badge.isNullOrBlank()) {
                 Surface(
                     shape = VegaShapes.Small,
-                    color = VegaColors.Accent.copy(alpha = 0.18f),
-                    border = BorderStroke(1.dp, VegaColors.Accent)
+                    color = if (isFocused) VegaColors.OnAccent.copy(alpha = 0.16f) else VegaColors.Accent.copy(alpha = 0.18f),
+                    border = BorderStroke(1.dp, if (isFocused) VegaColors.OnAccent.copy(alpha = 0.4f) else VegaColors.Accent)
                 ) {
                     Text(
                         text = badge,
-                        color = VegaColors.Accent,
+                        color = if (isFocused) VegaColors.OnAccent else VegaColors.Accent,
                         fontSize = VegaText.Caption,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -176,7 +194,7 @@ private fun MoreActionRow(
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = VegaColors.TextMuted,
+                    tint = if (isFocused) VegaColors.OnAccent.copy(alpha = 0.75f) else VegaColors.TextMuted,
                     modifier = Modifier.size(18.dp)
                 )
             }

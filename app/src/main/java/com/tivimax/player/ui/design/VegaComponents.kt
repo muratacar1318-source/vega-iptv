@@ -1,17 +1,18 @@
 package com.tivimax.player.ui.design
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -33,7 +34,7 @@ enum class VegaButtonVariant {
 
 /**
  * Vega Standart Buton Bileşeni
- * TV kumandası uyumlu, en az 44dp dokunma alanı ve Medium (12dp) köşe yuvarlaklığı.
+ * TV kumandası uyumlu, tek odak hedefi (çift tıklama yok), en az 44dp dokunma alanı ve Medium (12dp) köşe yuvarlaklığı.
  */
 @Composable
 fun VegaButton(
@@ -46,12 +47,13 @@ fun VegaButton(
 ) {
     val isTv = LocalIsTvDevice.current
     val minHeight = if (isTv) VegaSizes.ButtonHeightTv else VegaSizes.ButtonHeight
+    var isFocused by remember { mutableStateOf(false) }
 
-    val containerColor = when (variant) {
+    val baseContainerColor = when (variant) {
         VegaButtonVariant.PRIMARY -> VegaColors.Accent
-        VegaButtonVariant.SECONDARY -> VegaColors.SurfaceVariant
+        VegaButtonVariant.SECONDARY -> if (isFocused) VegaColors.SurfaceElevated else VegaColors.SurfaceVariant
         VegaButtonVariant.DANGER -> VegaColors.Danger
-        VegaButtonVariant.TEXT -> Color.Transparent
+        VegaButtonVariant.TEXT -> if (isFocused) VegaColors.Accent.copy(alpha = 0.14f) else Color.Transparent
     }
 
     val contentColor = when (variant) {
@@ -62,28 +64,33 @@ fun VegaButton(
     }
 
     val border = when (variant) {
-        VegaButtonVariant.SECONDARY -> BorderStroke(1.dp, VegaColors.Border)
+        VegaButtonVariant.SECONDARY -> if (!isFocused) BorderStroke(1.dp, VegaColors.Border) else null
         else -> null
     }
 
     val focusedBorder = when (variant) {
         VegaButtonVariant.PRIMARY, VegaButtonVariant.DANGER -> Color.White
-        else -> VegaColors.Accent
+        else -> VegaColors.FocusBorder
     }
 
     Surface(
-        onClick = onClick,
-        enabled = enabled,
         shape = VegaShapes.Medium,
-        color = if (enabled) containerColor else containerColor.copy(alpha = 0.38f),
+        color = if (enabled) baseContainerColor else baseContainerColor.copy(alpha = 0.38f),
         contentColor = if (enabled) contentColor else contentColor.copy(alpha = 0.38f),
         border = border,
         modifier = modifier
             .defaultMinSize(minHeight = minHeight)
-            .dpadFocusable(
-                shape = VegaShapes.Medium,
-                focusedBorderColor = focusedBorder,
-                onClick = onClick
+            .then(
+                if (enabled) {
+                    Modifier.dpadFocusable(
+                        shape = VegaShapes.Medium,
+                        focusedBorderColor = focusedBorder,
+                        onClick = onClick,
+                        onFocusStateChange = { isFocused = it }
+                    )
+                } else {
+                    Modifier
+                }
             )
     ) {
         Row(
@@ -114,7 +121,7 @@ fun VegaButton(
 
 /**
  * Vega Yuvarlak İkon Butonu
- * 44dp dokunma alanı, 20dp ikon. onOverlay = true olduğunda video üstü yarı şeffaf koyu zemin kullanır.
+ * Tek odak hedefi, 44dp dokunma alanı, 20dp ikon. onOverlay = true olduğunda video üstü yarı şeffaf koyu zemin kullanır.
  */
 @Composable
 fun VegaIconButton(
@@ -125,20 +132,36 @@ fun VegaIconButton(
     onOverlay: Boolean = false,
     enabled: Boolean = true
 ) {
-    val backgroundColor = if (onOverlay) VegaColors.OverlayPill else VegaColors.SurfaceVariant
-    val iconTint = if (onOverlay) Color.White else VegaColors.TextPrimary
+    var isFocused by remember { mutableStateOf(false) }
+    val backgroundColor = when {
+        isFocused && onOverlay -> VegaColors.Accent.copy(alpha = 0.28f)
+        isFocused -> VegaColors.SurfaceElevated
+        onOverlay -> VegaColors.OverlayPill
+        else -> VegaColors.SurfaceVariant
+    }
+    val iconTint = when {
+        isFocused -> VegaColors.Accent
+        onOverlay -> Color.White
+        else -> VegaColors.TextPrimary
+    }
 
     Surface(
-        onClick = onClick,
-        enabled = enabled,
         shape = VegaShapes.Pill,
         color = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.38f),
+        border = if (!isFocused && !onOverlay) BorderStroke(1.dp, VegaColors.Border) else null,
         modifier = modifier
             .size(VegaSizes.IconButton)
-            .dpadFocusable(
-                shape = VegaShapes.Pill,
-                focusedBorderColor = VegaColors.Accent,
-                onClick = onClick
+            .then(
+                if (enabled) {
+                    Modifier.dpadFocusable(
+                        shape = VegaShapes.Pill,
+                        focusedBorderColor = VegaColors.FocusBorder,
+                        onClick = onClick,
+                        onFocusStateChange = { isFocused = it }
+                    )
+                } else {
+                    Modifier
+                }
             )
     ) {
         Box(
@@ -157,7 +180,7 @@ fun VegaIconButton(
 
 /**
  * Vega Seçim Çipi (Kategori, sekme ve filtreler için)
- * Seçili olduğunda %18 vurgulu zemin ve vurgulu çerçeve/yazı.
+ * Tek odak hedefi; seçili olduğunda %18 vurgulu zemin ve vurgulu çerçeve/yazı.
  */
 @Composable
 fun VegaChoiceChip(
@@ -167,22 +190,37 @@ fun VegaChoiceChip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    val backgroundColor = if (selected) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant
+    var isFocused by remember { mutableStateOf(false) }
+    val backgroundColor = when {
+        selected && isFocused -> VegaColors.Accent.copy(alpha = 0.26f)
+        selected -> VegaColors.Accent.copy(alpha = 0.18f)
+        isFocused -> VegaColors.SurfaceElevated
+        else -> VegaColors.SurfaceVariant
+    }
     val borderColor = if (selected) VegaColors.Accent else VegaColors.Border
-    val textColor = if (selected) VegaColors.Accent else VegaColors.TextSecondary
+    val textColor = when {
+        selected -> VegaColors.Accent
+        isFocused -> VegaColors.TextPrimary
+        else -> VegaColors.TextSecondary
+    }
 
     Surface(
-        onClick = onClick,
-        enabled = enabled,
         shape = VegaShapes.Small,
         color = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.38f),
-        border = BorderStroke(1.dp, borderColor),
+        border = if (!isFocused) BorderStroke(1.dp, borderColor) else null,
         modifier = modifier
             .defaultMinSize(minHeight = VegaSizes.MinTouch)
-            .dpadFocusable(
-                shape = VegaShapes.Small,
-                focusedBorderColor = VegaColors.Accent,
-                onClick = onClick
+            .then(
+                if (enabled) {
+                    Modifier.dpadFocusable(
+                        shape = VegaShapes.Small,
+                        focusedBorderColor = VegaColors.FocusBorder,
+                        onClick = onClick,
+                        onFocusStateChange = { isFocused = it }
+                    )
+                } else {
+                    Modifier
+                }
             )
     ) {
         Box(
@@ -193,8 +231,9 @@ fun VegaChoiceChip(
                 text = label,
                 color = if (enabled) textColor else textColor.copy(alpha = 0.38f),
                 fontSize = VegaText.Secondary,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                maxLines = 1
+                fontWeight = if (selected || isFocused) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -202,7 +241,7 @@ fun VegaChoiceChip(
 
 /**
  * Vega Ayar / Anahtar Satırı
- * Başlık, açıklama ve Accent renkli Switch. Kumandayla satıra basıldığında durum değişir.
+ * Başlık, açıklama ve Accent renkli Switch. Odak yalnızca satırdadır; tek OK basışında durum değişir.
  */
 @Composable
 fun VegaSwitchRow(
@@ -213,30 +252,37 @@ fun VegaSwitchRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     Surface(
-        onClick = { if (enabled) onCheckedChange(!checked) },
-        enabled = enabled,
         shape = VegaShapes.Medium,
-        color = Color.Transparent,
+        color = if (isFocused) VegaColors.SurfaceElevated else Color.Transparent,
         modifier = modifier
             .fillMaxWidth()
-            .dpadFocusable(
-                shape = VegaShapes.Medium,
-                focusedBorderColor = VegaColors.Accent,
-                onClick = { if (enabled) onCheckedChange(!checked) }
+            .then(
+                if (enabled) {
+                    Modifier.dpadFocusable(
+                        shape = VegaShapes.Medium,
+                        focusedBorderColor = VegaColors.FocusBorder,
+                        onClick = { onCheckedChange(!checked) },
+                        onFocusStateChange = { isFocused = it }
+                    )
+                } else {
+                    Modifier
+                }
             )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                 Text(
                     text = title,
-                    color = VegaColors.TextPrimary,
+                    color = if (enabled) VegaColors.TextPrimary else VegaColors.TextMuted,
                     fontSize = VegaText.Body,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -251,8 +297,9 @@ fun VegaSwitchRow(
             }
             Switch(
                 checked = checked,
-                onCheckedChange = if (enabled) onCheckedChange else null,
+                onCheckedChange = null,
                 enabled = enabled,
+                modifier = Modifier.focusProperties { canFocus = false },
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = VegaColors.OnAccent,
                     checkedTrackColor = VegaColors.Accent,
@@ -266,26 +313,20 @@ fun VegaSwitchRow(
 
 /**
  * Vega Standart Bölüm Kartı
- * Card + Large (16dp) köşe + 1dp Border + 16dp iç boşluk.
+ * StreamVault yüzey derinliği + Large (16dp) köşe + 1dp Border + 16dp iç boşluk.
  */
 @Composable
 fun VegaSectionCard(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        shape = VegaShapes.Large,
-        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
-        border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            content = content
-        )
-    }
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .vegaPanel(VegaShapes.Large)
+            .padding(16.dp),
+        content = content
+    )
 }
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)

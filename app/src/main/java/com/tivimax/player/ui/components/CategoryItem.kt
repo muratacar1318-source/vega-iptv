@@ -9,6 +9,10 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,24 +38,32 @@ fun CategoryItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val backgroundModifier = if (isSelected) {
-        Modifier
+    var isFocused by remember { mutableStateOf(false) }
+
+    val backgroundModifier = when {
+        isSelected -> Modifier
             .clip(VegaShapes.Small)
             .background(
                 Brush.horizontalGradient(
                     colors = listOf(
-                        VegaColors.Accent.copy(alpha = 0.22f),
-                        VegaColors.Accent.copy(alpha = 0.08f)
+                        VegaColors.Accent.copy(alpha = if (isFocused) 0.28f else 0.22f),
+                        VegaColors.Accent.copy(alpha = if (isFocused) 0.14f else 0.08f)
                     )
                 )
             )
-            .border(
-                width = 1.dp,
-                color = VegaColors.Accent.copy(alpha = 0.6f),
-                shape = VegaShapes.Small
+            .then(
+                if (!isFocused) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = VegaColors.Accent.copy(alpha = 0.6f),
+                        shape = VegaShapes.Small
+                    )
+                } else Modifier
             )
-    } else {
-        Modifier.clip(VegaShapes.Small)
+        isFocused -> Modifier
+            .clip(VegaShapes.Small)
+            .background(VegaColors.SurfaceElevated)
+        else -> Modifier.clip(VegaShapes.Small)
     }
 
     Row(
@@ -60,9 +72,10 @@ fun CategoryItem(
             .padding(horizontal = 4.dp, vertical = 2.dp)
             .then(backgroundModifier)
             .dpadFocusable(
-                focusedBorderColor = VegaColors.Accent,
+                focusedBorderColor = VegaColors.FocusBorder,
                 shape = VegaShapes.Small,
-                onClick = onClick
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
             )
             .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -81,7 +94,7 @@ fun CategoryItem(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (isSelected) VegaColors.Accent else iconTint,
+            tint = if (isSelected || isFocused) VegaColors.Accent else iconTint,
             modifier = Modifier.size(16.dp)
         )
 
@@ -92,8 +105,8 @@ fun CategoryItem(
             text = buildAnnotatedString {
                 withStyle(
                     style = SpanStyle(
-                        color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                        color = if (isSelected || isFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                        fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Normal
                     )
                 ) {
                     append(name)
@@ -101,7 +114,7 @@ fun CategoryItem(
                 if (count > 0) {
                     withStyle(
                         style = SpanStyle(
-                            color = VegaColors.TextMuted,
+                            color = if (isFocused) VegaColors.TextSecondary else VegaColors.TextMuted,
                             fontWeight = FontWeight.Normal
                         )
                     ) {

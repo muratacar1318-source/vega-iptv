@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,23 +13,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.util.LocalIsTvDevice
 import kotlinx.coroutines.delay
 
 /**
- * Detaylı Kanal Satır Kartı (~96dp).
- * Şimdiki program (EPG), ilerleme çubuğu ve sıradaki program bilgisini birlikte gösterir.
+ * StreamVault uyumlu Detaylı Kanal Satır Kartı.
+ * Şimdiki program, parlak mavi ilerleme çubuğu ve sıradaki program bilgisini tek odak hedefiyle sunar.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -46,7 +45,9 @@ fun ChannelDetailedCard(
     modifier: Modifier = Modifier,
     onHideChannel: (() -> Unit)? = null
 ) {
+    val isTv = LocalIsTvDevice.current
     var showContextMenu by remember { mutableStateOf(false) }
+    var isFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(channel.streamId) {
         delay(150L)
@@ -63,7 +64,7 @@ fun ChannelDetailedCard(
 
     val rawTitle = remember(epg, minuteTick) {
         val t = epg?.getDecodedTitle() ?: channel.currentProgram
-        if (!t.isNullOrBlank() && t != "Canlı Yayın") t else null
+        if (!t.isNullOrBlank() && t != "Canlı Yayın" && t != "Canlı yayın") t else null
     }
 
     val progress = remember(epg, minuteTick) {
@@ -84,7 +85,7 @@ fun ChannelDetailedCard(
             } else ""
 
             val title = nextEpg.getDecodedTitle()
-            if (title.isNotBlank() && title != "Canlı Yayın") {
+            if (title.isNotBlank() && title != "Canlı Yayın" && title != "Canlı yayın") {
                 if (timeStr.isNotBlank()) "Sonra: $timeStr $title" else "Sonra: $title"
             } else null
         } else if (!channel.nextProgram.isNullOrBlank()) {
@@ -92,188 +93,200 @@ fun ChannelDetailedCard(
         } else null
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .dpadFocusable(
-                focusedBorderColor = OpusCyan,
-                shape = RoundedCornerShape(12.dp),
-                scale = 1.02f,
-                onClick = onChannelClick
-            )
-            .clip(RoundedCornerShape(12.dp))
-            .combinedClickable(
-                onClick = onChannelClick,
-                onLongClick = { showContextMenu = true }
-            )
-    ) {
-        Card(
+    Box(modifier = modifier.fillMaxWidth()) {
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 72.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isPlaying) OpusCyan.copy(alpha = 0.12f) else TiviCard
-            ),
-            border = BorderStroke(
+                .heightIn(min = 76.dp)
+                .then(
+                    if (isTv) {
+                        Modifier.dpadFocusable(
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            shape = VegaShapes.Medium,
+                            scale = 1.02f,
+                            onClick = onChannelClick,
+                            onFocusStateChange = { isFocused = it }
+                        )
+                    } else {
+                        Modifier
+                    }
+                ),
+            shape = VegaShapes.Medium,
+            color = when {
+                isFocused -> VegaColors.SurfaceVariant
+                isPlaying -> VegaColors.Accent.copy(alpha = 0.14f)
+                else -> VegaColors.SurfaceElevated
+            },
+            border = if (isFocused) null else BorderStroke(
                 width = if (isPlaying) 1.5.dp else 1.dp,
-                color = if (isPlaying) OpusCyan else TiviCardBorder
+                color = if (isPlaying) VegaColors.Accent else VegaColors.Border
             )
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Logo ve Canlı Noktası
-                Box(
-                    modifier = Modifier.size(54.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color.White.copy(alpha = 0.08f),
-                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.12f)),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        AsyncShimmerImage(
-                            model = channel.streamIcon,
-                            contentDescription = channel.name,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(4.dp),
-                            placeholderIcon = Icons.Default.Tv
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(
+                            if (!isTv) {
+                                Modifier.combinedClickable(
+                                    onClick = onChannelClick,
+                                    onLongClick = { showContextMenu = true }
+                                )
+                            } else {
+                                Modifier
+                            }
                         )
-                    }
-
-                    if (isPlaying) {
+                        .padding(start = 10.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Kare Logo Kutusu (StreamVault tarzı)
+                    Box(
+                        modifier = Modifier.size(54.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Box(
                             modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .offset(x = (-2).dp, y = (-2).dp)
-                                .size(8.dp)
-                                .background(VegaColors.Live, CircleShape)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                // Detaylı Bilgiler
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    // 1. Satır: Kanal No & Kanal Adı & Equalizer
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (channel.num > 0) {
-                            Text(
-                                text = "${channel.num}",
-                                color = TiviTextMuted,
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(end = 6.dp)
+                                .fillMaxSize()
+                                .clip(VegaShapes.Small)
+                                .background(VegaColors.SurfaceAccent)
+                                .padding(5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncShimmerImage(
+                                model = channel.streamIcon,
+                                contentDescription = channel.name,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize(),
+                                placeholderIcon = Icons.Default.Tv
                             )
                         }
-                        Text(
-                            text = channel.name,
-                            color = if (isPlaying) OpusCyan else Color.White,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
+
                         if (isPlaying) {
-                            AnimatedEqualizer(
-                                modifier = Modifier.padding(start = 4.dp),
-                                barColor = OpusCyan
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .offset(x = (-2).dp, y = (-2).dp)
+                                    .size(8.dp)
+                                    .background(VegaColors.Live, CircleShape)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                    // 2. Satır: Şimdi Oynayan Program + Saat
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        if (rawTitle != null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (channel.num > 0) {
+                                Text(
+                                    text = "${channel.num}",
+                                    color = VegaColors.TextMuted,
+                                    fontSize = VegaText.Caption,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                            }
                             Text(
-                                text = "Şimdi: $rawTitle",
-                                color = TiviTextSecondary,
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium,
+                                text = channel.name,
+                                color = if (isPlaying) VegaColors.Accent else VegaColors.TextPrimary,
+                                fontSize = VegaText.Body,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (isPlaying) {
+                                AnimatedEqualizer(
+                                    modifier = Modifier.padding(start = 4.dp),
+                                    barColor = VegaColors.Accent
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = if (rawTitle != null) "Şimdi: $rawTitle" else "Program bilgisi yok",
+                                color = if (rawTitle != null) VegaColors.TextSecondary else VegaColors.TextMuted,
+                                fontSize = VegaText.Secondary,
+                                fontWeight = if (rawTitle != null) FontWeight.Medium else FontWeight.Normal,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
-                        } else {
+                            if (currentTimeSpan.isNotBlank() && rawTitle != null) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = currentTimeSpan,
+                                    color = VegaColors.TextMuted,
+                                    fontSize = VegaText.Caption,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        if (progress != null) {
+                            Spacer(modifier = Modifier.height(5.dp))
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.5.dp)
+                                    .clip(VegaShapes.Pill),
+                                color = VegaColors.Accent,
+                                trackColor = VegaColors.SurfaceAccent
+                            )
+                        }
+
+                        if (nextProgramText != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Program bilgisi yok",
-                                color = TiviTextMuted,
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Normal,
+                                text = nextProgramText,
+                                color = VegaColors.TextMuted,
+                                fontSize = VegaText.Caption,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
-                        if (currentTimeSpan.isNotBlank() && rawTitle != null) {
-                            Text(
-                                text = currentTimeSpan,
-                                color = TiviTextMuted,
-                                fontSize = 10.sp,
-                                maxLines = 1
-                            )
-                        }
-                    }
-
-                    // İlerleme Çubuğu (varsa)
-                    if (progress != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = { progress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(2.5.dp)
-                                .clip(RoundedCornerShape(1.dp)),
-                            color = OpusCyan,
-                            trackColor = Color.White.copy(alpha = 0.1f)
-                        )
-                    }
-
-                    // 3. Satır: Sıradaki Program (varsa)
-                    if (nextProgramText != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = nextProgramText,
-                            color = TiviTextMuted,
-                            fontSize = 10.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
                     }
                 }
 
-                // Favori Yıldızı
-                IconButton(
-                    onClick = onFavoriteToggle,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .padding(4.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = "Favori",
-                        tint = if (isFavorite) TiviGold else TiviTextMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
+                // Favori Yıldızı (Mobilde kardeş buton, TV'de salt gösterge)
+                if (isTv) {
+                    if (isFavorite) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = VegaColors.Gold,
+                            modifier = Modifier
+                                .padding(end = 12.dp)
+                                .size(18.dp)
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = onFavoriteToggle,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .padding(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = "Favori",
+                            tint = if (isFavorite) VegaColors.Gold else VegaColors.TextMuted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }
@@ -282,21 +295,21 @@ fun ChannelDetailedCard(
         DropdownMenu(
             expanded = showContextMenu,
             onDismissRequest = { showContextMenu = false },
-            modifier = Modifier.background(TiviSurfaceVariant)
+            modifier = Modifier.background(VegaColors.SurfaceElevated)
         ) {
             DropdownMenuItem(
                 text = {
                     Text(
-                        if (isFavorite) "Favorilerden Çıkar" else "Favorilere Ekle",
-                        color = Color.White,
-                        fontSize = 13.sp
+                        text = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
+                        color = VegaColors.TextPrimary,
+                        fontSize = VegaText.Secondary
                     )
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = if (isFavorite) Icons.Default.StarBorder else Icons.Default.Star,
                         contentDescription = null,
-                        tint = if (isFavorite) TiviTextSecondary else TiviGold
+                        tint = if (isFavorite) VegaColors.TextSecondary else VegaColors.Gold
                     )
                 },
                 onClick = {
@@ -306,7 +319,13 @@ fun ChannelDetailedCard(
             )
             if (onHideChannel != null) {
                 DropdownMenuItem(
-                    text = { Text("Kanalı gizle", color = VegaColors.Danger, fontSize = 13.sp) },
+                    text = {
+                        Text(
+                            text = "Kanalı gizle",
+                            color = VegaColors.Danger,
+                            fontSize = VegaText.Secondary
+                        )
+                    },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.VisibilityOff,

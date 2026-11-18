@@ -1,18 +1,20 @@
 package com.tivimax.player.ui.tv
 
+import android.view.KeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -20,16 +22,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,8 +55,10 @@ import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.ui.live.modern.AnimatedEqualizer
+import com.tivimax.player.util.LocalIsTvDevice
 
 /**
  * 3-BÖLGELİ STREAMVAULT TARZI CANLI TV EKRANI (ANDROID TV)
@@ -497,7 +506,7 @@ fun TvTiviMateScreen(
                                         isCurrentPreview -> VegaColors.Accent.copy(alpha = 0.14f)
                                         else -> VegaColors.SurfaceElevated
                                     },
-                                    border = BorderStroke(
+                                    border = if (isRowFocused) null else BorderStroke(
                                         width = if (isCurrentPreview) 1.5.dp else 1.dp,
                                         color = if (isCurrentPreview) VegaColors.Accent.copy(alpha = 0.7f) else VegaColors.Border
                                     ),
@@ -638,10 +647,11 @@ fun TvTiviMateScreen(
                     )
 
                     // 16:9 Canlı Video Önizleme Kutusu
+                    var isPreviewFocused by remember { mutableStateOf(false) }
                     Card(
                         shape = VegaShapes.Medium,
                         colors = CardDefaults.cardColors(containerColor = Color.Black),
-                        border = BorderStroke(1.dp, VegaColors.Border),
+                        border = if (isPreviewFocused) null else BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(16f / 9f)
@@ -653,7 +663,8 @@ fun TvTiviMateScreen(
                                     if (activePreviewChannel != null) {
                                         isFullScreenPlayer = true
                                     }
-                                }
+                                },
+                                onFocusStateChange = { isPreviewFocused = it }
                             )
                     ) {
                         Box(modifier = Modifier.fillMaxSize()) {
@@ -779,16 +790,42 @@ fun TvTiviMateScreen(
 
                             Spacer(modifier = Modifier.weight(1f))
 
-                            Text(
-                                text = "Bu kanalı tam ekran açmak için tekrar OK'a bas",
-                                color = VegaColors.Accent,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
+                            var isHintFocused by remember { mutableStateOf(false) }
+                            Surface(
+                                shape = VegaShapes.Small,
+                                color = if (isHintFocused) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.Accent.copy(alpha = 0.10f),
+                                border = if (isHintFocused) null else BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.30f)),
                                 modifier = Modifier
-                                    .clip(VegaShapes.Small)
-                                    .clickable { isFullScreenPlayer = true }
-                                    .padding(vertical = 2.dp)
-                            )
+                                    .fillMaxWidth()
+                                    .dpadFocusable(
+                                        shape = VegaShapes.Small,
+                                        focusedBorderColor = VegaColors.FocusBorder,
+                                        scale = 1.02f,
+                                        onClick = { isFullScreenPlayer = true },
+                                        onFocusStateChange = { isHintFocused = it }
+                                    )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Fullscreen,
+                                        contentDescription = null,
+                                        tint = VegaColors.Accent,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "Tam ekran için tekrar OK'a bas",
+                                        color = VegaColors.Accent,
+                                        fontSize = VegaText.Caption,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -824,63 +861,189 @@ internal fun StreamVaultSearchField(
     placeholder: String,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = VegaShapes.Medium,
-        color = VegaColors.SurfaceElevated.copy(alpha = 0.85f),
-        border = BorderStroke(1.dp, VegaColors.Border),
+    val isTv = LocalIsTvDevice.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val shellFocusRequester = remember { FocusRequester() }
+    val inputFocusRequester = remember { FocusRequester() }
+
+    var hasContainerFocus by remember { mutableStateOf(false) }
+    var hasInputFocus by remember { mutableStateOf(false) }
+    var acceptsInput by remember { mutableStateOf(false) }
+    var pendingInputActivation by remember { mutableStateOf(false) }
+
+    val isFocused = hasContainerFocus || hasInputFocus
+
+    fun activateInput() {
+        acceptsInput = true
+        if (isTv) {
+            pendingInputActivation = true
+        } else {
+            runCatching { inputFocusRequester.requestFocus() }
+            keyboardController?.show()
+        }
+    }
+
+    fun exitInput(moveDirection: FocusDirection? = null) {
+        pendingInputActivation = false
+        acceptsInput = false
+        keyboardController?.hide()
+        if (moveDirection != null) {
+            val moved = focusManager.moveFocus(moveDirection)
+            if (!moved) {
+                runCatching { shellFocusRequester.requestFocus() }
+            }
+        } else {
+            runCatching { shellFocusRequester.requestFocus() }
+        }
+    }
+
+    LaunchedEffect(acceptsInput, pendingInputActivation) {
+        if (!isTv || !acceptsInput || !pendingInputActivation) return@LaunchedEffect
+        runCatching { inputFocusRequester.requestFocus() }
+        keyboardController?.show()
+        pendingInputActivation = false
+    }
+
+    BackHandler(enabled = isTv && acceptsInput) {
+        exitInput()
+    }
+
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
+            .height(40.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Row(
+        Surface(
+            shape = VegaShapes.Medium,
+            color = if (isFocused) VegaColors.SurfaceVariant else VegaColors.SurfaceElevated.copy(alpha = 0.85f),
+            border = if (hasContainerFocus) null else BorderStroke(
+                width = if (hasInputFocus) 2.dp else 1.dp,
+                color = if (hasInputFocus) VegaColors.FocusBorder else VegaColors.Border
+            ),
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .weight(1f)
+                .fillMaxHeight()
+                .focusRequester(shellFocusRequester)
+                .dpadFocusable(
+                    shape = VegaShapes.Medium,
+                    focusedBorderColor = VegaColors.FocusBorder,
+                    scale = 1.02f,
+                    onClick = { activateInput() },
+                    onFocusStateChange = { hasContainerFocus = it }
+                )
         ) {
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) {
-                    Text(
-                        text = placeholder,
-                        color = VegaColors.TextMuted,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    if (value.isEmpty()) {
+                        Text(
+                            text = placeholder,
+                            color = VegaColors.TextMuted,
+                            fontSize = VegaText.Secondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    BasicTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        singleLine = true,
+                        readOnly = isTv && !acceptsInput,
+                        textStyle = TextStyle(
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.Secondary,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        cursorBrush = SolidColor(VegaColors.Accent),
+                        keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
+                        keyboardActions = KeyboardActions(
+                            onSearch = {
+                                if (isTv) {
+                                    exitInput(FocusDirection.Down)
+                                } else {
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus()
+                                }
+                            }
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(inputFocusRequester)
+                            .focusProperties {
+                                canFocus = if (isTv) acceptsInput else true
+                            }
+                            .onFocusChanged { state ->
+                                val wasInputFocused = hasInputFocus
+                                hasInputFocus = state.hasFocus
+                                if (wasInputFocused && !state.hasFocus && isTv) {
+                                    pendingInputActivation = false
+                                    acceptsInput = false
+                                    keyboardController?.hide()
+                                }
+                            }
+                            .tvOpenKeyboardOnOk()
+                            .onPreviewKeyEvent { keyEvent ->
+                                if (!isTv || !acceptsInput) return@onPreviewKeyEvent false
+                                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                                    when (keyEvent.nativeKeyEvent.keyCode) {
+                                        KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                            exitInput(FocusDirection.Down)
+                                            return@onPreviewKeyEvent true
+                                        }
+                                        KeyEvent.KEYCODE_DPAD_UP -> {
+                                            exitInput(FocusDirection.Up)
+                                            return@onPreviewKeyEvent true
+                                        }
+                                        KeyEvent.KEYCODE_BACK -> {
+                                            exitInput()
+                                            return@onPreviewKeyEvent true
+                                        }
+                                    }
+                                }
+                                false
+                            }
                     )
                 }
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    singleLine = true,
-                    textStyle = TextStyle(
-                        color = VegaColors.TextPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    cursorBrush = SolidColor(VegaColors.Accent),
-                    keyboardOptions = tvKeyboardOptions(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .tvOpenKeyboardOnOk()
-                )
-            }
-            if (value.isNotEmpty()) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Temizle",
-                    tint = VegaColors.TextMuted,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .clickable { onValueChange("") }
-                )
-            } else {
+
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = null,
-                    tint = VegaColors.TextSecondary,
+                    tint = if (isFocused) VegaColors.Accent else VegaColors.TextSecondary,
                     modifier = Modifier.size(16.dp)
                 )
+            }
+        }
+
+        if (value.isNotEmpty()) {
+            Surface(
+                shape = VegaShapes.Medium,
+                color = VegaColors.SurfaceElevated,
+                border = BorderStroke(1.dp, VegaColors.Border),
+                modifier = Modifier
+                    .size(40.dp)
+                    .dpadFocusable(
+                        shape = VegaShapes.Medium,
+                        focusedBorderColor = VegaColors.FocusBorder,
+                        scale = 1.04f,
+                        onClick = { onValueChange("") }
+                    )
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Temizle",
+                        tint = VegaColors.TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
     }

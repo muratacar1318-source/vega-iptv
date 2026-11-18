@@ -4,6 +4,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,20 +28,34 @@ fun ActionChipButton(
     modifier: Modifier = Modifier,
     iconTint: Color? = null
 ) {
-    val effectiveTint = iconTint ?: if (isSelected) VegaColors.Accent else VegaColors.TextPrimary
+    var isFocused by remember { mutableStateOf(false) }
+    val effectiveTint = iconTint ?: when {
+        isSelected || isFocused -> VegaColors.Accent
+        else -> VegaColors.TextPrimary
+    }
+    val containerColor = when {
+        isSelected && isFocused -> VegaColors.Accent.copy(alpha = 0.28f)
+        isSelected -> VegaColors.Accent.copy(alpha = 0.20f)
+        isFocused -> VegaColors.SurfaceElevated
+        else -> VegaColors.Card
+    }
+
     Surface(
         shape = VegaShapes.Medium,
-        color = if (isSelected) VegaColors.Accent.copy(alpha = 0.2f) else VegaColors.Card,
-        border = BorderStroke(
-            1.dp,
-            if (isSelected) VegaColors.Accent else VegaColors.Border
-        ),
+        color = containerColor,
+        border = if (!isFocused) {
+            BorderStroke(
+                1.dp,
+                if (isSelected) VegaColors.Accent else VegaColors.Border
+            )
+        } else null,
         modifier = modifier
             .height(34.dp)
             .dpadFocusable(
-                focusedBorderColor = VegaColors.Accent,
+                focusedBorderColor = VegaColors.FocusBorder,
                 shape = VegaShapes.Medium,
-                onClick = onClick
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
             )
     ) {
         Row(
@@ -55,9 +73,9 @@ fun ActionChipButton(
             }
             Text(
                 text = text,
-                color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                color = if (isSelected || isFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
                 fontSize = 12.sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

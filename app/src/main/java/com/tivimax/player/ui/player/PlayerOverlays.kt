@@ -1,124 +1,62 @@
 package com.tivimax.player.ui.player
 
-import com.tivimax.player.MainActivity
-import android.app.RemoteAction
-import com.tivimax.player.ui.components.tvKeyboardOptions
-import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
-import android.app.Activity
-import android.app.PictureInPictureParams
-import android.content.Context
-import android.content.res.Configuration
-import android.media.AudioManager
-import android.os.Build
-import android.provider.Settings
-import android.util.Rational
-import android.view.ViewGroup
-import android.widget.FrameLayout
-import androidx.activity.compose.BackHandler
-import androidx.annotation.OptIn
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.VolumeMute
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import java.util.Locale
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
-import coil.compose.AsyncImage
-import androidx.compose.foundation.BorderStroke
-import com.tivimax.player.data.model.LiveStream
-import com.tivimax.player.player.AspectRatioMode
-import com.tivimax.player.player.TiviPlayerManager
-import com.tivimax.player.player.TrackInfo
-import com.tivimax.player.theme.*
-import com.tivimax.player.ui.MainViewModel
+import androidx.compose.ui.window.Dialog
+import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
-import com.tivimax.player.ui.design.VegaChoiceChip
-import com.tivimax.player.ui.Screen
-import com.tivimax.player.ui.components.AsyncShimmerImage
-import com.tivimax.player.ui.components.dpadFocusable
-import com.tivimax.player.ui.components.CategoryManagementDialog
-import com.tivimax.player.ui.player.components.NumericKeypadDialog
-import com.tivimax.player.ui.player.components.TiviBottomInfoCard
-import com.tivimax.player.ui.player.components.TiviNumericZapperBox
-import com.tivimax.player.ui.player.components.TiviOverlayGuide
-import com.tivimax.player.ui.player.components.TiviRecentChannelsBar
-import com.tivimax.player.ui.player.components.PlayerSettingsPanel
-import com.tivimax.player.ui.player.components.SettingsTab
-import com.tivimax.player.ui.player.components.PlayerPillButton
-import com.tivimax.player.ui.player.components.BouncyIconButton
-import com.tivimax.player.ui.player.components.LocalPlayerInteraction
-import com.tivimax.player.ui.player.components.LivePlayerActionBar
-import com.tivimax.player.ui.player.components.LiveMorePanel
-import com.tivimax.player.ui.player.components.PlayerSidePanel
 import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
-import java.util.*
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import android.view.KeyEvent
-
-import com.tivimax.player.util.DeviceMode
-import com.tivimax.player.util.LocalDeviceMode
-import com.tivimax.player.util.LocalIsTvDevice
-import com.tivimax.player.util.LocalOrientationManager
-
-// G-055: PlayerScreen içinden çıkarılan bağımsız katmanlar (davranış değişmedi).
-
-/** Tüm otomatik denemeler tükenince gösterilen hata katmanı. */
+/** Tüm otomatik denemeler tükenince gösterilen hata katmanı (TV kumanda odaklı). */
 @Composable
 internal fun PlayerErrorOverlay(
     error: String,
@@ -126,52 +64,150 @@ internal fun PlayerErrorOverlay(
     onRetryFallback: () -> Unit,
     onBack: () -> Unit
 ) {
+    val retryFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        repeat(4) {
+            delay(60)
+            if (runCatching { retryFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.85f)),
+            .background(Color.Black.copy(alpha = 0.78f)),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(24.dp)
+        Surface(
+            shape = VegaShapes.Large,
+            color = VegaColors.OverlayPanel,
+            border = BorderStroke(1.dp, VegaColors.Border),
+            shadowElevation = 16.dp,
+            modifier = Modifier
+                .padding(24.dp)
+                .widthIn(max = 460.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = null,
-                tint = VegaColors.Danger,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = error,
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(18.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(
-                    onClick = onRetry,
-                    colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
-                    shape = RoundedCornerShape(10.dp)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 22.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = VegaColors.Danger,
+                    modifier = Modifier.size(44.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = error,
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.BodyProminent,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Tekrar dene", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    var retryFocused by remember { mutableStateOf(false) }
+                    Surface(
+                        shape = VegaShapes.Medium,
+                        color = VegaColors.Accent,
+                        border = if (retryFocused) BorderStroke(2.dp, Color.White) else null,
+                        modifier = Modifier
+                            .height(VegaSizes.ButtonHeight)
+                            .focusRequester(retryFocus)
+                            .dpadFocusable(
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = Color.White,
+                                scale = 1.04f,
+                                onClick = onRetry,
+                                onFocusStateChange = { retryFocused = it }
+                            )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                tint = VegaColors.OnAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Tekrar dene",
+                                color = VegaColors.OnAccent,
+                                fontSize = VegaText.Body,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    var altFocused by remember { mutableStateOf(false) }
+                    Surface(
+                        shape = VegaShapes.Medium,
+                        color = if (altFocused) VegaColors.Accent else VegaColors.SurfaceVariant,
+                        border = BorderStroke(1.dp, if (altFocused) Color.White else VegaColors.Accent),
+                        modifier = Modifier
+                            .height(VegaSizes.ButtonHeight)
+                            .dpadFocusable(
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = Color.White,
+                                scale = 1.04f,
+                                onClick = onRetryFallback,
+                                onFocusStateChange = { altFocused = it }
+                            )
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Alternatif akış dene",
+                                color = if (altFocused) VegaColors.OnAccent else VegaColors.Accent,
+                                fontSize = VegaText.Body,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
-                OutlinedButton(
-                    onClick = onRetryFallback,
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent)
+                Spacer(modifier = Modifier.height(12.dp))
+                var backFocused by remember { mutableStateOf(false) }
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = if (backFocused) VegaColors.SurfaceVariant else Color.Transparent,
+                    border = if (backFocused) BorderStroke(1.dp, VegaColors.Accent) else null,
+                    modifier = Modifier
+                        .height(40.dp)
+                        .dpadFocusable(
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.Accent,
+                            scale = 1.03f,
+                            onClick = onBack,
+                            onFocusStateChange = { backFocused = it }
+                        )
                 ) {
-                    Text("Alternatif akış dene", color = VegaColors.Accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Box(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Listeye geri dön",
+                            color = if (backFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                            fontSize = VegaText.Secondary,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            TextButton(onClick = onBack) {
-                Text("Listeye geri dön", color = Color.White.copy(alpha = 0.7f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -191,11 +227,11 @@ internal fun BoxScope.BrightnessFeedbackBar(brightnessFeedback: Int?) {
         brightnessFeedback?.let { pct ->
             val fraction = (pct / 100f).coerceIn(0f, 1f)
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = VegaShapes.Hero,
                 color = VegaColors.OverlayPanel,
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                border = BorderStroke(1.dp, VegaColors.Border),
                 modifier = Modifier
-                    .width(42.dp)
+                    .width(44.dp)
                     .height(180.dp)
             ) {
                 Column(
@@ -214,7 +250,7 @@ internal fun BoxScope.BrightnessFeedbackBar(brightnessFeedback: Int?) {
                     Box(
                         modifier = Modifier
                             .width(5.dp)
-                            .height(105.dp)
+                            .height(104.dp)
                             .clip(RoundedCornerShape(2.5.dp))
                             .background(Color.White.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.BottomCenter
@@ -229,7 +265,7 @@ internal fun BoxScope.BrightnessFeedbackBar(brightnessFeedback: Int?) {
                     Text(
                         text = "%$pct",
                         color = Color.White,
-                        fontSize = 10.sp,
+                        fontSize = VegaText.Caption,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -252,11 +288,11 @@ internal fun BoxScope.VolumeFeedbackBar(volumeFeedback: Int?) {
         volumeFeedback?.let { pct ->
             val fraction = (pct / 100f).coerceIn(0f, 1f)
             Surface(
-                shape = RoundedCornerShape(20.dp),
+                shape = VegaShapes.Hero,
                 color = VegaColors.OverlayPanel,
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                border = BorderStroke(1.dp, VegaColors.Border),
                 modifier = Modifier
-                    .width(42.dp)
+                    .width(44.dp)
                     .height(180.dp)
             ) {
                 Column(
@@ -275,7 +311,7 @@ internal fun BoxScope.VolumeFeedbackBar(volumeFeedback: Int?) {
                     Box(
                         modifier = Modifier
                             .width(5.dp)
-                            .height(105.dp)
+                            .height(104.dp)
                             .clip(RoundedCornerShape(2.5.dp))
                             .background(Color.White.copy(alpha = 0.2f)),
                         contentAlignment = Alignment.BottomCenter
@@ -290,7 +326,7 @@ internal fun BoxScope.VolumeFeedbackBar(volumeFeedback: Int?) {
                     Text(
                         text = "%$pct",
                         color = Color.White,
-                        fontSize = 10.sp,
+                        fontSize = VegaText.Caption,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -299,7 +335,7 @@ internal fun BoxScope.VolumeFeedbackBar(volumeFeedback: Int?) {
     }
 }
 
-/** Uyku zamanlayıcısı seçim diyaloğu. */
+/** Uyku zamanlayıcısı seçim diyaloğu (StreamVault cam stil + tek odaklı TV desteği). */
 @Composable
 internal fun SleepTimerDialog(
     sleepTimerSeconds: Int?,
@@ -307,43 +343,173 @@ internal fun SleepTimerDialog(
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = { onDismiss() },
-        containerColor = VegaColors.Surface,
-        title = { Text("Uyku zamanlayıcısı", color = VegaColors.TextPrimary, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(15, 30, 45, 60, 90).forEach { mins ->
-                    Button(
-                        onClick = {
-                            onSetTimer(mins)
-                            onDismiss()
+    val firstOptionFocus = remember { FocusRequester() }
+    val activeMinutes = sleepTimerSeconds?.let { (it + 59) / 60 }
+
+    LaunchedEffect(Unit) {
+        repeat(4) {
+            delay(60)
+            if (runCatching { firstOptionFocus.requestFocus() }.isSuccess) return@LaunchedEffect
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = VegaShapes.Large,
+            color = VegaColors.OverlayPanel,
+            border = BorderStroke(1.dp, VegaColors.Border),
+            shadowElevation = 16.dp,
+            modifier = Modifier.widthIn(min = 280.dp, max = 340.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Bedtime,
+                        contentDescription = null,
+                        tint = VegaColors.Accent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Uyku zamanlayıcısı",
+                        color = VegaColors.TextPrimary,
+                        fontSize = VegaText.SectionTitle,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                listOf(15, 30, 45, 60, 90).forEachIndexed { idx, mins ->
+                    val isSelected = activeMinutes != null && kotlin.math.abs(activeMinutes - mins) <= 1
+                    var isFocused by remember { mutableStateOf(false) }
+
+                    Surface(
+                        shape = VegaShapes.Medium,
+                        color = when {
+                            isFocused -> VegaColors.Accent
+                            isSelected -> VegaColors.Accent.copy(alpha = 0.18f)
+                            else -> VegaColors.SurfaceVariant
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.SurfaceVariant, contentColor = VegaColors.TextPrimary),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
+                        border = BorderStroke(
+                            1.dp,
+                            when {
+                                isFocused -> Color.White
+                                isSelected -> VegaColors.Accent
+                                else -> VegaColors.Border
+                            }
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(VegaSizes.ButtonHeight)
+                            .then(if (idx == 0) Modifier.focusRequester(firstOptionFocus) else Modifier)
+                            .dpadFocusable(
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = Color.White,
+                                scale = 1.02f,
+                                onClick = {
+                                    onSetTimer(mins)
+                                    onDismiss()
+                                },
+                                onFocusStateChange = { isFocused = it }
+                            )
                     ) {
-                        Text("$mins dakika sonra kapat")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = "$mins dakika sonra kapat",
+                                color = when {
+                                    isFocused -> VegaColors.OnAccent
+                                    isSelected -> VegaColors.Accent
+                                    else -> VegaColors.TextPrimary
+                                },
+                                fontSize = VegaText.Body,
+                                fontWeight = if (isFocused || isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = if (isFocused) VegaColors.OnAccent else VegaColors.Accent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 }
+
                 if (sleepTimerSeconds != null) {
-                    OutlinedButton(
-                        onClick = {
-                            onCancelTimer()
-                            onDismiss()
-                        },
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    var cancelFocused by remember { mutableStateOf(false) }
+                    Surface(
+                        shape = VegaShapes.Medium,
+                        color = if (cancelFocused) VegaColors.Danger else VegaColors.Danger.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, if (cancelFocused) Color.White else VegaColors.Danger),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(VegaSizes.ButtonHeight)
+                            .dpadFocusable(
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = Color.White,
+                                scale = 1.02f,
+                                onClick = {
+                                    onCancelTimer()
+                                    onDismiss()
+                                },
+                                onFocusStateChange = { cancelFocused = it }
+                            )
                     ) {
-                        Text("Zamanlayıcıyı kapat", color = VegaColors.Danger)
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Zamanlayıcıyı kapat",
+                                color = if (cancelFocused) Color.White else VegaColors.Danger,
+                                fontSize = VegaText.Body,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onDismiss() }) {
-                Text("Vazgeç", color = VegaColors.TextSecondary)
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                var dismissFocused by remember { mutableStateOf(false) }
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = if (dismissFocused) VegaColors.SurfaceVariant else Color.Transparent,
+                    border = if (dismissFocused) BorderStroke(1.dp, VegaColors.Accent) else null,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .height(40.dp)
+                        .dpadFocusable(
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.Accent,
+                            scale = 1.03f,
+                            onClick = onDismiss,
+                            onFocusStateChange = { dismissFocused = it }
+                        )
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Vazgeç",
+                            color = if (dismissFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                            fontSize = VegaText.Secondary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
-    )
+    }
 }

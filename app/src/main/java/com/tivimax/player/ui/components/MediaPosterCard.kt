@@ -8,7 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,12 +22,13 @@ import androidx.compose.ui.unit.sp
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 
-private val PosterShape = RoundedCornerShape(10.dp)
+private val PosterShape = RoundedCornerShape(11.dp)
 
 /**
  * StreamVault imzalı 2:3 Afiş Kartı (Movies.png ile birebir görsel dil)
  * - Sol üstte koyu zeminli altın puan rozeti (★ 8.2/10)
  * - Alt kısımda yumuşak karartma üstünde 2 satır başlık
+ * - Odaklandığında 2.5.dp parlak odak çerçevesi, hafif parlaklık artışı ve 1.045f büyüme
  * - İsteğe bağlı izleme ilerleme çubuğu ve favori yıldızı
  */
 @Composable
@@ -41,21 +42,62 @@ fun MediaPosterCard(
     onFocusChange: ((Boolean) -> Unit)? = null,
     onClick: () -> Unit
 ) {
-    val cleanRating = formatRatingBadge(rating)
+    MediaPosterCardBox(
+        imageUrl = imageUrl,
+        title = title,
+        subtitle = subtitle,
+        rating = rating,
+        watchProgress = watchProgress,
+        isFavorite = isFavorite,
+        onFocusChange = onFocusChange,
+        onClick = onClick,
+        modifier = Modifier
+    )
+}
+
+/**
+ * `FocusRequester` gibi ek modifier gereken katalog ızgaraları için dahili tek-hedef kart bileşeni.
+ * DİKKAT: Tek bir odak + tıklama hedefi (`dpadFocusable(onClick = ...)`) içerir.
+ */
+@Composable
+internal fun MediaPosterCardBox(
+    imageUrl: String?,
+    title: String,
+    subtitle: String,
+    rating: String? = null,
+    watchProgress: Float = 0f,
+    isFavorite: Boolean = false,
+    onFocusChange: ((Boolean) -> Unit)? = null,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val cleanRating = remember(rating) { formatRatingBadge(rating) }
+    var isFocused by remember { mutableStateOf(false) }
 
     Card(
         shape = PosterShape,
-        colors = CardDefaults.cardColors(containerColor = VegaColors.SurfaceElevated),
-        border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier
+        colors = CardDefaults.cardColors(
+            containerColor = if (isFocused) VegaColors.SurfaceVariant else VegaColors.SurfaceElevated
+        ),
+        border = BorderStroke(
+            width = if (isFocused) 2.5.dp else 1.dp,
+            color = if (isFocused) VegaColors.FocusBorder else VegaColors.Border
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isFocused) 10.dp else 2.dp
+        ),
+        modifier = modifier
             .fillMaxWidth()
             .aspectRatio(2f / 3f)
             .dpadFocusable(
                 focusedBorderColor = VegaColors.FocusBorder,
                 shape = PosterShape,
-                scale = 1.035f,
+                scale = 1.045f,
                 onClick = onClick,
-                onFocusStateChange = onFocusChange
+                onFocusStateChange = { focused ->
+                    isFocused = focused
+                    onFocusChange?.invoke(focused)
+                }
             )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -67,29 +109,38 @@ fun MediaPosterCard(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Alt kısımda başlığın rahat okunması için sinematik karartma
+            // Odaklandığında StreamVault tarzı hafif parlaklık artışı
+            if (isFocused) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = 0.08f))
+                )
+            }
+
+            // Alt kısımda başlığın rahat okunması için derin sinematik karartma
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.54f)
+                    .fillMaxHeight(0.56f)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.65f),
-                                Color.Black.copy(alpha = 0.92f)
+                                Color.Black.copy(alpha = 0.56f),
+                                Color.Black.copy(alpha = 0.94f)
                             )
                         )
                     )
             )
 
-            // Sol Üst: StreamVault ★ 8.2/10 Puan Rozeti
+            // Sol Üst: StreamVault ★ 8.2/10 Puan Rozeti (Movies.png ile birebir netlik)
             if (cleanRating != null) {
                 Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = Color.Black.copy(alpha = 0.68f),
-                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.14f)),
+                    shape = VegaShapes.Small,
+                    color = Color.Black.copy(alpha = 0.74f),
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.16f)),
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(7.dp)
@@ -108,7 +159,7 @@ fun MediaPosterCard(
                         Text(
                             text = cleanRating,
                             color = VegaColors.Gold,
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -121,8 +172,8 @@ fun MediaPosterCard(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(7.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color.Black.copy(alpha = 0.65f))
+                        .clip(VegaShapes.Small)
+                        .background(Color.Black.copy(alpha = 0.70f))
                         .padding(4.dp)
                 ) {
                     Icon(
@@ -139,14 +190,14 @@ fun MediaPosterCard(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .padding(horizontal = 9.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 9.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
                     text = title,
                     color = Color.White,
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = if (isFocused) FontWeight.Bold else FontWeight.SemiBold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     lineHeight = 15.sp
@@ -155,7 +206,7 @@ fun MediaPosterCard(
                     Text(
                         text = subtitle,
                         color = VegaColors.TextSecondary,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -167,7 +218,7 @@ fun MediaPosterCard(
                 LinearProgressIndicator(
                     progress = { watchProgress.coerceIn(0f, 1f) },
                     color = VegaColors.Accent,
-                    trackColor = Color.White.copy(alpha = 0.18f),
+                    trackColor = Color.White.copy(alpha = 0.22f),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
