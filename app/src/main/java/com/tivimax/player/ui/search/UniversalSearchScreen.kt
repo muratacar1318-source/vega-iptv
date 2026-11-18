@@ -2,13 +2,9 @@
 
 package com.tivimax.player.ui.search
 
-import androidx.compose.ui.focus.focusRestorer
-import com.tivimax.player.ui.components.tvKeyboardOptions
-import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -17,7 +13,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -32,28 +27,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.data.model.SeriesStream
 import com.tivimax.player.data.model.VodStream
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.SearchFilter
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.MediaPosterCard
 import com.tivimax.player.ui.components.dpadFocusable
-import com.tivimax.player.ui.design.VegaColors
-import com.tivimax.player.ui.design.VegaShapes
-import com.tivimax.player.ui.design.vegaBackdrop
+import com.tivimax.player.ui.components.requestFocusSafely
+import com.tivimax.player.ui.components.tvKeyboardOptions
+import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
+import com.tivimax.player.ui.design.*
 import kotlinx.coroutines.delay
 
 @Composable
@@ -71,6 +69,7 @@ fun UniversalSearchScreen(
 
     val focusManager = LocalFocusManager.current
     val searchFocusRequester = remember { FocusRequester() }
+    var isSearchFocused by remember { mutableStateOf(false) }
 
     val onBack: () -> Unit = {
         if (!viewModel.navigateBack()) {
@@ -81,12 +80,10 @@ fun UniversalSearchScreen(
     // Donanım geri tuşu desteği
     BackHandler { onBack() }
 
-    // Ekran ilk açıldığında arama kutusuna otomatik odaklan ve klavyeyi aç
+    // Ekran ilk açıldığında arama kutusuna güvenli odaklan
     LaunchedEffect(Unit) {
         delay(200)
-        try {
-            searchFocusRequester.requestFocus()
-        } catch (_: Exception) {}
+        searchFocusRequester.requestFocusSafely()
     }
 
     val totalCount = liveResults.size + vodResults.size + seriesResults.size
@@ -97,58 +94,50 @@ fun UniversalSearchScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(VegaColors.Surface.copy(alpha = 0.92f))
+                    .background(VegaColors.Surface.copy(alpha = 0.94f))
                     .statusBarsPadding()
             ) {
-                // Üst Bar: Geri Butonu + Arama Kutusu
+                // Üst Bar: Tek odaklı Geri Butonu + StreamVault Arama Kutusu
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .dpadFocusable(
-                                shape = VegaShapes.Medium,
-                                focusedBorderColor = VegaColors.Accent,
-                                onClick = onBack
-                            )
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri",
-                            tint = VegaColors.TextPrimary
-                        )
-                    }
+                    VegaIconButton(
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Geri",
+                        onClick = onBack
+                    )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
-                    // Arama Kutusu (BasicTextField tabanlı, kesintisiz ve şık)
+                    // Arama Kutusu (Odak çerçeveli, TV kumanda uyumlu)
                     Surface(
                         shape = VegaShapes.Medium,
-                        color = VegaColors.Card,
-                        border = BorderStroke(1.dp, VegaColors.Border),
+                        color = if (isSearchFocused) VegaColors.SurfaceElevated else VegaColors.Card,
+                        border = BorderStroke(
+                            if (isSearchFocused) 2.dp else 1.dp,
+                            if (isSearchFocused) VegaColors.FocusBorder else VegaColors.Border
+                        ),
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp)
+                            .height(46.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 12.dp),
+                                .padding(horizontal = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = "Ara",
-                                tint = VegaColors.Accent,
+                                tint = if (isSearchFocused) VegaColors.Accent else VegaColors.TextSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
 
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
 
                             Box(
                                 modifier = Modifier.weight(1f),
@@ -158,7 +147,7 @@ fun UniversalSearchScreen(
                                     Text(
                                         text = "Kanal, film veya dizi ara…",
                                         color = VegaColors.TextMuted,
-                                        fontSize = 14.sp,
+                                        fontSize = VegaText.Body,
                                         maxLines = 1
                                     )
                                 }
@@ -168,7 +157,7 @@ fun UniversalSearchScreen(
                                     singleLine = true,
                                     textStyle = TextStyle(
                                         color = VegaColors.TextPrimary,
-                                        fontSize = 14.sp
+                                        fontSize = VegaText.Body
                                     ),
                                     cursorBrush = SolidColor(VegaColors.Accent),
                                     keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
@@ -178,21 +167,29 @@ fun UniversalSearchScreen(
                                             viewModel.saveRecentSearch(searchQuery)
                                         }
                                     ),
-                                    modifier = Modifier.tvOpenKeyboardOnOk()
+                                    modifier = Modifier
+                                        .tvOpenKeyboardOnOk()
                                         .fillMaxWidth()
                                         .focusRequester(searchFocusRequester)
+                                        .onFocusChanged { isSearchFocused = it.isFocused }
                                 )
                             }
 
                             if (searchQuery.isNotEmpty()) {
-                                IconButton(
-                                    onClick = { viewModel.setUniversalSearchQuery("") },
-                                    modifier = Modifier.size(28.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .dpadFocusable(
+                                            shape = VegaShapes.Pill,
+                                            focusedBorderColor = VegaColors.FocusBorder,
+                                            onClick = { viewModel.setUniversalSearchQuery("") }
+                                        ),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Clear,
                                         contentDescription = "Temizle",
-                                        tint = VegaColors.TextMuted,
+                                        tint = VegaColors.TextSecondary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -211,13 +208,13 @@ fun UniversalSearchScreen(
                         trackColor = Color.Transparent
                     )
                 } else {
-                    Spacer(modifier = Modifier.height(2.5.dp))
+                    HorizontalDivider(color = VegaColors.Border.copy(alpha = 0.6f), thickness = 0.5.dp)
                 }
 
                 // Filtre Çipleri (Sonuç Sayıları ile Birlikte)
                 if (searchQuery.length >= 2) {
                     LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -284,17 +281,26 @@ fun UniversalSearchScreen(
                     }
                 }
 
-                // Durum 2: 1 Karakter Girildi -> "En az 2 harf yazın"
+                // Durum 2: 1 Karakter Girildi -> "En az 2 harf yaz"
                 searchQuery.length == 1 -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "En az 2 harf yazın",
-                            color = VegaColors.TextSecondary,
-                            fontSize = 14.sp
-                        )
+                        Column(
+                            modifier = Modifier
+                                .widthIn(max = 360.dp)
+                                .vegaPanel(VegaShapes.Hero)
+                                .padding(horizontal = 24.dp, vertical = 22.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "En az 2 harf yaz",
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Body,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
 
@@ -306,25 +312,43 @@ fun UniversalSearchScreen(
                             .padding(horizontal = 24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Default.SearchOff,
-                                contentDescription = null,
-                                tint = VegaColors.TextMuted,
-                                modifier = Modifier.size(56.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
+                        Column(
+                            modifier = Modifier
+                                .widthIn(max = 440.dp)
+                                .fillMaxWidth(0.9f)
+                                .vegaPanel(VegaShapes.Hero)
+                                .padding(horizontal = 28.dp, vertical = 30.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = VegaColors.SurfaceVariant,
+                                border = BorderStroke(1.dp, VegaColors.Border),
+                                modifier = Modifier.size(60.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.SearchOff,
+                                        contentDescription = null,
+                                        tint = VegaColors.TextMuted,
+                                        modifier = Modifier.size(30.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(14.dp))
                             Text(
                                 text = "'$searchQuery' için sonuç bulunamadı",
                                 color = VegaColors.TextPrimary,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontSize = VegaText.SectionTitle,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Yazımı kontrol edebilir veya farklı bir arama terimi deneyebilirsiniz.",
-                                color = VegaColors.TextMuted,
-                                fontSize = 13.sp
+                                text = "Yazımı kontrol et veya farklı bir kelime dene.",
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Secondary,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -333,7 +357,6 @@ fun UniversalSearchScreen(
                 // Durum 4: Arama Sonuçları Listesi
                 else -> {
                     SearchResultsContent(
-                        query = searchQuery,
                         activeFilter = activeFilter,
                         liveResults = liveResults,
                         vodResults = vodResults,
@@ -373,7 +396,7 @@ fun UniversalSearchScreen(
 }
 
 /**
- * Filtre Çipi Bileşeni (Tümü, Canlı TV, Filmler, Diziler)
+ * Filtre Çipi Bileşeni (Tümü, Canlı TV, Filmler, Diziler) — Tek odak hedefi.
  */
 @Composable
 private fun SearchFilterChip(
@@ -382,34 +405,41 @@ private fun SearchFilterChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     Surface(
         shape = VegaShapes.Pill,
-        color = if (isSelected) VegaColors.Accent else VegaColors.Card,
-        border = BorderStroke(1.dp, if (isSelected) VegaColors.Accent else VegaColors.Border),
-        modifier = Modifier
-            .dpadFocusable(
-                shape = VegaShapes.Pill,
-                focusedBorderColor = if (isSelected) Color.White else VegaColors.Accent,
-                onClick = onClick
-            )
-            .clickable(onClick = onClick)
+        color = when {
+            isSelected -> VegaColors.Accent
+            isFocused -> VegaColors.SurfaceElevated
+            else -> VegaColors.Card
+        },
+        border = if (!isFocused) {
+            BorderStroke(1.dp, if (isSelected) VegaColors.Accent else VegaColors.Border)
+        } else null,
+        modifier = Modifier.dpadFocusable(
+            shape = VegaShapes.Pill,
+            focusedBorderColor = if (isSelected) Color.White else VegaColors.FocusBorder,
+            onClick = onClick,
+            onFocusStateChange = { isFocused = it }
+        )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = label,
                 color = if (isSelected) VegaColors.OnAccent else VegaColors.TextPrimary,
-                fontSize = 13.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                fontSize = VegaText.Secondary,
+                fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium
             )
             if (count > 0) {
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "$count",
-                    color = if (isSelected) VegaColors.OnAccent.copy(alpha = 0.75f) else VegaColors.Accent,
-                    fontSize = 11.sp,
+                    color = if (isSelected) VegaColors.OnAccent.copy(alpha = 0.78f) else VegaColors.Accent,
+                    fontSize = VegaText.Caption,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -418,7 +448,7 @@ private fun SearchFilterChip(
 }
 
 /**
- * Son Aramalar Bölümü (En fazla 8 adet, tek tek silinebilir + Tümünü Temizle)
+ * Son Aramalar Bölümü (En fazla 8 adet, ayrı odak hedefli arama ve silme düğmesi + Temizle).
  */
 @Composable
 private fun RecentSearchesSection(
@@ -440,78 +470,73 @@ private fun RecentSearchesSection(
             Text(
                 text = "Son aramalar",
                 color = VegaColors.TextPrimary,
-                fontSize = 15.sp,
+                fontSize = VegaText.BodyProminent,
                 fontWeight = FontWeight.Bold
             )
-            TextButton(onClick = onClearAll) {
-                Text(
-                    text = "Temizle",
-                    color = VegaColors.Accent,
-                    fontSize = 13.sp
-                )
-            }
+            VegaButton(
+                text = "Temizle",
+                variant = VegaButtonVariant.TEXT,
+                onClick = onClearAll
+            )
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Son Aramalar Listesi
+        // Son Aramalar Listesi (İç içe tıklama yok — arama kartı ve silme düğmesi yan yana ayrı odak)
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             items(recentSearches, key = { it }) { query ->
-                Surface(
-                    shape = VegaShapes.Medium,
-                    color = VegaColors.Card,
-                    border = BorderStroke(1.dp, VegaColors.Border),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .dpadFocusable(
-                            shape = VegaShapes.Medium,
-                            focusedBorderColor = VegaColors.Accent,
-                            onClick = { onSearchClick(query) }
-                        )
-                        .clickable { onSearchClick(query) }
+                var itemFocused by remember { mutableStateOf(false) }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
+                    Surface(
+                        shape = VegaShapes.Medium,
+                        color = if (itemFocused) VegaColors.SurfaceElevated else VegaColors.Card,
+                        border = if (!itemFocused) BorderStroke(1.dp, VegaColors.Border) else null,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .weight(1f)
+                            .dpadFocusable(
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                onClick = { onSearchClick(query) },
+                                onFocusStateChange = { itemFocused = it }
+                            )
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.History,
                                 contentDescription = null,
-                                tint = VegaColors.TextMuted,
+                                tint = if (itemFocused) VegaColors.Accent else VegaColors.TextMuted,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = query,
                                 color = VegaColors.TextPrimary,
-                                fontSize = 14.sp,
+                                fontSize = VegaText.Body,
+                                fontWeight = if (itemFocused) FontWeight.SemiBold else FontWeight.Normal,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-
-                        IconButton(
-                            onClick = { onRemoveClick(query) },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Sil",
-                                tint = VegaColors.TextMuted,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
                     }
+
+                    VegaIconButton(
+                        icon = Icons.Default.Close,
+                        contentDescription = "Sil",
+                        onClick = { onRemoveClick(query) }
+                    )
                 }
             }
         }
@@ -519,26 +544,53 @@ private fun RecentSearchesSection(
 }
 
 /**
- * İlk Boş Durum Bilgilendirme Görseli
+ * İlk Boş Durum Bilgilendirme Kartı (StreamVault cam panel tarzı)
  */
 @Composable
 private fun EmptyInitialState() {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = VegaColors.TextMuted.copy(alpha = 0.35f),
+        Column(
+            modifier = Modifier
+                .widthIn(max = 420.dp)
+                .fillMaxWidth(0.9f)
+                .vegaPanel(VegaShapes.Hero)
+                .padding(horizontal = 28.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = VegaColors.Accent.copy(alpha = 0.14f),
+                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.30f)),
                 modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = VegaColors.Accent,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(14.dp))
             Text(
                 text = "Kanal, film veya dizi ara",
-                color = VegaColors.TextMuted,
-                fontSize = 14.sp
+                color = VegaColors.TextPrimary,
+                fontSize = VegaText.SectionTitle,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Tüm arşivde anında arama yapmak için en az 2 harf yaz.",
+                color = VegaColors.TextSecondary,
+                fontSize = VegaText.Secondary,
+                textAlign = TextAlign.Center
             )
         }
     }
@@ -549,7 +601,6 @@ private fun EmptyInitialState() {
  */
 @Composable
 private fun SearchResultsContent(
-    query: String,
     activeFilter: SearchFilter,
     liveResults: List<LiveStream>,
     vodResults: List<VodStream>,
@@ -595,12 +646,12 @@ private fun SearchResultsContent(
                             onSeeAllClick = onSeeAllVod
                         )
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth().focusRestorer() // G-047
                         ) {
                             items(vodResults, key = { "vod_${it.streamId}" }) { vod ->
-                                Box(modifier = Modifier.width(115.dp)) {
+                                Box(modifier = Modifier.width(120.dp)) {
                                     MediaPosterCard(
                                         imageUrl = vod.streamIcon,
                                         title = vod.name,
@@ -625,12 +676,12 @@ private fun SearchResultsContent(
                             onSeeAllClick = onSeeAllSeries
                         )
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 14.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth().focusRestorer() // G-047
                         ) {
                             items(seriesResults, key = { "series_${it.seriesId}" }) { series ->
-                                Box(modifier = Modifier.width(115.dp)) {
+                                Box(modifier = Modifier.width(120.dp)) {
                                     MediaPosterCard(
                                         imageUrl = series.cover,
                                         title = series.name,
@@ -663,10 +714,10 @@ private fun SearchResultsContent(
 
         SearchFilter.MOVIES -> {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 110.dp),
+                columns = GridCells.Adaptive(minSize = 115.dp),
                 contentPadding = PaddingValues(14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(vodResults, key = { "vod_tab_${it.streamId}" }) { vod ->
@@ -683,10 +734,10 @@ private fun SearchResultsContent(
 
         SearchFilter.SERIES -> {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 110.dp),
+                columns = GridCells.Adaptive(minSize = 115.dp),
                 contentPadding = PaddingValues(14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(seriesResults, key = { "series_tab_${it.seriesId}" }) { series ->
@@ -704,7 +755,7 @@ private fun SearchResultsContent(
 }
 
 /**
- * Bölüm Başlığı (Örn: Canlı TV · 12   Tümünü gör ›)
+ * Bölüm Başlığı (Örn: Canlı TV · 12   Tümünü gör ›) — Tek odaklı aksiyon.
  */
 @Composable
 private fun SectionHeader(
@@ -713,38 +764,48 @@ private fun SectionHeader(
     titleColor: Color,
     onSeeAllClick: () -> Unit
 ) {
+    var seeAllFocused by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 6.dp),
+            .padding(start = 16.dp, end = 12.dp, top = 14.dp, bottom = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "$title · $count",
-                color = titleColor,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp
-            )
-        }
+        Text(
+            text = "$title · $count",
+            color = titleColor,
+            fontSize = VegaText.Secondary,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.4.sp
+        )
 
-        TextButton(
-            onClick = onSeeAllClick,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+        Surface(
+            shape = VegaShapes.Small,
+            color = if (seeAllFocused) VegaColors.SurfaceElevated else Color.Transparent,
+            modifier = Modifier.dpadFocusable(
+                shape = VegaShapes.Small,
+                focusedBorderColor = VegaColors.FocusBorder,
+                onClick = onSeeAllClick,
+                onFocusStateChange = { seeAllFocused = it }
+            )
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = "Tümünü gör",
-                    color = VegaColors.TextSecondary,
-                    fontSize = 12.sp
+                    color = if (seeAllFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                    fontSize = VegaText.Caption,
+                    fontWeight = if (seeAllFocused) FontWeight.SemiBold else FontWeight.Medium
                 )
-                Spacer(modifier = Modifier.width(2.dp))
+                Spacer(modifier = Modifier.width(3.dp))
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                     contentDescription = null,
-                    tint = VegaColors.TextSecondary,
+                    tint = if (seeAllFocused) VegaColors.Accent else VegaColors.TextSecondary,
                     modifier = Modifier.size(10.dp)
                 )
             }
@@ -753,27 +814,29 @@ private fun SectionHeader(
 }
 
 /**
- * Kompakt Canlı Kanal Satırı (≤64dp kuralı)
+ * Kompakt Canlı Kanal Satırı (≤64dp kuralı, tek odak hedefi — çift tıklama yok).
  */
 @Composable
 private fun UniversalSearchChannelRow(
     channel: LiveStream,
     onClick: () -> Unit
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     Surface(
         shape = VegaShapes.Medium,
-        color = VegaColors.Card,
-        border = BorderStroke(1.dp, VegaColors.Border),
+        color = if (isFocused) VegaColors.SurfaceElevated else VegaColors.Card,
+        border = if (!isFocused) BorderStroke(1.dp, VegaColors.Border) else null,
         modifier = Modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(58.dp)
             .padding(horizontal = 12.dp, vertical = 2.dp)
             .dpadFocusable(
                 shape = VegaShapes.Medium,
-                focusedBorderColor = VegaColors.Accent,
-                onClick = onClick
+                focusedBorderColor = VegaColors.FocusBorder,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
             )
-            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
@@ -799,7 +862,7 @@ private fun UniversalSearchChannelRow(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Kanal Bilgisi (No, İsim, EPG)
+            // Kanal Bilgisi (No, İsim, Program)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center
@@ -809,7 +872,7 @@ private fun UniversalSearchChannelRow(
                         Text(
                             text = "${channel.num}",
                             color = VegaColors.TextMuted,
-                            fontSize = 11.sp,
+                            fontSize = VegaText.Caption,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(end = 6.dp)
                         )
@@ -817,7 +880,7 @@ private fun UniversalSearchChannelRow(
                     Text(
                         text = channel.name,
                         color = VegaColors.TextPrimary,
-                        fontSize = 14.sp,
+                        fontSize = VegaText.Body,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -828,7 +891,7 @@ private fun UniversalSearchChannelRow(
                 Text(
                     text = if (channel.currentProgram != null) "Şimdi: $programInfo" else programInfo,
                     color = VegaColors.TextSecondary,
-                    fontSize = 11.sp,
+                    fontSize = VegaText.Caption,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

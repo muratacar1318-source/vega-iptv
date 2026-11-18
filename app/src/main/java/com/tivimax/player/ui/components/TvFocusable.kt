@@ -1,11 +1,14 @@
 package com.tivimax.player.ui.components
 
+import android.view.KeyEvent as AndroidKeyEvent
+import android.view.SoundEffectConstants
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,15 +17,28 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.util.LocalIsTvDevice
+
+/**
+ * StreamVault'tan uyarlanan güvenli odak istemi yardımcısı.
+ * Öğe henüz yerleşmediyse çökme yerine sessizce false döner.
+ */
+fun FocusRequester.requestFocusSafely(): Boolean =
+    runCatching { requestFocus(); true }.getOrDefault(false)
 
 fun Modifier.dpadFocusable(
     focusedBorderColor: Color = VegaColors.FocusBorder,
@@ -31,34 +47,80 @@ fun Modifier.dpadFocusable(
     onClick: (() -> Unit)? = null,
     onFocusStateChange: ((Boolean) -> Unit)? = null
 ): Modifier = composed {
+    val isTv = LocalIsTvDevice.current
+    val view = LocalView.current
     var isFocused by remember { mutableStateOf(false) }
+    var pendingKeyClick by remember { mutableStateOf(false) }
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnFocusStateChange by rememberUpdatedState(onFocusStateChange)
+
     val animatedScale by animateFloatAsState(
         targetValue = if (isFocused) scale else 1.0f,
         animationSpec = tween(durationMillis = 130),
         label = "dpadFocusScale"
     )
 
-    this
-        .zIndex(if (isFocused) 1f else 0f)
-        .onFocusChanged { state ->
-            isFocused = state.isFocused
-            onFocusStateChange?.invoke(state.isFocused)
+    val performClick: () -> Unit = {
+        if (isTv) {
+            runCatching { view.playSoundEffect(SoundEffectConstants.CLICK) }
         }
-        .then(
-            if (onClick != null) {
-                Modifier.clickable(
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick
-                )
-            } else {
-                Modifier.focusable()
-            }
-        )
+        currentOnClick?.invoke()
+    }
+
+    this
+        .zIndex(if (isFocused) 2f else 0f)
         .graphicsLayer {
             scaleX = animatedScale
             scaleY = animatedScale
         }
+        .onFocusChanged { state ->
+            val nowFocused = state.isFocused
+            if (nowFocused && !isFocused && isTv) {
+                runCatching { view.playSoundEffect(SoundEffectConstants.NAVIGATION_RIGHT) }
+            }
+            if (!nowFocused) {
+                pendingKeyClick = false
+            }
+            isFocused = nowFocused
+            currentOnFocusStateChange?.invoke(nowFocused)
+        }
+        .then(
+            if (onClick != null) {
+                Modifier
+                    .onPreviewKeyEvent { event ->
+                        if (!isFocused) return@onPreviewKeyEvent false
+                        val code = event.nativeKeyEvent.keyCode
+                        val isConfirmKey = code == AndroidKeyEvent.KEYCODE_DPAD_CENTER ||
+                            code == AndroidKeyEvent.KEYCODE_ENTER ||
+                            code == AndroidKeyEvent.KEYCODE_NUMPAD_ENTER ||
+                            code == AndroidKeyEvent.KEYCODE_BUTTON_A
+                        if (!isConfirmKey) return@onPreviewKeyEvent false
+                        when (event.type) {
+                            KeyEventType.KeyDown -> {
+                                if (event.nativeKeyEvent.repeatCount == 0) {
+                                    pendingKeyClick = true
+                                }
+                                true
+                            }
+                            KeyEventType.KeyUp -> {
+                                if (pendingKeyClick) {
+                                    pendingKeyClick = false
+                                    performClick()
+                                }
+                                true
+                            }
+                            else -> false
+                        }
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = performClick
+                    )
+            } else {
+                Modifier.focusable()
+            }
+        )
         .then(
             if (isFocused) Modifier.border(2.dp, focusedBorderColor, shape) else Modifier
         )

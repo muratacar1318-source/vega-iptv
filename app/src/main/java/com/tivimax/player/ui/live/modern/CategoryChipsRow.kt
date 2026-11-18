@@ -4,36 +4,30 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.LiveCategory
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 
 /**
- * Üstte yatay kaydırılabilir yapışkan (sticky) kategori çipleri satırı.
- * - Metinler kırpılmaz, çip genişliği içeriğe göre büyür.
- * - Seçili çip OpusCyan vurgulu, kanal sayısı rozet olarak içinde.
- * - Sonda "Tümü ▾" butonu bulunur ve tam kategori BottomSheet'ini açar.
+ * Üstte yatay kaydırılabilir yapışkan kategori çipleri satırı (StreamVault görsel dili).
+ * Her çip tek odak ve tıklama hedefine sahiptir.
  */
 @Composable
 fun CategoryChipsRow(
@@ -47,7 +41,6 @@ fun CategoryChipsRow(
 ) {
     val listState = rememberLazyListState()
 
-    // Seçilen kategori değiştiğinde ilgili çipe kaydır
     LaunchedEffect(selectedCategory) {
         if (selectedCategory == "all") {
             listState.animateScrollToItem(0)
@@ -56,14 +49,13 @@ fun CategoryChipsRow(
         } else {
             val index = categories.indexOfFirst { it.categoryId == selectedCategory }
             if (index >= 0) {
-                // +2 çünkü "all" ve "favorites" başta
                 listState.animateScrollToItem((index + 2).coerceAtLeast(0))
             }
         }
     }
 
     Surface(
-        color = TiviBackground,
+        color = VegaColors.Background.copy(alpha = 0.92f),
         modifier = modifier.fillMaxWidth()
     ) {
         LazyRow(
@@ -84,7 +76,7 @@ fun CategoryChipsRow(
                         Icon(
                             imageVector = Icons.Default.Tv,
                             contentDescription = null,
-                            tint = if (isSelected) Color.Black else OpusCyan,
+                            tint = VegaColors.Accent,
                             modifier = Modifier.size(15.dp)
                         )
                     },
@@ -103,7 +95,7 @@ fun CategoryChipsRow(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
-                            tint = if (isSelected) Color.Black else TiviGold,
+                            tint = VegaColors.Gold,
                             modifier = Modifier.size(15.dp)
                         )
                     },
@@ -111,7 +103,7 @@ fun CategoryChipsRow(
                 )
             }
 
-            // 3. İçerik Kategorileri (Haber, Belgesel, Sinema...)
+            // 3. İçerik Kategorileri
             items(
                 items = categories
                     .filter { it.categoryId != "all" && it.categoryId != "favorites" }
@@ -128,19 +120,21 @@ fun CategoryChipsRow(
                 )
             }
 
-            // 4. "Tümü ▾" Butonu (BottomSheet Açıcı)
+            // 4. "Tümü" Açılır Liste Butonu (Tek odak hedefli)
             item(key = "btn_all_categories") {
+                var isFocused by remember { mutableStateOf(false) }
                 Surface(
-                    onClick = onOpenAllCategories,
-                    shape = RoundedCornerShape(20.dp),
-                    color = TiviSurfaceVariant,
-                    border = BorderStroke(1.dp, OpusCyan.copy(alpha = 0.5f)),
+                    shape = VegaShapes.Pill,
+                    color = if (isFocused) VegaColors.SurfaceVariant else VegaColors.SurfaceElevated,
+                    border = if (isFocused) null else BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.5f)),
                     modifier = Modifier
                         .height(36.dp)
                         .dpadFocusable(
-                            focusedBorderColor = OpusCyan,
-                            shape = RoundedCornerShape(20.dp),
-                            onClick = onOpenAllCategories
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            shape = VegaShapes.Pill,
+                            scale = 1.03f,
+                            onClick = onOpenAllCategories,
+                            onFocusStateChange = { isFocused = it }
                         )
                 ) {
                     Row(
@@ -150,14 +144,14 @@ fun CategoryChipsRow(
                     ) {
                         Text(
                             text = "Tümü",
-                            color = OpusCyan,
-                            fontSize = 12.sp,
+                            color = VegaColors.Accent,
+                            fontSize = VegaText.Secondary,
                             fontWeight = FontWeight.Bold
                         )
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Tüm Kategorileri Gör",
-                            tint = OpusCyan,
+                            contentDescription = "Tüm kategorileri gör",
+                            tint = VegaColors.Accent,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -175,33 +169,40 @@ private fun CategoryChipItem(
     leadingIcon: (@Composable () -> Unit)? = null,
     onClick: () -> Unit
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) OpusCyan else TiviCard,
+        targetValue = when {
+            isFocused -> VegaColors.SurfaceVariant
+            isSelected -> VegaColors.Accent.copy(alpha = 0.18f)
+            else -> VegaColors.SurfaceElevated
+        },
         animationSpec = tween(180),
         label = "chip_bg"
     )
 
     val contentColor by animateColorAsState(
-        targetValue = if (isSelected) Color.Black else Color.White,
+        targetValue = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
         animationSpec = tween(180),
         label = "chip_fg"
     )
 
     Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
+        shape = VegaShapes.Pill,
         color = backgroundColor,
-        border = BorderStroke(
+        border = if (isFocused) null else BorderStroke(
             width = 1.dp,
-            color = if (isSelected) OpusCyan else TiviCardBorder
+            color = if (isSelected) VegaColors.Accent else VegaColors.Border
         ),
         modifier = Modifier
             .height(36.dp)
             .wrapContentWidth()
             .dpadFocusable(
-                focusedBorderColor = OpusCyan,
-                shape = RoundedCornerShape(20.dp),
-                onClick = onClick
+                focusedBorderColor = VegaColors.FocusBorder,
+                shape = VegaShapes.Pill,
+                scale = 1.03f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
             )
     ) {
         Row(
@@ -214,7 +215,7 @@ private fun CategoryChipItem(
             Text(
                 text = title,
                 color = contentColor,
-                fontSize = 12.5.sp,
+                fontSize = VegaText.Secondary,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
                 softWrap = false
@@ -223,17 +224,17 @@ private fun CategoryChipItem(
             if (count > 0) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(VegaShapes.Pill)
                         .background(
-                            if (isSelected) Color.Black.copy(alpha = 0.2f)
-                            else Color.White.copy(alpha = 0.12f)
+                            if (isSelected) VegaColors.Accent.copy(alpha = 0.22f)
+                            else VegaColors.SurfaceAccent
                         )
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = if (count > 999) "${count / 1000}k" else count.toString(),
-                        color = contentColor,
-                        fontSize = 10.sp,
+                        color = if (isSelected) VegaColors.Accent else VegaColors.TextMuted,
+                        fontSize = VegaText.Caption,
                         fontWeight = FontWeight.Bold
                     )
                 }

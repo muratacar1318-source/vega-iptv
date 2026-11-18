@@ -2,7 +2,6 @@ package com.tivimax.player.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -128,14 +127,29 @@ fun CategorySidebar(
                 overflow = TextOverflow.Ellipsis
             )
             if (onFilterClick != null) {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = "Filtrele",
-                    tint = VegaColors.Accent,
+                var filterFocused by remember { mutableStateOf(false) }
+                Surface(
+                    shape = VegaShapes.Small,
+                    color = if (filterFocused) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.SurfaceVariant.copy(alpha = 0.7f),
+                    border = if (!filterFocused) BorderStroke(1.dp, VegaColors.Border) else null,
                     modifier = Modifier
-                        .size(18.dp)
-                        .clickable { onFilterClick() }
-                )
+                        .size(30.dp)
+                        .dpadFocusable(
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            shape = VegaShapes.Small,
+                            onClick = onFilterClick,
+                            onFocusStateChange = { filterFocused = it }
+                        )
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = "Kategorileri yönet",
+                            tint = VegaColors.Accent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
         }
 

@@ -9,7 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.History
@@ -30,20 +29,15 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 
 /**
- * Canlı TV Tam Ekran Oynatıcısı Alt Aksiyon Çubuğu (Kompakt İkon Düzeni).
+ * Canlı TV Oynatıcısı Alt Aksiyon Çubuğu (StreamVault cam stil + tek odaklı düğmeler).
  *
- * Özellikler:
- * 1. Etiketsiz, yalnızca 22dp ikon ve en az 44x44dp dokunma alanı.
- * 2. Uzun basıldığında Material3 TooltipBox / PlainTooltip ile buton adı gösterilir.
- * 3. Sıralama: Rehber, Önceki kanal, Son kanallar, Ses & Altyazı, Daha Fazla.
- * 4. Dikey modda eşit aralıklı, yatay modda kompakt yan yana yerleşir.
+ * Sıralama: Rehber, Önceki kanal, Son kanallar, Ses ve altyazı, Daha fazla.
  */
 @Composable
 fun LivePlayerActionBar(
@@ -64,7 +58,7 @@ fun LivePlayerActionBar(
 
     Row(
         modifier = modifier,
-        horizontalArrangement = if (isPortrait) Arrangement.SpaceBetween else Arrangement.spacedBy(4.dp),
+        horizontalArrangement = if (isPortrait) Arrangement.SpaceBetween else Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 1. REHBER (EPG)
@@ -78,7 +72,7 @@ fun LivePlayerActionBar(
             focusRequester = firstButtonFocusRequester
         )
 
-        // 2. ÖNCEKİ KANAL (ZAPPING RECALL)
+        // 2. ÖNCEKİ KANAL
         val prevTooltip = if (!previousChannelName.isNullOrBlank()) {
             "Önceki: $previousChannelName"
         } else {
@@ -110,7 +104,7 @@ fun LivePlayerActionBar(
             onClick = onToggleRecentChannels
         )
 
-        // 4. SES & ALTYAZI
+        // 4. SES VE ALTYAZI
         LiveActionButtonItem(
             icon = Icons.Default.Subtitles,
             tooltip = "Ses ve altyazı",
@@ -118,7 +112,7 @@ fun LivePlayerActionBar(
             onClick = onOpenAudioSubtitles
         )
 
-        // 5. DAHA FAZLA (⋯)
+        // 5. DAHA FAZLA
         LiveActionButtonItem(
             icon = Icons.Default.MoreHoriz,
             tooltip = "Daha fazla",
@@ -150,8 +144,8 @@ private fun LiveActionButtonItem(
 
     val scale by animateFloatAsState(
         targetValue = when {
-            isPressed -> 0.88f
-            isFocused -> 1.1f
+            isPressed -> 0.90f
+            isFocused -> 1.05f
             else -> 1.0f
         },
         animationSpec = spring(
@@ -161,10 +155,20 @@ private fun LiveActionButtonItem(
         label = "btnScale"
     )
 
+    val containerColor by animateColorAsState(
+        targetValue = when {
+            !enabled -> Color.Transparent
+            isFocused -> VegaColors.Accent
+            isActive -> activeColor.copy(alpha = 0.18f)
+            else -> VegaColors.OverlayPill
+        },
+        label = "btnBg"
+    )
+
     val tintColor by animateColorAsState(
         targetValue = when {
             !enabled -> defaultColor.copy(alpha = 0.35f)
-            isFocused -> VegaColors.Accent
+            isFocused -> VegaColors.OnAccent
             isActive -> activeColor
             else -> defaultColor
         },
@@ -180,6 +184,7 @@ private fun LiveActionButtonItem(
         },
         state = rememberTooltipState()
     ) {
+        // Tek odak + tıklama hedefi: Surface(onClick) tek başına kullanılır, ekstra dpadFocusable eklenmez.
         Surface(
             onClick = {
                 if (enabled) {
@@ -190,8 +195,16 @@ private fun LiveActionButtonItem(
             },
             enabled = enabled,
             shape = VegaShapes.Medium,
-            color = if (isFocused) VegaColors.Accent.copy(alpha = 0.22f) else Color.Transparent,
-            border = if (isFocused) BorderStroke(2.dp, VegaColors.Accent) else null,
+            color = containerColor,
+            border = BorderStroke(
+                width = if (isFocused) 2.dp else 1.dp,
+                color = when {
+                    !enabled -> VegaColors.Border.copy(alpha = 0.35f)
+                    isFocused -> Color.White
+                    isActive -> activeColor.copy(alpha = 0.6f)
+                    else -> VegaColors.Border
+                }
+            ),
             interactionSource = interactionSource,
             modifier = modifier
                 .size(VegaSizes.IconButton)
@@ -210,7 +223,7 @@ private fun LiveActionButtonItem(
                     imageVector = icon,
                     contentDescription = contentDescription,
                     tint = tintColor,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(21.dp)
                 )
             }
         }

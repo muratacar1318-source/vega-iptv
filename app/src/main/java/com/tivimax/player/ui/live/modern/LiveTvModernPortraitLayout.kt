@@ -40,10 +40,13 @@ import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.data.preferences.UserPreferences
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.GlobalSearchOptionsCard
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.ui.design.vegaBackdrop
 import kotlinx.coroutines.flow.collectLatest
 
 /**
@@ -148,9 +151,9 @@ fun LiveTvModernPortraitLayout(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .vegaBackdrop()
     ) {
-        // 1. DİKEY CANLI MİNİ-PLAYER ÖNİZLEME (Aktifse üstte görünür)
+        // 1. DİKEY CANLI MİNİ ÖNİZLEME (Aktifse üstte görünür)
         AnimatedVisibility(
             visible = isMiniPlayerActive && activePreviewChannel != null,
             enter = expandVertically() + fadeIn(),
@@ -201,14 +204,14 @@ fun LiveTvModernPortraitLayout(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(TiviAccentLive)
+                                    .clip(VegaShapes.Small)
+                                    .background(VegaColors.Live)
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "CANLI",
+                                    text = "Canlı",
                                     color = Color.White,
-                                    fontSize = 10.sp,
+                                    fontSize = VegaText.Caption,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -216,7 +219,7 @@ fun LiveTvModernPortraitLayout(
                             Text(
                                 text = channel.name,
                                 color = Color.White,
-                                fontSize = 13.sp,
+                                fontSize = VegaText.Secondary,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -226,18 +229,18 @@ fun LiveTvModernPortraitLayout(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(
                                 onClick = { viewModel.expandMiniPlayerToFullscreen() },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(34.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Fullscreen,
-                                    contentDescription = "Tam Ekran",
-                                    tint = OpusCyan,
+                                    contentDescription = "Tam ekran",
+                                    tint = VegaColors.Accent,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
                             IconButton(
                                 onClick = { viewModel.closeMiniPlayer() },
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(34.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
@@ -297,10 +300,10 @@ fun LiveTvModernPortraitLayout(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = OpusCyan)
+                    CircularProgressIndicator(color = VegaColors.Accent)
                 }
             } else if (filteredChannels.isEmpty()) {
-                // Boş Durum (Empty State)
+                // Boş Durum
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -312,7 +315,7 @@ fun LiveTvModernPortraitLayout(
                         Icon(
                             imageVector = Icons.Default.LiveTv,
                             contentDescription = null,
-                            tint = TiviTextMuted,
+                            tint = VegaColors.TextMuted,
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
@@ -322,8 +325,8 @@ fun LiveTvModernPortraitLayout(
                             } else {
                                 "Bu kategoride henüz yayın bulunmuyor."
                             },
-                            color = TiviTextSecondary,
-                            fontSize = 14.sp,
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Body,
                             fontWeight = FontWeight.Medium
                         )
 
@@ -384,7 +387,7 @@ fun LiveTvModernPortraitLayout(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         CircularProgressIndicator(
-                                            color = OpusCyan,
+                                            color = VegaColors.Accent,
                                             modifier = Modifier.size(24.dp),
                                             strokeWidth = 2.dp
                                         )
@@ -452,7 +455,7 @@ fun LiveTvModernPortraitLayout(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         CircularProgressIndicator(
-                                            color = OpusCyan,
+                                            color = VegaColors.Accent,
                                             modifier = Modifier.size(24.dp),
                                             strokeWidth = 2.dp
                                         )
@@ -526,7 +529,7 @@ fun LiveTvModernPortraitLayout(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         CircularProgressIndicator(
-                                            color = OpusCyan,
+                                            color = VegaColors.Accent,
                                             modifier = Modifier.size(24.dp),
                                             strokeWidth = 2.dp
                                         )

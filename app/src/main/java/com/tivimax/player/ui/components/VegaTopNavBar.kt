@@ -37,6 +37,7 @@ import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.main.HomeTab
+import com.tivimax.player.util.LocalIsTvDevice
 
 /**
  * StreamVault imzalı yüzen üst gezinme çubuğu (Android TV ve geniş ekranlar için).
@@ -68,6 +69,9 @@ fun VegaTopNavBar(
     )
     val tabRequesters = remember { mutableMapOf<HomeTab, FocusRequester>() }
     val scrollState = rememberScrollState()
+    val isTv = LocalIsTvDevice.current
+    var playlistFocused by remember { mutableStateOf(false) }
+    var syncFocused by remember { mutableStateOf(false) }
 
     Surface(
         shape = VegaShapes.Large,
@@ -96,12 +100,14 @@ fun VegaTopNavBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // SOL: Vega IPTV Kimliği
+            // SOL: Vega IPTV Kimliği (TV'de kumanda odak tuzağı oluşturmaması için sadece dokunmatikte tıklanabilir)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(VegaShapes.Small)
-                    .clickable { onTabSelected(HomeTab.DASHBOARD) }
+                    .then(
+                        if (!isTv) Modifier.clickable { onTabSelected(HomeTab.DASHBOARD) } else Modifier
+                    )
                     .padding(horizontal = 4.dp, vertical = 4.dp)
             ) {
                 Box(
@@ -185,8 +191,8 @@ fun VegaTopNavBar(
                 // Aktif Liste Hapı
                 Surface(
                     shape = VegaShapes.Small,
-                    color = VegaColors.SurfaceElevated,
-                    border = BorderStroke(1.dp, VegaColors.Border),
+                    color = if (playlistFocused) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.SurfaceElevated,
+                    border = if (!playlistFocused) BorderStroke(1.dp, VegaColors.Border) else null,
                     modifier = Modifier
                         .height(34.dp)
                         .widthIn(max = 150.dp)
@@ -194,7 +200,8 @@ fun VegaTopNavBar(
                             shape = VegaShapes.Small,
                             focusedBorderColor = VegaColors.FocusBorder,
                             scale = 1.035f,
-                            onClick = onPlaylistsClick
+                            onClick = onPlaylistsClick,
+                            onFocusStateChange = { playlistFocused = it }
                         )
                 ) {
                     Row(
@@ -222,7 +229,7 @@ fun VegaTopNavBar(
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
                             contentDescription = null,
-                            tint = VegaColors.TextMuted,
+                            tint = if (playlistFocused) VegaColors.Accent else VegaColors.TextMuted,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -231,15 +238,20 @@ fun VegaTopNavBar(
                 // Yenileme / Senkronizasyon Düğmesi
                 Surface(
                     shape = VegaShapes.Small,
-                    color = if (isSyncing) VegaColors.Accent.copy(alpha = 0.16f) else Color.Transparent,
-                    border = if (isSyncing) BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.4f)) else null,
+                    color = when {
+                        syncFocused -> VegaColors.Accent.copy(alpha = 0.22f)
+                        isSyncing -> VegaColors.Accent.copy(alpha = 0.16f)
+                        else -> Color.Transparent
+                    },
+                    border = if (isSyncing && !syncFocused) BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.4f)) else null,
                     modifier = Modifier
                         .height(34.dp)
                         .dpadFocusable(
                             shape = VegaShapes.Small,
                             focusedBorderColor = VegaColors.FocusBorder,
                             scale = 1.035f,
-                            onClick = onSyncClick
+                            onClick = onSyncClick,
+                            onFocusStateChange = { syncFocused = it }
                         )
                 ) {
                     Row(
@@ -265,7 +277,7 @@ fun VegaTopNavBar(
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "İçeriği güncelle",
-                                tint = VegaColors.TextSecondary,
+                                tint = if (syncFocused) VegaColors.Accent else VegaColors.TextSecondary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }

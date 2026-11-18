@@ -3,6 +3,7 @@ package com.tivimax.player.ui.sync
 import android.app.Activity
 import android.content.res.Configuration
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,7 +23,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -34,18 +34,19 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.SyncStepInfo
 import com.tivimax.player.ui.SyncStepStatus
-import com.tivimax.player.ui.components.dpadFocusable
-import com.tivimax.player.ui.design.VegaColors
-import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.components.requestFocusSafely
+import com.tivimax.player.ui.design.*
 import kotlinx.coroutines.delay
-
-import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+
 @Composable
 fun PlaylistSyncScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
@@ -55,7 +56,7 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
 
-    val retryFocusRequester = remember { FocusRequester() }
+    val primaryActionFocusRequester = remember { FocusRequester() }
     val continueFocusRequester = remember { FocusRequester() }
     var showCancelDialog by remember { mutableStateOf(false) }
 
@@ -81,81 +82,81 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
         }
     }
 
-    // Senkronizasyonu durdurma onay diyaloğu
+    // Senkronizasyonu durdurma onay diyaloğu (StreamVault tarzı, tek odaklı VegaButton'lar)
     if (showCancelDialog) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { showCancelDialog = false },
-            containerColor = VegaColors.Card,
-            titleContentColor = VegaColors.TextPrimary,
-            textContentColor = VegaColors.TextSecondary,
-            title = {
-                Text(
-                    text = "Güncelleme durdurulsun mu?",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    color = VegaColors.TextPrimary
-                )
-            },
-            text = {
-                Text(
-                    text = "Mevcut listen korunur.",
-                    fontSize = 14.sp,
-                    color = VegaColors.TextSecondary
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showCancelDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent),
-                    shape = RoundedCornerShape(12.dp),
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 420.dp)
+                    .fillMaxWidth(0.88f)
+                    .vegaPanel(VegaShapes.Hero)
+            ) {
+                Column(
                     modifier = Modifier
-                        .focusRequester(continueFocusRequester)
-                        .dpadFocusable(
-                            focusedBorderColor = Color.White,
-                            shape = RoundedCornerShape(12.dp),
-                            onClick = { showCancelDialog = false }
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    VegaColors.Danger.copy(alpha = 0.12f),
+                                    Color.Transparent
+                                )
+                            )
                         )
+                        .padding(22.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Text(text = "Devam et", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showCancelDialog = false
-                        viewModel.cancelPlaylistSync()
-                        handleExit()
-                    },
-                    modifier = Modifier.dpadFocusable(
-                        focusedBorderColor = Color.White,
-                        shape = RoundedCornerShape(12.dp),
-                        onClick = {
-                            showCancelDialog = false
-                            viewModel.cancelPlaylistSync()
-                            handleExit()
-                        }
+                    Text(
+                        text = "Güncelleme durdurulsun mu?",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = VegaText.SectionTitle,
+                        color = VegaColors.TextPrimary
                     )
-                ) {
-                    Text(text = "Durdur", color = VegaColors.Danger, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Mevcut listen korunur.",
+                        fontSize = VegaText.Body,
+                        color = VegaColors.TextSecondary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        VegaButton(
+                            text = "Durdur",
+                            variant = VegaButtonVariant.DANGER,
+                            onClick = {
+                                showCancelDialog = false
+                                viewModel.cancelPlaylistSync()
+                                handleExit()
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        VegaButton(
+                            text = "Devam et",
+                            variant = VegaButtonVariant.PRIMARY,
+                            onClick = { showCancelDialog = false },
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(continueFocusRequester)
+                        )
+                    }
                 }
             }
-        )
+        }
 
         LaunchedEffect(Unit) {
             delay(100)
-            try {
-                continueFocusRequester.requestFocus()
-            } catch (_: Exception) {}
+            continueFocusRequester.requestFocusSafely()
         }
     }
 
-    // Hata oluştuğunda "Kaldığı Yerden Yeniden Dene" butonuna otomatik odaklan
-    LaunchedEffect(syncState.failedStepIndex) {
-        if (syncState.failedStepIndex != null || syncState.isCompleted) {
+    // Hata, tamamlanma veya canlı yayın hazır olduğunda ana aksiyon butonuna otomatik odaklan
+    LaunchedEffect(syncState.failedStepIndex, syncState.isCompleted, syncState.isLiveReady) {
+        if (syncState.failedStepIndex != null || syncState.isCompleted || syncState.isLiveReady) {
             delay(150)
-            try {
-                retryFocusRequester.requestFocus()
-            } catch (_: Exception) {}
+            primaryActionFocusRequester.requestFocusSafely()
         }
     }
 
@@ -175,32 +176,39 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
     val overallProgress = if (syncState.isCompleted) 1f else ((completedCount + activeProgress) / 5f).coerceIn(0f, 1f)
     val percentage = (overallProgress * 100).toInt()
 
+    val activeDetail = activeStep?.detailText?.ifBlank { null }
+        ?: if (syncState.isCompleted) "Tüm içerikler senkronize edildi"
+        else if (syncState.failedStepIndex != null) "İnternet bağlantını kontrol et."
+        else "İçerik arşivleri hazırlanıyor…"
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(VegaColors.Background)
+            .vegaBackdrop()
+            .statusBarsPadding()
+            .navigationBarsPadding()
     ) {
         if (isLandscape) {
             // ==========================================
-            // YATAY / ANDROID TV EKRANI (2 SÜTUNLU KOMPAKT DÜZEN)
+            // YATAY / ANDROID TV EKRANI (2 SÜTUNLU STREAMVAULT PANEL DÜZENİ)
             // ==========================================
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .padding(horizontal = 24.dp, vertical = 18.dp)
                     .verticalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(28.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // SOL TARAF: Logo, Dairesel Sayaç, Durum & Aksiyon Butonu
+                // SOL TARAF: Logo, Dairesel Sayaç, Durum ve Tek Odaklı Aksiyon Butonları
                 Column(
                     modifier = Modifier
-                        .width(280.dp)
-                        .fillMaxHeight(),
+                        .width(300.dp)
+                        .vegaPanel(VegaShapes.Hero)
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    // Logo ve Başlık
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -215,14 +223,23 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                             Icon(imageVector = Icons.Default.Tv, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(24.dp))
                         }
                         Column {
-                            Text(text = "VEGA IPTV", color = VegaColors.TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp)
-                            Text(text = "İndeksleme ve kurulum", color = VegaColors.TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                            Text(
+                                text = AppConfig.APP_NAME,
+                                color = VegaColors.TextPrimary,
+                                fontSize = VegaText.SectionTitle,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Text(
+                                text = "Liste kurulumu",
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Caption,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(18.dp))
 
-                    // Büyük Dairesel Yüzde Sayacı (%0 - %100)
                     Box(
                         modifier = Modifier.size(120.dp),
                         contentAlignment = Alignment.Center
@@ -256,7 +273,7 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                                     syncState.isCompleted -> VegaColors.Success
                                     else -> VegaColors.TextSecondary
                                 },
-                                fontSize = 11.sp,
+                                fontSize = VegaText.Caption,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -264,122 +281,80 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    // O An Kaydedilen İçerik Sayısı / Detay
-                    val activeDetail = activeStep?.detailText?.ifBlank { null }
-                        ?: if (syncState.isCompleted) "Tüm içerikler senkronize edildi"
-                        else if (syncState.failedStepIndex != null) "İnternet bağlantını kontrol et."
-                        else "İçerik arşivleri hazırlanıyor..."
-
                     Text(
                         text = activeDetail,
                         color = if (syncState.failedStepIndex != null) VegaColors.Danger else VegaColors.TextSecondary,
-                        fontSize = 11.sp,
+                        fontSize = VegaText.Caption,
                         textAlign = TextAlign.Center,
                         fontWeight = FontWeight.Medium,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Aksiyon Butonları (TV Focusable)
+                    // Aksiyon Butonları (Tek odaklı VegaButton)
                     if (syncState.failedStepIndex != null) {
-                        Button(
+                        VegaButton(
+                            text = "Kaldığı yerden yeniden dene",
+                            variant = VegaButtonVariant.DANGER,
+                            icon = Icons.Default.Refresh,
                             onClick = { viewModel.retryFailedSyncStep() },
-                            colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Danger),
-                            shape = VegaShapes.Medium,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                                .focusRequester(retryFocusRequester)
-                                .dpadFocusable(
-                                    focusedBorderColor = Color.White,
-                                    shape = VegaShapes.Medium,
-                                    onClick = { viewModel.retryFailedSyncStep() }
-                                )
-                        ) {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Kaldığı yerden yeniden dene", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
+                                .focusRequester(primaryActionFocusRequester)
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedButton(
+                        VegaButton(
+                            text = "Geri dön",
+                            variant = VegaButtonVariant.SECONDARY,
                             onClick = { handleExit() },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = VegaColors.TextPrimary),
-                            border = BorderStroke(1.dp, VegaColors.Border),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                                .dpadFocusable(
-                                    focusedBorderColor = Color.White,
-                                    shape = RoundedCornerShape(12.dp),
-                                    onClick = { handleExit() }
-                                )
-                        ) {
-                            Text(text = "Geri dön", color = VegaColors.TextPrimary, fontWeight = FontWeight.Medium, fontSize = 12.sp)
-                        }
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     } else if (syncState.isCompleted) {
-                        Button(
+                        VegaButton(
+                            text = "Hemen izlemeye başla",
+                            variant = VegaButtonVariant.PRIMARY,
+                            icon = Icons.Default.PlayArrow,
                             onClick = { viewModel.navigateTo(Screen.Home) },
-                            colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
-                            shape = VegaShapes.Medium,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                                .focusRequester(retryFocusRequester)
-                                .dpadFocusable(
-                                    focusedBorderColor = Color.White,
-                                    shape = VegaShapes.Medium,
-                                    onClick = { viewModel.navigateTo(Screen.Home) }
-                                )
-                        ) {
-                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Hemen izlemeye başla", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
+                                .focusRequester(primaryActionFocusRequester)
+                        )
                     } else if (syncState.isLiveReady) {
-                        Button(
+                        VegaButton(
+                            text = "Arayüze geç (arka planda yükle)",
+                            variant = VegaButtonVariant.PRIMARY,
+                            icon = Icons.Default.PlayArrow,
                             onClick = { viewModel.navigateTo(Screen.Home) },
-                            colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
-                            shape = VegaShapes.Medium,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                                .focusRequester(retryFocusRequester)
-                                .dpadFocusable(
-                                    focusedBorderColor = Color.White,
-                                    shape = VegaShapes.Medium,
-                                    onClick = { viewModel.navigateTo(Screen.Home) }
-                                )
-                        ) {
-                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Arayüze geç (arka planda yükle)", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
+                                .focusRequester(primaryActionFocusRequester)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Canlı TV hazır. Arşiv arka planda kaydediliyor...",
+                            text = "Canlı TV hazır. Arşiv arka planda kaydediliyor…",
                             color = VegaColors.TextMuted,
-                            fontSize = 11.sp,
+                            fontSize = VegaText.Caption,
                             textAlign = TextAlign.Center
                         )
                     } else {
                         Text(
-                            text = "Ekran açık tutulmaktadır...",
+                            text = "Ekran açık tutulmaktadır…",
                             color = VegaColors.TextMuted,
-                            fontSize = 11.sp,
+                            fontSize = VegaText.Caption,
                             textAlign = TextAlign.Center
                         )
                     }
                 }
 
-                // SAĞ TARAF: 5 Kurulum Adımının Sığdığı Kompakt Kart Listesi
+                // SAĞ TARAF: 5 Kurulum Adımı Paneli
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(7.dp)
+                        .vegaPanel(VegaShapes.Hero)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     syncState.steps.forEach { step ->
                         SyncStepCardCompact(step = step)
@@ -393,42 +368,41 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp)
+                    .padding(horizontal = 20.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(28.dp))
 
                 Box(
                     modifier = Modifier
-                        .size(68.dp)
+                        .size(64.dp)
                         .clip(VegaShapes.Large)
                         .background(Brush.linearGradient(listOf(VegaColors.Accent, VegaColors.Accent.copy(alpha = 0.7f)))),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = Icons.Default.Tv, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(36.dp))
+                    Icon(imageVector = Icons.Default.Tv, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(34.dp))
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "VEGA IPTV",
+                    text = AppConfig.APP_NAME,
                     color = VegaColors.TextPrimary,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 2.sp
+                    fontSize = VegaText.ScreenTitle,
+                    fontWeight = FontWeight.ExtraBold
                 )
 
                 Text(
-                    text = "Oynatma listesi kurulumu ve indeksleme",
+                    text = "Oynatma listesi kurulumu",
                     color = VegaColors.TextSecondary,
-                    fontSize = 14.sp,
+                    fontSize = VegaText.Body,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(top = 4.dp)
                 )
 
-                // Dairesel Yüzde Göstergesi
                 Spacer(modifier = Modifier.height(16.dp))
+
                 Box(
                     modifier = Modifier.size(90.dp),
                     contentAlignment = Alignment.Center
@@ -443,17 +417,19 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                     Text(
                         text = "%$percentage",
                         color = VegaColors.TextPrimary,
-                        fontSize = 22.sp,
+                        fontSize = VegaText.ScreenTitle,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Column(
                     modifier = Modifier
                         .widthIn(max = 600.dp)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .vegaPanel(VegaShapes.Large)
+                        .padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     syncState.steps.forEach { step ->
@@ -461,103 +437,67 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(22.dp))
 
                 if (syncState.failedStepIndex != null) {
-                    Button(
+                    VegaButton(
+                        text = "Kaldığı yerden yeniden dene",
+                        variant = VegaButtonVariant.DANGER,
+                        icon = Icons.Default.Refresh,
                         onClick = { viewModel.retryFailedSyncStep() },
-                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Danger),
-                        shape = VegaShapes.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
                             .widthIn(max = 400.dp)
-                            .height(48.dp)
-                            .focusRequester(retryFocusRequester)
-                            .dpadFocusable(
-                                focusedBorderColor = Color.White,
-                                shape = VegaShapes.Medium,
-                                onClick = { viewModel.retryFailedSyncStep() }
-                            )
-                    ) {
-                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Kaldığı yerden yeniden dene", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                    }
+                            .focusRequester(primaryActionFocusRequester)
+                    )
                     Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
+                    VegaButton(
+                        text = "Geri dön",
+                        variant = VegaButtonVariant.SECONDARY,
                         onClick = { handleExit() },
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = VegaColors.TextPrimary),
-                        border = BorderStroke(1.dp, VegaColors.Border),
-                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .fillMaxWidth()
                             .widthIn(max = 400.dp)
-                            .height(52.dp)
-                            .dpadFocusable(
-                                focusedBorderColor = Color.White,
-                                shape = RoundedCornerShape(14.dp),
-                                onClick = { handleExit() }
-                            )
-                    ) {
-                        Text(text = "Geri dön", color = VegaColors.TextPrimary, fontWeight = FontWeight.Medium, fontSize = 15.sp)
-                    }
+                    )
                 } else if (syncState.isCompleted) {
-                    Button(
+                    VegaButton(
+                        text = "Hemen izlemeye başla",
+                        variant = VegaButtonVariant.PRIMARY,
+                        icon = Icons.Default.PlayArrow,
                         onClick = { viewModel.navigateTo(Screen.Home) },
-                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
-                        shape = VegaShapes.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
                             .widthIn(max = 400.dp)
-                            .height(48.dp)
-                            .focusRequester(retryFocusRequester)
-                            .dpadFocusable(
-                                focusedBorderColor = Color.White,
-                                shape = VegaShapes.Medium,
-                                onClick = { viewModel.navigateTo(Screen.Home) }
-                            )
-                    ) {
-                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(22.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Hemen izlemeye başla", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    }
+                            .focusRequester(primaryActionFocusRequester)
+                    )
                 } else if (syncState.isLiveReady) {
-                    Button(
+                    VegaButton(
+                        text = "Arayüze geç (arka planda yükle)",
+                        variant = VegaButtonVariant.PRIMARY,
+                        icon = Icons.Default.PlayArrow,
                         onClick = { viewModel.navigateTo(Screen.Home) },
-                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
-                        shape = VegaShapes.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
                             .widthIn(max = 400.dp)
-                            .height(48.dp)
-                            .focusRequester(retryFocusRequester)
-                            .dpadFocusable(
-                                focusedBorderColor = Color.White,
-                                shape = VegaShapes.Medium,
-                                onClick = { viewModel.navigateTo(Screen.Home) }
-                            )
-                    ) {
-                        Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(22.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Arayüze geç (arka planda yükle)", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
+                            .focusRequester(primaryActionFocusRequester)
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Canlı TV kanalları hazır. Film ve dizi arşivi arka planda kaydedilmeye devam edecektir.",
+                        text = "Canlı TV kanalları hazır. Film ve dizi arşivi arka planda kaydedilmeye devam edecek.",
                         color = VegaColors.TextMuted,
-                        fontSize = 11.sp,
+                        fontSize = VegaText.Caption,
                         textAlign = TextAlign.Center
                     )
                 } else {
                     Text(
-                        text = "Lütfen işlem bitene kadar bekle, ekran açık tutulacaktır...",
+                        text = "Lütfen işlem bitene kadar bekle, ekran açık tutulacak…",
                         color = VegaColors.TextMuted,
-                        fontSize = 11.sp,
+                        fontSize = VegaText.Caption,
                         textAlign = TextAlign.Center
                     )
                 }
 
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
@@ -579,9 +519,9 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
         label = "borderColor"
     )
 
-    Card(
+    Surface(
         shape = VegaShapes.Medium,
-        colors = CardDefaults.cardColors(containerColor = VegaColors.Card),
+        color = if (isActive) VegaColors.SurfaceElevated else VegaColors.Card,
         border = BorderStroke(if (isActive) 1.5.dp else 1.dp, borderColor),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -594,7 +534,6 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Sol Durum Göstergesi
                 Box(
                     modifier = Modifier
                         .size(28.dp)
@@ -620,19 +559,18 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
                             Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = VegaColors.Danger, modifier = Modifier.size(18.dp))
                         }
                         SyncStepStatus.PENDING -> {
-                            Text(text = "${step.stepNumber}", color = VegaColors.TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "${step.stepNumber}", color = VegaColors.TextMuted, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // Adım Başlığı ve Durum Detayı
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "${step.stepNumber}. ${step.title}",
                         color = if (isActive || isCompleted) VegaColors.TextPrimary else VegaColors.TextSecondary,
-                        fontSize = 13.sp,
+                        fontSize = VegaText.Secondary,
                         fontWeight = if (isActive || isCompleted) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -647,7 +585,7 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
                                 isActive -> VegaColors.Accent
                                 else -> VegaColors.TextMuted
                             },
-                            fontSize = 11.sp,
+                            fontSize = VegaText.Caption,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -656,7 +594,6 @@ private fun SyncStepCardCompact(step: SyncStepInfo) {
                 }
             }
 
-            // Aktif Adımda Canlı İlerleme Çubuğu
             if (isActive) {
                 Spacer(modifier = Modifier.height(6.dp))
                 if (step.progress > 0f) {

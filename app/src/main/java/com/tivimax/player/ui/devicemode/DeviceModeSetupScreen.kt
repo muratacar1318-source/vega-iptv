@@ -1,15 +1,13 @@
 package com.tivimax.player.ui.devicemode
 
+import android.content.res.Configuration
 import android.widget.Toast
-import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -23,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -34,20 +31,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.R
-import com.tivimax.player.data.config.AppConfig
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.components.requestFocusSafely
+import com.tivimax.player.ui.design.*
 import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.detectRecommendedDeviceMode
 import kotlinx.coroutines.delay
 
-import com.tivimax.player.ui.design.VegaColors
-import com.tivimax.player.ui.design.VegaShapes
-
 /**
  * İlk Açılış Cihaz Modu Seçim Ekranı (Telefon / Tablet / TV).
- * Cihaz türünü otomatik tespit edip önerir, tam D-pad kumanda ve dokunmatik desteği sunar.
+ * Cihaz türünü otomatik tespit edip önerir, tek odaklı tam D-pad kumanda ve dokunmatik desteği sunar.
  */
 @Composable
 fun DeviceModeSetupScreen(
@@ -56,7 +50,7 @@ fun DeviceModeSetupScreen(
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isWideScreen = isLandscape || configuration.screenWidthDp >= 600
 
     val recommendedMode = remember { context.detectRecommendedDeviceMode() }
@@ -67,53 +61,32 @@ fun DeviceModeSetupScreen(
 
     LaunchedEffect(Unit) {
         delay(200)
-        try {
-            initialFocusRequester.requestFocus()
-        } catch (_: Exception) {}
+        initialFocusRequester.requestFocusSafely()
     }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(VegaColors.Background),
+            .vegaBackdrop()
+            .statusBarsPadding()
+            .navigationBarsPadding(),
         contentAlignment = Alignment.Center
     ) {
-        // Arka plan gradyan ışıltıları
-        Box(
-            modifier = Modifier
-                .size(320.dp)
-                .align(Alignment.TopStart)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(VegaColors.Accent.copy(alpha = 0.12f), Color.Transparent)
-                    )
-                )
-        )
-        Box(
-            modifier = Modifier
-                .size(320.dp)
-                .align(Alignment.BottomEnd)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(VegaColors.Accent.copy(alpha = 0.12f), Color.Transparent)
-                    )
-                )
-        )
-
         Column(
             modifier = Modifier
+                .widthIn(max = 920.dp)
                 .fillMaxSize()
                 .padding(horizontal = 24.dp, vertical = 20.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Başlık & Logo
+            // Başlık ve Logo
             Surface(
                 shape = CircleShape,
-                color = VegaColors.Accent.copy(alpha = 0.12f),
-                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f)),
-                modifier = Modifier.size(56.dp)
+                color = VegaColors.Accent.copy(alpha = 0.14f),
+                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.36f)),
+                modifier = Modifier.size(58.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -130,9 +103,9 @@ fun DeviceModeSetupScreen(
             Text(
                 text = stringResource(R.string.device_mode_title),
                 color = VegaColors.TextPrimary,
-                fontSize = 22.sp,
+                fontSize = VegaText.ScreenTitle,
                 fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.5.sp
+                letterSpacing = 0.4.sp
             )
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -140,23 +113,21 @@ fun DeviceModeSetupScreen(
             Text(
                 text = stringResource(R.string.device_mode_subtitle),
                 color = VegaColors.TextSecondary,
-                fontSize = 13.sp,
+                fontSize = VegaText.Secondary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
             // ÜÇ SEÇİM KARTI (Telefon / Tablet / TV)
             if (isWideScreen) {
-                // Geniş Ekran / Yatay TV / Tablet: Yan yana 3 sütun
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     DeviceModeCard(
-                        mode = DeviceMode.PHONE,
                         icon = Icons.Default.PhoneAndroid,
                         title = stringResource(R.string.device_mode_phone),
                         description = stringResource(R.string.device_mode_phone_desc),
@@ -168,7 +139,6 @@ fun DeviceModeSetupScreen(
                     )
 
                     DeviceModeCard(
-                        mode = DeviceMode.TABLET,
                         icon = Icons.Default.TabletAndroid,
                         title = stringResource(R.string.device_mode_tablet),
                         description = stringResource(R.string.device_mode_tablet_desc),
@@ -180,7 +150,6 @@ fun DeviceModeSetupScreen(
                     )
 
                     DeviceModeCard(
-                        mode = DeviceMode.TV,
                         icon = Icons.Default.Tv,
                         title = stringResource(R.string.device_mode_tv),
                         description = stringResource(R.string.device_mode_tv_desc),
@@ -192,13 +161,11 @@ fun DeviceModeSetupScreen(
                     )
                 }
             } else {
-                // Dikey Telefon: Alt alta 3 kart
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     DeviceModeCard(
-                        mode = DeviceMode.PHONE,
                         icon = Icons.Default.PhoneAndroid,
                         title = stringResource(R.string.device_mode_phone),
                         description = stringResource(R.string.device_mode_phone_desc),
@@ -210,7 +177,6 @@ fun DeviceModeSetupScreen(
                     )
 
                     DeviceModeCard(
-                        mode = DeviceMode.TABLET,
                         icon = Icons.Default.TabletAndroid,
                         title = stringResource(R.string.device_mode_tablet),
                         description = stringResource(R.string.device_mode_tablet_desc),
@@ -222,7 +188,6 @@ fun DeviceModeSetupScreen(
                     )
 
                     DeviceModeCard(
-                        mode = DeviceMode.TV,
                         icon = Icons.Default.Tv,
                         title = stringResource(R.string.device_mode_tv),
                         description = stringResource(R.string.device_mode_tv_desc),
@@ -235,40 +200,19 @@ fun DeviceModeSetupScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
-            // DEVAM BUTONU
-            Button(
+            // DEVAM BUTONU (Tek odak hedefi — VegaButton)
+            VegaButton(
+                text = stringResource(R.string.device_mode_continue),
+                variant = VegaButtonVariant.PRIMARY,
                 onClick = {
                     val infoMsg = context.getString(R.string.device_mode_info)
                     Toast.makeText(context, infoMsg, Toast.LENGTH_LONG).show()
                     viewModel.onDeviceModeSetupCompleted(selectedMode)
                 },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = VegaColors.Accent,
-                    contentColor = VegaColors.OnAccent
-                ),
-                shape = VegaShapes.Medium,
-                modifier = Modifier
-                    .fillMaxWidth(if (isWideScreen) 0.45f else 1f)
-                    .height(48.dp)
-                    .dpadFocusable(
-                        focusedBorderColor = Color.White,
-                        shape = VegaShapes.Medium,
-                        onClick = {
-                            val infoMsg = context.getString(R.string.device_mode_info)
-                            Toast.makeText(context, infoMsg, Toast.LENGTH_LONG).show()
-                            viewModel.onDeviceModeSetupCompleted(selectedMode)
-                        }
-                    )
-            ) {
-                Text(
-                    text = stringResource(R.string.device_mode_continue),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
-                )
-            }
+                modifier = Modifier.fillMaxWidth(if (isWideScreen) 0.42f else 1f)
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -276,7 +220,7 @@ fun DeviceModeSetupScreen(
             Text(
                 text = stringResource(R.string.device_mode_info),
                 color = VegaColors.TextMuted,
-                fontSize = 11.sp,
+                fontSize = VegaText.Caption,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
@@ -285,11 +229,10 @@ fun DeviceModeSetupScreen(
 }
 
 /**
- * Cihaz Seçim Kartı (D-pad Focusable, Seçili Durum Glow & Önerilen Rozeti).
+ * Cihaz Seçim Kartı (Tek odaklı, StreamVault yüzey derinliği, seçili vurgu ve önerilen rozeti).
  */
 @Composable
 private fun DeviceModeCard(
-    mode: DeviceMode,
     icon: ImageVector,
     title: String,
     description: String,
@@ -301,27 +244,26 @@ private fun DeviceModeCard(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    val borderColor = when {
-        isFocused -> Color.White
-        isSelected -> VegaColors.Accent
-        else -> VegaColors.Border
-    }
-
     val backgroundColor = when {
-        isSelected -> VegaColors.Accent.copy(alpha = 0.12f)
-        isFocused -> VegaColors.Card.copy(alpha = 0.9f)
-        else -> VegaColors.Card.copy(alpha = 0.6f)
+        isSelected && isFocused -> VegaColors.Accent.copy(alpha = 0.20f)
+        isSelected -> VegaColors.Accent.copy(alpha = 0.13f)
+        isFocused -> VegaColors.SurfaceElevated
+        else -> VegaColors.Surface.copy(alpha = 0.92f)
     }
 
     Surface(
-        onClick = onSelect,
         shape = VegaShapes.Large,
         color = backgroundColor,
-        border = BorderStroke(if (isSelected || isFocused) 2.dp else 1.dp, borderColor),
+        border = if (!isFocused) {
+            BorderStroke(
+                if (isSelected) 1.5.dp else 1.dp,
+                if (isSelected) VegaColors.Accent else VegaColors.Border
+            )
+        } else null,
         modifier = modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .dpadFocusable(
-                focusedBorderColor = Color.White,
+                focusedBorderColor = VegaColors.FocusBorder,
                 shape = VegaShapes.Large,
                 scale = 1.04f,
                 onClick = onSelect,
@@ -340,14 +282,14 @@ private fun DeviceModeCard(
             ) {
                 Surface(
                     shape = VegaShapes.Medium,
-                    color = if (isSelected) VegaColors.Accent else Color.White.copy(alpha = 0.08f),
+                    color = if (isSelected) VegaColors.Accent else VegaColors.SurfaceVariant,
                     modifier = Modifier.size(44.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isSelected) VegaColors.OnAccent else Color.White,
+                            tint = if (isSelected) VegaColors.OnAccent else VegaColors.TextPrimary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -367,13 +309,13 @@ private fun DeviceModeCard(
                             Text(
                                 text = stringResource(R.string.device_mode_recommended),
                                 color = VegaColors.OnAccent,
-                                fontSize = 11.sp,
+                                fontSize = VegaText.Caption,
                                 fontWeight = FontWeight.ExtraBold
                             )
                         }
                     }
 
-                    // Radio Check Circle
+                    // Seçim Çemberi
                     Box(
                         modifier = Modifier
                             .size(22.dp)
@@ -381,7 +323,7 @@ private fun DeviceModeCard(
                             .background(if (isSelected) VegaColors.Accent else Color.Transparent)
                             .border(
                                 1.5.dp,
-                                if (isSelected) VegaColors.Accent else Color.White.copy(alpha = 0.3f),
+                                if (isSelected) VegaColors.Accent else VegaColors.Border,
                                 CircleShape
                             ),
                         contentAlignment = Alignment.Center
@@ -403,7 +345,7 @@ private fun DeviceModeCard(
             Text(
                 text = title,
                 color = VegaColors.TextPrimary,
-                fontSize = 17.sp,
+                fontSize = VegaText.SectionTitle,
                 fontWeight = FontWeight.Bold
             )
 
@@ -412,8 +354,8 @@ private fun DeviceModeCard(
             Text(
                 text = description,
                 color = VegaColors.TextSecondary,
-                fontSize = 13.sp,
-                lineHeight = 17.sp
+                fontSize = VegaText.Secondary,
+                lineHeight = 18.sp
             )
         }
     }

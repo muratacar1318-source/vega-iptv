@@ -6,7 +6,6 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.lazy.LazyRow
@@ -100,11 +99,12 @@ fun HomeScreen(viewModel: MainViewModel) {
 
     LaunchedEffect(isTvDevice) {
         if (isTvDevice) {
-            // Kumandanın ilk basışta bir odak noktası bulabilmesi için menüdeki seçili sekmeye odaklan
-            delay(150)
-            try {
-                tvRailFocusRequester.requestFocus()
-            } catch (_: Exception) {}
+            // Kumandanın ilk basışta bir odak noktası bulabilmesi için üst çubuktaki seçili sekmeye odaklan
+            repeat(3) {
+                withFrameNanos { }
+                delay(70)
+                if (runCatching { tvRailFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+            }
         }
     }
 
@@ -177,13 +177,12 @@ fun HomeScreen(viewModel: MainViewModel) {
                             viewModel.setVideoFullscreen(false)
                             viewModel.setSelectedHomeTab(tab)
                         }
-                        if (tab == HomeTab.LIVE_TV || tab == HomeTab.MOVIES || tab == HomeTab.SERIES) {
-                            tvFocusScope.launch {
-                                repeat(4) {
-                                    delay(150L)
-                                    if (!tvRailHasFocus) return@launch
-                                    tvFocusManager.moveFocus(FocusDirection.Down)
-                                }
+                        tvFocusScope.launch {
+                            repeat(4) {
+                                withFrameNanos { }
+                                delay(80L)
+                                if (!tvRailHasFocus) return@launch
+                                tvFocusManager.moveFocus(FocusDirection.Down)
                             }
                         }
                     },
@@ -210,19 +209,26 @@ fun HomeScreen(viewModel: MainViewModel) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .focusRestorer()
-                    .focusGroup()
             ) {
-                if (selectedTab == HomeTab.LIVE_TV) {
-                    TvTiviMateScreen(
-                        viewModel = viewModel,
-                        onFullScreenChange = {
-                            tvLiveFullScreen = it
-                            viewModel.setVideoFullscreen(it)
+                key(selectedTab) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .focusRestorer()
+                            .focusGroup()
+                    ) {
+                        if (selectedTab == HomeTab.LIVE_TV) {
+                            TvTiviMateScreen(
+                                viewModel = viewModel,
+                                onFullScreenChange = {
+                                    tvLiveFullScreen = it
+                                    viewModel.setVideoFullscreen(it)
+                                }
+                            )
+                        } else {
+                            HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
                         }
-                    )
-                } else {
-                    HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
+                    }
                 }
                 if (!tvLiveFullScreen) {
                     BackgroundSyncBanner(
@@ -357,16 +363,17 @@ fun HomeScreen(viewModel: MainViewModel) {
 
 
     // ==========================================
-    // GITHUB OTOMATİK GÜNCELLEME DİYALOĞU (MADDE 9)
+    // OTOMATİK GÜNCELLEME DİYALOĞU (MADDE 9)
     // ==========================================
     updateInfo?.let { info ->
         val updateFocusRequester = remember { FocusRequester() }
 
-        LaunchedEffect(Unit) {
-            delay(150)
-            try {
-                updateFocusRequester.requestFocus()
-            } catch (_: Exception) {}
+        LaunchedEffect(info.tagName) {
+            repeat(3) {
+                withFrameNanos { }
+                delay(70)
+                if (runCatching { updateFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+            }
         }
 
         AlertDialog(
@@ -383,7 +390,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "🚀 Yeni Güncelleme Mevcut (${info.tagName})",
+                        text = "Yeni güncelleme mevcut (${info.tagName})",
                         color = VegaColors.TextPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
@@ -402,7 +409,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     Surface(
                         shape = VegaShapes.Small,
                         color = VegaColors.Card,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
+                        border = BorderStroke(1.dp, VegaColors.Border),
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 160.dp)
@@ -431,7 +438,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (downloadProgress == 100) "İndirme Tamamlandı, Kuruluyor..." else "APK İndiriliyor...",
+                                    text = if (downloadProgress == 100) "İndirme tamamlandı, kuruluyor…" else "Güncelleme indiriliyor…",
                                     color = VegaColors.Accent,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -459,11 +466,11 @@ fun HomeScreen(viewModel: MainViewModel) {
             },
             confirmButton = {
                 if (downloadProgress == null) {
-                    Button(
-                        onClick = { viewModel.downloadAndInstallUpdate(info) },
-                        colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
+                    Surface(
                         shape = VegaShapes.Medium,
+                        color = VegaColors.Accent,
                         modifier = Modifier
+                            .defaultMinSize(minHeight = 44.dp)
                             .focusRequester(updateFocusRequester)
                             .dpadFocusable(
                                 shape = VegaShapes.Medium,
@@ -471,52 +478,63 @@ fun HomeScreen(viewModel: MainViewModel) {
                                 onClick = { viewModel.downloadAndInstallUpdate(info) }
                             )
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = null,
-                            tint = VegaColors.OnAccent,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Şimdi indir ve kur",
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                tint = VegaColors.OnAccent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Şimdi indir ve kur",
+                                color = VegaColors.OnAccent,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             },
             dismissButton = {
                 if (downloadProgress == null) {
-                    OutlinedButton(
-                        onClick = { viewModel.snoozeUpdate(info, hours = 24) },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White.copy(alpha = 0.08f),
-                            contentColor = Color.White
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                    Surface(
                         shape = VegaShapes.Medium,
-                        modifier = Modifier.dpadFocusable(
-                            shape = VegaShapes.Medium,
-                            focusedBorderColor = VegaColors.Accent,
-                            onClick = { viewModel.snoozeUpdate(info, hours = 24) }
-                        )
+                        color = VegaColors.SurfaceVariant,
+                        border = BorderStroke(1.dp, VegaColors.Border),
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = 44.dp)
+                            .dpadFocusable(
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                onClick = { viewModel.snoozeUpdate(info, hours = 24) }
+                            )
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Daha sonra",
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = VegaColors.TextPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "Daha sonra",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                color = VegaColors.TextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
@@ -525,6 +543,14 @@ fun HomeScreen(viewModel: MainViewModel) {
 
     // İÇERİK SENKRONİZASYON ONAY DİYALOĞU
     if (showSyncConfirmationDialog) {
+        val syncConfirmFocusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            repeat(3) {
+                withFrameNanos { }
+                delay(70)
+                if (runCatching { syncConfirmFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+            }
+        }
         AlertDialog(
             onDismissRequest = { showSyncConfirmationDialog = false },
             containerColor = VegaColors.Surface,
@@ -533,31 +559,59 @@ fun HomeScreen(viewModel: MainViewModel) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = VegaColors.Accent)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "İçerik Senkronizasyonu", color = VegaColors.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "İçerik güncelleme", color = VegaColors.TextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
                 Text(
-                    text = "Tüm canlı kanallar, filmler, diziler ve EPG rehberi sunucudan güncellenecektir. Devam etmek istiyor musun?",
+                    text = "Tüm canlı kanallar, filmler, diziler ve yayın rehberi güncellenecektir. Devam etmek istiyor musun?",
                     color = VegaColors.TextSecondary,
                     fontSize = 13.sp
                 )
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        showSyncConfirmationDialog = false
-                        viewModel.refreshPlaylistContent()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = VegaColors.Accent, contentColor = VegaColors.OnAccent),
-                    shape = VegaShapes.Medium
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.Accent,
+                    modifier = Modifier
+                        .defaultMinSize(minHeight = 44.dp)
+                        .focusRequester(syncConfirmFocusRequester)
+                        .dpadFocusable(
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = Color.White,
+                            onClick = {
+                                showSyncConfirmationDialog = false
+                                viewModel.refreshPlaylistContent()
+                            }
+                        )
                 ) {
-                    Text(text = "Güncelle", fontWeight = FontWeight.Bold)
+                    Box(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "Güncelle", color = VegaColors.OnAccent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showSyncConfirmationDialog = false }) {
-                    Text(text = "İptal", color = VegaColors.TextSecondary)
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.SurfaceVariant,
+                    border = BorderStroke(1.dp, VegaColors.Border),
+                    modifier = Modifier
+                        .defaultMinSize(minHeight = 44.dp)
+                        .dpadFocusable(
+                            shape = VegaShapes.Medium,
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            onClick = { showSyncConfirmationDialog = false }
+                        )
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "İptal", color = VegaColors.TextSecondary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         )
@@ -640,10 +694,9 @@ private fun HomeTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(VegaShapes.Small)
-                    .clickable { onLogoClick() }
                     .dpadFocusable(
                         shape = VegaShapes.Small,
-                        focusedBorderColor = VegaColors.Accent,
+                        focusedBorderColor = VegaColors.FocusBorder,
                         onClick = onLogoClick
                     )
             ) {
@@ -679,15 +732,14 @@ private fun HomeTopBar(
             ) {
                 Surface(
                     shape = VegaShapes.Pill,
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = VegaColors.SurfaceVariant,
                     border = BorderStroke(1.dp, VegaColors.Border),
                     modifier = Modifier
                         .widthIn(max = 180.dp)
                         .clip(VegaShapes.Pill)
-                        .clickable { onPlaylistClick() }
                         .dpadFocusable(
                             shape = VegaShapes.Pill,
-                            focusedBorderColor = VegaColors.Accent,
+                            focusedBorderColor = VegaColors.FocusBorder,
                             onClick = onPlaylistClick
                         )
                 ) {
@@ -722,17 +774,16 @@ private fun HomeTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Arama Butonu
+                // Arama Butonu (tek odak + tıklama hedefi)
                 Surface(
                     shape = VegaShapes.Medium,
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = VegaColors.SurfaceVariant,
                     border = BorderStroke(1.dp, VegaColors.Border),
-                    onClick = onSearchClick,
                     modifier = Modifier
                         .size(40.dp)
                         .dpadFocusable(
                             shape = VegaShapes.Medium,
-                            focusedBorderColor = VegaColors.Accent,
+                            focusedBorderColor = VegaColors.FocusBorder,
                             onClick = onSearchClick
                         )
                 ) {
@@ -754,14 +805,13 @@ private fun HomeTopBar(
                             .height(40.dp)
                             .dpadFocusable(
                                 shape = VegaShapes.Medium,
-                                focusedBorderColor = VegaColors.Accent,
+                                focusedBorderColor = VegaColors.FocusBorder,
                                 onClick = onSyncClick
                             )
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxHeight()
-                                .clickable { onSyncClick() }
                                 .padding(horizontal = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -781,42 +831,40 @@ private fun HomeTopBar(
                     }
                 }
 
-                // Yenile Butonu
+                // Yenile Butonu (tek odak + tıklama hedefi)
                 Surface(
                     shape = VegaShapes.Medium,
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = VegaColors.SurfaceVariant,
                     border = BorderStroke(1.dp, VegaColors.Border),
-                    onClick = onSyncClick,
                     modifier = Modifier
                         .size(40.dp)
                         .dpadFocusable(
                             shape = VegaShapes.Medium,
-                            focusedBorderColor = VegaColors.Accent,
+                            focusedBorderColor = VegaColors.FocusBorder,
                             onClick = onSyncClick
                         )
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Tüm İçeriği Senkronize Et",
+                            contentDescription = "İçeriği güncelle",
                             tint = VegaColors.TextPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                // Ayarlar Butonu
+                // Ayarlar Butonu (tek odak + tıklama hedefi)
                 if (showSettings) {
                     Surface(
                         shape = VegaShapes.Medium,
-                        color = Color.White.copy(alpha = 0.08f),
+                        color = VegaColors.SurfaceVariant,
                         border = BorderStroke(1.dp, VegaColors.Border),
-                        onClick = onSettingsClick,
                         modifier = Modifier
                             .size(40.dp)
                             .dpadFocusable(
                                 shape = VegaShapes.Medium,
-                                focusedBorderColor = VegaColors.Accent,
+                                focusedBorderColor = VegaColors.FocusBorder,
                                 onClick = onSettingsClick
                             )
                     ) {
@@ -867,10 +915,9 @@ fun VegaBottomNavigationBar(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clickable { onTabSelected(tab) }
                         .dpadFocusable(
                             shape = VegaShapes.Small,
-                            focusedBorderColor = VegaColors.Accent,
+                            focusedBorderColor = VegaColors.FocusBorder,
                             onClick = { onTabSelected(tab) }
                         ),
                     contentAlignment = Alignment.TopCenter
@@ -983,10 +1030,9 @@ private fun HomeNavigationRail(
                                     Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
                                 }
                             )
-                            .clickable { onTabSelected(tab) }
                             .dpadFocusable(
                                 shape = VegaShapes.Medium,
-                                focusedBorderColor = VegaColors.Accent,
+                                focusedBorderColor = VegaColors.FocusBorder,
                                 onClick = { onTabSelected(tab) }
                             ),
                         contentAlignment = Alignment.Center
@@ -1174,13 +1220,17 @@ fun ResumeWatchingCard(
     }
 
     Surface(
-        onClick = onClick,
         shape = VegaShapes.Medium,
         color = VegaColors.Card,
-        border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .width(170.dp)
             .height(64.dp)
+            .dpadFocusable(
+                shape = VegaShapes.Medium,
+                focusedBorderColor = VegaColors.FocusBorder,
+                onClick = onClick
+            )
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -1271,13 +1321,17 @@ fun RecentChannelCard(
     onClick: () -> Unit
 ) {
     Surface(
-        onClick = onClick,
         shape = VegaShapes.Medium,
         color = VegaColors.Card,
-        border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Border),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .width(140.dp)
             .height(48.dp)
+            .dpadFocusable(
+                shape = VegaShapes.Medium,
+                focusedBorderColor = VegaColors.FocusBorder,
+                onClick = onClick
+            )
     ) {
         Row(
             modifier = Modifier
