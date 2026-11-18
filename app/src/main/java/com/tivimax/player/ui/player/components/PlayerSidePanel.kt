@@ -8,7 +8,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -58,12 +58,12 @@ import com.tivimax.player.ui.design.VegaText
 import kotlinx.coroutines.delay
 
 /**
- * Oynatıcı içi ortak kompakt yan/alt obsidyen panel kabı.
+ * Oynatıcı içi ortak TiviMate yan çekmece / dikey alt panel kabı.
  *
- * - Yatayda: Sağdan 348dp, tam yükseklik, video solda görünmeye devam eder.
- * - Dikeyde: Alttan maksimum %58 yükseklik.
- * - Karartma (scrim): Dokunulduğunda paneli kapatır, D-pad odak tuzağı oluşturmaz.
- * - Pencere içi yerleşim: Durum çubuğu çıkmaz, tam ekran modu bozulmaz.
+ * - Yatayda / TV'de: Sağ kenara tam yaslı (`RectangleShape`, `fillMaxHeight()`),
+ *   sol kenarında 0.5dp ince çizgi bulunan koyu yarı saydam TiviMate çekmecesi.
+ * - Dikeyde: Üst köşeleri yuvarlatılmış, maksimum %58 yüksekliğinde alt sayfa.
+ * - Karartma (scrim): Dokunulduğunda paneli kapatır; `.pointerInput` ile D-pad odak tuzağı oluşturmaz.
  * - BackHandler ile geri tuşu paneli kapatır.
  */
 @Composable
@@ -99,11 +99,7 @@ fun PlayerSidePanel(
 
     val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .displayCutoutPadding()
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         // Karartma / Scrim (Dokunmada kapatır; .clickable yerine pointerInput ile D-pad odak tuzağı önlenir)
         Box(
             modifier = Modifier
@@ -114,7 +110,7 @@ fun PlayerSidePanel(
                 }
         )
 
-        // Obsidyen Panel Gövdesi
+        // TiviMate Çekmece / Alt Sayfa Gövdesi
         AnimatedVisibility(
             visible = visible,
             enter = if (isPortrait) {
@@ -136,7 +132,7 @@ fun PlayerSidePanel(
                         .heightIn(max = screenHeightDp * 0.58f)
                 } else {
                     Modifier
-                        .width(348.dp)
+                        .width(344.dp)
                         .fillMaxHeight()
                 })
                     .pointerInput(Unit) {
@@ -145,106 +141,159 @@ fun PlayerSidePanel(
                 shape = if (isPortrait) {
                     RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                 } else {
-                    RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
+                    RectangleShape
                 },
-                color = VegaColors.OverlayPanel,
-                border = BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.55f)),
-                shadowElevation = 16.dp
+                color = VegaColors.OverlayPanel
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 18.dp, vertical = 14.dp)
-                ) {
-                    if (isPortrait) {
+                if (isPortrait) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
                         Box(
                             modifier = Modifier
                                 .align(Alignment.CenterHorizontally)
                                 .padding(bottom = 10.dp)
                                 .width(36.dp)
-                                .height(4.dp)
+                                .height(3.dp)
                                 .clip(VegaShapes.Pill)
                                 .background(Color.White.copy(alpha = 0.22f))
                         )
-                    }
 
-                    // ÜST BAR: İkon, Başlık ve Çerçevesiz Kapat Düğmesi
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        PanelHeaderBar(
+                            title = title,
+                            headerIcon = headerIcon,
+                            headerTrailingContent = headerTrailingContent,
+                            firstFocusRequester = firstFocusRequester,
+                            focusToUse = focusToUse,
+                            onClose = onClose
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = VegaColors.Border.copy(alpha = 0.45f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        content()
+                    }
+                } else {
+                    // Yatay / TV: Sağ kenara sıfır yaslı, sol kenarda 0.5dp ince çizgi
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        Box(
+                            modifier = Modifier
+                                .width(0.5.dp)
+                                .fillMaxHeight()
+                                .background(VegaColors.Border.copy(alpha = 0.50f))
+                        )
+
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .displayCutoutPadding()
+                                .padding(horizontal = 16.dp, vertical = 14.dp)
                         ) {
-                            if (headerIcon != null) {
-                                Icon(
-                                    imageVector = headerIcon,
-                                    contentDescription = null,
-                                    tint = VegaColors.Accent,
-                                    modifier = Modifier.size(19.dp)
-                                )
-                            }
-                            Text(
-                                text = title,
-                                fontSize = VegaText.SectionTitle,
-                                fontWeight = FontWeight.SemiBold,
-                                color = VegaColors.TextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                            PanelHeaderBar(
+                                title = title,
+                                headerIcon = headerIcon,
+                                headerTrailingContent = headerTrailingContent,
+                                firstFocusRequester = firstFocusRequester,
+                                focusToUse = focusToUse,
+                                onClose = onClose
                             )
-                        }
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            if (headerTrailingContent != null) {
-                                headerTrailingContent()
-                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(
+                                thickness = 0.5.dp,
+                                color = VegaColors.Border.copy(alpha = 0.45f)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                            var isCloseFocused by remember { mutableStateOf(false) }
-                            Surface(
-                                shape = VegaShapes.Pill,
-                                color = if (isCloseFocused) VegaColors.Accent else Color.White.copy(alpha = 0.08f),
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .then(
-                                        if (firstFocusRequester == null) {
-                                            Modifier.focusRequester(focusToUse)
-                                        } else Modifier
-                                    )
-                                    .dpadFocusable(
-                                        shape = VegaShapes.Pill,
-                                        focusedBorderColor = Color.White,
-                                        scale = 1.05f,
-                                        onClick = onClose,
-                                        onFocusStateChange = { isCloseFocused = it }
-                                    )
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Kapat",
-                                        tint = if (isCloseFocused) VegaColors.OnAccent else VegaColors.TextSecondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
+                            content()
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-                    HorizontalDivider(
-                        thickness = 0.5.dp,
-                        color = VegaColors.Border.copy(alpha = 0.45f)
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    content()
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PanelHeaderBar(
+    title: String,
+    headerIcon: ImageVector?,
+    headerTrailingContent: (@Composable () -> Unit)?,
+    firstFocusRequester: FocusRequester?,
+    focusToUse: FocusRequester,
+    onClose: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            if (headerIcon != null) {
+                Icon(
+                    imageVector = headerIcon,
+                    contentDescription = null,
+                    tint = VegaColors.Accent,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+            Text(
+                text = title,
+                fontSize = VegaText.SectionTitle,
+                fontWeight = FontWeight.SemiBold,
+                color = VegaColors.TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (headerTrailingContent != null) {
+                headerTrailingContent()
+            }
+
+            var isCloseFocused by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(VegaShapes.Pill)
+                    .background(
+                        if (isCloseFocused) VegaColors.Accent else Color.White.copy(alpha = 0.08f)
+                    )
+                    .then(
+                        if (firstFocusRequester == null) {
+                            Modifier.focusRequester(focusToUse)
+                        } else Modifier
+                    )
+                    .dpadFocusable(
+                        shape = VegaShapes.Pill,
+                        drawFocusBorder = false,
+                        scale = 1.0f,
+                        onClick = onClose,
+                        onFocusStateChange = { isCloseFocused = it }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Kapat",
+                    tint = if (isCloseFocused) VegaColors.OnAccent else VegaColors.TextSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }

@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tivimax.player.ui.design.VegaText
+import java.util.Locale
 
 internal fun formatDuration(millis: Long): String {
     val totalSeconds = (millis / 1000).coerceAtLeast(0)
@@ -28,9 +29,9 @@ internal fun formatDuration(millis: Long): String {
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
     return if (hours > 0) {
-        String.format("%02d:%02d:%02d", hours, minutes, seconds)
+        String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
     } else {
-        String.format("%02d:%02d", minutes, seconds)
+        String.format(Locale.US, "%02d:%02d", minutes, seconds)
     }
 }
 
@@ -45,9 +46,9 @@ internal fun SeekIndicator(
 ) {
     Surface(
         shape = CircleShape,
-        color = Color.Black.copy(alpha = 0.52f),
-        border = BorderStroke(0.75.dp, Color.White.copy(alpha = 0.16f)),
-        modifier = modifier.size(if (isPortrait) 68.dp else 80.dp)
+        color = Color.Black.copy(alpha = 0.56f),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.14f)),
+        modifier = modifier.size(if (isPortrait) 64.dp else 74.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -58,14 +59,14 @@ internal fun SeekIndicator(
                 imageVector = if (direction == SeekDirection.FORWARD) Icons.Default.Forward10 else Icons.Default.Replay10,
                 contentDescription = null,
                 tint = Color.White,
-                modifier = Modifier.size(if (isPortrait) 26.dp else 32.dp)
+                modifier = Modifier.size(if (isPortrait) 24.dp else 28.dp)
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = if (direction == SeekDirection.FORWARD) "+$seconds sn" else "-$seconds sn",
-                color = Color.White.copy(alpha = 0.92f),
-                fontSize = if (isPortrait) VegaText.Caption else VegaText.Secondary,
-                fontWeight = FontWeight.SemiBold
+                color = Color.White.copy(alpha = 0.90f),
+                fontSize = VegaText.Caption,
+                fontWeight = FontWeight.Medium
             )
         }
     }

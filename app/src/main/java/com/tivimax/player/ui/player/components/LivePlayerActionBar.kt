@@ -1,25 +1,32 @@
 package com.tivimax.player.ui.player.components
 
 import android.content.res.Configuration
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -31,11 +38,10 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
-import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 
 /**
- * Canlı TV Oynatıcısı Alt Aksiyon Çubuğu (Çerçevesiz yuvarlak ikon düğmeleri + tek odaklı).
+ * Canlı TV oynatıcı alt aksiyon çubuğu (TiviMate çerçevesiz yuvarlak ikon düğmeleri, anlık tepki).
  *
  * Sıralama: Rehber, Önceki kanal, Son kanallar, Ses ve altyazı, Daha fazla.
  */
@@ -58,7 +64,7 @@ fun LivePlayerActionBar(
 
     Row(
         modifier = modifier,
-        horizontalArrangement = if (isPortrait) Arrangement.SpaceBetween else Arrangement.spacedBy(4.dp),
+        horizontalArrangement = if (isPortrait) Arrangement.SpaceBetween else Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 1. REHBER (EPG)
@@ -67,7 +73,6 @@ fun LivePlayerActionBar(
             tooltip = "Rehber",
             contentDescription = "Yayın rehberini aç",
             isActive = isGuideActive,
-            activeColor = VegaColors.Accent,
             onClick = onOpenGuide,
             focusRequester = firstButtonFocusRequester
         )
@@ -84,9 +89,7 @@ fun LivePlayerActionBar(
             tooltip = prevTooltip,
             contentDescription = "Önceki kanala geri dön",
             enabled = hasPreviousChannel,
-            isActive = hasPreviousChannel,
-            activeColor = VegaColors.Gold,
-            defaultColor = if (hasPreviousChannel) VegaColors.Gold else VegaColors.TextMuted.copy(alpha = 0.4f),
+            defaultColor = if (hasPreviousChannel) VegaColors.Gold else VegaColors.TextMuted.copy(alpha = 0.40f),
             onClick = {
                 if (hasPreviousChannel) {
                     onZapRecall()
@@ -100,7 +103,6 @@ fun LivePlayerActionBar(
             tooltip = "Son kanallar",
             contentDescription = "Son izlenen kanalları göster",
             isActive = isRecentActive,
-            activeColor = VegaColors.Accent,
             onClick = onToggleRecentChannels
         )
 
@@ -132,48 +134,26 @@ private fun LiveActionButtonItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isActive: Boolean = false,
-    activeColor: Color = VegaColors.Accent,
     defaultColor: Color = Color.White,
     focusRequester: FocusRequester? = null
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
     var isFocused by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     val registerInteraction = LocalPlayerInteraction.current
 
-    val scale by animateFloatAsState(
-        targetValue = when {
-            isPressed -> 0.90f
-            isFocused -> 1.06f
-            else -> 1.0f
-        },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "btnScale"
-    )
+    val containerColor = when {
+        !enabled -> Color.Transparent
+        isFocused -> VegaColors.Accent
+        isActive -> VegaColors.Accent.copy(alpha = 0.22f)
+        else -> Color.White.copy(alpha = 0.08f)
+    }
 
-    val containerColor by animateColorAsState(
-        targetValue = when {
-            !enabled -> Color.Transparent
-            isFocused -> VegaColors.Accent
-            isActive -> activeColor.copy(alpha = 0.18f)
-            else -> Color.White.copy(alpha = 0.06f)
-        },
-        label = "btnBg"
-    )
-
-    val tintColor by animateColorAsState(
-        targetValue = when {
-            !enabled -> defaultColor.copy(alpha = 0.35f)
-            isFocused -> VegaColors.OnAccent
-            isActive -> activeColor
-            else -> defaultColor.copy(alpha = 0.92f)
-        },
-        label = "btnColor"
-    )
+    val tintColor = when {
+        !enabled -> defaultColor.copy(alpha = 0.35f)
+        isFocused -> VegaColors.OnAccent
+        isActive -> VegaColors.Accent
+        else -> defaultColor.copy(alpha = 0.92f)
+    }
 
     TooltipBox(
         positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
@@ -184,7 +164,7 @@ private fun LiveActionButtonItem(
         },
         state = rememberTooltipState()
     ) {
-        // Tek odak + tıklama hedefi: Surface(onClick) tek başına kullanılır, ekstra dpadFocusable eklenmez.
+        // Tek odak + tıklama hedefi: çerçevesiz 40dp TiviMate yuvarlak ikon düğmesi
         Surface(
             onClick = {
                 if (enabled) {
@@ -196,11 +176,8 @@ private fun LiveActionButtonItem(
             enabled = enabled,
             shape = VegaShapes.Pill,
             color = containerColor,
-            border = if (isFocused) BorderStroke(2.dp, Color.White) else null,
-            interactionSource = interactionSource,
             modifier = modifier
-                .size(VegaSizes.IconButton)
-                .scale(scale)
+                .size(40.dp)
                 .onFocusChanged { state ->
                     isFocused = state.isFocused
                     if (state.isFocused) registerInteraction()
@@ -215,7 +192,7 @@ private fun LiveActionButtonItem(
                     imageVector = icon,
                     contentDescription = contentDescription,
                     tint = tintColor,
-                    modifier = Modifier.size(21.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
