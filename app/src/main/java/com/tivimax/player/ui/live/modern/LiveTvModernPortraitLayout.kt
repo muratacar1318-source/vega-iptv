@@ -1,7 +1,9 @@
 package com.tivimax.player.ui.live.modern
 
 import androidx.activity.compose.BackHandler
+import com.tivimax.player.R
 import com.tivimax.player.util.LocalIsTvDevice
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
@@ -17,21 +19,21 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -43,6 +45,7 @@ import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
+import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.GlobalSearchOptionsCard
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
@@ -92,6 +95,16 @@ fun LiveTvModernPortraitLayout(
     val favoriteStreams by viewModel.favoriteLiveStreams.collectAsState()
     val currentScreen by viewModel.currentScreen.collectAsState()
     val isPlayerScreen = currentScreen is Screen.Player
+    val playerInstanceVersion by viewModel.playerManager.playerInstanceVersion.collectAsState()
+    val isPreviewBuffering by viewModel.playerManager.isBuffering.collectAsState()
+    var previewPlayerView by remember { mutableStateOf<PlayerView?>(null) }
+
+    LaunchedEffect(previewPlayerView, playerInstanceVersion, activePreviewChannel?.streamId, isPlayerScreen) {
+        val view = previewPlayerView ?: return@LaunchedEffect
+        if (!isPlayerScreen && activePreviewChannel != null) {
+            viewModel.playerManager.attachView(view, isPrimary = false, tag = "LiveTvModernPortrait-preview")
+        }
+    }
 
     var nowEpochSec by remember { mutableLongStateOf(System.currentTimeMillis() / 1000L) }
     LaunchedEffect(Unit) {
@@ -184,24 +197,67 @@ fun LiveTvModernPortraitLayout(
                     if (!isPlayerScreen) {
                         AndroidView(
                             factory = { ctx ->
-                                PlayerView(ctx).apply {
+                                val view = LayoutInflater.from(ctx)
+                                    .inflate(R.layout.player_texture_view, null, false) as PlayerView
+                                view.apply {
                                     useController = false
+                                    setKeepContentOnPlayerReset(true)
+                                    setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                                    setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                                     layoutParams = FrameLayout.LayoutParams(
                                         ViewGroup.LayoutParams.MATCH_PARENT,
                                         ViewGroup.LayoutParams.MATCH_PARENT
                                     )
-                                    viewModel.playerManager.attachView(this, isPrimary = false, tag = "LiveTvModernPortrait-preview")
                                 }
+                                previewPlayerView = view
+                                view
                             },
-                            update = { playerView ->
-                                viewModel.playerManager.attachView(playerView, isPrimary = false, tag = "LiveTvModernPortrait-preview")
-                            },
+                            update = {},
                             onRelease = { playerView ->
+                                if (previewPlayerView === playerView) {
+                                    previewPlayerView = null
+                                }
                                 viewModel.playerManager.detachView(playerView, tag = "LiveTvModernPortrait-preview")
                             },
                             modifier = Modifier.fillMaxSize()
                         )
+                    }
+
+                    if (isPreviewBuffering) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.55f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(VegaShapes.Small)
+                                        .background(VegaColors.SurfaceElevated.copy(alpha = 0.85f))
+                                        .padding(6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AsyncShimmerImage(
+                                        model = channel.streamIcon,
+                                        contentDescription = channel.name,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize(),
+                                        placeholderIcon = Icons.Default.Tv
+                                    )
+                                }
+                                CircularProgressIndicator(
+                                    color = VegaColors.Accent,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
 
                     Row(
@@ -420,8 +476,8 @@ fun LiveTvModernPortraitLayout(
                         // ====================================================================
                         LazyColumn(
                             state = listState,
-                            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 96.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             itemsIndexed(
@@ -488,8 +544,8 @@ fun LiveTvModernPortraitLayout(
                         // ====================================================================
                         LazyColumn(
                             state = listState,
-                            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 96.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
                             // ÜST RAFLAR (Sadece "Tümü" seçiliyken ve arama yapılmıyorken gösterilir!)
@@ -503,7 +559,7 @@ fun LiveTvModernPortraitLayout(
                                         onChannelClick = { channel ->
                                             viewModel.playLiveChannel(channel)
                                         },
-                                        modifier = Modifier.padding(bottom = 12.dp)
+                                        modifier = Modifier.padding(top = 6.dp, bottom = 10.dp)
                                     )
                                 }
                             }

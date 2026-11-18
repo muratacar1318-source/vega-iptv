@@ -35,7 +35,7 @@ import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 
 /**
- * Canlı TV Oynatıcısı Alt Aksiyon Çubuğu (StreamVault cam stil + tek odaklı düğmeler).
+ * Canlı TV Oynatıcısı Alt Aksiyon Çubuğu (Çerçevesiz yuvarlak ikon düğmeleri + tek odaklı).
  *
  * Sıralama: Rehber, Önceki kanal, Son kanallar, Ses ve altyazı, Daha fazla.
  */
@@ -58,7 +58,7 @@ fun LivePlayerActionBar(
 
     Row(
         modifier = modifier,
-        horizontalArrangement = if (isPortrait) Arrangement.SpaceBetween else Arrangement.spacedBy(6.dp),
+        horizontalArrangement = if (isPortrait) Arrangement.SpaceBetween else Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // 1. REHBER (EPG)
@@ -133,7 +133,7 @@ private fun LiveActionButtonItem(
     enabled: Boolean = true,
     isActive: Boolean = false,
     activeColor: Color = VegaColors.Accent,
-    defaultColor: Color = VegaColors.TextPrimary,
+    defaultColor: Color = Color.White,
     focusRequester: FocusRequester? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -145,12 +145,12 @@ private fun LiveActionButtonItem(
     val scale by animateFloatAsState(
         targetValue = when {
             isPressed -> 0.90f
-            isFocused -> 1.05f
+            isFocused -> 1.06f
             else -> 1.0f
         },
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "btnScale"
     )
@@ -160,7 +160,7 @@ private fun LiveActionButtonItem(
             !enabled -> Color.Transparent
             isFocused -> VegaColors.Accent
             isActive -> activeColor.copy(alpha = 0.18f)
-            else -> VegaColors.OverlayPill
+            else -> Color.White.copy(alpha = 0.06f)
         },
         label = "btnBg"
     )
@@ -170,7 +170,7 @@ private fun LiveActionButtonItem(
             !enabled -> defaultColor.copy(alpha = 0.35f)
             isFocused -> VegaColors.OnAccent
             isActive -> activeColor
-            else -> defaultColor
+            else -> defaultColor.copy(alpha = 0.92f)
         },
         label = "btnColor"
     )
@@ -194,17 +194,9 @@ private fun LiveActionButtonItem(
                 }
             },
             enabled = enabled,
-            shape = VegaShapes.Medium,
+            shape = VegaShapes.Pill,
             color = containerColor,
-            border = BorderStroke(
-                width = if (isFocused) 2.dp else 1.dp,
-                color = when {
-                    !enabled -> VegaColors.Border.copy(alpha = 0.35f)
-                    isFocused -> Color.White
-                    isActive -> activeColor.copy(alpha = 0.6f)
-                    else -> VegaColors.Border
-                }
-            ),
+            border = if (isFocused) BorderStroke(2.dp, Color.White) else null,
             interactionSource = interactionSource,
             modifier = modifier
                 .size(VegaSizes.IconButton)

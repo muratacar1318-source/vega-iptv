@@ -1,8 +1,5 @@
 package com.tivimax.player.ui.settings
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -28,7 +25,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -41,8 +37,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.window.DialogProperties
 import com.tivimax.player.theme.VegaPalette
 import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.design.VegaButtonVariant
@@ -50,14 +47,13 @@ import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
-import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.util.LocalIsTvDevice
+import java.util.Locale
 import kotlinx.coroutines.delay
 
 /**
  * Tek odak + tek tıklama hedefli (Android TV D-Pad & dokunmatik) temel ayar etkileşim yüzeyi.
- * Surface'in clickable OLMAYAN aşırı yüklemesini kullanır; böylece çift odak / çift tıklama
- * çakışması kesinlikle oluşmaz.
+ * Animasyon ve kalıcı graphicsLayer olmadan anlık ton geçişi + keskin odak çerçevesi sunar (60fps akıcı kaydırma).
  */
 @Composable
 fun SettingsSingleFocusSurface(
@@ -66,29 +62,20 @@ fun SettingsSingleFocusSurface(
     enabled: Boolean = true,
     shape: Shape = VegaShapes.Medium,
     containerColor: Color = Color.Transparent,
-    focusedContainerColor: Color = VegaColors.SurfaceAccent,
+    focusedContainerColor: Color = VegaColors.SurfaceElevated,
     border: BorderStroke? = null,
     focusedBorderColor: Color = VegaColors.Accent,
-    focusedScale: Float = 1.03f,
+    @Suppress("UNUSED_PARAMETER") focusedScale: Float = 1.03f,
     role: Role? = null,
     content: @Composable (isFocused: Boolean) -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isFocused && enabled) focusedScale else 1f,
-        animationSpec = tween(durationMillis = 120),
-        label = "settingsFocusScale"
-    )
-    val animatedBg by animateColorAsState(
-        targetValue = when {
-            !enabled -> containerColor.copy(alpha = if (containerColor == Color.Transparent) 0f else 0.45f)
-            isFocused -> focusedContainerColor
-            else -> containerColor
-        },
-        animationSpec = tween(durationMillis = 120),
-        label = "settingsFocusBg"
-    )
+    val bgColor = when {
+        !enabled -> containerColor.copy(alpha = if (containerColor == Color.Transparent) 0f else 0.45f)
+        isFocused -> focusedContainerColor
+        else -> containerColor
+    }
     val activeBorder = if (isFocused && enabled) {
         BorderStroke(2.dp, focusedBorderColor)
     } else {
@@ -97,14 +84,9 @@ fun SettingsSingleFocusSurface(
 
     Surface(
         shape = shape,
-        color = animatedBg,
+        color = bgColor,
         border = activeBorder,
         modifier = modifier
-            .zIndex(if (isFocused) 1f else 0f)
-            .graphicsLayer {
-                scaleX = animatedScale
-                scaleY = animatedScale
-            }
             .clip(shape)
             .onFocusChanged { isFocused = it.isFocused }
             .clickable(
@@ -120,7 +102,7 @@ fun SettingsSingleFocusSurface(
 }
 
 /**
- * StreamVault SettingsLocalHeader uyarlaması: sağ içerik paneli ve dikey alt sayfa başlığı.
+ * Sağ içerik paneli ve bölüm başlığı.
  */
 @Composable
 fun SettingsSectionHeader(
@@ -132,23 +114,15 @@ fun SettingsSectionHeader(
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (icon != null) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(VegaShapes.Medium)
-                    .background(VegaColors.Accent.copy(alpha = 0.16f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = VegaColors.Accent,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = VegaColors.Accent,
+                modifier = Modifier.size(22.dp)
+            )
         }
         Column(
             modifier = Modifier.weight(1f),
@@ -159,7 +133,7 @@ fun SettingsSectionHeader(
                 color = VegaColors.TextPrimary,
                 fontSize = VegaText.ScreenTitle,
                 fontWeight = FontWeight.Bold,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { heading() }
             )
@@ -168,7 +142,7 @@ fun SettingsSectionHeader(
                     text = description,
                     color = VegaColors.TextSecondary,
                     fontSize = VegaText.Secondary,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -177,7 +151,64 @@ fun SettingsSectionHeader(
 }
 
 /**
- * Dikey telefon alt sayfaları için StreamVault tarzı "← Ayarlar" geri hapı.
+ * Dikey telefon alt sayfaları için yerel üst geri çubuğu ("← Oynatıcı").
+ */
+@Composable
+fun SettingsMobileTopBar(
+    title: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            SettingsSingleFocusSurface(
+                onClick = onBack,
+                shape = VegaShapes.Pill,
+                containerColor = Color.Transparent,
+                focusedContainerColor = VegaColors.SurfaceElevated,
+                role = Role.Button,
+                modifier = Modifier.size(VegaSizes.MinTouch)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Geri",
+                        tint = VegaColors.TextPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            Text(
+                text = title,
+                color = VegaColors.TextPrimary,
+                fontSize = VegaText.SectionTitle,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { heading() }
+            )
+        }
+        HorizontalDivider(
+            color = VegaColors.Border.copy(alpha = 0.55f),
+            thickness = 0.5.dp
+        )
+    }
+}
+
+/**
+ * Dikey telefon alt sayfaları için geri hapı (geriye dönük uyumluluk için korunur).
  */
 @Composable
 fun SettingsBackPill(
@@ -188,11 +219,10 @@ fun SettingsBackPill(
     SettingsSingleFocusSurface(
         onClick = onClick,
         shape = VegaShapes.Pill,
-        containerColor = VegaColors.SurfaceElevated,
-        focusedContainerColor = VegaColors.SurfaceAccent,
-        border = BorderStroke(1.dp, VegaColors.Border),
+        containerColor = VegaColors.Surface,
+        focusedContainerColor = VegaColors.SurfaceElevated,
+        border = BorderStroke(0.75.dp, VegaColors.Border),
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.03f,
         role = Role.Button,
         modifier = modifier.defaultMinSize(minHeight = 40.dp)
     ) {
@@ -219,13 +249,13 @@ fun SettingsBackPill(
 }
 
 /**
- * StreamVault tarzı sol menü kategori satırı (Yatay / Android TV).
- * Seçili satırda sol mavi vurgu şeridi + yumuşak vurgu zemini + renkli ikon kutusu.
+ * Sol menü kategori satırı (Yatay / Android TV).
+ * Çerçevesiz tonlu aktif hap + 3dp sol vurgu çubuğu.
  */
 @Composable
 fun SettingsRailItem(
     title: String,
-    subtitle: String,
+    subtitle: String = "",
     icon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
@@ -235,10 +265,9 @@ fun SettingsRailItem(
         onClick = onClick,
         shape = VegaShapes.Medium,
         containerColor = if (selected) VegaColors.Accent.copy(alpha = 0.14f) else Color.Transparent,
-        focusedContainerColor = if (selected) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.SurfaceAccent,
-        border = if (selected) BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.45f)) else null,
+        focusedContainerColor = if (selected) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.SurfaceElevated,
+        border = null,
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.02f,
         role = Role.Tab,
         modifier = modifier
             .fillMaxWidth()
@@ -247,66 +276,56 @@ fun SettingsRailItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .defaultMinSize(minHeight = 46.dp)
                 .padding(horizontal = 10.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Sol vurgu şeridi
             Box(
                 modifier = Modifier
                     .width(3.dp)
-                    .height(28.dp)
+                    .height(22.dp)
                     .clip(VegaShapes.Pill)
                     .background(if (selected) VegaColors.Accent else Color.Transparent)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            // Yumuşak ikon kutusu (36dp)
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(VegaShapes.Small)
-                    .background(
-                        when {
-                            selected -> VegaColors.Accent.copy(alpha = 0.22f)
-                            isFocused -> VegaColors.Accent.copy(alpha = 0.14f)
-                            else -> VegaColors.SurfaceVariant
-                        }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (selected || isFocused) VegaColors.Accent else VegaColors.TextSecondary,
-                    modifier = Modifier.size(19.dp)
-                )
-            }
             Spacer(modifier = Modifier.width(10.dp))
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = when {
+                    selected || isFocused -> VegaColors.Accent
+                    else -> VegaColors.TextSecondary
+                },
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
                 Text(
                     text = title,
-                    color = if (selected) VegaColors.Accent else VegaColors.TextPrimary,
+                    color = if (selected || isFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
                     fontSize = VegaText.Body,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = subtitle,
-                    color = if (selected) VegaColors.TextPrimary.copy(alpha = 0.78f) else VegaColors.TextSecondary,
-                    fontSize = VegaText.Caption,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        color = VegaColors.TextMuted,
+                        fontSize = VegaText.Caption,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
 }
 
 /**
- * Dikey telefon görünümü için StreamVault kategori liste öğesi.
+ * Dikey telefon görünümü için gruplanabilir kategori liste satırı.
  */
 @Composable
 fun SettingsCategoryListItem(
@@ -314,73 +333,87 @@ fun SettingsCategoryListItem(
     subtitle: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    valueSummary: String = "",
+    inGroup: Boolean = false
 ) {
     SettingsSingleFocusSurface(
         onClick = onClick,
-        shape = VegaShapes.Large,
-        containerColor = VegaColors.Card,
-        focusedContainerColor = VegaColors.SurfaceAccent,
-        border = BorderStroke(1.dp, VegaColors.Border),
+        shape = if (inGroup) VegaShapes.Small else VegaShapes.Large,
+        containerColor = if (inGroup) Color.Transparent else VegaColors.Surface,
+        focusedContainerColor = VegaColors.SurfaceElevated,
+        border = if (inGroup) null else BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.7f)),
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.02f,
         role = Role.Button,
         modifier = modifier.fillMaxWidth()
-    ) {
+    ) { isFocused ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
+                .defaultMinSize(minHeight = 56.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(VegaShapes.Medium)
-                    .background(VegaColors.Accent.copy(alpha = 0.15f)),
+                    .size(32.dp)
+                    .clip(VegaShapes.Small)
+                    .background(if (isFocused) VegaColors.Accent.copy(alpha = 0.16f) else VegaColors.SurfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = VegaColors.Accent,
-                    modifier = Modifier.size(21.dp)
+                    tint = if (isFocused) VegaColors.Accent else VegaColors.TextSecondary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
                 Text(
                     text = title,
                     color = VegaColors.TextPrimary,
                     fontSize = VegaText.BodyProminent,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        color = VegaColors.TextMuted,
+                        fontSize = VegaText.Caption,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (valueSummary.isNotBlank()) {
                 Text(
-                    text = subtitle,
+                    text = valueSummary,
                     color = VegaColors.TextSecondary,
-                    fontSize = VegaText.Caption,
+                    fontSize = VegaText.Secondary,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 120.dp)
                 )
             }
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
                 tint = VegaColors.TextMuted,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
     }
 }
 
 /**
- * StreamVault gruplanmış ayar kartı:
- * Üstte vurgulu grup başlığı + altında vegaPanel(VegaShapes.Large) içinde satırlar.
+ * iOS / Infuse tarzı gruplanmış ayar kartı:
+ * Üstte sakin büyük harfli bölüm etiketi + altında temiz yüzey kartı (iç satırlar çerçevesiz, 0.5dp ince ayırıcıyla bölünür).
  */
 @Composable
 fun SettingsGroupCard(
@@ -389,48 +422,64 @@ fun SettingsGroupCard(
     subtitle: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val trLocale = remember { Locale("tr", "TR") }
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = title,
-                color = VegaColors.Accent,
-                fontSize = VegaText.Secondary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.semantics { heading() }
-            )
-            if (!subtitle.isNullOrBlank()) {
-                Text(
-                    text = subtitle,
-                    color = VegaColors.TextSecondary,
-                    fontSize = VegaText.Caption
-                )
+        if (title.isNotBlank() || !subtitle.isNullOrBlank()) {
+            Column(
+                modifier = Modifier.padding(horizontal = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                if (title.isNotBlank()) {
+                    Text(
+                        text = title.uppercase(trLocale),
+                        color = VegaColors.TextMuted,
+                        fontSize = VegaText.Caption,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 0.7.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                }
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        color = VegaColors.TextSecondary,
+                        fontSize = VegaText.Caption,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .vegaPanel(VegaShapes.Large)
-                .padding(horizontal = 6.dp, vertical = 6.dp),
-            content = content
-        )
+        Surface(
+            shape = VegaShapes.Large,
+            color = VegaColors.Surface,
+            border = BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.65f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                content = content
+            )
+        }
     }
 }
 
 /**
- * Gruplanmış ayar kartı içindeki satırlar arasında ince ayırıcı çizgi.
+ * Gruplanmış ayar kartı içindeki satırlar arasında ince 0.5dp ayırıcı çizgi.
  */
 @Composable
 fun SettingsGroupDivider() {
     HorizontalDivider(
-        modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
-        color = VegaColors.Border,
-        thickness = 1.dp
+        modifier = Modifier.padding(horizontal = 14.dp),
+        color = VegaColors.Border.copy(alpha = 0.55f),
+        thickness = 0.5.dp
     )
 }
 
@@ -452,11 +501,10 @@ fun SettingsToggleRow(
     SettingsSingleFocusSurface(
         onClick = { if (enabled) onCheckedChange(!checked) },
         enabled = enabled,
-        shape = VegaShapes.Medium,
+        shape = VegaShapes.Small,
         containerColor = Color.Transparent,
-        focusedContainerColor = VegaColors.SurfaceAccent,
+        focusedContainerColor = VegaColors.SurfaceElevated,
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.015f,
         role = Role.Switch,
         modifier = modifier
             .fillMaxWidth()
@@ -464,27 +512,27 @@ fun SettingsToggleRow(
                 role = Role.Switch
                 toggleableState = ToggleableState(checked)
             }
-    ) {
+    ) { isFocused ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 60.dp)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .defaultMinSize(minHeight = 56.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (icon != null) {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(32.dp)
                         .clip(VegaShapes.Small)
-                        .background(VegaColors.Accent.copy(alpha = 0.12f)),
+                        .background(if (isFocused) VegaColors.Accent.copy(alpha = 0.16f) else VegaColors.SurfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = VegaColors.Accent,
+                        tint = if (isFocused) VegaColors.Accent else VegaColors.TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -497,14 +545,17 @@ fun SettingsToggleRow(
                     text = title,
                     color = if (enabled) VegaColors.TextPrimary else VegaColors.TextMuted,
                     fontSize = VegaText.Body,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (subtitle.isNotBlank()) {
                     Text(
                         text = subtitle,
                         color = VegaColors.TextSecondary,
                         fontSize = VegaText.Caption,
-                        lineHeight = VegaText.Body
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -526,9 +577,8 @@ fun SettingsToggleRow(
 }
 
 /**
- * StreamVault ClickableSettingsRow uyarlaması:
- * Solda ikon (opsiyonel) + başlık + açıklama, sağda seçili değer hapı + ok ikonu.
- * Kumandada 1 OK basışıyla seçim diyaloğunu açar.
+ * Seçim diyaloğunu açan değer satırı:
+ * Solda ikon (opsiyonel) + başlık + tek satır açıklama, sağda sakin değer metni + ok ikonu.
  */
 @Composable
 fun SettingsValueRow(
@@ -543,34 +593,33 @@ fun SettingsValueRow(
     SettingsSingleFocusSurface(
         onClick = onClick,
         enabled = enabled,
-        shape = VegaShapes.Medium,
+        shape = VegaShapes.Small,
         containerColor = Color.Transparent,
-        focusedContainerColor = VegaColors.SurfaceAccent,
+        focusedContainerColor = VegaColors.SurfaceElevated,
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.015f,
         role = Role.Button,
         modifier = modifier.fillMaxWidth()
-    ) {
+    ) { isFocused ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 60.dp)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .defaultMinSize(minHeight = 56.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (icon != null) {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(32.dp)
                         .clip(VegaShapes.Small)
-                        .background(VegaColors.Accent.copy(alpha = 0.12f)),
+                        .background(if (isFocused) VegaColors.Accent.copy(alpha = 0.16f) else VegaColors.SurfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = VegaColors.Accent,
+                        tint = if (isFocused) VegaColors.Accent else VegaColors.TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -583,40 +632,35 @@ fun SettingsValueRow(
                     text = title,
                     color = if (enabled) VegaColors.TextPrimary else VegaColors.TextMuted,
                     fontSize = VegaText.Body,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (subtitle.isNotBlank()) {
                     Text(
                         text = subtitle,
                         color = VegaColors.TextSecondary,
                         fontSize = VegaText.Caption,
-                        lineHeight = VegaText.Body
-                    )
-                }
-            }
-            if (valueText.isNotBlank()) {
-                Box(
-                    modifier = Modifier
-                        .clip(VegaShapes.Small)
-                        .background(VegaColors.Accent.copy(alpha = 0.14f))
-                        .border(1.dp, VegaColors.Accent.copy(alpha = 0.35f), VegaShapes.Small)
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Text(
-                        text = valueText,
-                        color = VegaColors.Accent,
-                        fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
+            if (valueText.isNotBlank()) {
+                Text(
+                    text = valueText,
+                    color = if (isFocused) VegaColors.Accent else VegaColors.TextSecondary,
+                    fontSize = VegaText.Secondary,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
                 tint = VegaColors.TextMuted,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -637,37 +681,47 @@ fun SettingsActionRow(
     enabled: Boolean = true,
     trailingBadge: String? = null
 ) {
+    val isCustomAccent = accentColor != VegaColors.Accent
     SettingsSingleFocusSurface(
         onClick = onClick,
         enabled = enabled && !isLoading,
-        shape = VegaShapes.Medium,
+        shape = VegaShapes.Small,
         containerColor = Color.Transparent,
-        focusedContainerColor = VegaColors.SurfaceAccent,
+        focusedContainerColor = VegaColors.SurfaceElevated,
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.015f,
         role = Role.Button,
         modifier = modifier.fillMaxWidth()
-    ) {
+    ) { isFocused ->
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .defaultMinSize(minHeight = 58.dp)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .defaultMinSize(minHeight = 56.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (icon != null) {
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(32.dp)
                         .clip(VegaShapes.Small)
-                        .background(accentColor.copy(alpha = 0.14f)),
+                        .background(
+                            when {
+                                isCustomAccent -> accentColor.copy(alpha = 0.14f)
+                                isFocused -> VegaColors.Accent.copy(alpha = 0.16f)
+                                else -> VegaColors.SurfaceVariant
+                            }
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = accentColor,
+                        tint = when {
+                            isCustomAccent -> accentColor
+                            isFocused -> VegaColors.Accent
+                            else -> VegaColors.TextSecondary
+                        },
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -678,48 +732,49 @@ fun SettingsActionRow(
             ) {
                 Text(
                     text = title,
-                    color = if (enabled) VegaColors.TextPrimary else VegaColors.TextMuted,
+                    color = when {
+                        !enabled -> VegaColors.TextMuted
+                        accentColor == VegaColors.Danger -> VegaColors.Danger
+                        else -> VegaColors.TextPrimary
+                    },
                     fontSize = VegaText.Body,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (subtitle.isNotBlank()) {
                     Text(
                         text = subtitle,
                         color = VegaColors.TextSecondary,
                         fontSize = VegaText.Caption,
-                        lineHeight = VegaText.Body
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
             when {
                 isLoading -> {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                         color = VegaColors.Accent,
                         strokeWidth = 2.dp
                     )
                 }
                 !trailingBadge.isNullOrBlank() -> {
-                    Box(
-                        modifier = Modifier
-                            .clip(VegaShapes.Small)
-                            .background(accentColor.copy(alpha = 0.14f))
-                            .padding(horizontal = 10.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text = trailingBadge,
-                            color = accentColor,
-                            fontSize = VegaText.Caption,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        text = trailingBadge,
+                        color = accentColor,
+                        fontSize = VegaText.Secondary,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
                 }
                 else -> {
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = null,
                         tint = VegaColors.TextMuted,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -740,28 +795,31 @@ fun SettingsInfoRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .defaultMinSize(minHeight = 46.dp)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
             color = VegaColors.TextSecondary,
-            fontSize = VegaText.Secondary,
+            fontSize = VegaText.Body,
             modifier = Modifier.padding(end = 12.dp)
         )
         Text(
             text = value,
             color = valueColor,
-            fontSize = VegaText.Secondary,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.End
+            fontSize = VegaText.Body,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
 
 /**
- * TEK ODAK HEDEFLİ standart aksiyon butonu (VegaButton'un çift odak bug'ı olmayan karşılığı).
+ * TEK ODAK HEDEFLİ standart aksiyon butonu.
  */
 @Composable
 fun SettingsActionButton(
@@ -784,7 +842,7 @@ fun SettingsActionButton(
     }
     val focusedContainer = when (variant) {
         VegaButtonVariant.PRIMARY -> VegaColors.FocusBorder
-        VegaButtonVariant.SECONDARY -> VegaColors.SurfaceAccent
+        VegaButtonVariant.SECONDARY -> VegaColors.SurfaceElevated
         VegaButtonVariant.DANGER -> VegaColors.Danger
         VegaButtonVariant.TEXT -> VegaColors.Accent.copy(alpha = 0.14f)
     }
@@ -795,7 +853,7 @@ fun SettingsActionButton(
         VegaButtonVariant.TEXT -> VegaColors.Accent
     }
     val restingBorder = when (variant) {
-        VegaButtonVariant.SECONDARY -> BorderStroke(1.dp, VegaColors.Border)
+        VegaButtonVariant.SECONDARY -> BorderStroke(0.75.dp, VegaColors.Border)
         else -> null
     }
     val focusedBorder = when (variant) {
@@ -812,7 +870,6 @@ fun SettingsActionButton(
         focusedContainerColor = focusedContainer,
         border = restingBorder,
         focusedBorderColor = focusedBorder,
-        focusedScale = 1.03f,
         role = Role.Button,
         modifier = modifier.defaultMinSize(minHeight = minHeight)
     ) {
@@ -871,10 +928,9 @@ fun SettingsIconActionButton(
         enabled = enabled && !isLoading,
         shape = CircleShape,
         containerColor = VegaColors.SurfaceVariant,
-        focusedContainerColor = VegaColors.SurfaceAccent,
-        border = BorderStroke(1.dp, VegaColors.Border),
+        focusedContainerColor = VegaColors.SurfaceElevated,
+        border = BorderStroke(0.75.dp, VegaColors.Border),
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.04f,
         role = Role.Button,
         modifier = modifier.size(VegaSizes.IconButton)
     ) {
@@ -884,7 +940,7 @@ fun SettingsIconActionButton(
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(18.dp),
                     color = VegaColors.Accent,
                     strokeWidth = 2.dp
                 )
@@ -916,11 +972,10 @@ fun SettingsChoiceChip(
         onClick = onClick,
         enabled = enabled,
         shape = VegaShapes.Small,
-        containerColor = if (selected) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceVariant,
-        focusedContainerColor = if (selected) VegaColors.Accent.copy(alpha = 0.26f) else VegaColors.SurfaceAccent,
-        border = BorderStroke(1.dp, if (selected) VegaColors.Accent else VegaColors.Border),
+        containerColor = if (selected) VegaColors.Accent.copy(alpha = 0.16f) else VegaColors.SurfaceVariant,
+        focusedContainerColor = if (selected) VegaColors.Accent.copy(alpha = 0.24f) else VegaColors.SurfaceElevated,
+        border = BorderStroke(1.dp, if (selected) VegaColors.Accent else VegaColors.Border.copy(alpha = 0.7f)),
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.03f,
         role = Role.RadioButton,
         modifier = modifier
             .defaultMinSize(minHeight = VegaSizes.MinTouch)
@@ -958,7 +1013,6 @@ fun SettingsChoiceChip(
 
 /**
  * TEK ODAK HEDEFLİ açıklamalı seçim kartı (Canlı TV düzeni, Cihaz türü vb.).
- * İçinde ayrı RadioButton kullanmaz; tüm kart tek odak ve tıklama hedefidir.
  */
 @Composable
 fun SettingsOptionCard(
@@ -973,11 +1027,13 @@ fun SettingsOptionCard(
     SettingsSingleFocusSurface(
         onClick = onClick,
         shape = VegaShapes.Medium,
-        containerColor = if (selected) VegaColors.Accent.copy(alpha = 0.14f) else VegaColors.SurfaceVariant,
-        focusedContainerColor = if (selected) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.SurfaceAccent,
-        border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) VegaColors.Accent else VegaColors.Border),
+        containerColor = if (selected) VegaColors.Accent.copy(alpha = 0.12f) else VegaColors.SurfaceVariant.copy(alpha = 0.65f),
+        focusedContainerColor = if (selected) VegaColors.Accent.copy(alpha = 0.20f) else VegaColors.SurfaceElevated,
+        border = BorderStroke(
+            width = if (selected) 1.5.dp else 0.75.dp,
+            color = if (selected) VegaColors.Accent else VegaColors.Border.copy(alpha = 0.7f)
+        ),
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.02f,
         role = Role.RadioButton,
         modifier = modifier.semantics { this.selected = selected }
     ) {
@@ -985,7 +1041,7 @@ fun SettingsOptionCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
+                    .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
@@ -993,35 +1049,27 @@ fun SettingsOptionCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(VegaShapes.Small)
-                            .background(if (selected) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.Card),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = if (selected) VegaColors.Accent else VegaColors.TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (selected) VegaColors.Accent else VegaColors.TextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
                     if (selected) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
                             contentDescription = null,
                             tint = VegaColors.Accent,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         text = title,
                         color = if (selected) VegaColors.Accent else VegaColors.TextPrimary,
                         fontSize = VegaText.Body,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1029,8 +1077,7 @@ fun SettingsOptionCard(
                         text = description,
                         color = VegaColors.TextSecondary,
                         fontSize = VegaText.Caption,
-                        lineHeight = VegaText.Body,
-                        maxLines = 3,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -1043,20 +1090,12 @@ fun SettingsOptionCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(VegaShapes.Small)
-                        .background(if (selected) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.Card),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = if (selected) VegaColors.Accent else VegaColors.TextSecondary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (selected) VegaColors.Accent else VegaColors.TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -1065,13 +1104,16 @@ fun SettingsOptionCard(
                         text = title,
                         color = if (selected) VegaColors.Accent else VegaColors.TextPrimary,
                         fontSize = VegaText.Body,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = description,
                         color = VegaColors.TextSecondary,
                         fontSize = VegaText.Caption,
-                        lineHeight = VegaText.Body
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 if (selected) {
@@ -1079,7 +1121,7 @@ fun SettingsOptionCard(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = null,
                         tint = VegaColors.Accent,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -1088,8 +1130,7 @@ fun SettingsOptionCard(
 }
 
 /**
- * 8 StreamVault temasını mini ekran önizlemesi olarak gösteren TEK ODAK HEDEFLİ tema kartı.
- * Koyu arka plan + mini yan menü + mini içerik kartları + vurgu rengi şeridi + tema adı + onay işareti.
+ * 8 tema paletini mimari mini ekran önizlemesi olarak gösteren TEK ODAK HEDEFLİ tema kartı.
  */
 @Composable
 fun SettingsThemePreviewCard(
@@ -1102,14 +1143,13 @@ fun SettingsThemePreviewCard(
     SettingsSingleFocusSurface(
         onClick = onClick,
         shape = VegaShapes.Medium,
-        containerColor = if (selected) VegaColors.Accent.copy(alpha = 0.14f) else VegaColors.SurfaceVariant,
-        focusedContainerColor = if (selected) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.SurfaceAccent,
+        containerColor = if (selected) VegaColors.Accent.copy(alpha = 0.12f) else VegaColors.SurfaceVariant.copy(alpha = 0.6f),
+        focusedContainerColor = if (selected) VegaColors.Accent.copy(alpha = 0.20f) else VegaColors.SurfaceElevated,
         border = BorderStroke(
-            width = if (selected) 1.5.dp else 1.dp,
-            color = if (selected) VegaColors.Accent else VegaColors.Border
+            width = if (selected) 1.5.dp else 0.75.dp,
+            color = if (selected) VegaColors.Accent else VegaColors.Border.copy(alpha = 0.7f)
         ),
         focusedBorderColor = VegaColors.Accent,
-        focusedScale = 1.035f,
         role = Role.RadioButton,
         modifier = modifier.semantics { this.selected = selected }
     ) {
@@ -1117,26 +1157,25 @@ fun SettingsThemePreviewCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             // Mini Ekran Önizlemesi
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(54.dp)
+                    .height(50.dp)
                     .clip(VegaShapes.Small)
                     .background(palette.canvas)
-                    .border(1.dp, palette.border, VegaShapes.Small)
-                    .padding(6.dp)
+                    .border(0.75.dp, palette.border, VegaShapes.Small)
+                    .padding(5.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Mini sol menü şeridi
                     Column(
                         modifier = Modifier
-                            .width(18.dp)
+                            .width(16.dp)
                             .fillMaxHeight()
                             .clip(VegaShapes.Small)
                             .background(palette.surface)
@@ -1146,50 +1185,47 @@ fun SettingsThemePreviewCard(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(6.dp)
+                                .height(5.dp)
                                 .clip(VegaShapes.Pill)
                                 .background(palette.brand)
                         )
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(4.dp)
+                                .height(3.dp)
                                 .clip(VegaShapes.Pill)
                                 .background(palette.surfaceVariant)
                         )
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(4.dp)
+                                .height(3.dp)
                                 .clip(VegaShapes.Pill)
                                 .background(palette.surfaceVariant)
                         )
                     }
-                    // Mini sağ içerik alanı
                     Column(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Üst vurgu şeridi
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(10.dp)
+                                .height(9.dp)
                                 .clip(VegaShapes.Small)
                                 .background(palette.surfaceElevated)
                                 .padding(horizontal = 4.dp, vertical = 3.dp)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(0.55f)
+                                    .fillMaxWidth(0.5f)
                                     .fillMaxHeight()
                                     .clip(VegaShapes.Pill)
                                     .background(palette.brand)
                             )
                         }
-                        // Alt mini kartlar
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1215,7 +1251,6 @@ fun SettingsThemePreviewCard(
                 }
             }
 
-            // Alt Tema Adı + Onay İşareti
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1238,7 +1273,7 @@ fun SettingsThemePreviewCard(
                         text = label,
                         color = if (selected) VegaColors.Accent else VegaColors.TextPrimary,
                         fontSize = VegaText.Caption,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1248,7 +1283,7 @@ fun SettingsThemePreviewCard(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
                         tint = VegaColors.Accent,
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
@@ -1257,7 +1292,7 @@ fun SettingsThemePreviewCard(
 }
 
 /**
- * StreamVault tek seçimli ayar diyaloğu seçeneği.
+ * Tek seçimli ayar diyaloğu seçeneği.
  */
 data class SettingsChoiceItem<T>(
     val value: T,
@@ -1266,8 +1301,8 @@ data class SettingsChoiceItem<T>(
 )
 
 /**
- * StreamVault SettingsSingleChoiceDialog uyarlaması:
- * Kumanda ile açıldığında aktif seçeneğe otomatik odaklanır, 1 OK ile seçer ve kapatır.
+ * Tek seçimli ayar diyaloğu:
+ * Kumanda ile açıldığında aktif seçeneğe odaklanır, 1 OK ile seçer ve kapatır.
  */
 @Composable
 fun <T> SettingsSelectionDialog(
@@ -1283,7 +1318,10 @@ fun <T> SettingsSelectionDialog(
         options.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         LaunchedEffect(Unit) {
             for (attempt in 0 until 2) {
                 withFrameNanos { }
@@ -1291,107 +1329,127 @@ fun <T> SettingsSelectionDialog(
                 if (initialFocusRequester.requestFocusSafely()) break
             }
         }
-        Column(
+        Surface(
+            shape = VegaShapes.Large,
+            color = VegaColors.SurfaceElevated,
+            border = BorderStroke(0.75.dp, VegaColors.Border),
             modifier = Modifier
-                .widthIn(max = 460.dp)
-                .fillMaxWidth()
-                .vegaPanel(VegaShapes.Large)
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .widthIn(max = 440.dp)
+                .fillMaxWidth(0.9f)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = title,
-                    color = VegaColors.TextPrimary,
-                    fontSize = VegaText.SectionTitle,
-                    fontWeight = FontWeight.Bold
-                )
-                if (!subtitle.isNullOrBlank()) {
-                    Text(
-                        text = subtitle,
-                        color = VegaColors.TextSecondary,
-                        fontSize = VegaText.Secondary
-                    )
-                }
-            }
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 360.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                options.forEachIndexed { index, item ->
-                    val isSelected = item.value == selectedValue
-                    SettingsSingleFocusSurface(
-                        onClick = {
-                            onSelect(item.value)
-                            onDismiss()
-                        },
-                        shape = VegaShapes.Medium,
-                        containerColor = if (isSelected) VegaColors.Accent.copy(alpha = 0.16f) else VegaColors.SurfaceElevated,
-                        focusedContainerColor = if (isSelected) VegaColors.Accent.copy(alpha = 0.24f) else VegaColors.SurfaceAccent,
-                        border = BorderStroke(
-                            width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) VegaColors.Accent else VegaColors.Border
-                        ),
-                        focusedBorderColor = VegaColors.Accent,
-                        focusedScale = 1.02f,
-                        role = Role.RadioButton,
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        text = title,
+                        color = VegaColors.TextPrimary,
+                        fontSize = VegaText.SectionTitle,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            text = subtitle,
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Secondary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.Surface,
+                    border = BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.65f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(if (index == selectedIndex) Modifier.focusRequester(initialFocusRequester) else Modifier)
-                            .semantics { selected = isSelected }
+                            .heightIn(max = 340.dp)
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .defaultMinSize(minHeight = 52.dp)
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    text = item.label,
-                                    color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
-                                    fontSize = VegaText.Body,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        options.forEachIndexed { index, item ->
+                            val isSelected = item.value == selectedValue
+                            if (index > 0) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 14.dp),
+                                    color = VegaColors.Border.copy(alpha = 0.55f),
+                                    thickness = 0.5.dp
                                 )
-                                if (!item.description.isNullOrBlank()) {
-                                    Text(
-                                        text = item.description,
-                                        color = VegaColors.TextSecondary,
-                                        fontSize = VegaText.Caption
-                                    )
-                                }
                             }
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = VegaColors.Accent,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                            SettingsSingleFocusSurface(
+                                onClick = {
+                                    onSelect(item.value)
+                                    onDismiss()
+                                },
+                                shape = VegaShapes.Small,
+                                containerColor = if (isSelected) VegaColors.Accent.copy(alpha = 0.12f) else Color.Transparent,
+                                focusedContainerColor = if (isSelected) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.SurfaceElevated,
+                                border = null,
+                                focusedBorderColor = VegaColors.Accent,
+                                role = Role.RadioButton,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(if (index == selectedIndex) Modifier.focusRequester(initialFocusRequester) else Modifier)
+                                    .semantics { selected = isSelected }
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .defaultMinSize(minHeight = 50.dp)
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                                    ) {
+                                        Text(
+                                            text = item.label,
+                                            color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                            fontSize = VegaText.Body,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                        if (!item.description.isNullOrBlank()) {
+                                            Text(
+                                                text = item.description,
+                                                color = VegaColors.TextSecondary,
+                                                fontSize = VegaText.Caption,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = VegaColors.Accent,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                SettingsActionButton(
-                    text = "Kapat",
-                    variant = VegaButtonVariant.SECONDARY,
-                    onClick = onDismiss
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    SettingsActionButton(
+                        text = "Kapat",
+                        variant = VegaButtonVariant.SECONDARY,
+                        onClick = onDismiss
+                    )
+                }
             }
         }
     }

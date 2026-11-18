@@ -29,7 +29,6 @@ import com.tivimax.player.ui.design.VegaButtonVariant
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
-import com.tivimax.player.ui.design.vegaPanel
 import kotlinx.coroutines.delay
 
 @Composable
@@ -57,7 +56,7 @@ fun SettingsAccountSection(
 
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            containerColor = VegaColors.Surface,
+            containerColor = VegaColors.SurfaceElevated,
             shape = VegaShapes.Large,
             title = {
                 Text(
@@ -97,7 +96,7 @@ fun SettingsAccountSection(
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val isTwoColumn = maxWidth >= 780.dp
+        val isTwoColumn = maxWidth >= 720.dp
 
         if (isTwoColumn) {
             Row(
@@ -130,7 +129,7 @@ fun SettingsAccountSection(
         } else {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 ProfileCard(
                     userInfo = userInfo,
@@ -155,54 +154,49 @@ private fun ProfileCard(
     isRefreshing: Boolean,
     onRefreshClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .vegaPanel(VegaShapes.Large)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        shape = VegaShapes.Large,
+        color = VegaColors.Surface,
+        border = BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.65f)),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        val avatarLetter = AccountInfoFormatter.getUserAvatarLetter(userInfo?.username)
-        Box(
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(VegaColors.Accent.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = avatarLetter,
-                color = VegaColors.Accent,
-                fontSize = VegaText.ScreenTitle,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = userInfo?.username?.ifBlank { "Kullanıcı" } ?: "Kullanıcı",
-                color = VegaColors.TextPrimary,
-                fontSize = VegaText.SectionTitle,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = activePlaylistName,
-                color = VegaColors.TextSecondary,
-                fontSize = VegaText.Caption,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            val avatarLetter = AccountInfoFormatter.getUserAvatarLetter(userInfo?.username)
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(VegaColors.SurfaceVariant),
+                contentAlignment = Alignment.Center
             ) {
+                Text(
+                    text = avatarLetter,
+                    color = VegaColors.Accent,
+                    fontSize = VegaText.SectionTitle,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = userInfo?.username?.ifBlank { "Kullanıcı" } ?: "Kullanıcı",
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.SectionTitle,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
                 val statusResult = AccountInfoFormatter.accountStatus(userInfo)
                 val statusColor = when (statusResult.colorType) {
                     AccountBadgeColor.GREEN -> VegaColors.Success
@@ -211,46 +205,40 @@ private fun ProfileCard(
                     AccountBadgeColor.GRAY -> VegaColors.TextMuted
                 }
 
-                Surface(
-                    color = statusColor.copy(alpha = 0.15f),
-                    shape = VegaShapes.Small,
-                    border = BorderStroke(1.dp, statusColor.copy(alpha = 0.4f))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(statusColor)
+                    )
+                    val metaText = buildString {
+                        append(statusResult.label)
+                        if (userInfo?.isTrial == "1") append(" · Deneme")
+                        if (activePlaylistName.isNotBlank()) append(" · $activePlaylistName")
+                    }
                     Text(
-                        text = statusResult.label,
-                        color = statusColor,
+                        text = metaText,
+                        color = VegaColors.TextSecondary,
                         fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-
-                if (userInfo?.isTrial == "1") {
-                    Surface(
-                        color = VegaColors.Gold.copy(alpha = 0.15f),
-                        shape = VegaShapes.Small,
-                        border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.4f))
-                    ) {
-                        Text(
-                            text = "Deneme",
-                            color = VegaColors.Gold,
-                            fontSize = VegaText.Caption,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                }
             }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            SettingsIconActionButton(
+                icon = Icons.Default.Refresh,
+                contentDescription = "Hesap bilgilerini yenile",
+                onClick = onRefreshClick,
+                isLoading = isRefreshing
+            )
         }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        SettingsIconActionButton(
-            icon = Icons.Default.Refresh,
-            contentDescription = "Hesap bilgilerini yenile",
-            onClick = onRefreshClick,
-            isLoading = isRefreshing
-        )
     }
 }
 
@@ -288,11 +276,11 @@ private fun SubscriptionCard(userInfo: XtreamUserInfo?) {
                 progress = { subProgress },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .height(4.dp)
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .height(3.dp)
                     .clip(RoundedCornerShape(2.dp)),
                 color = VegaColors.Accent,
-                trackColor = VegaColors.Border
+                trackColor = VegaColors.Border.copy(alpha = 0.6f)
             )
         }
 
@@ -334,22 +322,35 @@ private fun ContentSummaryCard(contentCounts: Triple<Int, Int, Int>?) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .height(IntrinsicSize.Min)
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            ContentCountBox(
-                title = "Canlı kanal",
+            ContentCountColumn(
+                title = "Canlı",
                 count = AccountInfoFormatter.formatContentCount(contentCounts?.first),
                 icon = Icons.Default.Tv,
                 modifier = Modifier.weight(1f)
             )
-            ContentCountBox(
+            Box(
+                modifier = Modifier
+                    .width(0.5.dp)
+                    .fillMaxHeight()
+                    .background(VegaColors.Border.copy(alpha = 0.55f))
+            )
+            ContentCountColumn(
                 title = "Film",
                 count = AccountInfoFormatter.formatContentCount(contentCounts?.second),
                 icon = Icons.Default.Movie,
                 modifier = Modifier.weight(1f)
             )
-            ContentCountBox(
+            Box(
+                modifier = Modifier
+                    .width(0.5.dp)
+                    .fillMaxHeight()
+                    .background(VegaColors.Border.copy(alpha = 0.55f))
+            )
+            ContentCountColumn(
                 title = "Dizi",
                 count = AccountInfoFormatter.formatContentCount(contentCounts?.third),
                 icon = Icons.Default.VideoLibrary,
@@ -360,42 +361,34 @@ private fun ContentSummaryCard(contentCounts: Triple<Int, Int, Int>?) {
 }
 
 @Composable
-private fun ContentCountBox(
+private fun ContentCountColumn(
     title: String,
     count: String,
     icon: ImageVector,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        color = VegaColors.Surface,
-        shape = VegaShapes.Medium,
-        border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = modifier
+    Column(
+        modifier = modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = VegaColors.Accent,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = count,
-                color = VegaColors.TextPrimary,
-                fontSize = VegaText.BodyProminent,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = title,
-                color = VegaColors.TextSecondary,
-                fontSize = VegaText.Caption
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = VegaColors.TextSecondary,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = count,
+            color = VegaColors.TextPrimary,
+            fontSize = VegaText.BodyProminent,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = title,
+            color = VegaColors.TextMuted,
+            fontSize = VegaText.Caption
+        )
     }
 }
 
@@ -414,7 +407,7 @@ private fun SyncCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             SettingsActionButton(
                 text = "Listeyi şimdi güncelle",
@@ -430,18 +423,12 @@ private fun SyncCard(
 @Composable
 private fun LogoutCard(onLogoutClick: () -> Unit) {
     SettingsGroupCard(title = "Liste işlemleri") {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp)
-        ) {
-            SettingsActionButton(
-                text = "Bu listeyi kaldır",
-                variant = VegaButtonVariant.DANGER,
-                icon = Icons.Default.DeleteOutline,
-                onClick = onLogoutClick,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+        SettingsActionRow(
+            title = "Bu listeyi kaldır",
+            subtitle = "Kanallar ve favoriler bu cihazdan silinir",
+            icon = Icons.Default.DeleteOutline,
+            accentColor = VegaColors.Danger,
+            onClick = onLogoutClick
+        )
     }
 }

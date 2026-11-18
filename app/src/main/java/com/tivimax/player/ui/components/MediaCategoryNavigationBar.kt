@@ -1,8 +1,5 @@
 package com.tivimax.player.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -99,8 +96,7 @@ fun MediaCategoryNavigationBar(
         item(key = "media_cat_more_btn") {
             Surface(
                 shape = VegaShapes.Pill,
-                color = VegaColors.Card,
-                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.5f)),
+                color = VegaColors.Accent.copy(alpha = 0.14f),
                 modifier = Modifier.dpadFocusable(
                     shape = VegaShapes.Pill,
                     focusedBorderColor = VegaColors.FocusBorder,
@@ -108,7 +104,7 @@ fun MediaCategoryNavigationBar(
                 )
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -149,8 +145,7 @@ fun MediaCategoryDropdownBar(
 ) {
     Surface(
         shape = VegaShapes.Medium,
-        color = VegaColors.Card,
-        border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f)),
+        color = VegaColors.SurfaceElevated,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -244,19 +239,13 @@ private fun MediaChipItem(
     leadingIcon: ImageVector,
     onClick: () -> Unit
 ) {
-    val bgColor by animateColorAsState(
-        targetValue = if (isSelected) VegaColors.Accent else VegaColors.Card,
-        animationSpec = tween(150),
-        label = "chip_bg"
-    )
+    val bgColor = if (isSelected) VegaColors.Accent else VegaColors.SurfaceElevated
     val textColor = if (isSelected) VegaColors.OnAccent else VegaColors.TextPrimary
     val iconColor = if (isSelected) VegaColors.OnAccent else VegaColors.Accent
-    val border = if (isSelected) null else BorderStroke(1.dp, VegaColors.Border)
 
     Surface(
         shape = VegaShapes.Pill,
         color = bgColor,
-        border = border,
         modifier = Modifier.dpadFocusable(
             shape = VegaShapes.Pill,
             focusedBorderColor = if (isSelected) VegaColors.TextPrimary else VegaColors.FocusBorder,
@@ -478,8 +467,7 @@ private fun CategorySheetItem(
 ) {
     Surface(
         shape = VegaShapes.Medium,
-        color = if (isSelected) VegaColors.Accent.copy(alpha = 0.15f) else Color.Transparent,
-        border = if (isSelected) BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.6f)) else null,
+        color = if (isSelected) VegaColors.Accent.copy(alpha = 0.14f) else Color.Transparent,
         modifier = Modifier
             .fillMaxWidth()
             .dpadFocusable(

@@ -1,6 +1,5 @@
 package com.tivimax.player.ui.live.shelf
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,8 +34,8 @@ import com.tivimax.player.ui.tv.StreamVaultProgressBar
 import com.tivimax.player.util.LocalIsTvDevice
 
 /**
- * Raf Düzeni Öne Çıkan / Hero Kartı (StreamVault görsel dili).
- * Çift odak ve iç içe tıklama çakışması olmadan TV ve mobil için temiz etkileşim sunar.
+ * Raf düzeni sade öne çıkan kanal kartı.
+ * Dekoratif rozet ve gereksiz çerçeveler olmadan temiz etkileşim sunar.
  */
 @Composable
 fun HeroCard(
@@ -56,7 +55,8 @@ fun HeroCard(
     }
 
     val programTitle = remember(epg, channel.currentProgram) {
-        epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı yayın"
+        epg?.getDecodedTitle()?.takeIf { it.isNotBlank() && it != "Canlı Yayın" && it != "Canlı yayın" }
+            ?: channel.currentProgram?.takeIf { it.isNotBlank() }
     }
 
     val progress = remember(epg, channel.programProgress, nowEpochSec) {
@@ -77,25 +77,27 @@ fun HeroCard(
 
     val timeText = remember(epg, channel.programStart, channel.programEnd, nowEpochSec) {
         val formattedTime = epg?.getFormattedTime()
-            ?: (if (channel.programStart != null) "${channel.programStart} - ${channel.programEnd}" else "")
+            ?.takeIf { it.isNotBlank() && it != "Canlı Yayın" && it != "Canlı yayın" }
+            ?: (if (!channel.programStart.isNullOrBlank() && !channel.programEnd.isNullOrBlank()) {
+                "${channel.programStart} - ${channel.programEnd}"
+            } else "")
 
         val remainingMinutes = if (epg?.stopTimestamp != null && epg.stopTimestamp > 0) {
             ((epg.stopTimestamp - nowEpochSec) / 60).coerceAtLeast(0)
         } else null
 
-        if (formattedTime.isNotBlank() && remainingMinutes != null && remainingMinutes > 0) {
-            "$formattedTime • kalan $remainingMinutes dk"
-        } else if (formattedTime.isNotBlank()) {
-            formattedTime
-        } else {
-            "Canlı yayın"
+        when {
+            formattedTime.isNotBlank() && remainingMinutes != null && remainingMinutes > 0 ->
+                "$formattedTime · $remainingMinutes dk kaldı"
+            formattedTime.isNotBlank() -> formattedTime
+            else -> null
         }
     }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(216.dp)
+            .height(204.dp)
             .padding(horizontal = 16.dp, vertical = 6.dp)
     ) {
         Surface(
@@ -111,11 +113,9 @@ fun HeroCard(
                     }
                 ),
             shape = VegaShapes.Large,
-            color = VegaColors.SurfaceElevated,
-            border = BorderStroke(1.dp, VegaColors.Border)
+            color = VegaColors.SurfaceElevated
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // Arka Plan: Yumuşak Bulanık Görsel
                 if (!channel.streamIcon.isNullOrBlank()) {
                     AsyncShimmerImage(
                         model = channel.streamIcon,
@@ -128,80 +128,56 @@ fun HeroCard(
                     )
                 }
 
-                // Katmanlı Gece Gradyanı
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
-                                    Color.Black.copy(alpha = 0.52f),
-                                    Color.Black.copy(alpha = 0.80f),
+                                    Color.Black.copy(alpha = 0.50f),
+                                    Color.Black.copy(alpha = 0.78f),
                                     Color.Black.copy(alpha = 0.94f)
                                 )
                             )
                         )
                 )
 
-                // İçerik Alanı
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Üst Satır: Canlı ve Öne Çıkan Rozetleri
+                    // Üst satır: Sadece sade Canlı göstergesi
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(end = 44.dp),
+                            .clip(VegaShapes.Small)
+                            .background(VegaColors.Live.copy(alpha = 0.90f))
+                            .padding(horizontal = 7.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Row(
+                        Box(
                             modifier = Modifier
-                                .clip(VegaShapes.Small)
-                                .background(VegaColors.Live.copy(alpha = 0.92f))
-                                .padding(horizontal = 7.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(Color.White, CircleShape)
-                            )
-                            Text(
-                                text = stringResource(R.string.live_shelf_live_badge),
-                                color = Color.White,
-                                fontSize = VegaText.Caption,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Surface(
-                            shape = VegaShapes.Small,
-                            color = VegaColors.Accent.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.45f))
-                        ) {
-                            Text(
-                                text = "Öne çıkan kanal",
-                                color = VegaColors.Accent,
-                                fontSize = VegaText.Caption,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
-                        }
+                                .size(6.dp)
+                                .background(Color.White, CircleShape)
+                        )
+                        Text(
+                            text = stringResource(R.string.live_shelf_live_badge),
+                            color = Color.White,
+                            fontSize = VegaText.Caption,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
 
-                    // Orta Kısım: StreamVault Kare Logo Kutusu + Kanal ve Program Bilgisi
+                    // Orta kısım: Logo + Kanal ve Program Bilgisi
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(56.dp)
+                                .size(54.dp)
                                 .clip(VegaShapes.Medium)
                                 .background(VegaColors.SurfaceAccent)
                                 .padding(6.dp),
@@ -227,47 +203,45 @@ fun HeroCard(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = programTitle,
-                                color = VegaColors.Accent,
-                                fontSize = VegaText.Secondary,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = timeText,
-                                color = VegaColors.TextSecondary,
-                                fontSize = VegaText.Caption,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            if (programTitle != null) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = programTitle,
+                                    color = VegaColors.TextSecondary,
+                                    fontSize = VegaText.Secondary,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            if (timeText != null) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = timeText,
+                                    color = VegaColors.TextMuted,
+                                    fontSize = VegaText.Caption,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
 
-                    // Alt Kısım: İlerleme Çubuğu ve "İzle" Aksiyonu
+                    // Alt kısım: İlerleme çubuğu + İzle butonu
                     Column(modifier = Modifier.fillMaxWidth()) {
                         if (progress != null) {
                             StreamVaultProgressBar(
                                 progress = progress,
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
                         }
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = if (isTv) "Hemen izlemek için OK'a bas" else "Hemen izlemek için dokun",
-                                color = VegaColors.TextMuted,
-                                fontSize = VegaText.Caption
-                            )
-
                             Surface(
                                 shape = VegaShapes.Medium,
                                 color = VegaColors.Accent,
@@ -287,7 +261,7 @@ fun HeroCard(
                                     )
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    modifier = Modifier.padding(horizontal = 18.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
@@ -311,12 +285,11 @@ fun HeroCard(
             }
         }
 
-        // Sağ Üst: Kardeş Favori Butonu (İç içe tıklama/odak çakışması yok)
+        // Sağ Üst: Kardeş Favori Butonu
         var isFavFocused by remember { mutableStateOf(false) }
         Surface(
             shape = VegaShapes.Pill,
             color = if (isFavFocused) VegaColors.SurfaceVariant else VegaColors.OverlayPill,
-            border = if (isFavFocused) null else BorderStroke(1.dp, VegaColors.Border),
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(14.dp)

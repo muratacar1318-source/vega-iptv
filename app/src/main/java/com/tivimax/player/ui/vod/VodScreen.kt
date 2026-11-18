@@ -2,8 +2,8 @@
 
 package com.tivimax.player.ui.vod
 
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
-import com.tivimax.player.util.LocalIsTvDevice
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,9 +21,6 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import com.tivimax.player.ui.components.CategoryManagementDialog
-import com.tivimax.player.ui.components.CategoryUiItem
-import com.tivimax.player.ui.components.GlobalSearchOptionsCard
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,29 +30,37 @@ import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import android.content.res.Configuration
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.foundation.BorderStroke
 import com.tivimax.player.data.model.SortOption
 import com.tivimax.player.data.model.VodStream
 import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
-import com.tivimax.player.ui.design.VegaColors
-import com.tivimax.player.ui.design.VegaShapes
-import com.tivimax.player.ui.design.VegaText
-import com.tivimax.player.ui.design.vegaPanel
+import com.tivimax.player.ui.components.ActionChipButton
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.CategoryManagementDialog
+import com.tivimax.player.ui.components.CategorySidebar
+import com.tivimax.player.ui.components.CategoryUiItem
+import com.tivimax.player.ui.components.GlobalSearchOptionsCard
+import com.tivimax.player.ui.components.MediaCategoryBottomSheet
 import com.tivimax.player.ui.components.MediaPosterCard
 import com.tivimax.player.ui.components.MediaPosterCardBox
+import com.tivimax.player.ui.components.ParentalLockChip
+import com.tivimax.player.ui.components.ParentalLockRow
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.requestFocusSafely
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaSizes
+import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.ui.main.StreamVaultSectionHeader
+import com.tivimax.player.util.LocalIsTvDevice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -75,11 +80,11 @@ fun VodScreen(viewModel: MainViewModel) {
     val isLoading by viewModel.vodLoading.collectAsState()
     val currentSort by viewModel.vodSortOption.collectAsState()
     val watchProgressMap by viewModel.watchProgressMap.collectAsState()
-    val portraitNavStyle by viewModel.portraitCategoryNavStyle.collectAsState()
 
     val searchQuery by viewModel.vodSearchQuery.collectAsState()
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showCategorySheet by remember { mutableStateOf(false) }
+    var mobileSortMenuOpen by remember { mutableStateOf(false) }
 
     val filteredMovies = movies
 
@@ -94,11 +99,13 @@ fun VodScreen(viewModel: MainViewModel) {
 
     var selectedHeroMovie by remember { mutableStateOf<VodStream?>(null) }
     val featuredMovie = remember(movies) {
-        movies.firstOrNull { it.streamIcon != null && it.streamIcon.isNotBlank() }
+        movies.firstOrNull { !it.streamIcon.isNullOrBlank() }
     }
 
     val configuration = LocalConfiguration.current
+    val isTvDevice = LocalIsTvDevice.current
     val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
+    val isMobilePortrait = !isTvDevice && !isWideScreen
 
     val totalVodCount = remember(categories) {
         categories.firstOrNull { it.categoryId == "all" }?.itemCount
@@ -113,18 +120,13 @@ fun VodScreen(viewModel: MainViewModel) {
     } else {
         selectedCategoryItem?.categoryName ?: "Tüm Filmler"
     }
-    val selectedCategoryCount = if (selectedCategory == "all" || selectedCategory.isEmpty()) {
-        totalVodCount
-    } else {
-        selectedCategoryItem?.itemCount ?: totalVodCount
-    }
 
     val uiCategories = remember(categories) {
         categories
             .filter { it.categoryId != "all" }
             .distinctBy { it.categoryId }
             .map {
-                com.tivimax.player.ui.components.CategoryUiItem(
+                CategoryUiItem(
                     id = it.categoryId,
                     name = it.categoryName,
                     count = it.itemCount,
@@ -134,7 +136,6 @@ fun VodScreen(viewModel: MainViewModel) {
             }
     }
 
-    val isTvDevice = LocalIsTvDevice.current
     val hasActiveCategory = selectedCategory != "all" && selectedCategory.isNotEmpty()
     val hasSearch = searchQuery.isNotBlank()
 
@@ -157,7 +158,7 @@ fun VodScreen(viewModel: MainViewModel) {
     }
 
     if (showCategorySheet) {
-        com.tivimax.player.ui.components.MediaCategoryBottomSheet(
+        MediaCategoryBottomSheet(
             title = "Film Türleri",
             categories = uiCategories,
             selectedCategoryId = selectedCategory,
@@ -190,8 +191,315 @@ fun VodScreen(viewModel: MainViewModel) {
         )
     }
 
-    if (isWideScreen && useShelfMode && !hasActiveCategory && !hasSearch && !isLoading && movies.isNotEmpty()) {
-        // STREAMVAULT MODERN RAF GÖRÜNÜMÜ (Gruplama ve puan sıralaması Default dispatcher'da)
+    if (isMobilePortrait) {
+        // MOBİL FİLMLER DENEYİMİ: Kompakt tek satır üst araç çubuğu + 3 sütunlu kenardan kenara ızgara veya temiz editoryal raflar
+        val showMobileShelf = useShelfMode && !hasActiveCategory && !hasSearch
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Tek satırlık başparmak dostu üst araç çubuğu
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = if (hasActiveCategory) 4.dp else 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (hasActiveCategory) {
+                        Box(
+                            modifier = Modifier
+                                .size(VegaSizes.IconButton)
+                                .clip(CircleShape)
+                                .dpadFocusable(
+                                    shape = CircleShape,
+                                    focusedBorderColor = VegaColors.FocusBorder,
+                                    onClick = { viewModel.loadVodStreams("all") }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Tüm filmler",
+                                tint = VegaColors.TextPrimary,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (hasActiveCategory) selectedCategoryName else "Filmler",
+                        color = VegaColors.TextPrimary,
+                        fontSize = if (hasActiveCategory) 19.sp else VegaText.ScreenTitle,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    ParentalLockChip(viewModel, hasAdultVod)
+
+                    // Kompakt "Kategoriler" hapı (44.dp başparmak dokunma yüksekliği)
+                    Box(
+                        modifier = Modifier
+                            .height(VegaSizes.MinTouch)
+                            .dpadFocusable(
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                onClick = { showCategorySheet = true }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = if (hasActiveCategory) VegaColors.Accent.copy(alpha = 0.16f) else VegaColors.SurfaceVariant.copy(alpha = 0.85f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text(
+                                    text = "Kategoriler",
+                                    color = if (hasActiveCategory) VegaColors.Accent else VegaColors.TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = if (hasActiveCategory) VegaColors.Accent else VegaColors.TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Sıralama ikonu (44.dp)
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(VegaSizes.IconButton)
+                                .clip(CircleShape)
+                                .dpadFocusable(
+                                    shape = CircleShape,
+                                    focusedBorderColor = VegaColors.FocusBorder,
+                                    onClick = { mobileSortMenuOpen = true }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Sort,
+                                contentDescription = "Sırala",
+                                tint = if (currentSort != SortOption.DEFAULT) VegaColors.Accent else VegaColors.TextSecondary,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                        VodSortDropdownMenu(
+                            expanded = mobileSortMenuOpen,
+                            currentSort = currentSort,
+                            onSelect = {
+                                viewModel.setVodSort(it)
+                                mobileSortMenuOpen = false
+                            },
+                            onDismiss = { mobileSortMenuOpen = false }
+                        )
+                    }
+
+                    // Raf / Izgara görünüm değiştirme ikonu (44.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(VegaSizes.IconButton)
+                            .clip(CircleShape)
+                            .dpadFocusable(
+                                shape = CircleShape,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                onClick = {
+                                    if (showMobileShelf) {
+                                        viewModel.setVodUseShelfMode(false)
+                                    } else {
+                                        viewModel.setVodUseShelfMode(true)
+                                        if (hasActiveCategory) viewModel.loadVodStreams("all")
+                                    }
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (showMobileShelf) Icons.Default.GridView else Icons.Default.ViewCarousel,
+                            contentDescription = if (showMobileShelf) "Izgara görünümü" else "Raf görünümü",
+                            tint = VegaColors.TextSecondary,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
+                }
+            }
+
+            if (showMobileShelf && !isLoading && movies.isNotEmpty()) {
+                // MOBİL RAF GÖRÜNÜMÜ (Kutusuz editoryal kategori şeritleri)
+                val shelfData by produceState(
+                    initialValue = VodShelfData(),
+                    key1 = movies,
+                    key2 = uiCategories
+                ) {
+                    value = withContext(Dispatchers.Default) {
+                        val grouped = movies.groupBy { it.categoryId }
+                        val counts = grouped.mapValues { it.value.size }
+                        val top = movies
+                            .distinctBy { it.streamId }
+                            .sortedByDescending {
+                                it.rating?.replace(',', '.')?.toFloatOrNull()
+                                    ?: (it.rating5Based?.toFloat()?.times(2f) ?: 0f)
+                            }
+                            .take(18)
+                        val shelves = uiCategories.mapNotNull { cat ->
+                            val list = grouped[cat.id]?.distinctBy { it.streamId }?.take(16)
+                            if (!list.isNullOrEmpty()) cat to list else null
+                        }
+                        VodShelfData(
+                            topRated = top,
+                            categories = shelves,
+                            countsByCat = counts,
+                            isReady = true
+                        )
+                    }
+                }
+                var visibleShelfCats by remember(shelfData.categories) { mutableIntStateOf(10) }
+                val visibleShelfCategories = remember(shelfData.categories, visibleShelfCats) {
+                    shelfData.categories.take(visibleShelfCats)
+                }
+
+                if (!shelfData.isReady) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = VegaColors.Accent, strokeWidth = 2.5.dp)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 6.dp, bottom = 96.dp),
+                        verticalArrangement = Arrangement.spacedBy(22.dp)
+                    ) {
+                        if (shelfData.topRated.isNotEmpty()) {
+                            item(key = "mob_vod_shelf_top") {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = "Öne çıkanlar",
+                                        color = VegaColors.TextPrimary,
+                                        fontSize = VegaText.SectionTitle,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 14.dp)
+                                    )
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        itemsIndexed(shelfData.topRated, key = { idx, it -> "mob_top_vod_${it.streamId}_$idx" }) { _, movie ->
+                                            val prog = watchProgressMap[movie.streamId.toString()]
+                                            val progFraction = if (prog != null && !prog.isWatched && prog.durationMs > 0L) {
+                                                (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
+                                            } else 0f
+                                            Box(modifier = Modifier.width(124.dp)) {
+                                                MediaPosterCard(
+                                                    imageUrl = movie.streamIcon,
+                                                    title = movie.name,
+                                                    subtitle = "",
+                                                    rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                                    watchProgress = progFraction,
+                                                    isFavorite = favoriteVodIds.contains(movie.streamId.toString()),
+                                                    onClick = { viewModel.loadVodDetail(movie) }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        itemsIndexed(visibleShelfCategories, key = { idx, pair -> "mob_vod_shelf_${pair.first.id}_$idx" }) { _, (cat, catMovies) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                MobileVodShelfHeader(
+                                    title = cat.name,
+                                    onSeeAllClick = { viewModel.loadVodStreams(cat.id) }
+                                )
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    itemsIndexed(catMovies, key = { idx, it -> "mob_shelf_${cat.id}_${it.streamId}_$idx" }) { _, movie ->
+                                        val prog = watchProgressMap[movie.streamId.toString()]
+                                        val progFraction = if (prog != null && !prog.isWatched && prog.durationMs > 0L) {
+                                            (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
+                                        } else 0f
+                                        Box(modifier = Modifier.width(116.dp)) {
+                                            MediaPosterCard(
+                                                imageUrl = movie.streamIcon,
+                                                title = movie.name,
+                                                subtitle = "",
+                                                rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                                watchProgress = progFraction,
+                                                isFavorite = favoriteVodIds.contains(movie.streamId.toString()),
+                                                onClick = { viewModel.loadVodDetail(movie) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (visibleShelfCats < shelfData.categories.size) {
+                            item(key = "mob_vod_shelf_more_$visibleShelfCats") {
+                                LaunchedEffect(visibleShelfCats) {
+                                    visibleShelfCats += 10
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = VegaColors.Accent,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // MOBİL 3 SÜTUNLU KENARDAN KENARA AFİŞ IZGARASI
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    VodMediaContentGrid(
+                        viewModel = viewModel,
+                        filteredMovies = filteredMovies,
+                        pagedMovies = pagedMovies,
+                        featuredMovie = featuredMovie,
+                        selectedHeroMovie = selectedHeroMovie,
+                        onSelectHeroMovie = { selectedHeroMovie = it },
+                        watchProgressMap = watchProgressMap,
+                        favoriteVodIds = favoriteVodIds,
+                        searchQuery = searchQuery,
+                        selectedCategory = selectedCategory,
+                        currentSort = currentSort,
+                        isLoading = isLoading,
+                        isWideScreen = false,
+                        isMobileCompact = true,
+                        visibleLimit = visibleLimit,
+                        onLoadMore = { visibleLimit += 30 }
+                    )
+                }
+            }
+        }
+    } else if (useShelfMode && !hasActiveCategory && !hasSearch && !isLoading && movies.isNotEmpty()) {
+        // TV & GENİŞ EKRAN SİNEMA RAF GÖRÜNÜMÜ (Gruplama ve puan sıralaması Default dispatcher'da)
         val shelfData by produceState(
             initialValue = VodShelfData(),
             key1 = movies,
@@ -225,16 +533,16 @@ fun VodScreen(viewModel: MainViewModel) {
             shelfData.categories.take(visibleShelfCats)
         }
         val shelfPosterWidth = if (isTvDevice) 160.dp else 148.dp
-        val topPosterWidth = if (isTvDevice) 160.dp else 152.dp
+        val topPosterWidth = if (isTvDevice) 164.dp else 152.dp
 
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = if (isTvDevice) 20.dp else 16.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 36.dp),
-            verticalArrangement = Arrangement.spacedBy(if (isTvDevice) 24.dp else 20.dp)
+                .padding(horizontal = if (isTvDevice) 24.dp else 16.dp),
+            contentPadding = PaddingValues(top = 10.dp, bottom = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isTvDevice) 26.dp else 22.dp)
         ) {
-            // Üst Kontrol Şeridi (Arama, Sıralama, Kategoriler, Klasik Liste, Düzenle, Yetişkin Kilidi)
+            // Dingin çerçevesiz üst kontrol şeridi
             item(key = "vod_shelf_controls") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -242,26 +550,22 @@ fun VodScreen(viewModel: MainViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalAlignment = Alignment.Bottom,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
                             text = "Filmler",
                             color = VegaColors.TextPrimary,
-                            fontSize = 20.sp,
+                            fontSize = VegaText.ScreenTitle,
                             fontWeight = FontWeight.Bold
                         )
-                        Surface(
-                            shape = VegaShapes.Pill,
-                            color = VegaColors.SurfaceVariant,
-                            border = BorderStroke(1.dp, VegaColors.Border)
-                        ) {
+                        if (totalVodCount > 0) {
                             Text(
                                 text = "$totalVodCount film",
-                                color = VegaColors.TextSecondary,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                                color = VegaColors.TextMuted,
+                                fontSize = VegaText.Secondary,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(bottom = 2.dp)
                             )
                         }
                     }
@@ -270,31 +574,14 @@ fun VodScreen(viewModel: MainViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        com.tivimax.player.ui.components.ParentalLockChip(viewModel, hasAdultVod)
+                        ParentalLockChip(viewModel, hasAdultVod)
 
-                        // Arama Hapı
-                        Surface(
-                            shape = VegaShapes.Pill,
-                            color = VegaColors.SurfaceElevated,
-                            border = BorderStroke(1.dp, VegaColors.Border),
-                            modifier = Modifier.dpadFocusable(
-                                shape = VegaShapes.Pill,
-                                focusedBorderColor = VegaColors.FocusBorder,
-                                scale = 1.04f,
-                                onClick = { viewModel.navigateTo(Screen.Search) }
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Icon(Icons.Default.Search, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
-                                Text("Ara", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
+                        VodTonalPill(
+                            label = "Ara",
+                            icon = Icons.Default.Search,
+                            onClick = { viewModel.navigateTo(Screen.Search) }
+                        )
 
-                        // Sıralama Seçici
                         Box {
                             val sortLabel = when (currentSort) {
                                 SortOption.ADDED_DESC -> "Eklenme"
@@ -303,26 +590,12 @@ fun VodScreen(viewModel: MainViewModel) {
                                 SortOption.NAME_DESC -> "Z - A"
                                 SortOption.DEFAULT -> "Sırala"
                             }
-                            Surface(
-                                shape = VegaShapes.Pill,
-                                color = if (currentSort != SortOption.DEFAULT) VegaColors.Accent.copy(alpha = 0.16f) else VegaColors.SurfaceElevated,
-                                border = BorderStroke(1.dp, if (currentSort != SortOption.DEFAULT) VegaColors.Accent.copy(alpha = 0.4f) else VegaColors.Border),
-                                modifier = Modifier.dpadFocusable(
-                                    shape = VegaShapes.Pill,
-                                    focusedBorderColor = VegaColors.FocusBorder,
-                                    scale = 1.04f,
-                                    onClick = { shelfSortMenuOpen = true }
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
-                                    Text(sortLabel, color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
+                            VodTonalPill(
+                                label = sortLabel,
+                                icon = Icons.AutoMirrored.Filled.Sort,
+                                isActive = currentSort != SortOption.DEFAULT,
+                                onClick = { shelfSortMenuOpen = true }
+                            )
                             VodSortDropdownMenu(
                                 expanded = shelfSortMenuOpen,
                                 currentSort = currentSort,
@@ -334,71 +607,24 @@ fun VodScreen(viewModel: MainViewModel) {
                             )
                         }
 
-                        // Tüm Kategorilere Doğrudan Erişim (Kategori Seçici)
-                        Surface(
-                            shape = VegaShapes.Pill,
-                            color = VegaColors.SurfaceElevated,
-                            border = BorderStroke(1.dp, VegaColors.Border),
-                            modifier = Modifier.dpadFocusable(
-                                shape = VegaShapes.Pill,
-                                focusedBorderColor = VegaColors.FocusBorder,
-                                scale = 1.04f,
-                                onClick = { showShelfCategoryPicker = true }
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Icon(Icons.Default.Folder, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
-                                Text("Kategoriler", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
+                        VodTonalPill(
+                            label = "Kategoriler",
+                            icon = Icons.Default.Folder,
+                            onClick = { showShelfCategoryPicker = true }
+                        )
 
-                        // Klasik Liste Görünümü
-                        Surface(
-                            shape = VegaShapes.Pill,
-                            color = VegaColors.SurfaceElevated,
-                            border = BorderStroke(1.dp, VegaColors.Border),
-                            modifier = Modifier.dpadFocusable(
-                                shape = VegaShapes.Pill,
-                                focusedBorderColor = VegaColors.FocusBorder,
-                                scale = 1.04f,
-                                onClick = { viewModel.setVodUseShelfMode(false) }
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.MenuOpen, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
-                                Text("Klasik liste", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            }
-                        }
+                        VodTonalPill(
+                            label = "Klasik liste",
+                            icon = Icons.AutoMirrored.Filled.MenuOpen,
+                            onClick = { viewModel.setVodUseShelfMode(false) }
+                        )
 
-                        // Kategori Düzenleme (Gizle / Sabitle)
-                        Surface(
-                            shape = VegaShapes.Pill,
-                            color = VegaColors.SurfaceElevated,
-                            border = BorderStroke(1.dp, VegaColors.Border),
-                            modifier = Modifier.dpadFocusable(
-                                shape = VegaShapes.Pill,
-                                focusedBorderColor = VegaColors.FocusBorder,
-                                scale = 1.04f,
-                                onClick = { showCategoryDialog = true }
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                Icon(Icons.Default.Tune, contentDescription = "Kategorileri düzenle", tint = VegaColors.TextSecondary, modifier = Modifier.size(15.dp))
-                                Text("Düzenle", color = VegaColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                            }
-                        }
+                        VodTonalPill(
+                            label = "Düzenle",
+                            icon = Icons.Default.Tune,
+                            muted = true,
+                            onClick = { showCategoryDialog = true }
+                        )
                     }
                 }
             }
@@ -415,7 +641,6 @@ fun VodScreen(viewModel: MainViewModel) {
                     }
                 }
             } else {
-                // Üst Vitrin Rafı (Movies.png üst şerit — büyük 160.dp posterler)
                 if (topRatedMovies.isNotEmpty()) {
                     item(key = "vod_shelf_top") {
                         LazyRow(
@@ -444,7 +669,6 @@ fun VodScreen(viewModel: MainViewModel) {
                     }
                 }
 
-                // Kategori Rafları (StreamVault Movies.png — öğe sayısı + "Tümünü gör" mavi hapı)
                 itemsIndexed(visibleShelfCategories, key = { idx, pair -> "vod_shelf_${pair.first.id}_$idx" }) { _, (cat, catMovies) ->
                     val catTotalCount = cat.count.takeIf { it > 0 } ?: shelfData.countsByCat[cat.id]
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -500,10 +724,11 @@ fun VodScreen(viewModel: MainViewModel) {
                 }
             }
         }
-    } else if (isWideScreen || portraitNavStyle == com.tivimax.player.data.preferences.UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) {
+    } else {
+        // TV / TABLET KLASİK LİSTE VEYA SEÇİLİ KATEGORİ IZGARASI
         val backToShelvesFocusRequester = remember { FocusRequester() }
-        LaunchedEffect(selectedCategory, useShelfMode) {
-            if (isTvDevice && isWideScreen && hasActiveCategory && useShelfMode && viewModel.catalogPositions.lastOpenedItemKey == null) {
+        LaunchedEffect(selectedCategory, useShelfMode, hasSearch) {
+            if (isTvDevice && isWideScreen && (hasActiveCategory || hasSearch) && useShelfMode && viewModel.catalogPositions.lastOpenedItemKey == null) {
                 repeat(3) {
                     withFrameNanos { }
                     delay(70)
@@ -518,10 +743,8 @@ fun VodScreen(viewModel: MainViewModel) {
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Klasik modda (veya dikey yan çubukta) ortak sol kategori menüsü;
-            // "Tümünü gör" ile açılan geniş ekran ızgarada temiz tam genişlikli StreamVault görünümü
-            if (!isWideScreen || !useShelfMode) {
-                com.tivimax.player.ui.components.CategorySidebar(
+            if (!useShelfMode) {
+                CategorySidebar(
                     categories = uiCategories,
                     selectedCategoryId = selectedCategory,
                     onCategorySelected = { viewModel.loadVodStreams(it) },
@@ -529,10 +752,10 @@ fun VodScreen(viewModel: MainViewModel) {
                     totalCount = totalVodCount,
                     allLabel = "Tüm Filmler",
                     onFilterClick = { showCategoryDialog = true },
-                    tvFocusBehavior = isTvDevice, // G-045
+                    tvFocusBehavior = isTvDevice,
                     footer = if (isTvDevice) {
                         {
-                            com.tivimax.player.ui.components.ParentalLockRow(viewModel, hasAdultVod)
+                            ParentalLockRow(viewModel, hasAdultVod)
                         }
                     } else null
                 )
@@ -543,78 +766,62 @@ fun VodScreen(viewModel: MainViewModel) {
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                if (isWideScreen) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Surface(
-                                shape = VegaShapes.Pill,
-                                color = VegaColors.Accent.copy(alpha = 0.16f),
-                                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f)),
-                                modifier = Modifier
-                                    .focusRequester(backToShelvesFocusRequester)
-                                    .dpadFocusable(
-                                        shape = VegaShapes.Pill,
-                                        focusedBorderColor = VegaColors.FocusBorder,
-                                        scale = 1.04f,
-                                        onClick = {
-                                            viewModel.setVodUseShelfMode(true)
-                                            if (hasSearch) viewModel.setVodSearchQuery("")
-                                            if (hasActiveCategory) viewModel.loadVodStreams("all")
-                                        }
-                                    )
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
-                                    Text("Raflara dön", color = VegaColors.Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                            Text(
-                                text = selectedCategoryName,
-                                color = VegaColors.TextPrimary,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        if (useShelfMode) {
-                            Surface(
-                                shape = VegaShapes.Pill,
-                                color = VegaColors.SurfaceElevated,
-                                border = BorderStroke(1.dp, VegaColors.Border),
-                                modifier = Modifier.dpadFocusable(
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = VegaColors.Accent.copy(alpha = 0.16f),
+                            modifier = Modifier
+                                .focusRequester(backToShelvesFocusRequester)
+                                .dpadFocusable(
                                     shape = VegaShapes.Pill,
                                     focusedBorderColor = VegaColors.FocusBorder,
                                     scale = 1.04f,
-                                    onClick = { viewModel.setVodUseShelfMode(false) }
+                                    onClick = {
+                                        viewModel.setVodUseShelfMode(true)
+                                        if (hasSearch) viewModel.setVodSearchQuery("")
+                                        if (hasActiveCategory) viewModel.loadVodStreams("all")
+                                    }
                                 )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    Icon(Icons.AutoMirrored.Filled.MenuOpen, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(14.dp))
-                                    Text("Kategoriler", color = VegaColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                                }
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
+                                Text("Raflara dön", color = VegaColors.Accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                             }
                         }
+                        Text(
+                            text = selectedCategoryName,
+                            color = VegaColors.TextPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (useShelfMode) {
+                        VodTonalPill(
+                            label = "Kategoriler",
+                            icon = Icons.AutoMirrored.Filled.MenuOpen,
+                            muted = true,
+                            onClick = { viewModel.setVodUseShelfMode(false) }
+                        )
                     }
                 }
+
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     VodMediaContentGrid(
                         viewModel = viewModel,
@@ -629,64 +836,110 @@ fun VodScreen(viewModel: MainViewModel) {
                         selectedCategory = selectedCategory,
                         currentSort = currentSort,
                         isLoading = isLoading,
-                        gridColumns = if (isWideScreen) (configuration.screenWidthDp / 155).coerceIn(4, 7) else 2,
-                        isWideScreen = isWideScreen,
-                        portraitNavStyle = portraitNavStyle,
+                        isWideScreen = true,
+                        isMobileCompact = false,
                         visibleLimit = visibleLimit,
                         onLoadMore = { visibleLimit += 30 }
                     )
                 }
             }
         }
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 4.dp, vertical = 4.dp)
-        ) {
-            if (portraitNavStyle == com.tivimax.player.data.preferences.UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN) {
-                com.tivimax.player.ui.components.MediaCategoryDropdownBar(
-                    selectedCategoryName = selectedCategoryName,
-                    selectedCategoryCount = selectedCategoryCount,
-                    onOpenCategorySheet = { showCategorySheet = true }
-                )
-            } else {
-                com.tivimax.player.ui.components.MediaCategoryNavigationBar(
-                    categories = uiCategories,
-                    selectedCategoryId = selectedCategory,
-                    onCategorySelected = { viewModel.loadVodStreams(it) },
-                    totalCount = totalVodCount,
-                    allLabel = "Tüm Filmler",
-                    defaultIcon = Icons.Default.Movie,
-                    onOpenAllCategories = { showCategorySheet = true }
-                )
-            }
+    }
+}
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+@Composable
+private fun MobileVodShelfHeader(
+    title: String,
+    onSeeAllClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 14.dp, end = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            color = VegaColors.TextPrimary,
+            fontSize = VegaText.SectionTitle,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Box(
+            modifier = Modifier
+                .defaultMinSize(minHeight = VegaSizes.MinTouch)
+                .clip(VegaShapes.Small)
+                .dpadFocusable(
+                    shape = VegaShapes.Small,
+                    focusedBorderColor = VegaColors.FocusBorder,
+                    onClick = onSeeAllClick
+                )
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                VodMediaContentGrid(
-                    viewModel = viewModel,
-                    filteredMovies = filteredMovies,
-                    pagedMovies = pagedMovies,
-                    featuredMovie = featuredMovie,
-                    selectedHeroMovie = selectedHeroMovie,
-                    onSelectHeroMovie = { selectedHeroMovie = it },
-                    watchProgressMap = watchProgressMap,
-                    favoriteVodIds = favoriteVodIds,
-                    searchQuery = searchQuery,
-                    selectedCategory = selectedCategory,
-                    currentSort = currentSort,
-                    isLoading = isLoading,
-                    gridColumns = 3,
-                    isWideScreen = isWideScreen,
-                    portraitNavStyle = portraitNavStyle,
-                    visibleLimit = visibleLimit,
-                    onLoadMore = { visibleLimit += 30 }
+                Text(
+                    text = "Tümü",
+                    color = VegaColors.Accent,
+                    fontSize = VegaText.Secondary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = VegaColors.Accent,
+                    modifier = Modifier.size(16.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun VodTonalPill(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isActive: Boolean = false,
+    muted: Boolean = false,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = VegaShapes.Pill,
+        color = if (isActive) VegaColors.Accent.copy(alpha = 0.16f) else VegaColors.SurfaceVariant.copy(alpha = 0.72f),
+        modifier = Modifier.dpadFocusable(
+            shape = VegaShapes.Pill,
+            focusedBorderColor = VegaColors.FocusBorder,
+            scale = 1.04f,
+            onClick = onClick
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (muted) VegaColors.TextSecondary else VegaColors.Accent,
+                modifier = Modifier.size(15.dp)
+            )
+            Text(
+                text = label,
+                color = when {
+                    isActive -> VegaColors.Accent
+                    muted -> VegaColors.TextSecondary
+                    else -> VegaColors.TextPrimary
+                },
+                fontSize = 12.sp,
+                fontWeight = if (muted) FontWeight.Medium else FontWeight.SemiBold
+            )
         }
     }
 }
@@ -729,7 +982,7 @@ private fun VodSortDropdownMenu(
                     .fillMaxWidth()
                     .vegaPanel(VegaShapes.Large)
                     .padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = "Sıralama",
@@ -743,14 +996,10 @@ private fun VodSortDropdownMenu(
                     Surface(
                         shape = VegaShapes.Medium,
                         color = when {
-                            isFocused -> VegaColors.SurfaceAccent
+                            isFocused -> VegaColors.SurfaceVariant
                             isSelected -> VegaColors.Accent.copy(alpha = 0.16f)
-                            else -> VegaColors.SurfaceElevated
+                            else -> VegaColors.SurfaceElevated.copy(alpha = 0.6f)
                         },
-                        border = BorderStroke(
-                            width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) VegaColors.Accent else VegaColors.Border
-                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .then(if (idx == selectedIndex) Modifier.focusRequester(initialFocusRequester) else Modifier)
@@ -889,7 +1138,7 @@ private fun VodCategoryPickerDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 380.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 itemsIndexed(allItems, key = { idx, item -> "vod_pick_${item.id}_$idx" }) { idx, cat ->
                     val isSelected = (cat.id == "all" && (selectedCategoryId == "all" || selectedCategoryId.isEmpty())) ||
@@ -898,14 +1147,10 @@ private fun VodCategoryPickerDialog(
                     Surface(
                         shape = VegaShapes.Medium,
                         color = when {
-                            isFocused -> VegaColors.SurfaceAccent
+                            isFocused -> VegaColors.SurfaceVariant
                             isSelected -> VegaColors.Accent.copy(alpha = 0.16f)
-                            else -> VegaColors.SurfaceElevated
+                            else -> Color.Transparent
                         },
-                        border = BorderStroke(
-                            width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) VegaColors.Accent else VegaColors.Border
-                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .then(if (idx == selectedIndex) Modifier.focusRequester(initialFocusRequester) else Modifier)
@@ -941,7 +1186,7 @@ private fun VodCategoryPickerDialog(
                                 if (cat.count > 0) {
                                     Text(
                                         text = "${cat.count}",
-                                        color = VegaColors.TextSecondary,
+                                        color = VegaColors.TextMuted,
                                         fontSize = VegaText.Caption,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -967,7 +1212,6 @@ private fun VodCategoryPickerDialog(
                 Surface(
                     shape = VegaShapes.Medium,
                     color = VegaColors.SurfaceVariant,
-                    border = BorderStroke(1.dp, VegaColors.Border),
                     modifier = Modifier.dpadFocusable(
                         shape = VegaShapes.Medium,
                         focusedBorderColor = VegaColors.FocusBorder,
@@ -1001,9 +1245,8 @@ private fun VodMediaContentGrid(
     selectedCategory: String,
     currentSort: SortOption,
     isLoading: Boolean,
-    gridColumns: Int,
     isWideScreen: Boolean,
-    portraitNavStyle: String,
+    isMobileCompact: Boolean,
     visibleLimit: Int,
     onLoadMore: () -> Unit
 ) {
@@ -1025,7 +1268,7 @@ private fun VodMediaContentGrid(
             positionStore.save(positionKey, gridState.firstVisibleItemIndex, gridState.firstVisibleItemScrollOffset, latestVisibleLimit)
         }
     }
-    // G-034: TV'de dönüşte son açılan afişe odak ver (G-033/G-042/G-045 odak koduna dokunmadan)
+    // G-034: TV'de dönüşte son açılan afişe odak ver
     val isTvForRestore = LocalIsTvDevice.current
     val restoreFocusKey = remember(positionKey) { if (isTvForRestore) positionStore.lastOpenedItemKey else null }
     val restoreFocusRequester = remember { FocusRequester() }
@@ -1043,115 +1286,115 @@ private fun VodMediaContentGrid(
                 restoreFocusRequester.requestFocus()
             } catch (_: Exception) {
                 withFrameNanos { }
-                try { restoreFocusRequester.requestFocus() } catch (_: Exception) { /* sessiz: öğe henüz yerleşmedi, odak vazgeçildi */ }
+                try { restoreFocusRequester.requestFocus() } catch (_: Exception) { /* sessiz */ }
             }
         }
         positionStore.lastOpenedItemKey = null
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        // Sıralama ve Aktif Arama Filtresi Başlığı
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            if (searchQuery.isNotBlank()) {
-                Surface(
-                    shape = VegaShapes.Small,
-                    color = VegaColors.Accent.copy(alpha = 0.15f),
-                    border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.5f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
+    val configuration = LocalConfiguration.current
+    val gridCells = when {
+        isMobileCompact -> GridCells.Fixed(3)
+        !isTvForRestore && isWideScreen -> GridCells.Adaptive(minSize = 136.dp)
+        else -> GridCells.Fixed((configuration.screenWidthDp / 155).coerceIn(4, 7))
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Mobilde üst çubuk zaten sıralama ve kategoriyi içerir; sadece arama aktifse temizleme hapı göster
+        if (!isMobileCompact || searchQuery.isNotBlank()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = if (isMobileCompact) 12.dp else 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                if (searchQuery.isNotBlank()) {
+                    Surface(
+                        shape = VegaShapes.Pill,
+                        color = VegaColors.Accent.copy(alpha = 0.14f)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = VegaColors.Accent,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "\"$searchQuery\" (${filteredMovies.size} film)",
-                            color = VegaColors.TextPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .dpadFocusable(
-                                    shape = CircleShape,
-                                    focusedBorderColor = VegaColors.FocusBorder,
-                                    onClick = { viewModel.setVodSearchQuery("") }
-                                )
-                                .padding(6.dp)
+                        Row(
+                            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Filtreyi temizle",
-                                tint = VegaColors.TextSecondary,
-                                modifier = Modifier.size(14.dp)
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = VegaColors.Accent,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "\"$searchQuery\" (${filteredMovies.size} film)",
+                                color = VegaColors.TextPrimary,
+                                fontSize = VegaText.Secondary,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .dpadFocusable(
+                                        shape = CircleShape,
+                                        focusedBorderColor = VegaColors.FocusBorder,
+                                        onClick = { viewModel.setVodSearchQuery("") }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Filtreyi temizle",
+                                    tint = VegaColors.TextSecondary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "${filteredMovies.size} film",
+                        color = VegaColors.TextMuted,
+                        fontSize = VegaText.Secondary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                if (!isMobileCompact) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (!isTvForRestore) {
+                            val hasAdultVod by viewModel.hasAdultVodCategory.collectAsState()
+                            ParentalLockChip(viewModel, hasAdultVod)
+                        }
+
+                        Box {
+                            ActionChipButton(
+                                text = when (currentSort) {
+                                    SortOption.ADDED_DESC -> "Eklenme"
+                                    SortOption.RATING_DESC -> "Puan"
+                                    SortOption.NAME_ASC -> "A - Z"
+                                    SortOption.NAME_DESC -> "Z - A"
+                                    SortOption.DEFAULT -> "Sırala"
+                                },
+                                icon = Icons.AutoMirrored.Filled.Sort,
+                                onClick = { isSortMenuOpen = true }
+                            )
+
+                            VodSortDropdownMenu(
+                                expanded = isSortMenuOpen,
+                                currentSort = currentSort,
+                                onSelect = {
+                                    viewModel.setVodSort(it)
+                                    isSortMenuOpen = false
+                                },
+                                onDismiss = { isSortMenuOpen = false }
                             )
                         }
                     }
-                }
-            } else {
-                Text(
-                    text = "${filteredMovies.size} film",
-                    color = VegaColors.TextSecondary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                // G-052: +18 kilit çipi (TV'de kilit satırı kategori listesinin sonunda)
-                if (!LocalIsTvDevice.current) {
-                    val hasAdultVod by viewModel.hasAdultVodCategory.collectAsState()
-                    com.tivimax.player.ui.components.ParentalLockChip(viewModel, hasAdultVod)
-                }
-                if (!isWideScreen) {
-                    com.tivimax.player.ui.components.CategoryNavStyleToggleButton(
-                        currentStyle = portraitNavStyle,
-                        onStyleChange = { viewModel.setPortraitCategoryNavStyle(it) }
-                    )
-                }
-
-                // Sıralama Seçici Butonu
-                Box {
-                    com.tivimax.player.ui.components.ActionChipButton(
-                        text = when (currentSort) {
-                            SortOption.ADDED_DESC -> "Eklenme"
-                            SortOption.RATING_DESC -> "Puan"
-                            SortOption.NAME_ASC -> "A - Z"
-                            SortOption.NAME_DESC -> "Z - A"
-                            SortOption.DEFAULT -> "Sırala"
-                        },
-                        icon = Icons.AutoMirrored.Filled.Sort,
-                        onClick = { isSortMenuOpen = true }
-                    )
-
-                    VodSortDropdownMenu(
-                        expanded = isSortMenuOpen,
-                        currentSort = currentSort,
-                        onSelect = {
-                            viewModel.setVodSort(it)
-                            isSortMenuOpen = false
-                        },
-                        onDismiss = { isSortMenuOpen = false }
-                    )
                 }
             }
         }
@@ -1176,7 +1419,7 @@ private fun VodMediaContentGrid(
                         Text(
                             text = if (searchQuery.isNotEmpty()) "\"$searchQuery\" için film bulunamadı." else "Bu kategoride film yok.",
                             color = VegaColors.TextSecondary,
-                            fontSize = 13.sp
+                            fontSize = VegaText.Secondary
                         )
                         if (searchQuery.isNotBlank()) {
                             Spacer(modifier = Modifier.height(14.dp))
@@ -1195,15 +1438,14 @@ private fun VodMediaContentGrid(
                 val heroMovie = selectedHeroMovie ?: featuredMovie ?: pagedMovies.firstOrNull()
 
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // StreamVault Öne Çıkan / Odaklanılan Film Şeridi (Yatay Modda)
+                    // Geniş ekranda çerçevesiz sakin öne çıkan şeridi
                     if (isWideScreen && heroMovie != null && searchQuery.isBlank()) {
-                        Card(
+                        Surface(
                             shape = VegaShapes.Large,
-                            colors = CardDefaults.cardColors(containerColor = VegaColors.SurfaceElevated),
-                            border = BorderStroke(1.dp, VegaColors.Border),
+                            color = VegaColors.SurfaceElevated.copy(alpha = 0.72f),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(172.dp)
+                                .height(156.dp)
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Box(modifier = Modifier.fillMaxSize()) {
@@ -1224,7 +1466,7 @@ private fun VodMediaContentGrid(
                                                 listOf(
                                                     VegaColors.Background,
                                                     VegaColors.Background.copy(alpha = 0.90f),
-                                                    VegaColors.Background.copy(alpha = 0.48f),
+                                                    VegaColors.Background.copy(alpha = 0.45f),
                                                     Color.Transparent
                                                 )
                                             )
@@ -1238,51 +1480,28 @@ private fun VodMediaContentGrid(
                                         .padding(16.dp),
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Column {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(VegaShapes.Small)
-                                                    .background(VegaColors.Accent)
-                                                    .padding(horizontal = 7.dp, vertical = 2.dp)
+                                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        val rating = heroMovie.rating ?: heroMovie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+                                        if (!rating.isNullOrBlank() && rating != "0" && rating != "0.0") {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                                             ) {
-                                                Text("Öne çıkan", color = VegaColors.OnAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                            }
-                                            val rating = heroMovie.rating ?: heroMovie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
-                                            if (!rating.isNullOrBlank() && rating != "0" && rating != "0.0") {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(13.dp))
-                                                    Spacer(modifier = Modifier.width(3.dp))
-                                                    Text(rating, color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                                }
+                                                Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(13.dp))
+                                                Text(rating, color = VegaColors.Gold, fontSize = VegaText.Caption, fontWeight = FontWeight.Bold)
                                             }
                                         }
-
-                                        Spacer(modifier = Modifier.height(6.dp))
 
                                         Text(
                                             text = heroMovie.name,
                                             color = VegaColors.TextPrimary,
-                                            fontSize = 18.sp,
+                                            fontSize = 19.sp,
                                             fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-
-                                        Spacer(modifier = Modifier.height(3.dp))
-                                        Text(
-                                            text = "Yüksek kaliteli yayın ve kesintisiz sinema deneyimi.",
-                                            color = VegaColors.TextSecondary,
-                                            fontSize = 12.sp,
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
 
-                                    // Tek odak + tek tıklama hedefi (Button + dpadFocusable çakışması giderildi)
                                     Surface(
                                         shape = VegaShapes.Medium,
                                         color = VegaColors.Accent,
@@ -1301,7 +1520,7 @@ private fun VodMediaContentGrid(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             Icon(Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(18.dp))
-                                            Text("Hemen izle", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                            Text("İzle", color = VegaColors.OnAccent, fontWeight = FontWeight.Bold, fontSize = VegaText.Secondary)
                                         }
                                     }
                                 }
@@ -1313,13 +1532,15 @@ private fun VodMediaContentGrid(
                         if (restoreFocusKey == null) -1
                         else pagedMovies.indexOfFirst { "${it.streamId}_${it.num}" == restoreFocusKey }
                     }
+                    val gridSpacing = if (isMobileCompact) 10.dp else 12.dp
+                    val gridHorizontalPadding = if (isMobileCompact) 10.dp else 8.dp
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(gridColumns),
+                        columns = gridCells,
                         state = gridState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 96.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        contentPadding = PaddingValues(start = gridHorizontalPadding, end = gridHorizontalPadding, top = 6.dp, bottom = 96.dp),
+                        horizontalArrangement = Arrangement.spacedBy(gridSpacing),
+                        verticalArrangement = Arrangement.spacedBy(if (isMobileCompact) 10.dp else 14.dp)
                     ) {
                         itemsIndexed(
                             items = pagedMovies,
@@ -1353,7 +1574,7 @@ private fun VodMediaContentGrid(
 
                         // Sonsuz Kaydırma / Sayfalama Tetikleyici
                         if (visibleLimit < filteredMovies.size) {
-                            item(key = "vod_more_$visibleLimit", span = { GridItemSpan(gridColumns) }) {
+                            item(key = "vod_more_$visibleLimit", span = { GridItemSpan(maxLineSpan) }) {
                                 LaunchedEffect(visibleLimit) {
                                     onLoadMore()
                                 }
@@ -1374,7 +1595,7 @@ private fun VodMediaContentGrid(
 
                         // Arama yapıldığında ızgaranın en altında alternatif arama seçenekleri
                         if (searchQuery.isNotBlank()) {
-                            item(key = "vod_global_search", span = { GridItemSpan(gridColumns) }) {
+                            item(key = "vod_global_search", span = { GridItemSpan(maxLineSpan) }) {
                                 GlobalSearchOptionsCard(
                                     query = searchQuery,
                                     currentScope = "vod",

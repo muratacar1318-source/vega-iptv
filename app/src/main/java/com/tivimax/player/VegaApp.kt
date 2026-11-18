@@ -32,7 +32,7 @@ class VegaApp : Application(), ImageLoaderFactory {
             .fetcherDispatcher(Dispatchers.IO.limitedParallelism(6))
             .decoderDispatcher(Dispatchers.Default.limitedParallelism(4))
             .respectCacheHeaders(false)
-            .crossfade(150)
+            .crossfade(false)
             .build()
     }
 }

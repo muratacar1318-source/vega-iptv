@@ -6,9 +6,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
@@ -86,36 +83,16 @@ object VegaText {
 }
 
 /**
- * StreamVault imzası: Düşük maliyetli statik derin gece arka planı + sağ üst hafif ortam parıltısı.
- * TV cihazlarda blur maliyeti olmadan zengin derinlik sağlar.
+ * Tek geçişli, shader maliyetsiz sinematik obsidiyen arka plan.
+ * Tam ekran gradyan ve parlama aşırı çizimini sıfırlayarak 60fps akıcılık sağlar.
  */
-fun Modifier.vegaBackdrop(): Modifier = drawWithCache {
-    val palette = ActivePaletteHolder.current
-    val base = Brush.verticalGradient(
-        colors = listOf(palette.canvasElevated, palette.canvas)
-    )
-    val ambient = Brush.radialGradient(
-        colors = listOf(palette.brand.copy(alpha = 0.11f), Color.Transparent),
-        center = Offset(size.width * 0.82f, -size.height * 0.18f),
-        radius = size.width.coerceAtLeast(size.height) * 0.85f
-    )
-    onDrawBehind {
-        drawRect(base)
-        drawRect(ambient)
-    }
-}
+fun Modifier.vegaBackdrop(): Modifier =
+    background(ActivePaletteHolder.current.canvas)
 
 /**
- * StreamVault imzası: Yuvarlatılmış hafif gradyanlı yüzey paneli + ince çerçeve.
+ * Tek geçişli tonal yüzey paneli ve ince 0.75dp çerçeve.
  */
 fun Modifier.vegaPanel(shape: Shape = VegaShapes.Large): Modifier =
     clip(shape)
-        .background(
-            Brush.verticalGradient(
-                colors = listOf(
-                    ActivePaletteHolder.current.surfaceElevated.copy(alpha = 0.94f),
-                    ActivePaletteHolder.current.surface.copy(alpha = 0.96f)
-                )
-            )
-        )
-        .border(1.dp, ActivePaletteHolder.current.border, shape)
+        .background(ActivePaletteHolder.current.surface, shape)
+        .border(0.75.dp, ActivePaletteHolder.current.border, shape)

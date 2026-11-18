@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaText
 
 internal fun formatDuration(millis: Long): String {
@@ -46,10 +45,9 @@ internal fun SeekIndicator(
 ) {
     Surface(
         shape = CircleShape,
-        color = VegaColors.OverlayPanel,
-        border = BorderStroke(1.5.dp, VegaColors.Accent.copy(alpha = 0.6f)),
-        tonalElevation = 6.dp,
-        modifier = modifier.size(if (isPortrait) 72.dp else 84.dp)
+        color = Color.Black.copy(alpha = 0.52f),
+        border = BorderStroke(0.75.dp, Color.White.copy(alpha = 0.16f)),
+        modifier = modifier.size(if (isPortrait) 68.dp else 80.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -59,15 +57,15 @@ internal fun SeekIndicator(
             Icon(
                 imageVector = if (direction == SeekDirection.FORWARD) Icons.Default.Forward10 else Icons.Default.Replay10,
                 contentDescription = null,
-                tint = VegaColors.Accent,
-                modifier = Modifier.size(if (isPortrait) 28.dp else 34.dp)
+                tint = Color.White,
+                modifier = Modifier.size(if (isPortrait) 26.dp else 32.dp)
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = if (direction == SeekDirection.FORWARD) "+$seconds sn" else "-$seconds sn",
-                color = Color.White,
+                color = Color.White.copy(alpha = 0.92f),
                 fontSize = if (isPortrait) VegaText.Caption else VegaText.Secondary,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.SemiBold
             )
         }
     }

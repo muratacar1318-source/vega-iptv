@@ -1,10 +1,11 @@
 package com.tivimax.player.ui.components
 
 import android.view.KeyEvent as AndroidKeyEvent
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Tune
@@ -21,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -37,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
-import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.ui.tv.StreamVaultSearchField
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -118,14 +119,15 @@ fun CategorySidebar(
             .fillMaxHeight()
             .widthIn(min = 120.dp, max = 250.dp)
             .fillMaxWidth(0.26f)
-            .vegaPanel(VegaShapes.Large)
+            .clip(VegaShapes.Large)
+            .background(VegaColors.Surface.copy(alpha = 0.78f))
             .padding(horizontal = 10.dp, vertical = 10.dp)
     ) {
         // Üst Başlık: "Kategoriler" / "Türler" + Filtre İkonu
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -141,8 +143,7 @@ fun CategorySidebar(
                 var filterFocused by remember { mutableStateOf(false) }
                 Surface(
                     shape = VegaShapes.Small,
-                    color = if (filterFocused) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.SurfaceVariant.copy(alpha = 0.7f),
-                    border = if (!filterFocused) BorderStroke(1.dp, VegaColors.Border) else null,
+                    color = if (filterFocused) VegaColors.Accent.copy(alpha = 0.22f) else VegaColors.SurfaceVariant.copy(alpha = 0.65f),
                     modifier = Modifier
                         .size(30.dp)
                         .dpadFocusable(
@@ -169,7 +170,7 @@ fun CategorySidebar(
         StreamVaultSearchField(
             value = categorySearchQuery,
             onValueChange = { categorySearchQuery = it },
-            placeholder = "Kategori ara..."
+            placeholder = "Kategori ara…"
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -220,7 +221,7 @@ fun CategorySidebar(
                         requester = selectedRequester,
                         onAttachedChange = { selectedItemAttached = it }
                     ) {
-                        CategoryItem(
+                        SidebarCategoryRow(
                             name = allLabel,
                             count = effectiveTotalCount,
                             icon = Icons.Default.Folder,
@@ -239,7 +240,7 @@ fun CategorySidebar(
                     requester = selectedRequester,
                     onAttachedChange = { selectedItemAttached = it }
                 ) {
-                    CategoryItem(
+                    SidebarCategoryRow(
                         name = cat.name,
                         count = cat.count,
                         icon = cat.icon,
@@ -256,6 +257,91 @@ fun CategorySidebar(
                     footer()
                 }
             }
+        }
+    }
+}
+
+/**
+ * TiviMate / Infuse tarzı çerçevesiz tonal kategori satırı:
+ * - Seçili satırda ince tonal vurgu + sol kenarda 3.dp vurgu çubuğu
+ * - Odaklanmamış satırlarda ağır çerçeve yok
+ */
+@Composable
+private fun SidebarCategoryRow(
+    name: String,
+    count: Int,
+    icon: ImageVector,
+    iconTint: Color,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    val rowBg = when {
+        isSelected && isFocused -> VegaColors.Accent.copy(alpha = 0.22f)
+        isSelected -> VegaColors.Accent.copy(alpha = 0.14f)
+        isFocused -> VegaColors.SurfaceVariant.copy(alpha = 0.85f)
+        else -> Color.Transparent
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(VegaShapes.Small)
+            .background(rowBg)
+            .dpadFocusable(
+                focusedBorderColor = VegaColors.FocusBorder,
+                shape = VegaShapes.Small,
+                scale = 1.015f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
+            )
+            .padding(horizontal = 8.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(18.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(VegaColors.Accent)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = when {
+                isSelected || isFocused -> VegaColors.Accent
+                else -> iconTint.copy(alpha = 0.65f)
+            },
+            modifier = Modifier.size(16.dp)
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Text(
+            text = name,
+            color = if (isSelected || isFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
+            fontSize = 13.sp,
+            fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+
+        if (count > 0) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "$count",
+                color = if (isSelected) VegaColors.Accent else VegaColors.TextMuted,
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                maxLines = 1
+            )
         }
     }
 }

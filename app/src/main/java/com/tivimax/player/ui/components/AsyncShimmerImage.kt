@@ -1,11 +1,5 @@
 package com.tivimax.player.ui.components
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,8 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -35,42 +27,19 @@ import com.tivimax.player.ui.design.VegaColors
 private enum class ImageLoadStatus { LOADING, SUCCESS, ERROR }
 
 @Composable
-fun rememberShimmerBrush(
-    targetValue: Float = 1000f
-): Brush {
-    val shimmerColors = listOf(
-        VegaColors.Card,
-        VegaColors.SurfaceVariant,
-        VegaColors.Card
-    )
-    val transition = rememberInfiniteTransition(label = "ShimmerTransition")
-    val translateAnim by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = targetValue,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "ShimmerTranslate"
-    )
-    return Brush.linearGradient(
-        colors = shimmerColors,
-        start = Offset(translateAnim - targetValue, translateAnim - targetValue),
-        end = Offset(translateAnim, translateAnim)
-    )
-}
-
-@Composable
 fun AsyncShimmerImage(
     model: Any?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
-    placeholderIcon: ImageVector = Icons.Default.Image
+    placeholderIcon: ImageVector = Icons.Default.Image,
+    crossfade: Boolean = false,
+    maxDecodeWidthPx: Int? = null,
+    maxDecodeHeightPx: Int? = null
 ) {
     val context = LocalContext.current
 
-    val imageRequest = remember(model, contentScale, placeholderIcon) {
+    val imageRequest = remember(model, contentScale, placeholderIcon, crossfade, maxDecodeWidthPx, maxDecodeHeightPx) {
         when {
             model == null || (model is String && model.isBlank()) -> null
             model is ImageRequest -> model
@@ -79,14 +48,17 @@ fun AsyncShimmerImage(
                 ImageRequest.Builder(context)
                     .data(model)
                     .apply {
-                        if (isLogo) {
-                            size(160, 160)
+                        when {
+                            maxDecodeWidthPx != null && maxDecodeHeightPx != null ->
+                                size(maxDecodeWidthPx, maxDecodeHeightPx)
+                            isLogo ->
+                                size(144, 144)
                         }
                     }
                     .allowHardware(true)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
-                    .crossfade(150)
+                    .crossfade(crossfade)
                     .build()
             }
         }
@@ -94,22 +66,16 @@ fun AsyncShimmerImage(
 
     if (imageRequest == null) {
         Box(
-            modifier = modifier,
+            modifier = modifier
+                .background(VegaColors.Surface),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(VegaColors.Surface),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = placeholderIcon,
-                    contentDescription = null,
-                    tint = VegaColors.TextMuted.copy(alpha = 0.5f),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            Icon(
+                imageVector = placeholderIcon,
+                contentDescription = null,
+                tint = VegaColors.TextMuted.copy(alpha = 0.45f),
+                modifier = Modifier.size(24.dp)
+            )
         }
         return
     }
@@ -124,7 +90,7 @@ fun AsyncShimmerImage(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(VegaColors.Card)
+                    .background(VegaColors.Surface)
             )
         }
 
@@ -138,7 +104,7 @@ fun AsyncShimmerImage(
                 Icon(
                     imageVector = placeholderIcon,
                     contentDescription = null,
-                    tint = VegaColors.TextMuted.copy(alpha = 0.5f),
+                    tint = VegaColors.TextMuted.copy(alpha = 0.45f),
                     modifier = Modifier.size(24.dp)
                 )
             }

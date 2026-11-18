@@ -4,13 +4,11 @@ import android.content.res.Configuration
 import android.view.KeyEvent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
@@ -36,12 +34,13 @@ import androidx.compose.ui.unit.sp
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.util.LocalIsTvDevice
 import kotlinx.coroutines.delay
 
 // ============================================================================
-// VEGA OYNATICI KATMANI (STREAMVAULT BUZLU CAM + ANDROID TV KUMANDA UYUMLU)
+// VEGA SİNEMA OYNATICI KATMANI (MİNİMAL VİDEO ÜSTÜ HUD + TV KUMANDA UYUMLU)
 // ============================================================================
 
 val NeonPurple: Color get() = VegaColors.Accent
@@ -178,13 +177,13 @@ private fun UnlockOverlayPill(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.35f)),
+            .background(Color.Black.copy(alpha = 0.30f)),
         contentAlignment = Alignment.Center
     ) {
         Surface(
             shape = VegaShapes.Pill,
-            color = if (isFocused) VegaColors.Accent else VegaColors.OverlayPanel,
-            border = BorderStroke(1.dp, if (isFocused) Color.White else VegaColors.Accent),
+            color = if (isFocused) VegaColors.Accent else Color.Black.copy(alpha = 0.65f),
+            border = if (isFocused) null else BorderStroke(0.75.dp, Color.White.copy(alpha = 0.22f)),
             modifier = Modifier
                 .focusRequester(focusRequester)
                 .dpadFocusable(
@@ -196,19 +195,19 @@ private fun UnlockOverlayPill(
                 )
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = label,
-                    tint = if (isFocused) VegaColors.OnAccent else VegaColors.Accent,
+                    tint = if (isFocused) VegaColors.OnAccent else Color.White,
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = label,
-                    color = if (isFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
+                    color = if (isFocused) VegaColors.OnAccent else Color.White,
                     fontSize = VegaText.Secondary,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -218,13 +217,12 @@ private fun UnlockOverlayPill(
 }
 
 /**
- * StreamVault `VodPlayerControlsOverlay` + `ChannelView.png` uyumlu cam kontrol katmanı.
+ * Minimal sinema oynatıcı katmanı (Infuse / Apple TV+ yaklaşımı):
  *
- * - Üst şerit: Yuvarlatılmış geri düğmesi (`OverlayPill` + `Border`), başlık + bölüm/kalite rozeti, sağda saat / hızlı haplar.
- * - Alt cam kontrol paneli (`OverlayPanel`, `RoundedCornerShape(18.dp)`, `1.dp` `Border`):
- *   - Parlak vurgulu zaman çubuğu (D-pad sol/sağ ile ±10 sn sarma, geçen süre solda, toplam/kalan süre sağda)
- *   - Büyük ulaşım düğmeleri (`Önceki`, `-10 sn`, otomatik odaklı `Oynat/Duraklat`, `+10 sn`, `Sonraki`)
- *   - StreamVault iki satırlı hızlı aksiyon karoları (`Ses`, `Altyazı`, `Oran`, `Hız`, `Bölümler`, `Ayarlar`).
+ * - Üst ve alt yumuşak gradyan karartma, video ortası tamamen açık.
+ * - Üst şerit: yuvarlak çerçevesiz geri düğmesi, tek satır başlık (+ canlı noktası / bölüm bilgisi), sağda kompakt çerçevesiz ikonlar.
+ * - Orta ulaşım kontrolleri: -10 sn, büyük Oynat/Duraklat (64dp), +10 sn (parıltı/kutu karmaşası yok).
+ * - Alt şerit: ince sarma çubuğu, geçen süre & kalan süre (-42 dk), sade ikincil aksiyon satırı.
  */
 @Composable
 fun VegaPlayerControlsOverlay(
@@ -266,7 +264,7 @@ fun VegaPlayerControlsOverlay(
     val internalPlayFocus = remember { FocusRequester() }
     val playFocus = playButtonFocusRequester ?: internalPlayFocus
     val timelineFocus = remember { FocusRequester() }
-    val tilesFocus = remember { FocusRequester() }
+    val actionsFocus = remember { FocusRequester() }
 
     // TV'de katman açıldığında odak doğrudan Oynat/Duraklat düğmesine gelsin
     LaunchedEffect(isTv) {
@@ -278,27 +276,49 @@ fun VegaPlayerControlsOverlay(
         }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Black.copy(alpha = 0.72f),
-                        Color.Transparent,
-                        Color.Black.copy(alpha = 0.86f)
+    Box(modifier = modifier.fillMaxSize()) {
+        // ÜST YUMUŞAK GRADYAN KARARTMA
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.32f)
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.75f),
+                            Color.Black.copy(alpha = 0.25f),
+                            Color.Transparent
+                        )
                     )
                 )
-            )
-            .padding(horizontal = 20.dp, vertical = 16.dp)
-    ) {
+        )
+
+        // ALT YUMUŞAK GRADYAN KARARTMA
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.40f)
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.38f),
+                            Color.Black.copy(alpha = 0.78f)
+                        )
+                    )
+                )
+        )
+
         // ====================================================================
-        // ÜST ŞERİT (ChannelView.png / StreamVault)
+        // ÜST ŞERİT (Minimal geri düğmesi + tek satır başlık + çerçevesiz ikonlar)
         // ====================================================================
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.TopCenter),
+                .align(Alignment.TopCenter)
+                .padding(horizontal = 18.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -313,20 +333,28 @@ fun VegaPlayerControlsOverlay(
                     onClick = onBackClick
                 )
 
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Text(
+                            text = title,
+                            color = Color.White,
+                            fontSize = VegaText.SectionTitle,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+
                         if (isLive) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                modifier = Modifier
-                                    .clip(VegaShapes.Small)
-                                    .background(VegaColors.OverlayPill)
-                                    .border(1.dp, VegaColors.Border, VegaShapes.Small)
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -336,44 +364,27 @@ fun VegaPlayerControlsOverlay(
                                 )
                                 Text(
                                     text = "Canlı",
-                                    color = Color.White,
+                                    color = Color.White.copy(alpha = 0.88f),
                                     fontSize = VegaText.Caption,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
 
-                        Text(
-                            text = title,
-                            color = Color.White,
-                            fontSize = VegaText.SectionTitle,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-
                         if (!qualityBadge.isNullOrBlank()) {
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = VegaColors.OverlayPill,
-                                border = BorderStroke(1.dp, VegaColors.Border)
-                            ) {
-                                Text(
-                                    text = qualityBadge,
-                                    color = VegaColors.TextSecondary,
-                                    fontSize = VegaText.Caption,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
-                            }
+                            Text(
+                                text = qualityBadge,
+                                color = Color.White.copy(alpha = 0.68f),
+                                fontSize = VegaText.Caption,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
 
                     if (subtitle.isNotBlank()) {
                         Text(
                             text = subtitle,
-                            color = VegaColors.TextSecondary,
+                            color = Color.White.copy(alpha = 0.72f),
                             fontSize = VegaText.Secondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -382,25 +393,19 @@ fun VegaPlayerControlsOverlay(
                 }
             }
 
-            // Sağ: Saat ve Hızlı Haplar
+            // Sağ: Saat ve Kompakt Çerçevesiz İkonlar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 if (clockText.isNotBlank()) {
-                    Surface(
-                        shape = VegaShapes.Medium,
-                        color = VegaColors.OverlayPanel,
-                        border = BorderStroke(1.dp, VegaColors.Border)
-                    ) {
-                        Text(
-                            text = clockText,
-                            color = VegaColors.TextPrimary,
-                            fontSize = VegaText.Body,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
+                    Text(
+                        text = clockText,
+                        color = Color.White.copy(alpha = 0.86f),
+                        fontSize = VegaText.Body,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(end = 6.dp)
+                    )
                 }
 
                 if (!isTv) {
@@ -412,233 +417,254 @@ fun VegaPlayerControlsOverlay(
                 }
 
                 OverlayCircleButton(
-                    icon = if (isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                    contentDescription = "Ekran kilidi",
-                    isHighlighted = isLocked,
-                    onClick = onLockToggle
+                    icon = Icons.Default.AspectRatio,
+                    contentDescription = "Görüntü oranı",
+                    onClick = onAspectRatioClick ?: onSettingsClick
+                )
+
+                OverlayCircleButton(
+                    icon = Icons.Default.Subtitles,
+                    contentDescription = "Ses ve altyazı",
+                    onClick = onAudioClick ?: onSubtitleClick ?: onSettingsClick
+                )
+
+                OverlayCircleButton(
+                    icon = Icons.Default.Settings,
+                    contentDescription = "Ayarlar",
+                    onClick = onSettingsClick
                 )
             }
         }
 
-        // YÜKLENİYOR GÖSTERGESİ
-        if (isBuffering) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(52.dp),
-                strokeWidth = 3.dp,
-                color = VegaColors.Accent,
-                trackColor = Color.White.copy(alpha = 0.14f)
-            )
+        // ====================================================================
+        // ORTA ULAŞIM KONTROLLERİ (-10 / Oynat-Duraklat / +10)
+        // ====================================================================
+        Box(modifier = Modifier.align(Alignment.Center)) {
+            if (isBuffering) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(46.dp),
+                    strokeWidth = 2.5.dp,
+                    color = Color.White,
+                    trackColor = Color.White.copy(alpha = 0.16f)
+                )
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!isLive && hasPreviousEpisode && onPreviousEpisode != null) {
+                        OverlayTransportButton(
+                            icon = Icons.Default.SkipPrevious,
+                            contentDescription = "Önceki bölüm",
+                            onClick = onPreviousEpisode,
+                            sizeType = TransportSize.COMPACT,
+                            modifier = Modifier.focusProperties {
+                                down = if (totalDurationMs > 0L) timelineFocus else actionsFocus
+                            }
+                        )
+                    }
+
+                    if (!isLive) {
+                        OverlayTransportButton(
+                            icon = Icons.Default.Replay10,
+                            contentDescription = "10 sn geri",
+                            onClick = onSkipBackward,
+                            sizeType = TransportSize.SECONDARY,
+                            modifier = Modifier.focusProperties {
+                                down = if (totalDurationMs > 0L) timelineFocus else actionsFocus
+                            }
+                        )
+                    }
+
+                    OverlayTransportButton(
+                        icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Duraklat" else "Oynat",
+                        sizeType = TransportSize.PRIMARY,
+                        onClick = onPlayPauseToggle,
+                        modifier = Modifier
+                            .focusRequester(playFocus)
+                            .focusProperties {
+                                down = if (!isLive && totalDurationMs > 0L) timelineFocus else actionsFocus
+                            }
+                    )
+
+                    if (!isLive) {
+                        OverlayTransportButton(
+                            icon = Icons.Default.Forward10,
+                            contentDescription = "10 sn ileri",
+                            onClick = onSkipForward,
+                            sizeType = TransportSize.SECONDARY,
+                            modifier = Modifier.focusProperties {
+                                down = if (totalDurationMs > 0L) timelineFocus else actionsFocus
+                            }
+                        )
+                    }
+
+                    if (!isLive && hasNextEpisode) {
+                        OverlayTransportButton(
+                            icon = Icons.Default.SkipNext,
+                            contentDescription = "Sonraki bölüm",
+                            onClick = onNextEpisode,
+                            sizeType = TransportSize.COMPACT,
+                            modifier = Modifier.focusProperties {
+                                down = if (totalDurationMs > 0L) timelineFocus else actionsFocus
+                            }
+                        )
+                    }
+                }
+            }
         }
 
         // ====================================================================
-        // ALT BUZLU GECE CAM KONTROL PANELİ (ChannelView.png + VodPlayerControlsOverlay)
+        // ALT ŞERİT (İnce zaman çubuğu + geçen/kalan süre + sade ikincil aksiyonlar)
         // ====================================================================
-        Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = VegaColors.OverlayPanel,
-            border = BorderStroke(1.dp, VegaColors.Border),
-            shadowElevation = 12.dp,
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // 1. İLERLEME / SARMA ÇUBUĞU (Sadece Film/Dizi)
-                if (!isLive && totalDurationMs > 0L) {
-                    var isTimelineFocused by remember { mutableStateOf(false) }
-                    val progress = (currentTimeMs.toFloat() / totalDurationMs.toFloat()).coerceIn(0f, 1f)
-                    val remainingMs = (totalDurationMs - currentTimeMs).coerceAtLeast(0L)
+            // 1. İNCE ZAMAN ÇUBUĞU (Sadece Film/Dizi)
+            if (!isLive && totalDurationMs > 0L) {
+                var isTimelineFocused by remember { mutableStateOf(false) }
+                val progress = (currentTimeMs.toFloat() / totalDurationMs.toFloat()).coerceIn(0f, 1f)
+                val remainingMs = (totalDurationMs - currentTimeMs).coerceAtLeast(0L)
 
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = formatDuration(currentTimeMs),
-                                color = VegaColors.TextPrimary,
-                                fontSize = VegaText.Secondary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "${formatDuration(totalDurationMs)}  (-${formatDuration(remainingMs)})",
-                                color = VegaColors.TextSecondary,
-                                fontSize = VegaText.Caption,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Slider(
-                            value = progress,
-                            onValueChange = { newPct ->
-                                onSeek((newPct * totalDurationMs).toLong())
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(28.dp)
-                                .focusRequester(timelineFocus)
-                                .focusProperties { down = playFocus }
-                                .onFocusChanged { isTimelineFocused = it.isFocused }
-                                .onPreviewKeyEvent { ev ->
-                                    if (ev.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
-                                    when (ev.nativeKeyEvent.keyCode) {
-                                        KeyEvent.KEYCODE_DPAD_LEFT -> {
-                                            onSkipBackward()
-                                            true
-                                        }
-                                        KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                                            onSkipForward()
-                                            true
-                                        }
-                                        KeyEvent.KEYCODE_DPAD_CENTER,
-                                        KeyEvent.KEYCODE_ENTER,
-                                        KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                                            onPlayPauseToggle()
-                                            true
-                                        }
-                                        else -> false
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Slider(
+                        value = progress,
+                        onValueChange = { newPct ->
+                            onSeek((newPct * totalDurationMs).toLong())
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(26.dp)
+                            .focusRequester(timelineFocus)
+                            .focusProperties {
+                                up = playFocus
+                                down = actionsFocus
+                            }
+                            .onFocusChanged { isTimelineFocused = it.isFocused }
+                            .onPreviewKeyEvent { ev ->
+                                if (ev.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                                when (ev.nativeKeyEvent.keyCode) {
+                                    KeyEvent.KEYCODE_DPAD_LEFT -> {
+                                        onSkipBackward()
+                                        true
                                     }
-                                },
-                            colors = SliderDefaults.colors(
-                                thumbColor = if (isTimelineFocused) Color.White else VegaColors.Accent,
-                                activeTrackColor = VegaColors.Accent,
-                                inactiveTrackColor = VegaColors.SurfaceAccent
-                            )
+                                    KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                                        onSkipForward()
+                                        true
+                                    }
+                                    KeyEvent.KEYCODE_DPAD_CENTER,
+                                    KeyEvent.KEYCODE_ENTER,
+                                    KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                                        onPlayPauseToggle()
+                                        true
+                                    }
+                                    else -> false
+                                }
+                            },
+                        colors = SliderDefaults.colors(
+                            thumbColor = if (isTimelineFocused) VegaColors.Accent else Color.White,
+                            activeTrackColor = VegaColors.Accent,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.24f)
                         )
-                    }
-                }
+                    )
 
-                // 2. BÜYÜK ULAŞIM DÜĞMELERİ (-10 sn, Oynat/Duraklat, +10 sn, Önceki/Sonraki Bölüm)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (!isLive && hasPreviousEpisode && onPreviousEpisode != null) {
-                            OverlayTransportButton(
-                                icon = Icons.Default.SkipPrevious,
-                                contentDescription = "Önceki bölüm",
-                                onClick = onPreviousEpisode,
-                                modifier = Modifier.focusProperties {
-                                    if (totalDurationMs > 0L) up = timelineFocus
-                                    down = tilesFocus
-                                }
-                            )
-                        }
-
-                        if (!isLive) {
-                            OverlayTransportButton(
-                                icon = Icons.Default.Replay10,
-                                contentDescription = "10 sn geri",
-                                onClick = onSkipBackward,
-                                modifier = Modifier.focusProperties {
-                                    if (totalDurationMs > 0L) up = timelineFocus
-                                    down = tilesFocus
-                                }
-                            )
-                        }
-
-                        OverlayTransportButton(
-                            icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Duraklat" else "Oynat",
-                            isPrimary = true,
-                            onClick = onPlayPauseToggle,
-                            modifier = Modifier
-                                .focusRequester(playFocus)
-                                .focusProperties {
-                                    if (!isLive && totalDurationMs > 0L) up = timelineFocus
-                                    down = tilesFocus
-                                }
+                        Text(
+                            text = formatDuration(currentTimeMs),
+                            color = Color.White.copy(alpha = 0.92f),
+                            fontSize = VegaText.Caption,
+                            fontWeight = FontWeight.Medium
                         )
-
-                        if (!isLive) {
-                            OverlayTransportButton(
-                                icon = Icons.Default.Forward10,
-                                contentDescription = "10 sn ileri",
-                                onClick = onSkipForward,
-                                modifier = Modifier.focusProperties {
-                                    if (totalDurationMs > 0L) up = timelineFocus
-                                    down = tilesFocus
-                                }
-                            )
-                        }
-
-                        if (!isLive && hasNextEpisode) {
-                            OverlayTransportButton(
-                                icon = Icons.Default.SkipNext,
-                                contentDescription = "Sonraki bölüm",
-                                onClick = onNextEpisode,
-                                modifier = Modifier.focusProperties {
-                                    if (totalDurationMs > 0L) up = timelineFocus
-                                    down = tilesFocus
-                                }
-                            )
-                        }
+                        Text(
+                            text = formatRemainingCompact(remainingMs),
+                            color = Color.White.copy(alpha = 0.72f),
+                            fontSize = VegaText.Caption,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
+            }
 
-                // 3. STREAMVAULT İKİ SATIRLI HIZLI AKSİYON KAROLARI
-                Row(
+            // 2. SADE İKİNCİL AKSİYON SATIRI (Çerçevesiz minimal düğmeler)
+            val upTarget = if (!isLive && totalDurationMs > 0L) timelineFocus else playFocus
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OverlayInlineAction(
+                    icon = if (isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    label = if (isLocked) "Kilitli" else "Kilit",
+                    isActive = isLocked,
+                    onClick = onLockToggle,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OverlayActionTile(
-                        eyebrow = "Ses",
-                        value = audioLabel,
-                        onClick = onAudioClick ?: onSettingsClick,
-                        modifier = Modifier
-                            .focusRequester(tilesFocus)
-                            .focusProperties { up = playFocus }
+                        .focusRequester(actionsFocus)
+                        .focusProperties { up = upTarget }
+                )
+
+                if (!isLive) {
+                    OverlayInlineAction(
+                        icon = Icons.AutoMirrored.Filled.List,
+                        label = "Bölümler",
+                        onClick = onEpisodesClick,
+                        modifier = Modifier.focusProperties { up = upTarget }
                     )
-                    OverlayActionTile(
-                        eyebrow = "Altyazı",
-                        value = subtitleLabel,
-                        onClick = onSubtitleClick ?: onSettingsClick,
-                        modifier = Modifier.focusProperties { up = playFocus }
-                    )
-                    OverlayActionTile(
-                        eyebrow = "Oran",
-                        value = aspectRatioLabel,
-                        onClick = onAspectRatioClick ?: onSettingsClick,
-                        modifier = Modifier.focusProperties { up = playFocus }
-                    )
-                    if (!isLive) {
-                        OverlayActionTile(
-                            eyebrow = "Hız",
-                            value = playbackSpeedLabel,
-                            onClick = onSpeedClick ?: onSettingsClick,
-                            modifier = Modifier.focusProperties { up = playFocus }
-                        )
-                        OverlayActionTile(
-                            eyebrow = "Bölümler",
-                            value = "Liste",
-                            onClick = onEpisodesClick,
-                            modifier = Modifier.focusProperties { up = playFocus }
-                        )
-                    }
-                    OverlayActionTile(
-                        eyebrow = "Ayarlar",
-                        value = "Tümü",
-                        onClick = onSettingsClick,
-                        modifier = Modifier.focusProperties { up = playFocus }
+                    OverlayInlineAction(
+                        icon = Icons.Default.Speed,
+                        label = playbackSpeedLabel,
+                        isActive = playbackSpeedLabel != "1.0x",
+                        onClick = onSpeedClick ?: onSettingsClick,
+                        modifier = Modifier.focusProperties { up = upTarget }
                     )
                 }
+
+                OverlayInlineAction(
+                    icon = Icons.Default.Audiotrack,
+                    label = audioLabel.takeIf { it.isNotBlank() && it != "Varsayılan" } ?: "Ses",
+                    onClick = onAudioClick ?: onSettingsClick,
+                    modifier = Modifier.focusProperties { up = upTarget }
+                )
+
+                OverlayInlineAction(
+                    icon = Icons.Default.ClosedCaption,
+                    label = subtitleLabel.takeIf { it.isNotBlank() && it != "Kapalı" } ?: "Altyazı",
+                    isActive = subtitleLabel.isNotBlank() && subtitleLabel != "Kapalı",
+                    onClick = onSubtitleClick ?: onSettingsClick,
+                    modifier = Modifier.focusProperties { up = upTarget }
+                )
+
+                OverlayInlineAction(
+                    icon = Icons.Default.AspectRatio,
+                    label = aspectRatioLabel,
+                    onClick = onAspectRatioClick ?: onSettingsClick,
+                    modifier = Modifier.focusProperties { up = upTarget }
+                )
+
+                OverlayInlineAction(
+                    icon = Icons.Default.Tune,
+                    label = qualityBadge?.takeIf { it.isNotBlank() } ?: "Kalite",
+                    onClick = onSettingsClick,
+                    modifier = Modifier.focusProperties { up = upTarget }
+                )
             }
         }
     }
 }
+
+private enum class TransportSize { PRIMARY, SECONDARY, COMPACT }
 
 @Composable
 private fun OverlayCircleButton(
@@ -650,35 +676,32 @@ private fun OverlayCircleButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    Surface(
-        shape = VegaShapes.Pill,
-        color = when {
-            isFocused -> VegaColors.Accent
-            isHighlighted -> VegaColors.Accent.copy(alpha = 0.24f)
-            else -> VegaColors.OverlayPill
-        },
-        border = BorderStroke(
-            1.dp,
-            if (isFocused) Color.White else if (isHighlighted) VegaColors.Accent else VegaColors.Border
-        ),
+    Box(
         modifier = modifier
-            .size(40.dp)
+            .size(VegaSizes.IconButton)
+            .clip(VegaShapes.Pill)
+            .background(
+                when {
+                    isFocused -> VegaColors.Accent
+                    isHighlighted -> VegaColors.Accent.copy(alpha = 0.24f)
+                    else -> Color.Black.copy(alpha = 0.26f)
+                }
+            )
             .dpadFocusable(
                 shape = VegaShapes.Pill,
                 focusedBorderColor = Color.White,
-                scale = 1.05f,
+                scale = 1.06f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
-            )
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = if (isFocused) VegaColors.OnAccent else Color.White,
-                modifier = Modifier.size(19.dp)
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (isFocused) VegaColors.OnAccent else Color.White,
+            modifier = Modifier.size(21.dp)
+        )
     }
 }
 
@@ -687,40 +710,40 @@ private fun OverlayTransportButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
-    isPrimary: Boolean = false,
+    sizeType: TransportSize,
     modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val sizeDp = if (isPrimary) 54.dp else 44.dp
-    val iconDp = if (isPrimary) 30.dp else 22.dp
+    val sizeDp = when (sizeType) {
+        TransportSize.PRIMARY -> 64.dp
+        TransportSize.SECONDARY -> 56.dp
+        TransportSize.COMPACT -> 48.dp
+    }
+    val iconDp = when (sizeType) {
+        TransportSize.PRIMARY -> 38.dp
+        TransportSize.SECONDARY -> 30.dp
+        TransportSize.COMPACT -> 24.dp
+    }
 
     val containerColor = when {
         isFocused -> VegaColors.Accent
-        isPrimary -> VegaColors.Accent.copy(alpha = 0.26f)
-        else -> VegaColors.SurfaceElevated.copy(alpha = 0.92f)
+        sizeType == TransportSize.PRIMARY -> Color.Black.copy(alpha = 0.44f)
+        else -> Color.Black.copy(alpha = 0.24f)
     }
-    val tintColor = when {
-        isFocused -> VegaColors.OnAccent
-        else -> Color.White
-    }
+    val tintColor = if (isFocused) VegaColors.OnAccent else Color.White
 
     Surface(
         shape = VegaShapes.Pill,
         color = containerColor,
-        border = BorderStroke(
-            width = if (isFocused) 2.dp else 1.dp,
-            color = when {
-                isFocused -> Color.White
-                isPrimary -> VegaColors.Accent
-                else -> VegaColors.Border
-            }
-        ),
+        border = if (!isFocused && sizeType == TransportSize.PRIMARY) {
+            BorderStroke(0.75.dp, Color.White.copy(alpha = 0.20f))
+        } else null,
         modifier = modifier
             .size(sizeDp)
             .dpadFocusable(
                 shape = VegaShapes.Pill,
                 focusedBorderColor = Color.White,
-                scale = if (isPrimary) 1.06f else 1.05f,
+                scale = if (sizeType == TransportSize.PRIMARY) 1.06f else 1.05f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )
@@ -737,75 +760,61 @@ private fun OverlayTransportButton(
 }
 
 @Composable
-private fun OverlayActionTile(
-    eyebrow: String,
-    value: String,
+private fun OverlayInlineAction(
+    icon: ImageVector,
+    label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isActive: Boolean = false
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val tileShape = RoundedCornerShape(11.dp)
 
     val containerColor = when {
         isFocused -> VegaColors.Accent
-        isActive -> VegaColors.Accent.copy(alpha = 0.22f)
-        else -> VegaColors.SurfaceElevated.copy(alpha = 0.92f)
+        isActive -> VegaColors.Accent.copy(alpha = 0.20f)
+        else -> Color.White.copy(alpha = 0.08f)
     }
-    val eyebrowColor = when {
-        isFocused -> VegaColors.OnAccent.copy(alpha = 0.8f)
-        isActive -> VegaColors.Gold
-        else -> VegaColors.Accent
-    }
-    val valueColor = when {
+    val contentColor = when {
         isFocused -> VegaColors.OnAccent
-        else -> VegaColors.TextPrimary
+        isActive -> VegaColors.Accent
+        else -> Color.White.copy(alpha = 0.90f)
     }
 
-    Surface(
-        shape = tileShape,
-        color = containerColor,
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (isFocused) Color.White else VegaColors.Border
-        ),
+    Row(
         modifier = modifier
-            .widthIn(min = 96.dp)
-            .height(50.dp)
+            .height(36.dp)
+            .clip(VegaShapes.Pill)
+            .background(containerColor)
             .dpadFocusable(
+                shape = VegaShapes.Pill,
                 focusedBorderColor = Color.White,
-                shape = tileShape,
                 scale = 1.04f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = eyebrow,
-                color = eyebrowColor,
-                fontSize = VegaText.Caption,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1
-            )
-            Spacer(modifier = Modifier.height(1.dp))
-            Text(
-                text = value,
-                color = valueColor,
-                fontSize = VegaText.Secondary,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = label,
+            color = contentColor,
+            fontSize = VegaText.Caption,
+            fontWeight = if (isFocused || isActive) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
 /**
- * Dikey mod alt bilgi alanı (Bölümler, Detaylar, Ses ve altyazı).
+ * Dikey mod alt bilgi alanı (Bölümler, Detay ve konu, Ses ve altyazı).
  */
 @Composable
 fun VegaPlayerPortraitMenuArea(
@@ -819,18 +828,18 @@ fun VegaPlayerPortraitMenuArea(
     Column(
         modifier = modifier
             .background(VegaColors.Background)
-            .padding(12.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         Text(
             text = title.substringBefore("-").trim(),
             color = VegaColors.TextPrimary,
-            fontSize = VegaText.BodyProminent,
-            fontWeight = FontWeight.Bold,
+            fontSize = VegaText.SectionTitle,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -840,24 +849,24 @@ fun VegaPlayerPortraitMenuArea(
                 val isSelected = selectedTab == index
                 var isFocused by remember { mutableStateOf(false) }
 
-                Surface(
-                    shape = VegaShapes.Small,
-                    color = when {
-                        isFocused -> VegaColors.Accent
-                        isSelected -> VegaColors.Accent.copy(alpha = 0.18f)
-                        else -> VegaColors.SurfaceVariant
-                    },
-                    border = BorderStroke(
-                        1.dp,
-                        if (isFocused) Color.White else if (isSelected) VegaColors.Accent else VegaColors.Border
-                    ),
-                    modifier = Modifier.dpadFocusable(
-                        shape = VegaShapes.Small,
-                        focusedBorderColor = Color.White,
-                        scale = 1.03f,
-                        onClick = { selectedTab = index },
-                        onFocusStateChange = { isFocused = it }
-                    )
+                Box(
+                    modifier = Modifier
+                        .clip(VegaShapes.Pill)
+                        .background(
+                            when {
+                                isFocused -> VegaColors.Accent
+                                isSelected -> VegaColors.Accent.copy(alpha = 0.18f)
+                                else -> Color.White.copy(alpha = 0.06f)
+                            }
+                        )
+                        .dpadFocusable(
+                            shape = VegaShapes.Pill,
+                            focusedBorderColor = Color.White,
+                            scale = 1.03f,
+                            onClick = { selectedTab = index },
+                            onFocusStateChange = { isFocused = it }
+                        )
+                        .padding(horizontal = 12.dp, vertical = 7.dp)
                 ) {
                     Text(
                         text = tabName,
@@ -867,55 +876,51 @@ fun VegaPlayerPortraitMenuArea(
                             else -> VegaColors.TextSecondary
                         },
                         fontSize = VegaText.Secondary,
-                        fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium
                     )
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
+        HorizontalDivider(thickness = 0.5.dp, color = VegaColors.Border.copy(alpha = 0.4f))
+        Spacer(modifier = Modifier.height(10.dp))
 
         when (selectedTab) {
             0 -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
                     item {
                         var isNextFocused by remember { mutableStateOf(false) }
-                        Surface(
-                            shape = VegaShapes.Medium,
-                            color = if (isNextFocused) VegaColors.Accent else VegaColors.SurfaceVariant,
-                            border = BorderStroke(1.dp, if (isNextFocused) Color.White else VegaColors.Border),
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clip(VegaShapes.Small)
+                                .background(
+                                    if (isNextFocused) VegaColors.Accent else Color.Transparent
+                                )
                                 .dpadFocusable(
-                                    shape = VegaShapes.Medium,
+                                    shape = VegaShapes.Small,
                                     focusedBorderColor = Color.White,
                                     scale = 1.02f,
                                     onClick = onNextEpisode,
                                     onFocusStateChange = { isNextFocused = it }
                                 )
+                                .padding(horizontal = 10.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.SkipNext,
-                                    contentDescription = null,
-                                    tint = if (isNextFocused) VegaColors.OnAccent else VegaColors.Accent,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Text(
-                                    text = "Sonraki bölüme geç",
-                                    color = if (isNextFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
-                                    fontSize = VegaText.Body,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.SkipNext,
+                                contentDescription = null,
+                                tint = if (isNextFocused) VegaColors.OnAccent else VegaColors.Accent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Sonraki bölüme geç",
+                                color = if (isNextFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
+                                fontSize = VegaText.Body,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
                     }
                 }
@@ -949,5 +954,19 @@ private fun formatDuration(millis: Long): String {
         String.format("%02d:%02d:%02d", hours, minutes, seconds)
     } else {
         String.format("%02d:%02d", minutes, seconds)
+    }
+}
+
+private fun formatRemainingCompact(remainingMs: Long): String {
+    val totalSeconds = (remainingMs / 1000L).coerceAtLeast(0L)
+    val totalMinutes = (totalSeconds + 59L) / 60L
+    return when {
+        totalSeconds < 60L -> "-$totalSeconds sn"
+        totalMinutes >= 60L -> {
+            val hours = totalMinutes / 60L
+            val mins = totalMinutes % 60L
+            if (mins > 0L) "-$hours sa $mins dk" else "-$hours sa"
+        }
+        else -> "-$totalMinutes dk"
     }
 }

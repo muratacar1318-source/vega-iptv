@@ -2,7 +2,9 @@ package com.tivimax.player.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,29 +33,29 @@ fun ActionChipButton(
     var isFocused by remember { mutableStateOf(false) }
     val effectiveTint = iconTint ?: when {
         isSelected || isFocused -> VegaColors.Accent
-        else -> VegaColors.TextPrimary
+        else -> VegaColors.TextSecondary
     }
     val containerColor = when {
-        isSelected && isFocused -> VegaColors.Accent.copy(alpha = 0.28f)
-        isSelected -> VegaColors.Accent.copy(alpha = 0.20f)
+        isSelected && isFocused -> VegaColors.Accent.copy(alpha = 0.24f)
+        isSelected -> VegaColors.Accent.copy(alpha = 0.16f)
         isFocused -> VegaColors.SurfaceElevated
-        else -> VegaColors.Card
+        else -> VegaColors.Surface
     }
 
     Surface(
-        shape = VegaShapes.Medium,
+        shape = VegaShapes.Small,
         color = containerColor,
         border = if (!isFocused) {
             BorderStroke(
-                1.dp,
-                if (isSelected) VegaColors.Accent else VegaColors.Border
+                0.75.dp,
+                if (isSelected) VegaColors.Accent.copy(alpha = 0.65f) else VegaColors.Border
             )
         } else null,
         modifier = modifier
             .height(34.dp)
             .dpadFocusable(
                 focusedBorderColor = VegaColors.FocusBorder,
-                shape = VegaShapes.Medium,
+                shape = VegaShapes.Small,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )

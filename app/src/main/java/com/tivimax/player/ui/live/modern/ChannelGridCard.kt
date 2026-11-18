@@ -27,7 +27,7 @@ import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.util.LocalIsTvDevice
 
 /**
- * StreamVault uyumlu 3 Sütunlu Izgara Kanal Kartı (~112dp).
+ * Sade 3 sütunlu ızgara kanal kartı (~112dp).
  * Çift odak ve iç içe tıklama çakışması yoktur.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -77,29 +77,33 @@ fun ChannelGridCard(
                 isPlaying -> VegaColors.Accent.copy(alpha = 0.14f)
                 else -> VegaColors.SurfaceElevated
             },
-            border = if (isFocused) null else BorderStroke(
-                width = if (isPlaying) 1.5.dp else 1.dp,
-                color = if (isPlaying) VegaColors.Accent else VegaColors.Border
-            )
+            border = when {
+                isFocused -> null
+                isPlaying -> BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.7f))
+                else -> BorderStroke(0.5.dp, VegaColors.Border.copy(alpha = 0.45f))
+            }
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(8.dp),
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Üst Satır: Canlı Noktası (ve TV'de salt favori göstergesi)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(7.dp)
-                            .background(VegaColors.Live, CircleShape)
-                    )
+                    if (isPlaying) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(VegaColors.Live, CircleShape)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.size(6.dp))
+                    }
 
                     if (isTv && isFavorite) {
                         Icon(
@@ -113,7 +117,6 @@ fun ChannelGridCard(
                     }
                 }
 
-                // Orta: StreamVault Kare Logo Kutusu
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -131,7 +134,6 @@ fun ChannelGridCard(
                     )
                 }
 
-                // Alt: Kanal Adı ve Ekolayzer
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -150,7 +152,7 @@ fun ChannelGridCard(
                         text = channel.name,
                         color = if (isPlaying) VegaColors.Accent else VegaColors.TextPrimary,
                         fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
@@ -159,7 +161,6 @@ fun ChannelGridCard(
             }
         }
 
-        // Mobilde dış Box içinde kardeş favori yıldızı (iç içe tıklama yok)
         if (!isTv) {
             IconButton(
                 onClick = onFavoriteToggle,
@@ -177,7 +178,6 @@ fun ChannelGridCard(
             }
         }
 
-        // Hızlı Menü
         DropdownMenu(
             expanded = showContextMenu,
             onDismissRequest = { showContextMenu = false },

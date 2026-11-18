@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.live
 
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
@@ -32,6 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.tivimax.player.R
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
@@ -74,6 +76,17 @@ fun LiveTvWideScreenLayout(
     val liveSearchQuery by viewModel.liveSearchQuery.collectAsState()
     val currentScreen by viewModel.currentScreen.collectAsState()
     val isPlayerScreen = currentScreen is Screen.Player
+    val playerInstanceVersion by viewModel.playerManager.playerInstanceVersion.collectAsState()
+    val isPreviewBuffering by viewModel.playerManager.isBuffering.collectAsState()
+    var previewPlayerView by remember { mutableStateOf<PlayerView?>(null) }
+
+    LaunchedEffect(previewPlayerView, playerInstanceVersion, activePreviewChannel?.streamId, isPlayerScreen) {
+        val view = previewPlayerView ?: return@LaunchedEffect
+        if (!isPlayerScreen && activePreviewChannel != null) {
+            viewModel.playerManager.attachView(view, isPrimary = false, tag = "LiveTvWideScreen-preview")
+        }
+    }
+
     val isTv = LocalIsTvDevice.current
     val finalChannels = displayedChannels
     val filteredCategories = categories
@@ -678,9 +691,13 @@ fun LiveTvWideScreenLayout(
                         if (!isPlayerScreen) {
                             AndroidView(
                                 factory = { ctx ->
-                                    PlayerView(ctx).apply {
+                                    val view = LayoutInflater.from(ctx)
+                                        .inflate(R.layout.player_texture_view, null, false) as PlayerView
+                                    view.apply {
                                         useController = false
                                         setKeepContentOnPlayerReset(true)
+                                        setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                                        setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                                         isFocusable = false
                                         isFocusableInTouchMode = false
                                         descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
@@ -689,17 +706,55 @@ fun LiveTvWideScreenLayout(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
                                         )
-                                        viewModel.playerManager.attachView(this, isPrimary = false, tag = "LiveTvWideScreen-preview")
                                     }
+                                    previewPlayerView = view
+                                    view
                                 },
-                                update = { playerView ->
-                                    viewModel.playerManager.attachView(playerView, isPrimary = false, tag = "LiveTvWideScreen-preview")
-                                },
+                                update = {},
                                 onRelease = { playerView ->
+                                    if (previewPlayerView === playerView) {
+                                        previewPlayerView = null
+                                    }
                                     viewModel.playerManager.detachView(playerView, tag = "LiveTvWideScreen-preview")
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
+                        }
+
+                        if (isPreviewBuffering) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.55f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(46.dp)
+                                            .clip(VegaShapes.Small)
+                                            .background(VegaColors.SurfaceElevated.copy(alpha = 0.85f))
+                                            .padding(6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        AsyncShimmerImage(
+                                            model = activePreviewChannel.streamIcon,
+                                            contentDescription = activePreviewChannel.name,
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier.fillMaxSize(),
+                                            placeholderIcon = Icons.Default.Tv
+                                        )
+                                    }
+                                    CircularProgressIndicator(
+                                        color = VegaColors.Accent,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
 
                         // Üst Bilgi Rozeti

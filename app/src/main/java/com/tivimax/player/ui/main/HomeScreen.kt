@@ -5,12 +5,14 @@ import android.content.res.Configuration
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -18,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -298,7 +301,7 @@ fun HomeScreen(viewModel: MainViewModel) {
         topBar = {
             HomeTopBar(
                 appName = AppConfig.APP_NAME,
-                activePlaylistName = activePlaylist?.name ?: "Ana liste",
+                selectedTab = selectedTab,
                 onPlaylistClick = {
                     if (playlists.size <= 1) {
                         viewModel.openPlaylistsSettings()
@@ -306,18 +309,14 @@ fun HomeScreen(viewModel: MainViewModel) {
                         showQuickSwitchDialog = true
                     }
                 },
-                expDateFormatted = expDateFormatted,
-                activeCons = activeCons,
-                maxCons = maxCons,
-                showSettings = true,
                 isSyncing = playlistSyncState.isSyncing,
                 syncPercentage = playlistSyncState.overallPercentage,
                 onLogoClick = { viewModel.setSelectedHomeTab(HomeTab.DASHBOARD) },
-                onSettingsClick = {
-                    if (selectedTab == HomeTab.SETTINGS) {
+                onFavoritesClick = {
+                    if (selectedTab == HomeTab.FAVORITES) {
                         viewModel.setSelectedHomeTab(HomeTab.DASHBOARD)
                     } else {
-                        viewModel.setSelectedHomeTab(HomeTab.SETTINGS)
+                        viewModel.setSelectedHomeTab(HomeTab.FAVORITES)
                     }
                 },
                 onSyncClick = { showSyncConfirmationDialog = true },
@@ -669,225 +668,191 @@ fun HomeScreen(viewModel: MainViewModel) {
 }
 
 @Composable
+private fun VegaStarEmblem(
+    modifier: Modifier = Modifier
+) {
+    val accent = VegaColors.Accent
+    Box(
+        modifier = modifier
+            .size(30.dp)
+            .clip(VegaShapes.Small)
+            .background(accent.copy(alpha = 0.14f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.size(18.dp)) {
+            val w = size.width
+            val h = size.height
+            val cx = w / 2f
+            val cy = h / 2f
+            val inner = w * 0.14f
+            val path = Path().apply {
+                moveTo(cx, 0f)
+                lineTo(cx + inner, cy - inner)
+                lineTo(w, cy)
+                lineTo(cx + inner, cy + inner)
+                lineTo(cx, h)
+                lineTo(cx - inner, cy + inner)
+                lineTo(0f, cy)
+                lineTo(cx - inner, cy - inner)
+                close()
+            }
+            drawPath(path = path, color = accent)
+        }
+    }
+}
+
+@Composable
 private fun HomeTopBar(
     appName: String,
-    activePlaylistName: String = "Ana liste",
+    selectedTab: HomeTab,
     onPlaylistClick: () -> Unit = {},
-    expDateFormatted: String,
-    activeCons: String,
-    maxCons: String,
-    showSettings: Boolean,
     isSyncing: Boolean = false,
     syncPercentage: Int = 0,
     onLogoClick: () -> Unit = {},
-    onSettingsClick: () -> Unit,
+    onFavoritesClick: () -> Unit = {},
     onSyncClick: () -> Unit = {},
     onSearchClick: () -> Unit = {}
 ) {
-    Surface(
-        color = VegaColors.Surface.copy(alpha = 0.94f),
-        border = BorderStroke(0.5.dp, VegaColors.Border),
-        modifier = Modifier.fillMaxWidth()
+    val headerTitle = if (selectedTab == HomeTab.DASHBOARD) appName else selectedTab.title
+    val isFavoritesActive = selectedTab == HomeTab.FAVORITES
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(VegaColors.Background.copy(alpha = 0.94f))
     ) {
         Row(
             modifier = Modifier
                 .statusBarsPadding()
                 .fillMaxWidth()
-                .height(64.dp)
-                .padding(horizontal = 12.dp),
+                .height(56.dp)
+                .padding(start = 16.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Sol: Uygulama logosu (32.dp) ve yanında "Vega IPTV" başlığı
+            // Sol: Minimal Vega yıldız amblemi + sade ekran/marka başlığı
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
+                    .weight(1f)
                     .clip(VegaShapes.Small)
                     .dpadFocusable(
                         shape = VegaShapes.Small,
                         focusedBorderColor = VegaColors.FocusBorder,
+                        scale = 1.02f,
                         onClick = onLogoClick
                     )
+                    .padding(vertical = 4.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(VegaShapes.Small)
-                        .background(VegaColors.Accent),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Tv,
-                        contentDescription = null,
-                        tint = VegaColors.OnAccent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
+                VegaStarEmblem()
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = appName,
-                    fontSize = 17.sp,
+                    text = headerTitle,
+                    fontSize = VegaText.ScreenTitle,
                     fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.4).sp,
                     color = VegaColors.TextPrimary,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
-            // Aktif Liste Rozeti / Hapı ("Ana liste ▾")
-            Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Surface(
-                    shape = VegaShapes.Pill,
-                    color = VegaColors.SurfaceVariant,
-                    border = BorderStroke(1.dp, VegaColors.Border),
-                    modifier = Modifier
-                        .widthIn(max = 180.dp)
-                        .clip(VegaShapes.Pill)
-                        .dpadFocusable(
-                            shape = VegaShapes.Pill,
-                            focusedBorderColor = VegaColors.FocusBorder,
-                            onClick = onPlaylistClick
-                        )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = activePlaylistName,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = VegaColors.TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = null,
-                            tint = VegaColors.TextSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Sağ: Arama, Senkronizasyon (aktifse), Yenile ve Ayarlar butonları
+            // Sağ: Sadece aktifse senkronizasyon göstergesi + çerçevesiz Arama, Favoriler ve Liste Değiştir ikonları
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                // Arama Butonu (tek odak + tıklama hedefi)
-                Surface(
-                    shape = VegaShapes.Medium,
-                    color = VegaColors.SurfaceVariant,
-                    border = BorderStroke(1.dp, VegaColors.Border),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .dpadFocusable(
-                            shape = VegaShapes.Medium,
-                            focusedBorderColor = VegaColors.FocusBorder,
-                            onClick = onSearchClick
-                        )
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Ara",
-                            tint = VegaColors.Accent,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
                 if (isSyncing) {
                     Surface(
-                        shape = VegaShapes.Medium,
-                        color = VegaColors.Accent.copy(alpha = 0.18f),
-                        border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.4f)),
+                        shape = VegaShapes.Pill,
+                        color = VegaColors.Accent.copy(alpha = 0.14f),
                         modifier = Modifier
-                            .height(40.dp)
+                            .height(32.dp)
                             .dpadFocusable(
-                                shape = VegaShapes.Medium,
+                                shape = VegaShapes.Pill,
                                 focusedBorderColor = VegaColors.FocusBorder,
+                                scale = 1.03f,
                                 onClick = onSyncClick
                             )
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .padding(horizontal = 10.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
                         ) {
                             CircularProgressIndicator(
                                 strokeWidth = 2.dp,
                                 color = VegaColors.Accent,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Text(
                                 text = "%$syncPercentage",
-                                color = VegaColors.TextPrimary,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
+                                color = VegaColors.Accent,
+                                fontSize = VegaText.Caption,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
                 }
 
-                // Yenile Butonu (tek odak + tıklama hedefi)
-                Surface(
-                    shape = VegaShapes.Medium,
-                    color = VegaColors.SurfaceVariant,
-                    border = BorderStroke(1.dp, VegaColors.Border),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .dpadFocusable(
-                            shape = VegaShapes.Medium,
-                            focusedBorderColor = VegaColors.FocusBorder,
-                            onClick = onSyncClick
-                        )
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "İçeriği güncelle",
-                            tint = VegaColors.TextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                HomeTopActionIcon(
+                    icon = Icons.Default.Search,
+                    contentDescription = "Ara",
+                    tint = VegaColors.TextPrimary,
+                    onClick = onSearchClick
+                )
 
-                // Ayarlar Butonu (tek odak + tıklama hedefi)
-                if (showSettings) {
-                    Surface(
-                        shape = VegaShapes.Medium,
-                        color = VegaColors.SurfaceVariant,
-                        border = BorderStroke(1.dp, VegaColors.Border),
-                        modifier = Modifier
-                            .size(40.dp)
-                            .dpadFocusable(
-                                shape = VegaShapes.Medium,
-                                focusedBorderColor = VegaColors.FocusBorder,
-                                onClick = onSettingsClick
-                            )
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Ayarlar",
-                                tint = VegaColors.TextPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
+                HomeTopActionIcon(
+                    icon = if (isFavoritesActive) Icons.Default.Star else Icons.Default.StarBorder,
+                    contentDescription = "Favoriler",
+                    tint = if (isFavoritesActive) VegaColors.Gold else VegaColors.TextPrimary,
+                    onClick = onFavoritesClick
+                )
+
+                HomeTopActionIcon(
+                    icon = Icons.AutoMirrored.Filled.PlaylistPlay,
+                    contentDescription = "Liste değiştir",
+                    tint = VegaColors.TextPrimary,
+                    onClick = onPlaylistClick
+                )
             }
         }
+
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = VegaColors.Border.copy(alpha = 0.55f)
+        )
+    }
+}
+
+@Composable
+private fun HomeTopActionIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .size(VegaSizes.IconButton)
+            .clip(VegaShapes.Pill)
+            .background(if (isFocused) VegaColors.SurfaceVariant else Color.Transparent)
+            .dpadFocusable(
+                shape = VegaShapes.Pill,
+                focusedBorderColor = VegaColors.FocusBorder,
+                scale = 1.04f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(22.dp)
+        )
     }
 }
 
@@ -897,90 +862,75 @@ fun VegaBottomNavigationBar(
     onTabSelected: (HomeTab) -> Unit
 ) {
     val bottomTabs = listOf(
-        HomeTab.DASHBOARD,
-        HomeTab.LIVE_TV,
-        HomeTab.MOVIES,
-        HomeTab.SERIES,
-        HomeTab.FAVORITES
+        HomeTab.DASHBOARD to "Ana Sayfa",
+        HomeTab.LIVE_TV to "Canlı",
+        HomeTab.MOVIES to "Filmler",
+        HomeTab.SERIES to "Diziler",
+        HomeTab.SETTINGS to "Ayarlar"
     )
 
-    Surface(
-        color = VegaColors.Surface.copy(alpha = 0.96f),
-        border = BorderStroke(1.dp, VegaColors.Border),
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(VegaColors.Surface)
     ) {
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = VegaColors.Border
+        )
         Row(
             modifier = Modifier
                 .navigationBarsPadding()
                 .fillMaxWidth()
-                .height(60.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
+                .height(60.dp)
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            bottomTabs.forEach { tab ->
+            bottomTabs.forEach { (tab, label) ->
                 val isSelected = activeTab == tab
-                Box(
+                Column(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
+                        .clip(VegaShapes.Small)
                         .dpadFocusable(
                             shape = VegaShapes.Small,
                             focusedBorderColor = VegaColors.FocusBorder,
+                            scale = 1.02f,
                             onClick = { onTabSelected(tab) }
-                        ),
-                    contentAlignment = Alignment.TopCenter
+                        )
+                        .padding(vertical = 5.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    if (isSelected) {
-                        // Seçili sekmenin üst kenarına çizgi
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .fillMaxWidth(0.65f)
-                                .height(2.5.dp)
-                                .background(
-                                    color = VegaColors.Accent,
-                                    shape = RoundedCornerShape(bottomStart = 2.dp, bottomEnd = 2.dp)
-                                )
-                        )
-                        // Arkasında yumuşak vurgu parlama efekti
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            VegaColors.Accent.copy(alpha = 0.15f),
-                                            VegaColors.Accent.copy(alpha = 0.03f),
-                                            Color.Transparent
-                                        )
-                                    )
-                                )
-                        )
-                    }
-
-                    Column(
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = 5.dp, bottom = 3.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                            .width(50.dp)
+                            .height(28.dp)
+                            .clip(VegaShapes.Pill)
+                            .background(
+                                if (isSelected) VegaColors.Accent.copy(alpha = 0.16f)
+                                else Color.Transparent
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = tab.icon,
-                            contentDescription = tab.title,
-                            tint = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = tab.title,
-                            fontSize = 11.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            contentDescription = label,
+                            tint = if (isSelected) VegaColors.Accent else VegaColors.TextMuted,
+                            modifier = Modifier.size(21.dp)
                         )
                     }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = label,
+                        fontSize = VegaText.Caption,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }

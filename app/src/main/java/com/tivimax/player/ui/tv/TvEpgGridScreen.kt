@@ -1,10 +1,10 @@
 package com.tivimax.player.ui.tv
 
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -42,6 +42,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.tivimax.player.R
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.ui.MainViewModel
@@ -100,7 +101,6 @@ fun TvEpgGridScreen(
     val favoriteStreams by viewModel.favoriteLiveStreams.collectAsState()
     val recentChannels by viewModel.recentChannels.collectAsState()
     val activePreviewChannel by viewModel.activePreviewChannel.collectAsState()
-    val previewError by viewModel.playerManager.errorMessage.collectAsState()
     val currentScreen by viewModel.currentScreen.collectAsState()
     val isPlayerScreen = currentScreen is Screen.Player
 
@@ -270,101 +270,25 @@ fun TvEpgGridScreen(
             ) {
                 val heroChannel = focusedProgram?.first ?: activePreviewChannel ?: displayedChannels.firstOrNull()
                 val heroEpg = focusedProgram?.second ?: heroChannel?.let { epgSummaryMap[it.streamId] }
+                val latestClickTarget by rememberUpdatedState(activePreviewChannel ?: heroChannel)
+                val latestOnSelectChannel by rememberUpdatedState(onSelectChannel)
+                val onPreviewClick = remember {
+                    {
+                        val target = latestClickTarget
+                        if (target != null) latestOnSelectChannel(target)
+                    }
+                }
 
-                // SOL: 16:9 Canlı Mini Video Önizleme Kutusu
-                var isPreviewFocused by remember { mutableStateOf(false) }
-                Box(
+                // SOL: 16:9 Canlı Mini Video Önizleme Kutusu (TextureView, izole bileşen)
+                TvEpgPreviewBox(
+                    viewModel = viewModel,
+                    activePreviewChannel = activePreviewChannel,
+                    isPlayerScreen = isPlayerScreen,
+                    onClick = onPreviewClick,
                     modifier = Modifier
                         .fillMaxHeight()
                         .aspectRatio(16f / 9f)
-                        .clip(VegaShapes.Medium)
-                        .background(Color.Black)
-                        .dpadFocusable(
-                            shape = VegaShapes.Medium,
-                            focusedBorderColor = VegaColors.FocusBorder,
-                            scale = 1.02f,
-                            onClick = {
-                                val target = activePreviewChannel ?: heroChannel
-                                if (target != null) onSelectChannel(target)
-                            },
-                            onFocusStateChange = { isPreviewFocused = it }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!isPlayerScreen) {
-                        AndroidView(
-                            factory = { ctx ->
-                                PlayerView(ctx).apply {
-                                    useController = false
-                                    setKeepContentOnPlayerReset(true)
-                                    isFocusable = false
-                                    isFocusableInTouchMode = false
-                                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                    layoutParams = FrameLayout.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT
-                                    )
-                                    viewModel.playerManager.attachView(this, isPrimary = false, tag = "TvEpgGrid-preview")
-                                }
-                            },
-                            update = { playerView ->
-                                viewModel.playerManager.attachView(playerView, isPrimary = false, tag = "TvEpgGrid-preview")
-                            },
-                            onRelease = { playerView ->
-                                viewModel.playerManager.detachView(playerView, tag = "TvEpgGrid-preview")
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    previewError?.let { msg ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.78f))
-                                .padding(8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = msg,
-                                color = VegaColors.TextPrimary,
-                                fontSize = VegaText.Caption,
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-
-                    // Canlı rozet
-                    if (activePreviewChannel != null && previewError == null) {
-                        Row(
-                            modifier = Modifier
-                                .align(Alignment.TopStart)
-                                .padding(6.dp)
-                                .clip(VegaShapes.Small)
-                                .background(VegaColors.OverlayPill)
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(VegaShapes.Pill)
-                                    .background(VegaColors.Live)
-                            )
-                            Text(
-                                text = if (isPreviewFocused) "Tam ekran (OK)" else "Canlı",
-                                color = Color.White,
-                                fontSize = VegaText.Caption,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
+                )
 
                 // SAĞ: Kanal Logosu, Numarası, Adı, Aktif Program, Saat, İlerleme ve 2 Satır Özet
                 if (heroChannel != null) {
@@ -460,16 +384,17 @@ fun TvEpgGridScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        Text(
-                            text = heroEpg?.getDecodedDescription()?.takeIf { it.isNotBlank() }
-                                ?: "Bu yayın için program özeti bulunmuyor.",
-                            color = VegaColors.TextSecondary,
-                            fontSize = VegaText.Secondary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        val heroDesc = heroEpg?.getDecodedDescription()?.takeIf { it.isNotBlank() }
+                        if (heroDesc != null) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = heroDesc,
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Secondary,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 } else {
                     Box(
@@ -614,6 +539,14 @@ fun TvEpgGridScreen(
                     if (isNowInWindow) {
                         Box(
                             modifier = Modifier
+                                .offset(x = (nowOffsetDp - 2.dp).coerceAtLeast(0.dp))
+                                .align(Alignment.TopStart)
+                                .size(6.dp)
+                                .clip(VegaShapes.Pill)
+                                .background(VegaColors.Accent)
+                        )
+                        Box(
+                            modifier = Modifier
                                 .offset(x = nowOffsetDp)
                                 .width(2.dp)
                                 .fillMaxHeight()
@@ -623,6 +556,11 @@ fun TvEpgGridScreen(
                 }
             }
         }
+
+        HorizontalDivider(
+            color = VegaColors.Border.copy(alpha = 0.4f),
+            thickness = 0.5.dp
+        )
 
         Spacer(modifier = Modifier.height(4.dp))
 
@@ -765,19 +703,9 @@ fun TvEpgGridScreen(
                             .height(58.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // SOL: Yuvarlatılmış Kanal Hücresi (Tek Odak Hedefi)
+                        // SOL: Sade Kanal Hücresi (Tek Odak Hedefi, çerçevesiz sakin yüzey)
                         var isChannelFocused by remember { mutableStateOf(false) }
-                        Surface(
-                            shape = VegaShapes.Small,
-                            color = when {
-                                isChannelFocused -> VegaColors.SurfaceVariant
-                                isCurrentPreview -> VegaColors.Accent.copy(alpha = 0.16f)
-                                else -> VegaColors.SurfaceElevated
-                            },
-                            border = if (isChannelFocused) null else BorderStroke(
-                                width = if (isCurrentPreview) 1.5.dp else 1.dp,
-                                color = if (isCurrentPreview) VegaColors.Accent.copy(alpha = 0.65f) else VegaColors.Border
-                            ),
+                        Box(
                             modifier = Modifier
                                 .width(channelRailWidth)
                                 .fillMaxHeight()
@@ -785,7 +713,7 @@ fun TvEpgGridScreen(
                                 .dpadFocusable(
                                     focusedBorderColor = VegaColors.FocusBorder,
                                     shape = VegaShapes.Small,
-                                    scale = 1.02f,
+                                    scale = 1.015f,
                                     onFocusStateChange = { focused ->
                                         isChannelFocused = focused
                                         if (focused) {
@@ -794,11 +722,31 @@ fun TvEpgGridScreen(
                                     },
                                     onClick = { handleChannelClick(channel) }
                                 )
+                                .clip(VegaShapes.Small)
+                                .background(
+                                    when {
+                                        isChannelFocused -> VegaColors.SurfaceVariant
+                                        isCurrentPreview -> VegaColors.SurfaceElevated
+                                        else -> VegaColors.Surface.copy(alpha = 0.72f)
+                                    }
+                                )
                         ) {
+                            if (isCurrentPreview) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterStart)
+                                        .padding(start = 2.dp)
+                                        .width(3.dp)
+                                        .height(30.dp)
+                                        .clip(VegaShapes.Pill)
+                                        .background(VegaColors.Accent)
+                                )
+                            }
+
                             Row(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    .padding(horizontal = 9.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -806,7 +754,7 @@ fun TvEpgGridScreen(
                                     modifier = Modifier
                                         .size(34.dp)
                                         .clip(VegaShapes.Small)
-                                        .background(VegaColors.SurfaceAccent)
+                                        .background(VegaColors.SurfaceAccent.copy(alpha = 0.7f))
                                         .padding(4.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -832,13 +780,17 @@ fun TvEpgGridScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Text(
-                                        text = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Program bilgisi yok",
-                                        color = VegaColors.TextMuted,
-                                        fontSize = VegaText.Caption,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
+                                    val subtitle = epg?.getDecodedTitle()?.takeIf { it.isNotBlank() }
+                                        ?: channel.currentProgram?.takeIf { it.isNotBlank() }
+                                    if (subtitle != null) {
+                                        Text(
+                                            text = subtitle,
+                                            color = VegaColors.TextMuted,
+                                            fontSize = VegaText.Caption,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
 
                                 if (channel.tvArchive == 1) {
@@ -1198,6 +1150,181 @@ fun TvEpgGridScreen(
     }
 }
 
+@OptIn(UnstableApi::class)
+@Composable
+private fun TvEpgPreviewBox(
+    viewModel: MainViewModel,
+    activePreviewChannel: LiveStream?,
+    isPlayerScreen: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val playerInstanceVersion by viewModel.playerManager.playerInstanceVersion.collectAsState()
+    var previewPlayerView by remember { mutableStateOf<PlayerView?>(null) }
+    var isPreviewFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(
+        previewPlayerView,
+        playerInstanceVersion,
+        activePreviewChannel?.streamId,
+        isPlayerScreen
+    ) {
+        val view = previewPlayerView ?: return@LaunchedEffect
+        if (!isPlayerScreen) {
+            viewModel.playerManager.attachView(view, isPrimary = false, tag = "TvEpgGrid-preview")
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .dpadFocusable(
+                shape = VegaShapes.Medium,
+                focusedBorderColor = VegaColors.FocusBorder,
+                scale = 1.0f,
+                onClick = onClick,
+                onFocusStateChange = { isPreviewFocused = it }
+            )
+            .clip(VegaShapes.Medium)
+            .background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!isPlayerScreen) {
+            AndroidView(
+                factory = { ctx ->
+                    (LayoutInflater.from(ctx).inflate(R.layout.player_texture_view, null, false) as PlayerView).apply {
+                        useController = false
+                        setKeepContentOnPlayerReset(true)
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                        setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        isFocusable = false
+                        isFocusableInTouchMode = false
+                        descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        previewPlayerView = this
+                        viewModel.playerManager.attachView(this, isPrimary = false, tag = "TvEpgGrid-preview")
+                    }
+                },
+                update = { /* Yeniden çizimde attachView çağırma; LaunchedEffect yönetir */ },
+                onRelease = { playerView ->
+                    if (previewPlayerView === playerView) {
+                        previewPlayerView = null
+                    }
+                    viewModel.playerManager.detachView(playerView, tag = "TvEpgGrid-preview")
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        TvEpgPreviewStatusOverlay(
+            viewModel = viewModel,
+            activePreviewChannel = activePreviewChannel,
+            isPreviewFocused = isPreviewFocused
+        )
+    }
+}
+
+@Composable
+private fun BoxScope.TvEpgPreviewStatusOverlay(
+    viewModel: MainViewModel,
+    activePreviewChannel: LiveStream?,
+    isPreviewFocused: Boolean
+) {
+    val isPreviewBuffering by viewModel.playerManager.isBuffering.collectAsState()
+    val isPreviewPlaying by viewModel.playerManager.isPlaying.collectAsState()
+    val previewError by viewModel.playerManager.errorMessage.collectAsState()
+
+    if (previewError != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.78f))
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = previewError ?: "",
+                color = VegaColors.TextPrimary,
+                fontSize = VegaText.Caption,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    } else if (activePreviewChannel != null && isPreviewBuffering) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.62f))
+                .padding(8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(VegaShapes.Small)
+                        .background(VegaColors.SurfaceAccent.copy(alpha = 0.85f))
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncShimmerImage(
+                        model = activePreviewChannel.streamIcon,
+                        contentDescription = activePreviewChannel.name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize(),
+                        placeholderIcon = Icons.Default.Tv
+                    )
+                }
+                Text(
+                    text = activePreviewChannel.name,
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.Caption,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                CircularProgressIndicator(
+                    color = VegaColors.Accent,
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp
+                )
+            }
+        }
+    } else if (activePreviewChannel != null && (isPreviewPlaying || isPreviewFocused)) {
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(6.dp)
+                .clip(VegaShapes.Small)
+                .background(VegaColors.OverlayPill)
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(VegaShapes.Pill)
+                    .background(VegaColors.Live)
+            )
+            Text(
+                text = if (isPreviewFocused) "Tam ekran (OK)" else "Canlı",
+                color = Color.White,
+                fontSize = VegaText.Caption,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
 @Composable
 private fun GuideToolbarPill(
     label: String,
@@ -1213,20 +1340,16 @@ private fun GuideToolbarPill(
         shape = VegaShapes.Medium,
         color = when {
             isFocused -> VegaColors.SurfaceVariant
-            isHighlighted -> VegaColors.Accent.copy(alpha = 0.18f)
+            isHighlighted -> VegaColors.Accent.copy(alpha = 0.16f)
             else -> VegaColors.SurfaceElevated
         },
-        border = if (isFocused) null else BorderStroke(
-            width = 1.dp,
-            color = if (isHighlighted) VegaColors.Accent else VegaColors.Border
-        ),
         modifier = Modifier
             .height(38.dp)
             .widthIn(min = minWidth, max = 260.dp)
             .dpadFocusable(
                 shape = VegaShapes.Medium,
                 focusedBorderColor = VegaColors.FocusBorder,
-                scale = 1.03f,
+                scale = 1.02f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )
@@ -1279,31 +1402,40 @@ private fun GuideProgramCell(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    Surface(
-        shape = VegaShapes.Small,
-        color = when {
-            isFocused -> VegaColors.SurfaceVariant
-            isCurrent -> VegaColors.Accent.copy(alpha = 0.20f)
-            else -> VegaColors.SurfaceElevated
-        },
-        border = if (isFocused) null else BorderStroke(
-            width = 1.dp,
-            color = if (isCurrent) VegaColors.Accent.copy(alpha = 0.45f) else VegaColors.Border
-        ),
+    Box(
         modifier = modifier
             .width(width)
             .fillMaxHeight()
             .dpadFocusable(
                 focusedBorderColor = VegaColors.FocusBorder,
                 shape = VegaShapes.Small,
-                scale = 1.015f,
+                scale = 1.01f,
                 onFocusStateChange = { focused ->
                     isFocused = focused
                     if (focused) onFocused()
                 },
                 onClick = onClick
             )
+            .clip(VegaShapes.Small)
+            .background(
+                when {
+                    isFocused -> VegaColors.SurfaceVariant
+                    isCurrent -> VegaColors.Accent.copy(alpha = 0.16f)
+                    else -> VegaColors.SurfaceElevated.copy(alpha = 0.62f)
+                }
+            )
     ) {
+        if (isCurrent && !isFocused) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(2.dp)
+                    .fillMaxHeight(0.65f)
+                    .clip(VegaShapes.Pill)
+                    .background(VegaColors.Accent)
+            )
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -1320,7 +1452,7 @@ private fun GuideProgramCell(
                     color = when {
                         isFocused -> VegaColors.TextPrimary
                         isCurrent -> VegaColors.Accent
-                        else -> VegaColors.TextPrimary
+                        else -> VegaColors.TextPrimary.copy(alpha = 0.92f)
                     },
                     fontSize = VegaText.Secondary,
                     fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
@@ -1357,27 +1489,37 @@ private fun GuideCategoryPickerRow(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    Surface(
-        shape = VegaShapes.Small,
-        color = when {
-            isFocused -> VegaColors.SurfaceVariant
-            isSelected -> VegaColors.Accent.copy(alpha = 0.18f)
-            else -> VegaColors.SurfaceElevated
-        },
-        border = if (isFocused) null else BorderStroke(
-            width = 1.dp,
-            color = if (isSelected) VegaColors.Accent else VegaColors.Border
-        ),
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .dpadFocusable(
                 shape = VegaShapes.Small,
                 focusedBorderColor = VegaColors.FocusBorder,
-                scale = 1.02f,
+                scale = 1.015f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )
+            .clip(VegaShapes.Small)
+            .background(
+                when {
+                    isFocused -> VegaColors.SurfaceVariant
+                    isSelected -> VegaColors.SurfaceElevated
+                    else -> Color.Transparent
+                }
+            )
     ) {
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 2.dp)
+                    .width(3.dp)
+                    .height(22.dp)
+                    .clip(VegaShapes.Pill)
+                    .background(VegaColors.Accent)
+            )
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()

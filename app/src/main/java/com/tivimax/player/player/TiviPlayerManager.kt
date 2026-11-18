@@ -278,9 +278,17 @@ class TiviPlayerManager(private val context: Context) {
      * Tam ekran oynatıcılar (isPrimary = true), önizleme görünümlerine göre önceliklidir.
      */
     fun attachView(view: PlayerView, isPrimary: Boolean = false, tag: String = "") {
-        val oldView = activePlayerView?.get()
-        if (oldView == null) {
+        var oldView = activePlayerView?.get()
+        if (oldView == null || (oldView != view && !oldView.isAttachedToWindow)) {
+            if (oldView != null && oldView != view) {
+                if (BuildConfig.DEBUG) {
+                    Log.d("VideoTarget", "[+${timingOffsetMs()}ms] attachView: eski görünüm pencereden ayrılmış (detached), sahiplik sıfırlandı (oldView=$oldView)")
+                }
+                oldView.player = null
+                activePlayerView = null
+            }
             isCurrentOwnerPrimary = false
+            oldView = null
         }
 
         // Öncelik kuralı: tam ekran oynatıcı açıkken önizleme görünümleri yüzeyi ALAMAZ
@@ -346,7 +354,7 @@ class TiviPlayerManager(private val context: Context) {
                         attachView(pending, isPrimary = false, tag = "pending-handover")
                     } else {
                         pending.doOnAttach {
-                            if (isCurrentOwnerPrimary && activePlayerView?.get() != null) {
+                            if (isCurrentOwnerPrimary && activePlayerView?.get()?.isAttachedToWindow == true) {
                                 if (BuildConfig.DEBUG) {
                                     Log.d("VideoTarget", "[+${timingOffsetMs()}ms] detachView: pending pencereye eklendi ancak aktif sahip primary, devredilmedi (pending=$it)")
                                 }
@@ -904,8 +912,14 @@ class TiviPlayerManager(private val context: Context) {
                 if (BuildConfig.DEBUG) {
                     Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] initializePlayer: Mod/ayar değişti (live:$playerLoadControlIsLive->$isLive, dec:$builtDecoderMode->$_decoderMode, liveBuf:$builtLiveBufferSec->$_liveBufferSeconds, vodBuf:$builtVodBufferSec->$_vodBufferSeconds). Oynatıcı yeniden inşa ediliyor.")
                 }
-                preservedView = activePlayerView?.get()
-                preservedView?.player = null
+                val rawPreserved = activePlayerView?.get()
+                rawPreserved?.player = null
+                if (rawPreserved != null && rawPreserved.isAttachedToWindow) {
+                    preservedView = rawPreserved
+                } else if (rawPreserved != null) {
+                    activePlayerView = null
+                    isCurrentOwnerPrimary = false
+                }
                 exoPlayer?.clearVideoFrameMetadataListener(videoFrameMetadataListener)
                 exoPlayer?.stop()
                 exoPlayer?.clearMediaItems()
@@ -1244,11 +1258,24 @@ class TiviPlayerManager(private val context: Context) {
         player.playWhenReady = true
         exoPlayer = player
 
-        // Eğer önceden kayıtlı bir view varsa yeni player'ı hemen ona bağla (Canlı <-> VOD geçişinde siyah ekran olmasın)
-        val targetView = preservedView ?: activePlayerView?.get()
-        targetView?.let { currentView ->
-            if (currentView.player != player) {
-                currentView.player = player
+        // Eğer önceden kayıtlı ve pencereye bağlı bir view varsa yeni player'ı hemen ona bağla (Canlı <-> VOD geçişinde siyah ekran olmasın)
+        val activeTarget = preservedView ?: activePlayerView?.get()?.takeIf { it.isAttachedToWindow }
+        if (activeTarget != null) {
+            if (activeTarget.player != player) {
+                activeTarget.player = player
+            }
+        } else {
+            val pendingTarget = pendingSecondaryView?.get()?.takeIf { it.isAttachedToWindow }
+            if (pendingTarget != null) {
+                pendingSecondaryView = null
+                activePlayerView = WeakReference(pendingTarget)
+                isCurrentOwnerPrimary = false
+                if (pendingTarget.player != player) {
+                    pendingTarget.player = player
+                }
+                if (BuildConfig.DEBUG) {
+                    Log.d("VideoTarget", "[+${timingOffsetMs()}ms] initializePlayer: yeni player bekleyen ikincil görünüme bağlandı (pending=$pendingTarget)")
+                }
             }
         }
 

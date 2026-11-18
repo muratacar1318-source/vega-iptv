@@ -1,7 +1,7 @@
 package com.tivimax.player.ui.live.shelf
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -141,78 +142,50 @@ fun ShelfLiveLayout(
             .fillMaxSize()
             .vegaBackdrop()
     ) {
-        // Üst Çubuk
-        Surface(
-            color = VegaColors.Surface.copy(alpha = 0.92f),
-            border = BorderStroke(1.dp, VegaColors.Border.copy(alpha = 0.6f)),
-            modifier = Modifier.fillMaxWidth()
+        // Sade üst çubuk (kutu çerçevesi ve dekoratif rozet yok)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(VegaColors.Background.copy(alpha = 0.94f))
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Tv,
-                        contentDescription = null,
-                        tint = VegaColors.Accent,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Text(
-                        text = "Canlı TV",
-                        color = VegaColors.TextPrimary,
-                        fontSize = VegaText.SectionTitle,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Surface(
-                        shape = VegaShapes.Small,
-                        color = VegaColors.Accent.copy(alpha = 0.16f),
-                        border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.45f))
-                    ) {
-                        Text(
-                            text = "Raf düzeni",
-                            color = VegaColors.Accent,
-                            fontSize = VegaText.Caption,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                        )
-                    }
-                }
+                StreamVaultSearchField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = stringResource(R.string.live_shelf_search_hint),
+                    modifier = Modifier.weight(1f)
+                )
 
-                // Sağ Hızlı İşlem Butonları (Tek odak hedefli)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     ShelfTopActionButton(
                         icon = Icons.Default.Refresh,
                         contentDescription = "Yenile",
-                        tint = VegaColors.TextPrimary,
+                        tint = VegaColors.TextSecondary,
                         onClick = onRefresh
                     )
                     ShelfTopActionButton(
                         icon = Icons.AutoMirrored.Filled.ViewList,
-                        contentDescription = "Klasik düzene geç",
+                        contentDescription = "Liste düzenine geç",
                         tint = VegaColors.Accent,
                         onClick = onToggleLayout
                     )
                 }
             }
-        }
 
-        // StreamVault TV-güvenli Arama Alanı
-        StreamVaultSearchField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = stringResource(R.string.live_shelf_search_hint),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = VegaColors.Border.copy(alpha = 0.55f)
+            )
+        }
 
         // Arama Sonuçları veya Raflar
         if (isSearching) {
@@ -357,7 +330,7 @@ fun ShelfLiveLayout(
                             onFavoriteToggle = onFavoriteToggle,
                             onLoadEpg = onLoadEpg,
                             onSeeAllClick = {
-                                selectedSeeAllCategory = Pair("Devam Et (Son İzlenenler)", recentChannels)
+                                selectedSeeAllCategory = Pair("Son İzlenenler", recentChannels)
                             },
                             nowEpochSec = nowEpochSec
                         )
@@ -458,27 +431,25 @@ private fun ShelfTopActionButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    Surface(
-        shape = VegaShapes.Small,
-        color = if (isFocused) VegaColors.SurfaceVariant else VegaColors.SurfaceElevated,
-        border = if (isFocused) null else BorderStroke(1.dp, VegaColors.Border),
+    Box(
         modifier = Modifier
-            .size(38.dp)
+            .size(40.dp)
+            .clip(VegaShapes.Pill)
+            .background(if (isFocused) VegaColors.SurfaceVariant else Color.Transparent)
             .dpadFocusable(
                 focusedBorderColor = VegaColors.FocusBorder,
-                shape = VegaShapes.Small,
+                shape = VegaShapes.Pill,
                 scale = 1.04f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
-            )
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = tint,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (isFocused) VegaColors.Accent else tint,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }

@@ -3,8 +3,6 @@ package com.tivimax.player.ui.components
 import android.view.KeyEvent as AndroidKeyEvent
 import android.view.SoundEffectConstants
 import android.view.ViewConfiguration
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,7 +40,7 @@ private class PendingClickHolder(
 )
 
 /**
- * StreamVault'tan uyarlanan güvenli odak istemi yardımcısı.
+ * Güvenli odak istemi yardımcısı.
  * Öğe henüz yerleşmediyse çökme yerine sessizce false döner.
  */
 fun FocusRequester.requestFocusSafely(): Boolean =
@@ -59,6 +57,25 @@ fun Modifier.dpadFocusable(
     onLongClick: (() -> Unit)? = null
 ): Modifier = composed {
     val isTv = LocalIsTvDevice.current
+
+    // Mobil cihazlarda sıfır GPU katmanı, sıfır Animatable, sıfır tuş dinleyici maliyeti
+    if (!isTv) {
+        return@composed when {
+            onLongClick != null -> this.combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onClick?.invoke() },
+                onLongClick = onLongClick
+            )
+            onClick != null -> this.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            else -> this
+        }
+    }
+
     val view = LocalView.current
     var isFocused by remember { mutableStateOf(false) }
     val clickHolder = remember { PendingClickHolder() }
@@ -66,37 +83,34 @@ fun Modifier.dpadFocusable(
     val currentOnLongClick by rememberUpdatedState(onLongClick)
     val currentOnFocusStateChange by rememberUpdatedState(onFocusStateChange)
 
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isFocused) scale else 1.0f,
-        animationSpec = tween(durationMillis = 130),
-        label = "dpadFocusScale"
-    )
-
     val performClick: () -> Unit = {
-        if (isTv) {
-            runCatching { view.playSoundEffect(SoundEffectConstants.CLICK) }
-        }
+        runCatching { view.playSoundEffect(SoundEffectConstants.CLICK) }
         currentOnClick?.invoke()
     }
 
     val performLongClick: () -> Unit = {
-        if (isTv) {
-            runCatching { view.playSoundEffect(SoundEffectConstants.CLICK) }
-        }
+        runCatching { view.playSoundEffect(SoundEffectConstants.CLICK) }
         currentOnLongClick?.invoke()
     }
 
     val hasClickHandler = onClick != null || onLongClick != null
 
+    val focusTransformModifier = if (isFocused) {
+        Modifier
+            .zIndex(2f)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+    } else {
+        Modifier
+    }
+
     this
-        .zIndex(if (isFocused) 2f else 0f)
-        .graphicsLayer {
-            scaleX = animatedScale
-            scaleY = animatedScale
-        }
+        .then(focusTransformModifier)
         .onFocusChanged { state ->
             val nowFocused = state.isFocused
-            if (nowFocused && !isFocused && isTv) {
+            if (nowFocused && !isFocused) {
                 runCatching { view.playSoundEffect(SoundEffectConstants.NAVIGATION_RIGHT) }
             }
             if (!nowFocused) {

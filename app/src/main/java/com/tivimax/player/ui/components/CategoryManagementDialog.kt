@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.font.FontWeight
@@ -94,12 +93,14 @@ fun CategoryManagementDialog(
             delay(180)
             canInteract = true
         }
-        Box(
+        Surface(
+            shape = VegaShapes.Large,
+            color = VegaColors.SurfaceElevated,
+            border = BorderStroke(0.75.dp, VegaColors.Border),
             modifier = Modifier
-                .widthIn(max = 720.dp)
+                .widthIn(max = 680.dp)
                 .fillMaxWidth(0.92f)
-                .fillMaxHeight(0.88f)
-                .vegaPanel(VegaShapes.Hero)
+                .fillMaxHeight(0.86f)
                 .onPreviewKeyEvent { event ->
                     !canInteract &&
                         event.nativeKeyEvent.action == AndroidKeyEvent.ACTION_UP &&
@@ -115,16 +116,7 @@ fun CategoryManagementDialog(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                VegaColors.Accent.copy(alpha = 0.12f),
-                                Color.Transparent,
-                                Color.Transparent
-                            )
-                        )
-                    )
-                    .padding(22.dp)
+                    .padding(20.dp)
             ) {
                 // Başlık ve Kapat Butonu
                 Row(
@@ -132,41 +124,20 @@ fun CategoryManagementDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Surface(
-                            shape = VegaShapes.Medium,
-                            color = VegaColors.Accent.copy(alpha = 0.16f),
-                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.32f)),
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Tune,
-                                    contentDescription = null,
-                                    tint = VegaColors.Accent,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        Column {
-                            Text(
-                                text = "Kategori yönetimi",
-                                color = VegaColors.TextPrimary,
-                                fontSize = VegaText.SectionTitle,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "İstediğin kategorileri gizle veya en üste sabitle",
-                                color = VegaColors.TextSecondary,
-                                fontSize = VegaText.Secondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Kategori yönetimi",
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.SectionTitle,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Kategorileri gizle veya en üste sabitle",
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Caption,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                     VegaIconButton(
                         icon = Icons.Default.Close,
@@ -177,13 +148,13 @@ fun CategoryManagementDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Sekmeler (Canlı TV, Filmler, Diziler) — Tek odaklı TV uyumlu seçim çipleri
+                // Sekmeler (Canlı, Filmler, Diziler)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     VegaChoiceChip(
-                        label = "Canlı TV (${safeLiveCats.size})",
+                        label = "Canlı (${safeLiveCats.size})",
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
                         modifier = Modifier
@@ -212,7 +183,7 @@ fun CategoryManagementDialog(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     placeholder = { Text("Kategori ara…", fontSize = VegaText.Secondary, color = VegaColors.TextMuted) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = VegaColors.Accent) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = VegaColors.TextSecondary) },
                     trailingIcon = {
                         if (searchQuery.isNotEmpty()) {
                             Box(
@@ -240,22 +211,22 @@ fun CategoryManagementDialog(
                         unfocusedBorderColor = VegaColors.Border,
                         focusedTextColor = VegaColors.TextPrimary,
                         unfocusedTextColor = VegaColors.TextPrimary,
-                        focusedContainerColor = VegaColors.SurfaceElevated,
-                        unfocusedContainerColor = VegaColors.Card
+                        focusedContainerColor = VegaColors.Surface,
+                        unfocusedContainerColor = VegaColors.Surface
                     ),
                     modifier = Modifier
                         .tvOpenKeyboardOnOk()
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 48.dp),
+                        .defaultMinSize(minHeight = 46.dp),
                     shape = VegaShapes.Medium
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Toplu Aksiyon Butonları
+                // Toplu Aksiyonlar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     VegaButton(
                         text = "Tümünü göster",
@@ -277,33 +248,40 @@ fun CategoryManagementDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Kategori Listesi
-                LazyColumn(
+                // Tek Yüzey İçinde İnce Çizgi Ayırıcılı Kategori Listesi (İç İçe Kart Yok)
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.Surface,
+                    border = BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.65f)),
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .fillMaxWidth()
                 ) {
-                    itemsIndexed(filteredCategories, key = { idx, item -> "cat_mgmt_${selectedTab}_${item.first}_$idx" }) { _, (catId, catName, count) ->
-                        val isHidden = hiddenCats.contains(catId)
-                        val isPinned = pinnedCats.contains(catId)
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        itemsIndexed(
+                            filteredCategories,
+                            key = { idx, item -> "cat_mgmt_${selectedTab}_${item.first}_$idx" }
+                        ) { idx, (catId, catName, count) ->
+                            val isHidden = hiddenCats.contains(catId)
+                            val isPinned = pinnedCats.contains(catId)
 
-                        CategoryManagementRow(
-                            name = catName,
-                            count = count,
-                            isHidden = isHidden,
-                            isPinned = isPinned,
-                            onTogglePin = { viewModel.toggleCategoryPinned(catId) },
-                            onToggleVisibility = { viewModel.toggleCategoryHidden(catId, !isHidden) }
-                        )
+                            CategoryManagementRow(
+                                name = catName,
+                                count = count,
+                                isHidden = isHidden,
+                                isPinned = isPinned,
+                                showDivider = idx < filteredCategories.lastIndex,
+                                onTogglePin = { viewModel.toggleCategoryPinned(catId) },
+                                onToggleVisibility = { viewModel.toggleCategoryHidden(catId, !isHidden) }
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Alt Kapat Butonu
                 VegaButton(
                     text = "Kaydet ve kapat",
                     variant = VegaButtonVariant.PRIMARY,
@@ -321,20 +299,17 @@ private fun CategoryManagementRow(
     count: Int,
     isHidden: Boolean,
     isPinned: Boolean,
+    showDivider: Boolean,
     onTogglePin: () -> Unit,
     onToggleVisibility: () -> Unit
 ) {
     var pinFocused by remember { mutableStateOf(false) }
     var toggleFocused by remember { mutableStateOf(false) }
 
-    Surface(
-        shape = VegaShapes.Medium,
-        color = if (isHidden) VegaColors.Background.copy(alpha = 0.7f) else VegaColors.Card,
-        border = BorderStroke(
-            1.dp,
-            if (isPinned) VegaColors.Accent.copy(alpha = 0.5f) else VegaColors.Border
-        ),
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (isHidden) VegaColors.Background.copy(alpha = 0.35f) else Color.Transparent)
     ) {
         Row(
             modifier = Modifier
@@ -348,16 +323,15 @@ private fun CategoryManagementRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                // Sabitleme Butonu (Tek odaklı)
                 Surface(
                     shape = VegaShapes.Small,
                     color = when {
-                        pinFocused -> VegaColors.Accent.copy(alpha = 0.24f)
+                        pinFocused -> VegaColors.Accent.copy(alpha = 0.22f)
                         isPinned -> VegaColors.Accent.copy(alpha = 0.14f)
                         else -> VegaColors.SurfaceVariant
                     },
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(34.dp)
                         .dpadFocusable(
                             shape = VegaShapes.Small,
                             focusedBorderColor = VegaColors.FocusBorder,
@@ -370,7 +344,7 @@ private fun CategoryManagementRow(
                             imageVector = Icons.Default.PushPin,
                             contentDescription = "Sabitle",
                             tint = if (isPinned || pinFocused) VegaColors.Accent else VegaColors.TextMuted,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
@@ -380,14 +354,14 @@ private fun CategoryManagementRow(
                         text = name,
                         color = if (isHidden) VegaColors.TextMuted else VegaColors.TextPrimary,
                         fontSize = VegaText.Body,
-                        fontWeight = if (isPinned) FontWeight.Bold else FontWeight.Medium,
+                        fontWeight = if (isPinned) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     if (count > 0) {
                         Text(
                             text = "$count içerik",
-                            color = VegaColors.TextSecondary,
+                            color = VegaColors.TextMuted,
                             fontSize = VegaText.Caption
                         )
                     }
@@ -396,7 +370,6 @@ private fun CategoryManagementRow(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Görünürlük Anahtarı (Tek odaklı satır — Switch odaklanmaz, tek OK ile değişir)
             Surface(
                 shape = VegaShapes.Small,
                 color = if (toggleFocused) VegaColors.SurfaceElevated else Color.Transparent,
@@ -414,9 +387,9 @@ private fun CategoryManagementRow(
                 ) {
                     Text(
                         text = if (isHidden) "Gizli" else "Görünür",
-                        color = if (isHidden) VegaColors.Danger else VegaColors.Success,
+                        color = if (isHidden) VegaColors.TextMuted else VegaColors.Success,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                     Switch(
                         checked = !isHidden,
@@ -431,6 +404,14 @@ private fun CategoryManagementRow(
                     )
                 }
             }
+        }
+
+        if (showDivider) {
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                color = VegaColors.Border.copy(alpha = 0.5f),
+                thickness = 0.5.dp
+            )
         }
     }
 }

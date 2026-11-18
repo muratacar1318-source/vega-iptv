@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,8 +41,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
@@ -55,9 +58,9 @@ import com.tivimax.player.ui.design.VegaText
 import kotlinx.coroutines.delay
 
 /**
- * Oynatıcı içi ortak kompakt yan/alt panel kabı (StreamVault buzlu gece laciverti cam tasarım).
+ * Oynatıcı içi ortak kompakt yan/alt obsidyen panel kabı.
  *
- * - Yatayda: Sağdan 360dp, tam yükseklik, video solda görünmeye devam eder.
+ * - Yatayda: Sağdan 348dp, tam yükseklik, video solda görünmeye devam eder.
  * - Dikeyde: Alttan maksimum %58 yükseklik.
  * - Karartma (scrim): Dokunulduğunda paneli kapatır, D-pad odak tuzağı oluşturmaz.
  * - Pencere içi yerleşim: Durum çubuğu çıkmaz, tam ekran modu bozulmaz.
@@ -111,7 +114,7 @@ fun PlayerSidePanel(
                 }
         )
 
-        // Panel Gövdesi
+        // Obsidyen Panel Gövdesi
         AnimatedVisibility(
             visible = visible,
             enter = if (isPortrait) {
@@ -133,7 +136,7 @@ fun PlayerSidePanel(
                         .heightIn(max = screenHeightDp * 0.58f)
                 } else {
                     Modifier
-                        .width(360.dp)
+                        .width(348.dp)
                         .fillMaxHeight()
                 })
                     .pointerInput(Unit) {
@@ -145,15 +148,27 @@ fun PlayerSidePanel(
                     RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp)
                 },
                 color = VegaColors.OverlayPanel,
-                border = BorderStroke(1.dp, VegaColors.Border),
+                border = BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.55f)),
                 shadowElevation = 16.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 18.dp, vertical = 16.dp)
+                        .padding(horizontal = 18.dp, vertical = 14.dp)
                 ) {
-                    // ÜST BAR: İkon, Başlık ve Kapat Düğmesi
+                    if (isPortrait) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(bottom = 10.dp)
+                                .width(36.dp)
+                                .height(4.dp)
+                                .clip(VegaShapes.Pill)
+                                .background(Color.White.copy(alpha = 0.22f))
+                        )
+                    }
+
+                    // ÜST BAR: İkon, Başlık ve Çerçevesiz Kapat Düğmesi
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -169,13 +184,13 @@ fun PlayerSidePanel(
                                     imageVector = headerIcon,
                                     contentDescription = null,
                                     tint = VegaColors.Accent,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(19.dp)
                                 )
                             }
                             Text(
                                 text = title,
                                 fontSize = VegaText.SectionTitle,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 color = VegaColors.TextPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -193,13 +208,9 @@ fun PlayerSidePanel(
                             var isCloseFocused by remember { mutableStateOf(false) }
                             Surface(
                                 shape = VegaShapes.Pill,
-                                color = if (isCloseFocused) VegaColors.Accent else VegaColors.OverlayPill,
-                                border = BorderStroke(
-                                    1.dp,
-                                    if (isCloseFocused) VegaColors.FocusBorder else VegaColors.Border
-                                ),
+                                color = if (isCloseFocused) VegaColors.Accent else Color.White.copy(alpha = 0.08f),
                                 modifier = Modifier
-                                    .size(40.dp)
+                                    .size(36.dp)
                                     .then(
                                         if (firstFocusRequester == null) {
                                             Modifier.focusRequester(focusToUse)
@@ -207,7 +218,7 @@ fun PlayerSidePanel(
                                     )
                                     .dpadFocusable(
                                         shape = VegaShapes.Pill,
-                                        focusedBorderColor = VegaColors.FocusBorder,
+                                        focusedBorderColor = Color.White,
                                         scale = 1.05f,
                                         onClick = onClose,
                                         onFocusStateChange = { isCloseFocused = it }
@@ -225,7 +236,12 @@ fun PlayerSidePanel(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = VegaColors.Border.copy(alpha = 0.45f)
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     content()
                 }

@@ -1,13 +1,18 @@
 package com.tivimax.player.ui.live
 
 import android.content.res.Configuration
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +41,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.tivimax.player.R
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
@@ -155,85 +161,77 @@ fun LiveTvScreen(viewModel: MainViewModel) {
             .fillMaxSize()
             .vegaBackdrop()
     ) {
-        Crossfade(
-            targetState = liveLayoutMode,
-            animationSpec = tween(200),
-            label = "live_layout_mode_crossfade"
-        ) { mode ->
-            if (mode == UserPreferences.LIVE_LAYOUT_SHELF) {
-                ShelfLiveLayout(
-                    allLiveStreams = allLiveStreams,
-                    visibleCategories = categories,
-                    recentChannels = recentChannels,
-                    favoriteIds = favoriteIds,
-                    epgSummaryMap = epgSummaryMap,
-                    currentPlayingId = activePreviewChannel?.streamId,
-                    isLoading = isLoading,
-                    onChannelClick = { channel ->
-                        viewModel.playLiveChannel(channel)
-                    },
-                    onFavoriteToggle = { channel ->
-                        viewModel.toggleFavoriteLive(channel.streamId.toString())
-                    },
-                    onLoadEpg = { streamId ->
-                        viewModel.loadEpgSummary(streamId)
-                    },
-                    onRefresh = {
-                        viewModel.refreshLiveChannels()
-                    },
-                    onToggleLayout = {
-                        viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_CLASSIC)
-                    }
-                )
-            } else {
-                if (isWideScreen) {
-                    LiveTvWideScreenLayout(
-                        viewModel = viewModel,
-                        categories = categories,
-                        allCategories = allCategories,
-                        selectedCategory = selectedCategory,
-                        displayedChannels = displayedChannels,
-                        activePreviewChannel = activePreviewChannel,
-                        epgSummaryMap = epgSummaryMap,
-                        currentEpgList = currentEpgList,
-                        favoriteIds = favoriteIds,
-                        recentChannels = recentChannels,
-                        isLoading = isLoading,
-                        isParentalUnlocked = isParentalUnlocked,
-                        onOpenCategoryManager = { showCategoryManagerDialog = true },
-                        onOpenParentalDialog = {
-                            showParentalPinDialog = true
-                        },
-                        onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
-                    )
-                } else {
-                    LiveTvModernPortraitLayout(
-                        viewModel = viewModel,
-                        categories = categories,
-                        allCategories = allCategories,
-                        selectedCategory = selectedCategory,
-                        displayedChannels = displayedChannels,
-                        activePreviewChannel = activePreviewChannel,
-                        isMiniPlayerActive = isMiniPlayerActive,
-                        epgSummaryMap = epgSummaryMap,
-                        favoriteIds = favoriteIds,
-                        recentChannels = recentChannels,
-                        currentSort = currentSort,
-                        isLoading = isLoading,
-                        searchQuery = searchQuery,
-                        isParentalUnlocked = isParentalUnlocked,
-                        onSearchQueryChange = {
-                            searchQuery = it
-                            viewModel.setLiveSearchQuery(it)
-                        },
-                        onOpenCategoryManager = { showCategoryManagerDialog = true },
-                        onOpenParentalDialog = {
-                            showParentalPinDialog = true
-                        },
-                        onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
-                    )
+        if (liveLayoutMode == UserPreferences.LIVE_LAYOUT_SHELF) {
+            ShelfLiveLayout(
+                allLiveStreams = allLiveStreams,
+                visibleCategories = categories,
+                recentChannels = recentChannels,
+                favoriteIds = favoriteIds,
+                epgSummaryMap = epgSummaryMap,
+                currentPlayingId = activePreviewChannel?.streamId,
+                isLoading = isLoading,
+                onChannelClick = { channel ->
+                    viewModel.playLiveChannel(channel)
+                },
+                onFavoriteToggle = { channel ->
+                    viewModel.toggleFavoriteLive(channel.streamId.toString())
+                },
+                onLoadEpg = { streamId ->
+                    viewModel.loadEpgSummary(streamId)
+                },
+                onRefresh = {
+                    viewModel.refreshLiveChannels()
+                },
+                onToggleLayout = {
+                    viewModel.setLiveLayoutMode(UserPreferences.LIVE_LAYOUT_CLASSIC)
                 }
-            }
+            )
+        } else if (isWideScreen) {
+            LiveTvWideScreenLayout(
+                viewModel = viewModel,
+                categories = categories,
+                allCategories = allCategories,
+                selectedCategory = selectedCategory,
+                displayedChannels = displayedChannels,
+                activePreviewChannel = activePreviewChannel,
+                epgSummaryMap = epgSummaryMap,
+                currentEpgList = currentEpgList,
+                favoriteIds = favoriteIds,
+                recentChannels = recentChannels,
+                isLoading = isLoading,
+                isParentalUnlocked = isParentalUnlocked,
+                onOpenCategoryManager = { showCategoryManagerDialog = true },
+                onOpenParentalDialog = {
+                    showParentalPinDialog = true
+                },
+                onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
+            )
+        } else {
+            LiveTvModernPortraitLayout(
+                viewModel = viewModel,
+                categories = categories,
+                allCategories = allCategories,
+                selectedCategory = selectedCategory,
+                displayedChannels = displayedChannels,
+                activePreviewChannel = activePreviewChannel,
+                isMiniPlayerActive = isMiniPlayerActive,
+                epgSummaryMap = epgSummaryMap,
+                favoriteIds = favoriteIds,
+                recentChannels = recentChannels,
+                currentSort = currentSort,
+                isLoading = isLoading,
+                searchQuery = searchQuery,
+                isParentalUnlocked = isParentalUnlocked,
+                onSearchQueryChange = {
+                    searchQuery = it
+                    viewModel.setLiveSearchQuery(it)
+                },
+                onOpenCategoryManager = { showCategoryManagerDialog = true },
+                onOpenParentalDialog = {
+                    showParentalPinDialog = true
+                },
+                onSelectProgramDetail = { stream, prog -> selectedProgramDetail = Pair(stream, prog) }
+            )
         }
 
         // --- KATEGORİ YÖNETİMİ DİYALOGU ---
@@ -394,6 +392,17 @@ fun LiveTvPortraitLayout(
 ) {
     val currentScreen by viewModel.currentScreen.collectAsState()
     val isPlayerScreen = currentScreen is Screen.Player
+    val playerInstanceVersion by viewModel.playerManager.playerInstanceVersion.collectAsState()
+    val isPreviewBuffering by viewModel.playerManager.isBuffering.collectAsState()
+    var previewPlayerView by remember { mutableStateOf<PlayerView?>(null) }
+
+    LaunchedEffect(previewPlayerView, playerInstanceVersion, activePreviewChannel?.streamId, isPlayerScreen) {
+        val view = previewPlayerView ?: return@LaunchedEffect
+        if (!isPlayerScreen && activePreviewChannel != null) {
+            viewModel.playerManager.attachView(view, isPrimary = false, tag = "LiveTvScreen-preview")
+        }
+    }
+
     var isSortMenuOpen by remember { mutableStateOf(false) }
     var isEpgTimelineMode by remember { mutableStateOf(false) }
     var isSidebarExpanded by remember { mutableStateOf(true) }
@@ -430,24 +439,67 @@ fun LiveTvPortraitLayout(
                     if (!isPlayerScreen) {
                         AndroidView(
                             factory = { ctx ->
-                                PlayerView(ctx).apply {
+                                val view = LayoutInflater.from(ctx)
+                                    .inflate(R.layout.player_texture_view, null, false) as PlayerView
+                                view.apply {
                                     useController = false
+                                    setKeepContentOnPlayerReset(true)
+                                    setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                                    setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                                     layoutParams = FrameLayout.LayoutParams(
                                         ViewGroup.LayoutParams.MATCH_PARENT,
                                         ViewGroup.LayoutParams.MATCH_PARENT
                                     )
-                                    viewModel.playerManager.attachView(this, isPrimary = false, tag = "LiveTvScreen-preview")
                                 }
+                                previewPlayerView = view
+                                view
                             },
-                            update = { playerView ->
-                                viewModel.playerManager.attachView(playerView, isPrimary = false, tag = "LiveTvScreen-preview")
-                            },
+                            update = {},
                             onRelease = { playerView ->
+                                if (previewPlayerView === playerView) {
+                                    previewPlayerView = null
+                                }
                                 viewModel.playerManager.detachView(playerView, tag = "LiveTvScreen-preview")
                             },
                             modifier = Modifier.fillMaxSize()
                         )
+                    }
+
+                    if (isPreviewBuffering) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.55f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(VegaShapes.Small)
+                                        .background(VegaColors.SurfaceElevated.copy(alpha = 0.85f))
+                                        .padding(6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AsyncShimmerImage(
+                                        model = channel.streamIcon,
+                                        contentDescription = channel.name,
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier.fillMaxSize(),
+                                        placeholderIcon = Icons.Default.Tv
+                                    )
+                                }
+                                CircularProgressIndicator(
+                                    color = VegaColors.Accent,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     }
 
                     Row(

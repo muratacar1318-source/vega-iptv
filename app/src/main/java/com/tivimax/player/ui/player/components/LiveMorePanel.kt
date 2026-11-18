@@ -1,6 +1,6 @@
 package com.tivimax.player.ui.player.components
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -9,8 +9,8 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -32,7 +33,7 @@ import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
 
 /**
- * Canlı TV Oynatıcı "Daha fazla" Yan Paneli (StreamVault cam panel uyumlu, tek odaklı satırlar).
+ * Canlı TV Oynatıcı "Daha fazla" Yan Paneli (İnce ayırıcılı obsidyen liste, tek odaklı satırlar).
  */
 @Composable
 fun LiveMorePanel(
@@ -62,8 +63,7 @@ fun LiveMorePanel(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f, fill = false),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .weight(1f, fill = false)
         ) {
             // 1. Kanal listesi
             MoreActionRow(
@@ -72,6 +72,7 @@ fun LiveMorePanel(
                 onClick = onOpenChannelDrawer,
                 modifier = Modifier.focusRequester(firstFocus)
             )
+            MoreHairlineDivider()
 
             // 2. Kanal numarası gir
             MoreActionRow(
@@ -79,6 +80,7 @@ fun LiveMorePanel(
                 title = "Kanal numarası gir",
                 onClick = onOpenNumpad
             )
+            MoreHairlineDivider()
 
             // 3. Çift ekran
             MoreActionRow(
@@ -88,6 +90,7 @@ fun LiveMorePanel(
                 isHighlighted = isDualViewActive,
                 onClick = onOpenDualView
             )
+            MoreHairlineDivider()
 
             // 4. Uyku zamanlayıcısı
             val sleepBadge = if (sleepTimerSeconds != null && sleepTimerSeconds > 0) {
@@ -109,6 +112,14 @@ fun LiveMorePanel(
 }
 
 @Composable
+private fun MoreHairlineDivider() {
+    HorizontalDivider(
+        thickness = 0.5.dp,
+        color = VegaColors.Border.copy(alpha = 0.35f)
+    )
+}
+
+@Composable
 private fun MoreActionRow(
     icon: ImageVector,
     title: String,
@@ -121,83 +132,73 @@ private fun MoreActionRow(
 
     val containerColor = when {
         isFocused -> VegaColors.Accent
-        isHighlighted -> VegaColors.Accent.copy(alpha = 0.18f)
-        else -> VegaColors.SurfaceVariant
+        isHighlighted -> VegaColors.Accent.copy(alpha = 0.14f)
+        else -> Color.Transparent
     }
     val contentColor = when {
         isFocused -> VegaColors.OnAccent
         isHighlighted -> VegaColors.Accent
-        else -> VegaColors.TextPrimary
+        else -> VegaColors.TextSecondary
     }
 
-    // Tek odak + tıklama hedefi: Surface(onClick) KULLANILMAZ, sadece dpadFocusable(onClick) kullanılır.
-    Surface(
-        shape = VegaShapes.Medium,
-        color = containerColor,
-        border = BorderStroke(
-            1.dp,
-            when {
-                isFocused -> Color.White
-                isHighlighted -> VegaColors.Accent
-                else -> VegaColors.Border
-            }
-        ),
+    // Tek odak + tıklama hedefi: sadece dpadFocusable(onClick) kullanılır.
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(50.dp)
+            .clip(VegaShapes.Small)
+            .background(containerColor)
             .dpadFocusable(
-                shape = VegaShapes.Medium,
+                shape = VegaShapes.Small,
                 focusedBorderColor = Color.White,
                 scale = 1.02f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(20.dp)
-            )
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(20.dp)
+        )
 
-            Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
-                text = title,
-                color = if (isFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
-                fontSize = VegaText.Body,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f)
-            )
+        Text(
+            text = title,
+            color = if (isFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
+            fontSize = VegaText.Body,
+            fontWeight = if (isFocused || isHighlighted) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f)
+        )
 
-            if (!badge.isNullOrBlank()) {
-                Surface(
-                    shape = VegaShapes.Small,
-                    color = if (isFocused) VegaColors.OnAccent.copy(alpha = 0.16f) else VegaColors.Accent.copy(alpha = 0.18f),
-                    border = BorderStroke(1.dp, if (isFocused) VegaColors.OnAccent.copy(alpha = 0.4f) else VegaColors.Accent)
-                ) {
-                    Text(
-                        text = badge,
-                        color = if (isFocused) VegaColors.OnAccent else VegaColors.Accent,
-                        fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+        if (!badge.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .clip(VegaShapes.Small)
+                    .background(
+                        if (isFocused) VegaColors.OnAccent.copy(alpha = 0.16f)
+                        else VegaColors.Accent.copy(alpha = 0.16f)
                     )
-                }
-            } else {
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = if (isFocused) VegaColors.OnAccent.copy(alpha = 0.75f) else VegaColors.TextMuted,
-                    modifier = Modifier.size(18.dp)
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = badge,
+                    color = if (isFocused) VegaColors.OnAccent else VegaColors.Accent,
+                    fontSize = VegaText.Caption,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
+        } else {
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = if (isFocused) VegaColors.OnAccent.copy(alpha = 0.75f) else VegaColors.TextMuted,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
