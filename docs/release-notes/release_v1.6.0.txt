@@ -1,0 +1,6 @@
+- Uygulama arayüzü yeni gece mavisi görünümü, yüzen üst menü ve 8 renk temasıyla yenilendi.
+- Canlı TV ekranı kategori arama, kanal arama ve canlı önizleme panelleriyle düzenlendi.
+- Filmler ve Diziler ekranlarına yatay raf görünümü ile yenilenmiş detay ve bölüm sayfaları eklendi.
+- Canlı yayın oynatıcısına yeni alt bilgi çubuğu, kontrol kartları ve gelişmiş program rehberi eklendi.
+- Film ve dizilerde ileri sarma sonrası takılmalar ve detaydan dönüşte konum kaybı giderildi.
+- Yetişkin içerik kilidi tüm ekranlarda güçlendirildi ve kayıtlı listelerin güvenliği artırıldı.
