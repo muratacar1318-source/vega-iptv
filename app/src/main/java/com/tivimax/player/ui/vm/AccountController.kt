@@ -6,6 +6,7 @@ import com.tivimax.player.data.network.BoundedDns
 import com.tivimax.player.data.playlist.PlaylistRepository
 import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.data.repository.XtreamRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +42,14 @@ class AccountController(
     val accountRefreshing: StateFlow<Boolean> = _accountRefreshing.asStateFlow()
 
     private var lastAccountRefreshTimeMs: Long = 0L
+
+    private val speedTestClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .dns(BoundedDns.instance)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build()
+    }
 
     /** Liste değişince hesap bilgisi hemen tazelenebilsin diye 5 dk'lık sessiz yenileme sınırını sıfırlar. */
     fun resetRefreshThrottle() {
@@ -131,7 +140,8 @@ class AccountController(
                         }
                     }
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 if (!silent) {
                     onResult?.invoke(false, "Bilgiler alınamadı, bağlantınızı kontrol edin")
                 }
@@ -148,16 +158,11 @@ class AccountController(
 
             withContext(Dispatchers.IO) {
                 try {
-                    val client = OkHttpClient.Builder()
-                        .dns(BoundedDns.instance)
-                        .connectTimeout(10, TimeUnit.SECONDS)
-                        .readTimeout(10, TimeUnit.SECONDS)
-                        .build()
-
                     val startTime = System.currentTimeMillis()
                     val req = Request.Builder().url(repository.serverUrl).head().build()
-                    val resp = client.newCall(req).execute()
-                    val ping = System.currentTimeMillis() - startTime
+                    val ping = speedTestClient.newCall(req).execute().use {
+                        System.currentTimeMillis() - startTime
+                    }
 
                     val quality = when {
                         ping < 150 -> "Bağlantı iyi (gecikme $ping ms)"
@@ -166,7 +171,8 @@ class AccountController(
                     }
                     speedTestResult.value = quality
                 } catch (e: Exception) {
-                    android.util.Log.w("MainViewModel", "Speed test failed", e)
+                    if (e is CancellationException) throw e
+                    android.util.Log.w("MainViewModel", "Speed test failed (${e.javaClass.simpleName})")
                     speedTestResult.value = "Bağlantı kurulamadı. İnternetini kontrol et."
                 } finally {
                     isTestingSpeed.value = false

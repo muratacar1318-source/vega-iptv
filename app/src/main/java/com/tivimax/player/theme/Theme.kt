@@ -1,10 +1,11 @@
 package com.tivimax.player.theme
 
 import android.app.Activity
+import android.os.Build
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -35,15 +36,17 @@ fun TiviMaxTheme(
 
     val view = LocalView.current
     if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as? Activity)?.window
-            window?.let {
-                it.statusBarColor = palette.canvas.toArgb()
-                it.navigationBarColor = palette.canvas.toArgb()
-                val controller = WindowCompat.getInsetsController(it, view)
-                controller.isAppearanceLightStatusBars = false
-                controller.isAppearanceLightNavigationBars = false
+        LaunchedEffect(palette.canvas, view) {
+            val window = (view.context as? Activity)?.window ?: return@LaunchedEffect
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                @Suppress("DEPRECATION")
+                window.statusBarColor = palette.canvas.toArgb()
+                @Suppress("DEPRECATION")
+                window.navigationBarColor = palette.canvas.toArgb()
             }
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
         }
     }
 

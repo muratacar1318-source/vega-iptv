@@ -1,12 +1,5 @@
 package com.tivimax.player
 
-import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,17 +8,24 @@ import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.theme.*
-import com.tivimax.player.ui.design.vegaBackdrop
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
+import com.tivimax.player.ui.design.vegaBackdrop
 import com.tivimax.player.ui.devicemode.DeviceModeSetupScreen
 import com.tivimax.player.ui.login.LoginScreen
 import com.tivimax.player.ui.main.HomeScreen
@@ -38,63 +38,84 @@ import com.tivimax.player.ui.vod.VodDetailScreen
 @Composable
 fun AppNavigation(viewModel: MainViewModel = viewModel()) {
     val currentScreen by viewModel.currentScreen.collectAsState()
+    val stateHolder = rememberSaveableStateHolder()
 
-    Crossfade(targetState = currentScreen, modifier = Modifier.fillMaxSize(), label = "ScreenTransition") { screen ->
-        when (screen) {
-            is Screen.Splash -> {
-                SplashScreen()
-            }
-            is Screen.DeviceModeSetup -> {
-                DeviceModeSetupScreen(viewModel = viewModel)
-            }
-            is Screen.Login -> {
-                LoginScreen(viewModel = viewModel)
-            }
-            is Screen.PlaylistSync -> {
-                PlaylistSyncScreen(viewModel = viewModel)
-            }
-            is Screen.Home -> {
-                HomeScreen(viewModel = viewModel)
-            }
-            is Screen.Player -> {
-                PlayerScreen(
-                    streamUrl = screen.streamUrl,
-                    title = screen.title,
-                    isLive = screen.isLive,
-                    streamId = screen.streamId,
-                    categoryId = screen.categoryId,
-                    viewModel = viewModel,
-                    onBack = {
-                        if (!viewModel.navigateBack()) {
-                            viewModel.navigateTo(Screen.Home, false)
+    LaunchedEffect(currentScreen) {
+        if (currentScreen is Screen.Login || currentScreen is Screen.PlaylistSync) {
+            stateHolder.removeState("home")
+        }
+    }
+
+    val screenKey = when (val screen = currentScreen) {
+        is Screen.Splash -> "splash"
+        is Screen.DeviceModeSetup -> "device_mode_setup"
+        is Screen.Login -> "login"
+        is Screen.PlaylistSync -> "playlist_sync"
+        is Screen.Home -> "home"
+        is Screen.Player -> "player_${screen.streamId}_${screen.isLive}"
+        is Screen.VodDetail -> "vod_detail_${screen.vodStream.streamId}"
+        is Screen.SeriesDetail -> "series_detail_${screen.seriesStream.seriesId}"
+        is Screen.Search -> "search"
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        stateHolder.SaveableStateProvider(key = screenKey) {
+            when (val screen = currentScreen) {
+                is Screen.Splash -> {
+                    SplashScreen()
+                }
+                is Screen.DeviceModeSetup -> {
+                    DeviceModeSetupScreen(viewModel = viewModel)
+                }
+                is Screen.Login -> {
+                    LoginScreen(viewModel = viewModel)
+                }
+                is Screen.PlaylistSync -> {
+                    PlaylistSyncScreen(viewModel = viewModel)
+                }
+                is Screen.Home -> {
+                    HomeScreen(viewModel = viewModel)
+                }
+                is Screen.Player -> {
+                    PlayerScreen(
+                        streamUrl = screen.streamUrl,
+                        title = screen.title,
+                        isLive = screen.isLive,
+                        streamId = screen.streamId,
+                        categoryId = screen.categoryId,
+                        viewModel = viewModel,
+                        onBack = {
+                            if (!viewModel.navigateBack()) {
+                                viewModel.navigateTo(Screen.Home, false)
+                            }
                         }
-                    }
-                )
-            }
-            is Screen.VodDetail -> {
-                VodDetailScreen(
-                    movie = screen.vodStream,
-                    viewModel = viewModel,
-                    onBack = {
-                        if (!viewModel.navigateBack()) {
-                            viewModel.navigateTo(Screen.Home, false)
+                    )
+                }
+                is Screen.VodDetail -> {
+                    VodDetailScreen(
+                        movie = screen.vodStream,
+                        viewModel = viewModel,
+                        onBack = {
+                            if (!viewModel.navigateBack()) {
+                                viewModel.navigateTo(Screen.Home, false)
+                            }
                         }
-                    }
-                )
-            }
-            is Screen.SeriesDetail -> {
-                SeriesDetailScreen(
-                    series = screen.seriesStream,
-                    viewModel = viewModel,
-                    onBack = {
-                        if (!viewModel.navigateBack()) {
-                            viewModel.navigateTo(Screen.Home, false)
+                    )
+                }
+                is Screen.SeriesDetail -> {
+                    SeriesDetailScreen(
+                        series = screen.seriesStream,
+                        viewModel = viewModel,
+                        onBack = {
+                            if (!viewModel.navigateBack()) {
+                                viewModel.navigateTo(Screen.Home, false)
+                            }
                         }
-                    }
-                )
-            }
-            is Screen.Search -> {
-                UniversalSearchScreen(viewModel = viewModel)
+                    )
+                }
+                is Screen.Search -> {
+                    UniversalSearchScreen(viewModel = viewModel)
+                }
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.live
 
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
@@ -9,7 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -32,6 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.tivimax.player.R
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveCategory
 import com.tivimax.player.data.model.LiveStream
@@ -43,6 +45,7 @@ import com.tivimax.player.ui.components.CategoryItem
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
@@ -73,6 +76,17 @@ fun LiveTvWideScreenLayout(
     val liveSearchQuery by viewModel.liveSearchQuery.collectAsState()
     val currentScreen by viewModel.currentScreen.collectAsState()
     val isPlayerScreen = currentScreen is Screen.Player
+    val playerInstanceVersion by viewModel.playerManager.playerInstanceVersion.collectAsState()
+    val isPreviewBuffering by viewModel.playerManager.isBuffering.collectAsState()
+    var previewPlayerView by remember { mutableStateOf<PlayerView?>(null) }
+
+    LaunchedEffect(previewPlayerView, playerInstanceVersion, activePreviewChannel?.streamId, isPlayerScreen) {
+        val view = previewPlayerView ?: return@LaunchedEffect
+        if (!isPlayerScreen && activePreviewChannel != null) {
+            viewModel.playerManager.attachView(view, isPrimary = false, tag = "LiveTvWideScreen-preview")
+        }
+    }
+
     val isTv = LocalIsTvDevice.current
     val finalChannels = displayedChannels
     val filteredCategories = categories
@@ -88,14 +102,18 @@ fun LiveTvWideScreenLayout(
     // Canlı TV açıldığında aktif kategoriye otomatik odaklan
     LaunchedEffect(Unit) {
         delay(150)
-        runCatching { categoryFocusRequester.requestFocus() }
+        categoryFocusRequester.requestFocusSafely()
     }
 
     // Tam ekrandan dönüldüğünde veya önizleme kanalı değiştiğinde kanal listesini o kanala kaydır
-    LaunchedEffect(activePreviewChannel?.streamId) {
+    LaunchedEffect(activePreviewChannel?.streamId, finalChannels) {
         val targetId = activePreviewChannel?.streamId ?: return@LaunchedEffect
-        val idx = pagedChannels.indexOfFirst { it.streamId == targetId }
+        val idx = finalChannels.indexOfFirst { it.streamId == targetId }
         if (idx >= 0) {
+            if (idx >= visibleLimit) {
+                visibleLimit = (idx + 20).coerceAtMost(finalChannels.size)
+                delay(30L)
+            }
             runCatching { channelListState.animateScrollToItem((idx - 2).coerceAtLeast(0)) }
         }
     }
@@ -224,18 +242,21 @@ fun LiveTvWideScreenLayout(
                 )
 
                 // Kategori Listesi
+                val distinctCategories = remember(filteredCategories) {
+                    filteredCategories
+                        .filter { it.categoryId != "all" }
+                        .distinctBy { it.categoryId }
+                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    items(
-                        items = filteredCategories
-                            .filter { it.categoryId != "all" }
-                            .distinctBy { it.categoryId },
-                        key = { it.categoryId }
-                    ) { category ->
+                    itemsIndexed(
+                        items = distinctCategories,
+                        key = { index, category -> "wide_cat_${category.categoryId}_$index" }
+                    ) { _, category ->
                         val isSelected = category.categoryId == selectedCategory
                         CategoryItem(
                             name = category.categoryName,
@@ -415,7 +436,10 @@ fun LiveTvWideScreenLayout(
                             .weight(1f),
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        items(pagedChannels, key = { "${it.streamId}_${it.num}" }) { channel ->
+                        itemsIndexed(
+                            items = pagedChannels,
+                            key = { index, channel -> "ch_${channel.streamId}_${channel.categoryId}_$index" }
+                        ) { _, channel ->
                             val isCurrentPreview = activePreviewChannel?.streamId == channel.streamId
                             val isFavorite = favoriteIds.contains(channel.streamId.toString())
                             val epg = epgSummaryMap[channel.streamId]
@@ -595,9 +619,9 @@ fun LiveTvWideScreenLayout(
 
                         // Sonsuz Kaydırma Sayfalama Tetikleyici
                         if (visibleLimit < finalChannels.size) {
-                            item {
-                                LaunchedEffect(Unit) {
-                                    visibleLimit += 40
+                            item(key = "more_$visibleLimit") {
+                                LaunchedEffect(visibleLimit) {
+                                    visibleLimit += 50
                                 }
                                 Box(
                                     modifier = Modifier
@@ -667,9 +691,13 @@ fun LiveTvWideScreenLayout(
                         if (!isPlayerScreen) {
                             AndroidView(
                                 factory = { ctx ->
-                                    PlayerView(ctx).apply {
+                                    val view = LayoutInflater.from(ctx)
+                                        .inflate(R.layout.player_texture_view, null, false) as PlayerView
+                                    view.apply {
                                         useController = false
                                         setKeepContentOnPlayerReset(true)
+                                        setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                                        setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                                         isFocusable = false
                                         isFocusableInTouchMode = false
                                         descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
@@ -678,17 +706,55 @@ fun LiveTvWideScreenLayout(
                                             ViewGroup.LayoutParams.MATCH_PARENT,
                                             ViewGroup.LayoutParams.MATCH_PARENT
                                         )
-                                        viewModel.playerManager.attachView(this, isPrimary = false, tag = "LiveTvWideScreen-preview")
                                     }
+                                    previewPlayerView = view
+                                    view
                                 },
-                                update = { playerView ->
-                                    viewModel.playerManager.attachView(playerView, isPrimary = false, tag = "LiveTvWideScreen-preview")
-                                },
+                                update = {},
                                 onRelease = { playerView ->
+                                    if (previewPlayerView === playerView) {
+                                        previewPlayerView = null
+                                    }
                                     viewModel.playerManager.detachView(playerView, tag = "LiveTvWideScreen-preview")
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
+                        }
+
+                        if (isPreviewBuffering) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.55f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(46.dp)
+                                            .clip(VegaShapes.Small)
+                                            .background(VegaColors.SurfaceElevated.copy(alpha = 0.85f))
+                                            .padding(6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        AsyncShimmerImage(
+                                            model = activePreviewChannel.streamIcon,
+                                            contentDescription = activePreviewChannel.name,
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier.fillMaxSize(),
+                                            placeholderIcon = Icons.Default.Tv
+                                        )
+                                    }
+                                    CircularProgressIndicator(
+                                        color = VegaColors.Accent,
+                                        strokeWidth = 2.dp,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
 
                         // Üst Bilgi Rozeti

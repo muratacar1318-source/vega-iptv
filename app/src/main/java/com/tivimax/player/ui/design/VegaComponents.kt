@@ -51,9 +51,9 @@ fun VegaButton(
 
     val baseContainerColor = when (variant) {
         VegaButtonVariant.PRIMARY -> VegaColors.Accent
-        VegaButtonVariant.SECONDARY -> if (isFocused) VegaColors.SurfaceElevated else VegaColors.SurfaceVariant
+        VegaButtonVariant.SECONDARY -> if (isFocused) VegaColors.SurfaceElevated else VegaColors.Surface
         VegaButtonVariant.DANGER -> VegaColors.Danger
-        VegaButtonVariant.TEXT -> if (isFocused) VegaColors.Accent.copy(alpha = 0.14f) else Color.Transparent
+        VegaButtonVariant.TEXT -> if (isFocused) VegaColors.SurfaceElevated else Color.Transparent
     }
 
     val contentColor = when (variant) {
@@ -64,7 +64,7 @@ fun VegaButton(
     }
 
     val border = when (variant) {
-        VegaButtonVariant.SECONDARY -> if (!isFocused) BorderStroke(1.dp, VegaColors.Border) else null
+        VegaButtonVariant.SECONDARY -> if (!isFocused) BorderStroke(0.75.dp, VegaColors.Border) else null
         else -> null
     }
 
@@ -134,10 +134,10 @@ fun VegaIconButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor = when {
-        isFocused && onOverlay -> VegaColors.Accent.copy(alpha = 0.28f)
+        isFocused && onOverlay -> VegaColors.Accent.copy(alpha = 0.24f)
         isFocused -> VegaColors.SurfaceElevated
         onOverlay -> VegaColors.OverlayPill
-        else -> VegaColors.SurfaceVariant
+        else -> VegaColors.Surface
     }
     val iconTint = when {
         isFocused -> VegaColors.Accent
@@ -148,7 +148,7 @@ fun VegaIconButton(
     Surface(
         shape = VegaShapes.Pill,
         color = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.38f),
-        border = if (!isFocused && !onOverlay) BorderStroke(1.dp, VegaColors.Border) else null,
+        border = if (!isFocused && !onOverlay) BorderStroke(0.75.dp, VegaColors.Border) else null,
         modifier = modifier
             .size(VegaSizes.IconButton)
             .then(
@@ -192,12 +192,12 @@ fun VegaChoiceChip(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val backgroundColor = when {
-        selected && isFocused -> VegaColors.Accent.copy(alpha = 0.26f)
-        selected -> VegaColors.Accent.copy(alpha = 0.18f)
+        selected && isFocused -> VegaColors.Accent.copy(alpha = 0.24f)
+        selected -> VegaColors.Accent.copy(alpha = 0.16f)
         isFocused -> VegaColors.SurfaceElevated
-        else -> VegaColors.SurfaceVariant
+        else -> VegaColors.Surface
     }
-    val borderColor = if (selected) VegaColors.Accent else VegaColors.Border
+    val borderColor = if (selected) VegaColors.Accent.copy(alpha = 0.65f) else VegaColors.Border
     val textColor = when {
         selected -> VegaColors.Accent
         isFocused -> VegaColors.TextPrimary
@@ -207,7 +207,7 @@ fun VegaChoiceChip(
     Surface(
         shape = VegaShapes.Small,
         color = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.38f),
-        border = if (!isFocused) BorderStroke(1.dp, borderColor) else null,
+        border = if (!isFocused) BorderStroke(0.75.dp, borderColor) else null,
         modifier = modifier
             .defaultMinSize(minHeight = VegaSizes.MinTouch)
             .then(

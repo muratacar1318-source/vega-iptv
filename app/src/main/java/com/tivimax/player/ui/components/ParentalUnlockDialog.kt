@@ -33,13 +33,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,13 +54,11 @@ import com.tivimax.player.ui.design.VegaButtonVariant
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
-import com.tivimax.player.ui.design.vegaPanel
 import kotlinx.coroutines.delay
 
 /**
  * G-052: Ortak ebeveyn PIN diyaloğu (Canlı TV, Film, Dizi ve TV ekranları aynısını kullanır).
  * PIN belirlenmemişse "PIN belirle" modu (PIN + PIN tekrar), belirlenmişse "PIN gir" modu.
- * Rakam alanları TV kumandasıyla açılır (`tvOpenKeyboardOnOk`).
  */
 @Composable
 fun ParentalUnlockDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
@@ -75,21 +72,26 @@ fun ParentalUnlockDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
     var canInteract by remember { mutableStateOf(false) }
     val firstFieldFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        firstFieldFocusRequester.requestFocusSafely()
-        delay(250)
-        canInteract = true
-    }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Box(
+        LaunchedEffect(Unit) {
+            for (attempt in 0 until 2) {
+                withFrameNanos { }
+                delay(60)
+                if (firstFieldFocusRequester.requestFocusSafely()) break
+            }
+            delay(180)
+            canInteract = true
+        }
+        Surface(
+            shape = VegaShapes.Large,
+            color = VegaColors.SurfaceElevated,
+            border = BorderStroke(0.75.dp, VegaColors.Border),
             modifier = Modifier
-                .widthIn(max = 420.dp)
+                .widthIn(max = 400.dp)
                 .fillMaxWidth(0.9f)
-                .vegaPanel(VegaShapes.Hero)
                 .onPreviewKeyEvent { event ->
                     !canInteract &&
                         event.nativeKeyEvent.action == AndroidKeyEvent.ACTION_UP &&
@@ -105,56 +107,37 @@ fun ParentalUnlockDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                VegaColors.Danger.copy(alpha = 0.14f),
-                                Color.Transparent,
-                                Color.Transparent
-                            )
-                        )
-                    )
-                    .padding(22.dp)
+                    .padding(20.dp)
             ) {
-                // Başlık
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Surface(
-                        shape = VegaShapes.Medium,
-                        color = VegaColors.Danger.copy(alpha = 0.16f),
-                        border = BorderStroke(1.dp, VegaColors.Danger.copy(alpha = 0.35f)),
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = VegaColors.Danger,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Column {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = VegaColors.Danger,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
-                            text = if (pinNotSet) "Ebeveyn PIN'i belirle" else "Ebeveyn kilidi",
+                            text = if (pinNotSet) "Ebeveyn şifresi belirle" else "Ebeveyn kilidi",
                             color = VegaColors.TextPrimary,
                             fontSize = VegaText.SectionTitle,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = if (pinNotSet) "+18 içerikleri korumak için 4 haneli bir PIN belirle."
-                            else "+18 içerikleri açmak için PIN'ini gir.",
+                            text = if (pinNotSet) "+18 içerikler için 4 haneli şifre belirle"
+                            else "+18 içerikleri açmak için şifreni gir",
                             color = VegaColors.TextSecondary,
-                            fontSize = VegaText.Secondary
+                            fontSize = VegaText.Caption
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 4 Haneli PIN Nokta Göstergesi (StreamVault PinEntryDialog esintili)
+                // 4 Haneli Şifre Nokta Göstergesi
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
@@ -164,7 +147,7 @@ fun ParentalUnlockDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
                         val isFilled = index < pinInput.length
                         Box(
                             modifier = Modifier
-                                .size(14.dp)
+                                .size(12.dp)
                                 .clip(CircleShape)
                                 .background(
                                     when {
@@ -174,13 +157,13 @@ fun ParentalUnlockDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
                                     }
                                 )
                                 .border(
-                                    1.dp,
-                                    when {
+                                    width = 1.dp,
+                                    color = when {
                                         wrongPin || setupError != null -> VegaColors.Danger
                                         isFilled -> VegaColors.Accent
                                         else -> VegaColors.Border
                                     },
-                                    CircleShape
+                                    shape = CircleShape
                                 )
                         )
                     }
@@ -190,7 +173,7 @@ fun ParentalUnlockDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
 
                 PinField(
                     value = pinInput,
-                    label = if (pinNotSet) "PIN" else null,
+                    label = if (pinNotSet) "Şifre" else null,
                     isError = wrongPin || setupError != null,
                     onChange = { pinInput = it; wrongPin = false; setupError = null },
                     modifier = Modifier.focusRequester(firstFieldFocusRequester)
@@ -199,26 +182,25 @@ fun ParentalUnlockDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
                     Spacer(modifier = Modifier.height(10.dp))
                     PinField(
                         value = pinRepeat,
-                        label = "PIN tekrar",
+                        label = "Şifre tekrar",
                         isError = setupError != null,
                         onChange = { pinRepeat = it; setupError = null }
                     )
                 }
                 if (wrongPin) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("Hatalı PIN. Tekrar dene.", color = VegaColors.Danger, fontSize = VegaText.Secondary)
+                    Text("Hatalı şifre. Tekrar dene.", color = VegaColors.Danger, fontSize = VegaText.Caption)
                 }
                 setupError?.let { msg ->
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text(msg, color = VegaColors.Danger, fontSize = VegaText.Secondary)
+                    Text(msg, color = VegaColors.Danger, fontSize = VegaText.Caption)
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Alt Aksiyonlar (Tek odaklı VegaButton'lar)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     VegaButton(
                         text = "İptal",
@@ -227,7 +209,7 @@ fun ParentalUnlockDialog(viewModel: MainViewModel, onDismiss: () -> Unit) {
                         modifier = Modifier.weight(1f)
                     )
                     VegaButton(
-                        text = if (pinNotSet) "PIN'i kaydet" else "Kilidi aç",
+                        text = if (pinNotSet) "Kaydet" else "Kilidi aç",
                         variant = VegaButtonVariant.PRIMARY,
                         onClick = {
                             if (pinNotSet) {
@@ -273,8 +255,8 @@ private fun PinField(
             focusedBorderColor = VegaColors.FocusBorder,
             unfocusedBorderColor = VegaColors.Border,
             errorBorderColor = VegaColors.Danger,
-            focusedContainerColor = VegaColors.SurfaceElevated,
-            unfocusedContainerColor = VegaColors.Card,
+            focusedContainerColor = VegaColors.Surface,
+            unfocusedContainerColor = VegaColors.Surface,
             focusedTextColor = VegaColors.TextPrimary,
             unfocusedTextColor = VegaColors.TextPrimary
         ),
@@ -284,7 +266,6 @@ private fun PinField(
 
 /**
  * G-052: Film/Dizi üst çubuğundaki +18 kilit düğmesi (küçük çip). Listede yetişkin kategori yoksa hiç görünmez.
- * Kilit kapalıyken basınca PIN diyaloğu açılır; kilit açıkken basınca tekrar kilitlenir.
  */
 @Composable
 fun ParentalLockChip(viewModel: MainViewModel, hasAdultCategory: Boolean, modifier: Modifier = Modifier) {
@@ -306,7 +287,6 @@ fun ParentalLockChip(viewModel: MainViewModel, hasAdultCategory: Boolean, modifi
 
 /**
  * G-052: TV'de kategori listesinin en altındaki odaklanabilir "+18 kilitli / +18 açık" satırı.
- * Yetişkin kategori yoksa görünmez. Odak hafızasına dokunmaz: liste sonunda ek bir öğedir.
  */
 @Composable
 fun ParentalLockRow(viewModel: MainViewModel, hasAdultCategory: Boolean, modifier: Modifier = Modifier) {
@@ -318,8 +298,8 @@ fun ParentalLockRow(viewModel: MainViewModel, hasAdultCategory: Boolean, modifie
 
     Surface(
         shape = VegaShapes.Medium,
-        color = if (isFocused) VegaColors.SurfaceElevated else VegaColors.Card,
-        border = if (!isFocused) BorderStroke(1.dp, VegaColors.Border) else null,
+        color = if (isFocused) VegaColors.SurfaceElevated else VegaColors.Surface,
+        border = if (!isFocused) BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.65f)) else null,
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = 44.dp)

@@ -40,6 +40,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var viewModel: MainViewModel
     private lateinit var orientationManager: OrientationManager
     private var wasPlayingBeforeStop = false
+    private val consumedDownKeys = mutableSetOf<Int>()
 
     private val pipActionReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -64,6 +65,27 @@ class MainActivity : ComponentActivity() {
                 setPictureInPictureParams(builder.build())
             } catch (_: Throwable) {}
         }
+    }
+
+    private fun updateAutoPipParams() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !::viewModel.isInitialized) return
+        try {
+            val hasPip = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+            if (!hasPip) return
+            val isOnPlayer = viewModel.currentScreen.value is Screen.Player
+            val isPlaying = viewModel.playerManager.isPlaying.value
+            val autoPip = viewModel.autoPipEnabled.value
+            val shouldAutoEnter = !isTvModeActive() && autoPip && isOnPlayer && isPlaying
+            val builder = PictureInPictureParams.Builder()
+                .setAutoEnterEnabled(shouldAutoEnter)
+            if (isOnPlayer) {
+                builder.setAspectRatio(calculatePipAspectRatio(viewModel.playerManager.player))
+                createPipPlayPauseAction(this, isPlaying)?.let { action ->
+                    builder.setActions(listOf(action))
+                }
+            }
+            setPictureInPictureParams(builder.build())
+        } catch (_: Throwable) {}
     }
 
     private fun isTvModeActive(): Boolean {
@@ -108,10 +130,13 @@ class MainActivity : ComponentActivity() {
             val inPip by viewModel.isInPipMode.collectAsState()
             val isVideoFullscreen by viewModel.isVideoFullscreen.collectAsState()
             val isPlaying by viewModel.playerManager.isPlaying.collectAsState()
+            val autoPipEnabled by viewModel.autoPipEnabled.collectAsState()
 
-            LaunchedEffect(inPip, isPlaying) {
+            LaunchedEffect(currentScreen, isPlaying, autoPipEnabled, deviceMode, inPip) {
                 if (inPip) {
                     updatePipActions()
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    updateAutoPipParams()
                 }
             }
 
@@ -144,8 +169,8 @@ class MainActivity : ComponentActivity() {
         if (::viewModel.isInitialized) {
             viewModel.isInPipMode.value = isInPictureInPictureMode
             if (isInPictureInPictureMode) {
-                // Küçük pencereye (PiP) geçildi: Oynatmanın kesintisiz devam etmesini sağla
-                if (wasPlayingBeforeStop || !viewModel.playerManager.isPlaying.value) {
+                // Küçük pencereye (PiP) geçildi: yalnızca önceden oynuyorsa devam ettir (duraklatılmış videoyu zorla başlatma)
+                if (wasPlayingBeforeStop) {
                     viewModel.playerManager.play()
                 }
                 wasPlayingBeforeStop = false
@@ -170,12 +195,16 @@ class MainActivity : ComponentActivity() {
                         viewModel.isVideoFullscreen.value
                     )
                 }
+                updateAutoPipParams()
             }
         }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) {
+            consumedDownKeys.clear()
+        }
         val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
         val inMultiWindow = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInMultiWindowMode else false
         if (!inPip && !inMultiWindow && hasFocus && ::viewModel.isInitialized && ::orientationManager.isInitialized) {
@@ -214,14 +243,13 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && ::viewModel.isInitialized) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !isInPictureInPictureMode && ::viewModel.isInitialized) {
             try {
                 val hasPip = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
                 val isPlaying = viewModel.playerManager.isPlaying.value
                 val isPlayerScreen = viewModel.currentScreen.value is Screen.Player
                 val autoPip = viewModel.autoPipEnabled.value
-                val isLive = viewModel.playerManager.isLiveStream
-                if (hasPip && autoPip && isPlayerScreen && isPlaying && isLive) {
+                if (hasPip && autoPip && isPlayerScreen && isPlaying) {
                     val rational = calculatePipAspectRatio(viewModel.playerManager.player)
                     val builder = PictureInPictureParams.Builder()
                         .setAspectRatio(rational)
@@ -231,7 +259,7 @@ class MainActivity : ComponentActivity() {
                     }
                     enterPictureInPictureMode(builder.build())
                 }
-            } catch (e: Throwable) {
+            } catch (_: Throwable) {
                 // Ignore unsupported devices / ROMs
             }
         }
@@ -239,6 +267,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
+        consumedDownKeys.clear()
         if (::viewModel.isInitialized) {
             // TV modunda ekran her zaman tektir; odak kaybında anında duraklatılır.
             // Mobil/tablette ise küçük pencereye (PiP) geçiş anında ve çoklu pencerede (floating window / split screen)
@@ -282,10 +311,12 @@ class MainActivity : ComponentActivity() {
             wasPlayingBeforeStop = false
             val isPlayerScreen = viewModel.currentScreen.value is Screen.Player
             val isHomeScreen = viewModel.currentScreen.value is Screen.Home
-            if ((isPlayerScreen || isHomeScreen) && viewModel.playerManager.isLiveStream) {
-                try {
-                    viewModel.playerManager.player?.seekToDefaultPosition()
-                } catch (_: Throwable) {}
+            if (isPlayerScreen || isHomeScreen) {
+                if (viewModel.playerManager.isLiveStream) {
+                    try {
+                        viewModel.playerManager.player?.seekToDefaultPosition()
+                    } catch (_: Throwable) {}
+                }
                 viewModel.playerManager.play()
             }
         }
@@ -298,7 +329,10 @@ class MainActivity : ComponentActivity() {
                 unregisterReceiver(pipActionReceiver)
             } catch (_: Exception) {}
         }
-        if (::viewModel.isInitialized) {
+        if (::orientationManager.isInitialized) {
+            orientationManager.dispose()
+        }
+        if (isFinishing && ::viewModel.isInitialized) {
             viewModel.playerManager.release()
         }
     }
@@ -306,7 +340,16 @@ class MainActivity : ComponentActivity() {
     override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
         if (!::viewModel.isInitialized) return super.dispatchKeyEvent(event)
 
-        val isPlayerScreen = viewModel.currentScreen.value is Screen.Player
+        if (event.action == android.view.KeyEvent.ACTION_UP) {
+            if (consumedDownKeys.remove(event.keyCode)) {
+                return true
+            }
+            return super.dispatchKeyEvent(event)
+        }
+
+        val playerScreen = viewModel.currentScreen.value as? Screen.Player
+        val isPlayerScreen = playerScreen != null
+        val isLivePlayerScreen = playerScreen?.isLive == true
 
         if (event.action == android.view.KeyEvent.ACTION_DOWN) {
             when (event.keyCode) {
@@ -330,85 +373,79 @@ class MainActivity : ComponentActivity() {
                 android.view.KeyEvent.KEYCODE_NUMPAD_7,
                 android.view.KeyEvent.KEYCODE_NUMPAD_8,
                 android.view.KeyEvent.KEYCODE_NUMPAD_9 -> {
-                    // Sadece mobil tam ekran oynatıcıda yakala; diğer ekranlarda (Giriş, Arama, PIN)
-                    // ve TV rehberinde Compose katmanına bırak (yazı alanları çalışsın)
-                    if (isPlayerScreen) {
+                    // Yalnızca tam ekran canlı yayın oynatıcısında yakala; film/dizi ve arama alanlarına bırak
+                    if (isLivePlayerScreen) {
                         val digit = if (event.keyCode in android.view.KeyEvent.KEYCODE_NUMPAD_0..android.view.KeyEvent.KEYCODE_NUMPAD_9) {
                             event.keyCode - android.view.KeyEvent.KEYCODE_NUMPAD_0
                         } else {
                             event.keyCode - android.view.KeyEvent.KEYCODE_0
                         }
                         viewModel.onNumericKeyPressed(digit)
+                        consumedDownKeys.add(event.keyCode)
                         return true
                     }
                 }
                 android.view.KeyEvent.KEYCODE_ENTER,
                 android.view.KeyEvent.KEYCODE_DPAD_CENTER,
                 android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                    if (viewModel.isZapperActive.value) {
+                    if (isLivePlayerScreen && viewModel.isZapperActive.value) {
                         viewModel.executeZapperSwitch()
+                        consumedDownKeys.add(event.keyCode)
                         return true
                     }
-                    if (event.repeatCount == 0) {
+                    if (isLivePlayerScreen && event.repeatCount == 0) {
                         event.startTracking()
                     }
                 }
                 android.view.KeyEvent.KEYCODE_CHANNEL_UP,
                 android.view.KeyEvent.KEYCODE_PAGE_UP -> {
-                    if (isPlayerScreen) {
-                        val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
-                        viewModel.zapNextChannel(currentStreamId)
+                    if (isLivePlayerScreen) {
+                        viewModel.zapNextChannel(playerScreen.streamId)
+                        consumedDownKeys.add(event.keyCode)
                         return true
-                    } else if (viewModel.deviceMode.value == DeviceMode.TV && viewModel.selectedHomeTab.value == com.tivimax.player.ui.main.HomeTab.LIVE_TV) {
-                        val currentId = viewModel.activePreviewChannel.value?.streamId
-                        if (currentId != null) {
-                            viewModel.zapNextChannel(currentId)
-                            return true
-                        }
                     }
                 }
                 android.view.KeyEvent.KEYCODE_CHANNEL_DOWN,
                 android.view.KeyEvent.KEYCODE_PAGE_DOWN -> {
-                    if (isPlayerScreen) {
-                        val currentStreamId = (viewModel.currentScreen.value as Screen.Player).streamId
-                        viewModel.zapPreviousChannel(currentStreamId)
+                    if (isLivePlayerScreen) {
+                        viewModel.zapPreviousChannel(playerScreen.streamId)
+                        consumedDownKeys.add(event.keyCode)
                         return true
-                    } else if (viewModel.deviceMode.value == DeviceMode.TV && viewModel.selectedHomeTab.value == com.tivimax.player.ui.main.HomeTab.LIVE_TV) {
-                        val currentId = viewModel.activePreviewChannel.value?.streamId
-                        if (currentId != null) {
-                            viewModel.zapPreviousChannel(currentId)
-                            return true
-                        }
                     }
                 }
                 android.view.KeyEvent.KEYCODE_LAST_CHANNEL,
                 android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-                    if (isPlayerScreen || (viewModel.deviceMode.value == DeviceMode.TV && viewModel.selectedHomeTab.value == com.tivimax.player.ui.main.HomeTab.LIVE_TV)) {
+                    if (isLivePlayerScreen) {
                         viewModel.zapRecall()
+                        consumedDownKeys.add(event.keyCode)
                         return true
                     }
                 }
                 android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                     if (isPlayerScreen) {
                         viewModel.playerManager.togglePlayPause()
+                        consumedDownKeys.add(event.keyCode)
                         return true
                     }
                 }
                 android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> {
                     if (isPlayerScreen) {
                         viewModel.playerManager.play()
+                        consumedDownKeys.add(event.keyCode)
                         return true
                     }
                 }
                 android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> {
                     if (isPlayerScreen) {
                         viewModel.playerManager.pause()
+                        consumedDownKeys.add(event.keyCode)
                         return true
                     }
                 }
                 android.view.KeyEvent.KEYCODE_MEDIA_STOP -> {
                     if (isPlayerScreen) {
                         viewModel.playerManager.stop()
+                        consumedDownKeys.add(event.keyCode)
                         return true
                     }
                 }
@@ -421,7 +458,9 @@ class MainActivity : ComponentActivity() {
         if (keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
             keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
             keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER) {
-            if (event.repeatCount == 0) {
+            val isLivePlayer = ::viewModel.isInitialized &&
+                (viewModel.currentScreen.value as? Screen.Player)?.isLive == true
+            if (isLivePlayer && event.repeatCount == 0) {
                 event.startTracking()
             }
         }
@@ -432,12 +471,11 @@ class MainActivity : ComponentActivity() {
         if (keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
             keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
             keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER) {
-            val isPlayerScreen = ::viewModel.isInitialized && viewModel.currentScreen.value is Screen.Player
-            val isLiveTv = ::viewModel.isInitialized &&
-                viewModel.deviceMode.value == DeviceMode.TV &&
-                viewModel.selectedHomeTab.value == com.tivimax.player.ui.main.HomeTab.LIVE_TV
-            if (isPlayerScreen || isLiveTv) {
+            val isLivePlayer = ::viewModel.isInitialized &&
+                (viewModel.currentScreen.value as? Screen.Player)?.isLive == true
+            if (isLivePlayer) {
                 viewModel.zapRecall()
+                consumedDownKeys.add(keyCode)
                 return true
             }
         }
@@ -450,7 +488,12 @@ class MainActivity : ComponentActivity() {
         fun calculatePipAspectRatio(player: androidx.media3.common.Player?): Rational {
             val size = player?.videoSize
             if (size != null && size.width > 0 && size.height > 0) {
-                val w = size.width
+                val par = if (size.pixelWidthHeightRatio > 0f && size.pixelWidthHeightRatio.isFinite()) {
+                    size.pixelWidthHeightRatio
+                } else {
+                    1f
+                }
+                val w = kotlin.math.round(size.width * par).toInt().coerceAtLeast(1)
                 val h = size.height
                 val ratio = w.toFloat() / h.toFloat()
                 if (ratio in 0.42f..2.38f) {

@@ -61,14 +61,15 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun close() {
             synchronized(this) {
+                val toClose = instance
+                instance = null
                 try {
-                    if (instance?.isOpen == true) {
-                        instance?.close()
+                    if (toClose?.isOpen == true) {
+                        toClose.close()
                     }
                 } catch (e: Exception) {
                     logSilentFailure("Veritabanı kapatılırken hata", e)
                 }
-                instance = null
             }
         }
 

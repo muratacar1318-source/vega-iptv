@@ -1,10 +1,8 @@
 package com.tivimax.player.ui.live.shelf
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
@@ -14,17 +12,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tivimax.player.R
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
-import com.tivimax.player.theme.OpusCyan
-import com.tivimax.player.theme.TiviTextSecondary
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 
 /**
  * Tek bir yatay raf bileşeni (Shelf Row).
@@ -42,7 +40,8 @@ fun ShelfRow(
     onLoadEpg: (Int) -> Unit,
     onSeeAllClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    onHideChannel: ((LiveStream) -> Unit)? = null
+    onHideChannel: ((LiveStream) -> Unit)? = null,
+    nowEpochSec: Long = System.currentTimeMillis() / 1000L
 ) {
     if (channels.isEmpty()) return
 
@@ -69,45 +68,43 @@ fun ShelfRow(
             ) {
                 Text(
                     text = title,
-                    color = Color.White,
-                    fontSize = 17.sp,
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.SectionTitle,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "(${channels.size})",
-                    color = TiviTextSecondary,
-                    fontSize = 12.sp,
+                    color = VegaColors.TextSecondary,
+                    fontSize = VegaText.Caption,
                     fontWeight = FontWeight.Medium
                 )
             }
 
-            // Sağ: Tümünü Gör Butonu
+            // Sağ: Tümünü Gör Butonu (Tek odak ve tıklama hedefi)
             if (onSeeAllClick != null && channels.size > 1) {
                 Row(
                     modifier = Modifier
+                        .clip(VegaShapes.Small)
                         .dpadFocusable(
-                            focusedBorderColor = OpusCyan,
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            shape = VegaShapes.Small,
+                            scale = 1.03f,
                             onClick = onSeeAllClick
                         )
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = onSeeAllClick
-                        )
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.live_shelf_see_all),
-                        color = OpusCyan,
-                        fontSize = 12.sp,
+                        color = VegaColors.Accent,
+                        fontSize = VegaText.Caption,
                         fontWeight = FontWeight.SemiBold
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                         contentDescription = "Tümünü Gör",
-                        tint = OpusCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(11.dp)
                     )
                 }
@@ -123,10 +120,10 @@ fun ShelfRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(
+            itemsIndexed(
                 items = displayedChannels,
-                key = { it.streamId }
-            ) { channel ->
+                key = { index, ch -> "shelf_row_${title}_${ch.streamId}_${ch.categoryId}_$index" }
+            ) { _, channel ->
                 val isFav = favoriteIds.contains(channel.streamId.toString())
                 val isPlaying = currentPlayingId == channel.streamId
 
@@ -138,7 +135,8 @@ fun ShelfRow(
                     onChannelClick = { onChannelClick(channel) },
                     onFavoriteToggle = { onFavoriteToggle(channel) },
                     onLoadEpg = { onLoadEpg(channel.streamId) },
-                    onHideChannel = if (onHideChannel != null) { { onHideChannel(channel) } } else null
+                    onHideChannel = if (onHideChannel != null) { { onHideChannel(channel) } } else null,
+                    nowEpochSec = nowEpochSec
                 )
             }
         }

@@ -50,7 +50,8 @@ fun ShelfChannelCard(
     onFavoriteToggle: () -> Unit,
     onLoadEpg: () -> Unit,
     modifier: Modifier = Modifier,
-    onHideChannel: (() -> Unit)? = null
+    onHideChannel: (() -> Unit)? = null,
+    nowEpochSec: Long = System.currentTimeMillis() / 1000L
 ) {
     val isTv = LocalIsTvDevice.current
     var showContextMenu by remember { mutableStateOf(false) }
@@ -61,19 +62,24 @@ fun ShelfChannelCard(
         onLoadEpg()
     }
 
-    var tick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(60_000L)
-            tick++
+    val programTitle = remember(epg, channel.currentProgram) {
+        val raw = epg?.getDecodedTitle() ?: channel.currentProgram
+        raw?.takeIf { it.isNotBlank() && it != "Canlı Yayın" && it != "Canlı yayın" }
+    }
+    val progress = remember(epg, channel.programProgress, nowEpochSec) {
+        if (epg != null && epg.startTimestamp > 0 && epg.stopTimestamp > epg.startTimestamp) {
+            when {
+                nowEpochSec in epg.startTimestamp..epg.stopTimestamp ->
+                    ((nowEpochSec - epg.startTimestamp).toFloat() / (epg.stopTimestamp - epg.startTimestamp).toFloat())
+                        .coerceIn(0.05f, 0.98f)
+                nowEpochSec > epg.stopTimestamp -> 1.0f
+                else -> 0.0f
+            }
+        } else if (channel.programProgress > 0f) {
+            channel.programProgress
+        } else {
+            null
         }
-    }
-
-    val programTitle = remember(epg, tick) {
-        epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı yayın"
-    }
-    val progress = remember(epg, tick) {
-        epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else null)
     }
 
     Box(
@@ -108,13 +114,14 @@ fun ShelfChannelCard(
                 isPlaying -> VegaColors.Accent.copy(alpha = 0.14f)
                 else -> VegaColors.SurfaceElevated
             },
-            border = if (isFocused) null else BorderStroke(
-                width = if (isPlaying) 1.5.dp else 1.dp,
-                color = if (isPlaying) VegaColors.Accent else VegaColors.Border
-            )
+            border = when {
+                isFocused -> null
+                isPlaying -> BorderStroke(1.5.dp, VegaColors.Accent.copy(alpha = 0.8f))
+                else -> BorderStroke(0.5.dp, VegaColors.Border.copy(alpha = 0.45f))
+            }
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                // StreamVault kare logo kutusu
+                // Kare logo kutusu
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -156,45 +163,28 @@ fun ShelfChannelCard(
                         )
                 )
 
-                // Sol Üst: Canlı Rozeti
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(6.dp)
-                        .clip(VegaShapes.Small)
-                        .background(VegaColors.OverlayPill)
-                        .padding(horizontal = 5.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(5.dp)
-                            .background(VegaColors.Live, CircleShape)
-                    )
-                    Text(
-                        text = stringResource(R.string.live_shelf_live_badge),
-                        color = Color.White,
-                        fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                // Oynatılıyor Rozeti
+                // Sol Üst: Sadece oynatılıyorken canlı göstergesi
                 if (isPlaying) {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 6.dp)
+                            .align(Alignment.TopStart)
+                            .padding(6.dp)
                             .clip(VegaShapes.Small)
-                            .background(VegaColors.Accent.copy(alpha = 0.24f))
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                            .background(VegaColors.OverlayPill)
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(5.dp)
+                                .background(VegaColors.Live, CircleShape)
+                        )
                         Text(
                             text = stringResource(R.string.live_shelf_playing),
                             color = VegaColors.Accent,
                             fontSize = VegaText.Caption,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -223,29 +213,31 @@ fun ShelfChannelCard(
                         text = channel.name,
                         color = if (isPlaying) VegaColors.Accent else VegaColors.TextPrimary,
                         fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = programTitle,
-                        color = VegaColors.TextSecondary,
-                        fontSize = VegaText.Caption,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (programTitle != null) {
+                        Text(
+                            text = programTitle,
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Caption,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
-                // En Altta İnce Parlak Mavi İlerleme Çubuğu
+                // En Altta İnce 2dp İlerleme Çubuğu
                 if (progress != null) {
                     LinearProgressIndicator(
                         progress = { progress },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .height(2.5.dp),
+                            .height(2.dp),
                         color = VegaColors.Accent,
-                        trackColor = VegaColors.SurfaceAccent
+                        trackColor = VegaColors.SurfaceVariant
                     )
                 }
             }

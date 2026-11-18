@@ -1,13 +1,14 @@
 package com.tivimax.player.ui.live.shelf
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -17,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -32,6 +34,7 @@ import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaBackdrop
 import com.tivimax.player.ui.tv.StreamVaultSearchField
+import kotlinx.coroutines.delay
 
 /**
  * Vega IPTV Raf Düzeni (StreamVault görsel dili).
@@ -57,6 +60,14 @@ fun ShelfLiveLayout(
     var searchQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
+    var nowEpochSec by remember { mutableLongStateOf(System.currentTimeMillis() / 1000L) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000L)
+            nowEpochSec = System.currentTimeMillis() / 1000L
+        }
+    }
+
     BackHandler(enabled = searchQuery.isNotBlank()) {
         searchQuery = ""
     }
@@ -75,7 +86,8 @@ fun ShelfLiveLayout(
             onFavoriteToggle = onFavoriteToggle,
             onLoadEpg = onLoadEpg,
             onBack = { selectedSeeAllCategory = null },
-            modifier = modifier
+            modifier = modifier,
+            nowEpochSec = nowEpochSec
         )
         return
     }
@@ -89,8 +101,27 @@ fun ShelfLiveLayout(
         }
     }
 
+    var searchVisibleLimit by remember(searchResults) { mutableIntStateOf(50) }
+    val pagedSearchResults = remember(searchResults, searchVisibleLimit) {
+        searchResults.take(searchVisibleLimit)
+    }
+
     val streamsByCategory = remember(allLiveStreams) {
         allLiveStreams.groupBy { it.categoryId }
+    }
+
+    val contentCategories = remember(visibleCategories, streamsByCategory) {
+        visibleCategories
+            .filter {
+                it.categoryId != "all" && it.categoryId != "favorites" && it.categoryId != "recents" &&
+                    !streamsByCategory[it.categoryId].isNullOrEmpty()
+            }
+            .distinctBy { it.categoryId }
+    }
+
+    var categoryVisibleLimit by remember(contentCategories) { mutableIntStateOf(15) }
+    val pagedContentCategories = remember(contentCategories, categoryVisibleLimit) {
+        contentCategories.take(categoryVisibleLimit)
     }
 
     val favoriteChannels = remember(allLiveStreams, favoriteIds) {
@@ -111,78 +142,50 @@ fun ShelfLiveLayout(
             .fillMaxSize()
             .vegaBackdrop()
     ) {
-        // Üst Çubuk
-        Surface(
-            color = VegaColors.Surface.copy(alpha = 0.92f),
-            border = BorderStroke(1.dp, VegaColors.Border.copy(alpha = 0.6f)),
-            modifier = Modifier.fillMaxWidth()
+        // Sade üst çubuk (kutu çerçevesi ve dekoratif rozet yok)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(VegaColors.Background.copy(alpha = 0.94f))
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Tv,
-                        contentDescription = null,
-                        tint = VegaColors.Accent,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Text(
-                        text = "Canlı TV",
-                        color = VegaColors.TextPrimary,
-                        fontSize = VegaText.SectionTitle,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Surface(
-                        shape = VegaShapes.Small,
-                        color = VegaColors.Accent.copy(alpha = 0.16f),
-                        border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.45f))
-                    ) {
-                        Text(
-                            text = "Raf düzeni",
-                            color = VegaColors.Accent,
-                            fontSize = VegaText.Caption,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                        )
-                    }
-                }
+                StreamVaultSearchField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = stringResource(R.string.live_shelf_search_hint),
+                    modifier = Modifier.weight(1f)
+                )
 
-                // Sağ Hızlı İşlem Butonları (Tek odak hedefli)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     ShelfTopActionButton(
                         icon = Icons.Default.Refresh,
                         contentDescription = "Yenile",
-                        tint = VegaColors.TextPrimary,
+                        tint = VegaColors.TextSecondary,
                         onClick = onRefresh
                     )
                     ShelfTopActionButton(
                         icon = Icons.AutoMirrored.Filled.ViewList,
-                        contentDescription = "Klasik düzene geç",
+                        contentDescription = "Liste düzenine geç",
                         tint = VegaColors.Accent,
                         onClick = onToggleLayout
                     )
                 }
             }
-        }
 
-        // StreamVault TV-güvenli Arama Alanı
-        StreamVaultSearchField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = stringResource(R.string.live_shelf_search_hint),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = VegaColors.Border.copy(alpha = 0.55f)
+            )
+        }
 
         // Arama Sonuçları veya Raflar
         if (isSearching) {
@@ -207,10 +210,10 @@ fun ShelfLiveLayout(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(
-                        items = searchResults,
-                        key = { it.streamId }
-                    ) { channel ->
+                    gridItemsIndexed(
+                        items = pagedSearchResults,
+                        key = { index, ch -> "shelf_search_${ch.streamId}_${ch.categoryId}_$index" }
+                    ) { _, channel ->
                         val isFav = favoriteIds.contains(channel.streamId.toString())
                         val isPlaying = currentPlayingId == channel.streamId
 
@@ -222,8 +225,32 @@ fun ShelfLiveLayout(
                             onChannelClick = { onChannelClick(channel) },
                             onFavoriteToggle = { onFavoriteToggle(channel) },
                             onLoadEpg = { onLoadEpg(channel.streamId) },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            nowEpochSec = nowEpochSec
                         )
+                    }
+
+                    if (searchVisibleLimit < searchResults.size) {
+                        item(
+                            key = "more_search_$searchVisibleLimit",
+                            span = { GridItemSpan(maxLineSpan) }
+                        ) {
+                            LaunchedEffect(searchVisibleLimit) {
+                                searchVisibleLimit += 50
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = VegaColors.Accent,
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -284,7 +311,8 @@ fun ShelfLiveLayout(
                             isFavorite = favoriteIds.contains(heroChannel.streamId.toString()),
                             onPlay = onChannelClick,
                             onFavoriteToggle = onFavoriteToggle,
-                            onLoadEpg = { onLoadEpg(heroChannel.streamId) }
+                            onLoadEpg = { onLoadEpg(heroChannel.streamId) },
+                            nowEpochSec = nowEpochSec
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
@@ -302,8 +330,9 @@ fun ShelfLiveLayout(
                             onFavoriteToggle = onFavoriteToggle,
                             onLoadEpg = onLoadEpg,
                             onSeeAllClick = {
-                                selectedSeeAllCategory = Pair("Devam Et (Son İzlenenler)", recentChannels)
-                            }
+                                selectedSeeAllCategory = Pair("Son İzlenenler", recentChannels)
+                            },
+                            nowEpochSec = nowEpochSec
                         )
                     }
                 }
@@ -321,7 +350,8 @@ fun ShelfLiveLayout(
                             onLoadEpg = onLoadEpg,
                             onSeeAllClick = {
                                 selectedSeeAllCategory = Pair("Favori Kanallar", favoriteChannels)
-                            }
+                            },
+                            nowEpochSec = nowEpochSec
                         )
                     }
                 }
@@ -339,19 +369,16 @@ fun ShelfLiveLayout(
                             onLoadEpg = onLoadEpg,
                             onSeeAllClick = {
                                 selectedSeeAllCategory = Pair("Şu An Canlı", nowPlayingChannels)
-                            }
+                            },
+                            nowEpochSec = nowEpochSec
                         )
                     }
                 }
 
-                val contentCategories = visibleCategories.filter {
-                    it.categoryId != "all" && it.categoryId != "favorites" && it.categoryId != "recents"
-                }
-
-                items(
-                    items = contentCategories,
-                    key = { "shelf_cat_${it.categoryId}" }
-                ) { cat ->
+                itemsIndexed(
+                    items = pagedContentCategories,
+                    key = { index, cat -> "shelf_cat_${cat.categoryId}_$index" }
+                ) { _, cat ->
                     val catChannels = streamsByCategory[cat.categoryId] ?: emptyList()
                     if (catChannels.isNotEmpty()) {
                         ShelfRow(
@@ -365,8 +392,29 @@ fun ShelfLiveLayout(
                             onLoadEpg = onLoadEpg,
                             onSeeAllClick = {
                                 selectedSeeAllCategory = Pair(cat.categoryName, catChannels)
-                            }
+                            },
+                            nowEpochSec = nowEpochSec
                         )
+                    }
+                }
+
+                if (categoryVisibleLimit < contentCategories.size) {
+                    item(key = "more_shelf_cats_$categoryVisibleLimit") {
+                        LaunchedEffect(categoryVisibleLimit) {
+                            categoryVisibleLimit += 15
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = VegaColors.Accent,
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
                     }
                 }
             }
@@ -383,27 +431,25 @@ private fun ShelfTopActionButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    Surface(
-        shape = VegaShapes.Small,
-        color = if (isFocused) VegaColors.SurfaceVariant else VegaColors.SurfaceElevated,
-        border = if (isFocused) null else BorderStroke(1.dp, VegaColors.Border),
+    Box(
         modifier = Modifier
-            .size(38.dp)
+            .size(40.dp)
+            .clip(VegaShapes.Pill)
+            .background(if (isFocused) VegaColors.SurfaceVariant else Color.Transparent)
             .dpadFocusable(
                 focusedBorderColor = VegaColors.FocusBorder,
-                shape = VegaShapes.Small,
+                shape = VegaShapes.Pill,
                 scale = 1.04f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
-            )
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = tint,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (isFocused) VegaColors.Accent else tint,
+            modifier = Modifier.size(20.dp)
+        )
     }
 }

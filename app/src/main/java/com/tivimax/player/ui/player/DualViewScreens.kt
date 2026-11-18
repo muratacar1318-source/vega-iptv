@@ -12,6 +12,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
 import android.util.Rational
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
@@ -35,6 +36,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -69,6 +71,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import androidx.compose.foundation.BorderStroke
+import com.tivimax.player.R
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.TiviPlayerManager
@@ -143,17 +146,19 @@ fun DualViewSplitScreen(
                         .weight(1f)
                         .fillMaxWidth()
                 ) {
-                    DualViewSingleWindow(
-                        playerManager = playerManager,
-                        isPrimary = firstIsPrimary,
-                        title = if (firstIsPrimary) primaryTitle else secondaryTitle,
-                        hasAudio = if (firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
-                        isBuffering = if (firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
-                        aspectRatio = aspectRatio,
-                        onFocusAudio = {
-                            playerManager.switchDualViewAudioFocus(primaryActive = firstIsPrimary)
-                        }
-                    )
+                    key(firstIsPrimary) {
+                        DualViewSingleWindow(
+                            playerManager = playerManager,
+                            isPrimary = firstIsPrimary,
+                            title = if (firstIsPrimary) primaryTitle else secondaryTitle,
+                            hasAudio = if (firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
+                            isBuffering = if (firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
+                            aspectRatio = aspectRatio,
+                            onFocusAudio = {
+                                playerManager.switchDualViewAudioFocus(primaryActive = firstIsPrimary)
+                            }
+                        )
+                    }
                 }
 
                 // Split divider line
@@ -170,17 +175,19 @@ fun DualViewSplitScreen(
                         .weight(1f)
                         .fillMaxWidth()
                 ) {
-                    DualViewSingleWindow(
-                        playerManager = playerManager,
-                        isPrimary = !firstIsPrimary,
-                        title = if (!firstIsPrimary) primaryTitle else secondaryTitle,
-                        hasAudio = if (!firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
-                        isBuffering = if (!firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
-                        aspectRatio = aspectRatio,
-                        onFocusAudio = {
-                            playerManager.switchDualViewAudioFocus(primaryActive = !firstIsPrimary)
-                        }
-                    )
+                    key(!firstIsPrimary) {
+                        DualViewSingleWindow(
+                            playerManager = playerManager,
+                            isPrimary = !firstIsPrimary,
+                            title = if (!firstIsPrimary) primaryTitle else secondaryTitle,
+                            hasAudio = if (!firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
+                            isBuffering = if (!firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
+                            aspectRatio = aspectRatio,
+                            onFocusAudio = {
+                                playerManager.switchDualViewAudioFocus(primaryActive = !firstIsPrimary)
+                            }
+                        )
+                    }
                 }
             }
         } else {
@@ -191,17 +198,19 @@ fun DualViewSplitScreen(
                         .weight(1f)
                         .fillMaxHeight()
                 ) {
-                    DualViewSingleWindow(
-                        playerManager = playerManager,
-                        isPrimary = firstIsPrimary,
-                        title = if (firstIsPrimary) primaryTitle else secondaryTitle,
-                        hasAudio = if (firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
-                        isBuffering = if (firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
-                        aspectRatio = aspectRatio,
-                        onFocusAudio = {
-                            playerManager.switchDualViewAudioFocus(primaryActive = firstIsPrimary)
-                        }
-                    )
+                    key(firstIsPrimary) {
+                        DualViewSingleWindow(
+                            playerManager = playerManager,
+                            isPrimary = firstIsPrimary,
+                            title = if (firstIsPrimary) primaryTitle else secondaryTitle,
+                            hasAudio = if (firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
+                            isBuffering = if (firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
+                            aspectRatio = aspectRatio,
+                            onFocusAudio = {
+                                playerManager.switchDualViewAudioFocus(primaryActive = firstIsPrimary)
+                            }
+                        )
+                    }
                 }
 
                 // Split divider line
@@ -218,17 +227,19 @@ fun DualViewSplitScreen(
                         .weight(1f)
                         .fillMaxHeight()
                 ) {
-                    DualViewSingleWindow(
-                        playerManager = playerManager,
-                        isPrimary = !firstIsPrimary,
-                        title = if (!firstIsPrimary) primaryTitle else secondaryTitle,
-                        hasAudio = if (!firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
-                        isBuffering = if (!firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
-                        aspectRatio = aspectRatio,
-                        onFocusAudio = {
-                            playerManager.switchDualViewAudioFocus(primaryActive = !firstIsPrimary)
-                        }
-                    )
+                    key(!firstIsPrimary) {
+                        DualViewSingleWindow(
+                            playerManager = playerManager,
+                            isPrimary = !firstIsPrimary,
+                            title = if (!firstIsPrimary) primaryTitle else secondaryTitle,
+                            hasAudio = if (!firstIsPrimary) isPrimaryAudioActive else !isPrimaryAudioActive,
+                            isBuffering = if (!firstIsPrimary) isPrimaryBuffering else isSecondaryBuffering,
+                            aspectRatio = aspectRatio,
+                            onFocusAudio = {
+                                playerManager.switchDualViewAudioFocus(primaryActive = !firstIsPrimary)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -318,6 +329,22 @@ fun DualViewSingleWindow(
     aspectRatio: AspectRatioMode,
     onFocusAudio: () -> Unit
 ) {
+    val playerInstanceVersion by playerManager.playerInstanceVersion.collectAsState()
+    var localPlayerView by remember { mutableStateOf<PlayerView?>(null) }
+
+    LaunchedEffect(localPlayerView, isPrimary, playerInstanceVersion) {
+        val view = localPlayerView ?: return@LaunchedEffect
+        if (isPrimary) {
+            playerManager.player ?: playerManager.initializePlayer(isLive = true)
+            playerManager.attachView(view, isPrimary = true, tag = "DualViewSingleWindow-primary")
+        } else {
+            val targetPlayer = playerManager.secondaryExoPlayer
+            if (view.player != targetPlayer) {
+                view.player = targetPlayer
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -329,47 +356,43 @@ fun DualViewSingleWindow(
     ) {
         AndroidView(
             factory = { ctx ->
-                PlayerView(ctx).apply {
+                val view = LayoutInflater.from(ctx).inflate(R.layout.player_texture_view, null, false) as PlayerView
+                view.apply {
                     useController = false
                     keepScreenOn = true
+                    setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                    setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                     if (isPrimary) {
-                        playerManager.initializePlayer()
+                        playerManager.player ?: playerManager.initializePlayer(isLive = true)
                         playerManager.attachView(this, isPrimary = true, tag = "DualViewSingleWindow-primary")
                     } else {
                         player = playerManager.secondaryExoPlayer
                     }
-                    resizeMode = when (aspectRatio) {
-                        AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                        AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-                        AspectRatioMode.RATIO_4_3 -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    }
+                    resizeMode = mapDualViewResizeMode(aspectRatio)
                 }
+                localPlayerView = view
+                view
             },
             update = { playerView ->
-                if (isPrimary) {
-                    playerManager.initializePlayer()
-                    playerManager.attachView(playerView, isPrimary = true, tag = "DualViewSingleWindow-primary")
-                } else {
+                if (!isPrimary) {
                     val targetPlayer = playerManager.secondaryExoPlayer
                     if (playerView.player != targetPlayer) {
                         playerView.player = targetPlayer
                     }
                 }
-                playerView.resizeMode = when (aspectRatio) {
-                    AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                    AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
-                    AspectRatioMode.RATIO_4_3 -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                val targetResize = mapDualViewResizeMode(aspectRatio)
+                if (playerView.resizeMode != targetResize) {
+                    playerView.resizeMode = targetResize
                 }
             },
             onRelease = { playerView ->
+                if (localPlayerView === playerView) {
+                    localPlayerView = null
+                }
                 if (isPrimary) {
                     playerManager.detachView(playerView, tag = "DualViewSingleWindow-primary")
                 } else {
@@ -447,6 +470,15 @@ fun DualViewSingleWindow(
     }
 }
 
+@OptIn(UnstableApi::class)
+private fun mapDualViewResizeMode(aspectRatio: AspectRatioMode): Int = when (aspectRatio) {
+    AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+    AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    AspectRatioMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+    AspectRatioMode.RATIO_16_9 -> AspectRatioFrameLayout.RESIZE_MODE_FIXED_WIDTH
+    AspectRatioMode.RATIO_4_3 -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+}
+
 @Composable
 fun DualViewChannelPicker(
     visible: Boolean,
@@ -518,7 +550,7 @@ fun DualViewChannelPicker(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            items(filteredChannels, key = { it.streamId }) { channel ->
+            itemsIndexed(filteredChannels, key = { idx, ch -> "${ch.streamId}_$idx" }) { _, channel ->
                 var isItemFocused by remember { mutableStateOf(false) }
 
                 Surface(

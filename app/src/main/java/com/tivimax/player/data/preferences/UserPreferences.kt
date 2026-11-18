@@ -14,11 +14,13 @@ import com.google.gson.reflect.TypeToken
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.OrientationManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
 val Context.appDataStore by preferencesDataStore(name = "tivimax_preferences")
@@ -342,7 +344,7 @@ class UserPreferences(private val context: Context) {
                     emptyMap()
                 }
             }
-    }
+    }.flowOn(Dispatchers.Default)
 
     suspend fun saveCredentials(username: String, pass: String, serverUrl: String) {
         context.appDataStore.edit { prefs ->
@@ -381,11 +383,13 @@ class UserPreferences(private val context: Context) {
         }
     }
 
-    suspend fun logout() {
+    suspend fun logout(playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
         context.appDataStore.edit { prefs ->
             prefs[KEY_IS_LOGGED_IN] = false
             prefs[KEY_PASSWORD] = ""
             prefs[KEY_IS_PLAYLIST_SYNCED] = false
+            prefs[booleanPreferencesKey(keyFor("is_playlist_synced", plId))] = false
         }
     }
 
@@ -501,15 +505,20 @@ class UserPreferences(private val context: Context) {
         context.appDataStore.edit { it[KEY_PARENTAL_PIN] = pin }
     }
 
-    suspend fun toggleCategoryHidden(categoryId: String) {
+    suspend fun toggleCategoryHidden(categoryId: String, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringSetPreferencesKey(keyFor("locked_categories", plId))
         context.appDataStore.edit { prefs ->
-            val current = (prefs[KEY_LOCKED_CATEGORIES] ?: emptySet()).toMutableSet()
+            val current = (prefs[key] ?: emptySet()).toMutableSet()
             if (current.contains(categoryId)) current.remove(categoryId) else current.add(categoryId)
-            prefs[KEY_LOCKED_CATEGORIES] = current
+            prefs[key] = current
         }
     }
 
-    val lockedCategoriesFlow: Flow<Set<String>> = context.appDataStore.data.map { it[KEY_LOCKED_CATEGORIES] ?: emptySet() }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val lockedCategoriesFlow: Flow<Set<String>> = activePlaylistIdFlow.flatMapLatest { id ->
+        context.appDataStore.data.map { it[stringSetPreferencesKey(keyFor("locked_categories", id))] ?: emptySet() }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val pinnedCategoriesFlow: Flow<Set<String>> = activePlaylistIdFlow.flatMapLatest { id ->
@@ -543,27 +552,31 @@ class UserPreferences(private val context: Context) {
         }
     }
 
-    suspend fun setCategoryHidden(categoryId: String, isHidden: Boolean) {
+    suspend fun setCategoryHidden(categoryId: String, isHidden: Boolean, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringSetPreferencesKey(keyFor("locked_categories", plId))
         context.appDataStore.edit { prefs ->
-            val current = (prefs[KEY_LOCKED_CATEGORIES] ?: emptySet()).toMutableSet()
+            val current = (prefs[key] ?: emptySet()).toMutableSet()
             if (isHidden) {
                 current.add(categoryId)
             } else {
                 current.remove(categoryId)
             }
-            prefs[KEY_LOCKED_CATEGORIES] = current
+            prefs[key] = current
         }
     }
 
-    suspend fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) {
+    suspend fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean, playlistId: String? = null) {
+        val plId = playlistId ?: getActivePlaylistId()
+        val key = stringSetPreferencesKey(keyFor("locked_categories", plId))
         context.appDataStore.edit { prefs ->
-            val current = (prefs[KEY_LOCKED_CATEGORIES] ?: emptySet()).toMutableSet()
+            val current = (prefs[key] ?: emptySet()).toMutableSet()
             if (isHidden) {
                 current.addAll(categoryIds)
             } else {
                 current.removeAll(categoryIds.toSet())
             }
-            prefs[KEY_LOCKED_CATEGORIES] = current
+            prefs[key] = current
         }
     }
 
@@ -719,17 +732,21 @@ class UserPreferences(private val context: Context) {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val recentSearchesFlow: Flow<List<String>> = activePlaylistIdFlow.flatMapLatest { id ->
-        context.appDataStore.data.map { prefs ->
-            val json = prefs[stringPreferencesKey(keyFor("recent_searches_json", id))] ?: return@map emptyList()
-            try {
-                val type = object : TypeToken<List<String>>() {}.type
-                gson.fromJson<List<String>>(json, type) ?: emptyList()
-            } catch (e: Exception) {
-                logSilentFailure("Son aramalar verisi okunamadı", e)
-                emptyList()
+        val key = stringPreferencesKey(keyFor("recent_searches_json", id))
+        context.appDataStore.data
+            .map { prefs -> prefs[key] ?: "[]" }
+            .distinctUntilChanged()
+            .map { json ->
+                if (json == "[]") return@map emptyList()
+                try {
+                    val type = object : TypeToken<List<String>>() {}.type
+                    gson.fromJson<List<String>>(json, type) ?: emptyList()
+                } catch (e: Exception) {
+                    logSilentFailure("Son aramalar verisi okunamadı", e)
+                    emptyList()
+                }
             }
-        }
-    }
+    }.distinctUntilChanged().flowOn(Dispatchers.Default)
 
     suspend fun addRecentSearch(query: String, playlistId: String? = null) {
         val clean = query.trim()
@@ -787,6 +804,7 @@ class UserPreferences(private val context: Context) {
         val baseKeys = listOf(
             "fav_live", "fav_vod", "fav_series",
             "watch_progress_json",
+            "locked_categories",
             "pinned_categories",
             "recent_live_channels_json",
             "recent_searches_json",

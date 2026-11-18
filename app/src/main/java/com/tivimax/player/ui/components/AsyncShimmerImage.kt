@@ -1,7 +1,5 @@
 package com.tivimax.player.ui.components
 
-import com.tivimax.player.ui.design.VegaColors
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,47 +10,21 @@ import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.remember
-import coil.compose.SubcomposeAsyncImage
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
-import com.tivimax.player.theme.TiviSurface
-import com.tivimax.player.theme.TiviTextMuted
+import com.tivimax.player.ui.design.VegaColors
 
-@Composable
-fun rememberShimmerBrush(
-    targetValue: Float = 1000f
-): Brush {
-    val shimmerColors = listOf(
-        VegaColors.Card,
-        VegaColors.SurfaceVariant,
-        VegaColors.Card
-    )
-    val transition = rememberInfiniteTransition(label = "ShimmerTransition")
-    val translateAnim by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = targetValue,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "ShimmerTranslate"
-    )
-    return Brush.linearGradient(
-        colors = shimmerColors,
-        start = Offset(translateAnim - targetValue, translateAnim - targetValue),
-        end = Offset(translateAnim, translateAnim)
-    )
-}
+private enum class ImageLoadStatus { LOADING, SUCCESS, ERROR }
 
 @Composable
 fun AsyncShimmerImage(
@@ -60,57 +32,92 @@ fun AsyncShimmerImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
-    placeholderIcon: ImageVector = Icons.Default.Image
+    placeholderIcon: ImageVector = Icons.Default.Image,
+    crossfade: Boolean = false,
+    maxDecodeWidthPx: Int? = null,
+    maxDecodeHeightPx: Int? = null
 ) {
-    val shimmer = rememberShimmerBrush()
     val context = LocalContext.current
 
-    val imageRequest = remember(model, contentScale, placeholderIcon) {
-        if (model == null || (model is String && model.isBlank())) {
-            null
-        } else if (model is ImageRequest) {
-            model
-        } else {
-            val isLogo = placeholderIcon == Icons.Default.Tv || contentScale == ContentScale.Fit
-            val (targetWidth, targetHeight) = if (isLogo) Pair(120, 120) else Pair(240, 360)
-
-            ImageRequest.Builder(context)
-                .data(model)
-                .size(targetWidth, targetHeight)
-                .allowHardware(true)
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .crossfade(150)
-                .build()
+    val imageRequest = remember(model, contentScale, placeholderIcon, crossfade, maxDecodeWidthPx, maxDecodeHeightPx) {
+        when {
+            model == null || (model is String && model.isBlank()) -> null
+            model is ImageRequest -> model
+            else -> {
+                val isLogo = placeholderIcon == Icons.Default.Tv || contentScale == ContentScale.Fit
+                ImageRequest.Builder(context)
+                    .data(model)
+                    .apply {
+                        when {
+                            maxDecodeWidthPx != null && maxDecodeHeightPx != null ->
+                                size(maxDecodeWidthPx, maxDecodeHeightPx)
+                            isLogo ->
+                                size(144, 144)
+                        }
+                    }
+                    .allowHardware(true)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .crossfade(crossfade)
+                    .build()
+            }
         }
     }
 
-    SubcomposeAsyncImage(
-        model = imageRequest,
-        contentDescription = contentDescription,
-        modifier = modifier,
-        contentScale = contentScale,
-        loading = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(shimmer)
+    if (imageRequest == null) {
+        Box(
+            modifier = modifier
+                .background(VegaColors.Surface),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = placeholderIcon,
+                contentDescription = null,
+                tint = VegaColors.TextMuted.copy(alpha = 0.45f),
+                modifier = Modifier.size(24.dp)
             )
-        },
-        error = {
+        }
+        return
+    }
+
+    var loadStatus by remember(imageRequest) { mutableStateOf(ImageLoadStatus.LOADING) }
+
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        if (loadStatus == ImageLoadStatus.LOADING) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(TiviSurface),
+                    .background(VegaColors.Surface)
+            )
+        }
+
+        if (loadStatus == ImageLoadStatus.ERROR) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(VegaColors.Surface),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = placeholderIcon,
                     contentDescription = null,
-                    tint = TiviTextMuted.copy(alpha = 0.5f),
+                    tint = VegaColors.TextMuted.copy(alpha = 0.45f),
                     modifier = Modifier.size(24.dp)
                 )
             }
         }
-    )
+
+        AsyncImage(
+            model = imageRequest,
+            contentDescription = contentDescription,
+            contentScale = contentScale,
+            onLoading = { loadStatus = ImageLoadStatus.LOADING },
+            onSuccess = { loadStatus = ImageLoadStatus.SUCCESS },
+            onError = { loadStatus = ImageLoadStatus.ERROR },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }

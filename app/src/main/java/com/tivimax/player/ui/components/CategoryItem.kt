@@ -1,7 +1,6 @@
 package com.tivimax.player.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,7 +15,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
@@ -40,44 +38,26 @@ fun CategoryItem(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    val backgroundModifier = when {
-        isSelected -> Modifier
-            .clip(VegaShapes.Small)
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(
-                        VegaColors.Accent.copy(alpha = if (isFocused) 0.28f else 0.22f),
-                        VegaColors.Accent.copy(alpha = if (isFocused) 0.14f else 0.08f)
-                    )
-                )
-            )
-            .then(
-                if (!isFocused) {
-                    Modifier.border(
-                        width = 1.dp,
-                        color = VegaColors.Accent.copy(alpha = 0.6f),
-                        shape = VegaShapes.Small
-                    )
-                } else Modifier
-            )
-        isFocused -> Modifier
-            .clip(VegaShapes.Small)
-            .background(VegaColors.SurfaceElevated)
-        else -> Modifier.clip(VegaShapes.Small)
+    val containerColor = when {
+        isSelected && isFocused -> VegaColors.Accent.copy(alpha = 0.22f)
+        isSelected -> VegaColors.Accent.copy(alpha = 0.14f)
+        isFocused -> VegaColors.SurfaceElevated
+        else -> Color.Transparent
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp, vertical = 2.dp)
-            .then(backgroundModifier)
+            .clip(VegaShapes.Small)
+            .background(containerColor)
             .dpadFocusable(
                 focusedBorderColor = VegaColors.FocusBorder,
                 shape = VegaShapes.Small,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )
-            .padding(horizontal = 6.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (isSelected) {
@@ -88,7 +68,7 @@ fun CategoryItem(
                     .clip(RoundedCornerShape(2.dp))
                     .background(VegaColors.Accent)
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(6.dp))
         }
 
         Icon(
@@ -122,8 +102,8 @@ fun CategoryItem(
                     }
                 }
             },
-            fontSize = 11.sp,
-            lineHeight = 14.sp,
+            fontSize = 12.sp,
+            lineHeight = 15.sp,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis,

@@ -158,11 +158,22 @@ class OrientationManager(private val activity: Activity) {
     }
 
     fun stopOrientationReleaseListener() {
-        if (isListeningForOrientationRelease) {
-            orientationListener?.disable()
-            orientationListener = null
-            isListeningForOrientationRelease = false
-        }
+        orientationListener?.disable()
+        orientationListener = null
+        isListeningForOrientationRelease = false
+    }
+
+    /**
+     * Activity.onDestroy() sırasında sensör dinleyicisini kapatır ve bekleyen decorView görevlerini temizler.
+     */
+    fun dispose() {
+        immersiveWanted = false
+        stopOrientationReleaseListener()
+        try {
+            val decorView = activity.window?.decorView
+            decorView?.removeCallbacks(hideBarsRunnable)
+            decorView?.removeCallbacks(hideBarsDelayedRunnable)
+        } catch (_: Exception) {}
     }
 
     /**

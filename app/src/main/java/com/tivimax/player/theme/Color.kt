@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 
 /**
- * Vega IPTV Renk Paleti (StreamVault görsel diline uyarlı, anlık reaktif tema desteği)
+ * Vega IPTV Renk Paleti (Sinematik derinlik ve anlık reaktif tema desteği)
  */
 data class VegaPalette(
     val id: String,
@@ -31,30 +31,30 @@ data class VegaPalette(
 )
 
 object AppThemes {
-    // 1. KLASİK MAVİ (Varsayılan — StreamVault derin gece laciverti + parlak gök mavisi)
+    // 1. KLASİK MAVİ (Varsayılan — rafine sinematik obsidiyen arduvaz + buz mavisi vurgu)
     val ClassicBlue = VegaPalette(
         id = "MIDNIGHT",
-        canvas = Color(0xFF050C13),
-        canvasElevated = Color(0xFF08121D),
-        surface = Color(0xFF0D1826),
-        surfaceElevated = Color(0xFF132236),
-        surfaceVariant = Color(0xFF1B2E47),
-        surfaceAccent = Color(0xFF233956),
-        border = Color(0x305579A6),
-        brand = Color(0xFF69A8FF),
-        brandStrong = Color(0xFF93C1FF),
+        canvas = Color(0xFF090C11),
+        canvasElevated = Color(0xFF0D1118),
+        surface = Color(0xFF121720),
+        surfaceElevated = Color(0xFF181F2B),
+        surfaceVariant = Color(0xFF212B3B),
+        surfaceAccent = Color(0xFF283447),
+        border = Color(0x1FFFFFFF),
+        brand = Color(0xFF4DA3FF),
+        brandStrong = Color(0xFF8AC4FF),
         onAccent = Color(0xFF041120),
         live = Color(0xFFFF5C61),
         success = Color(0xFF4FD39A),
         gold = Color(0xFFFFC766),
-        textPrimary = Color(0xFFF5F7FB),
-        textSecondary = Color(0xFFBBC6D8),
-        textMuted = Color(0xFF7F8DA5),
-        overlayPanel = Color(0xE80A1524),
-        overlayPill = Color(0xA60B1726)
+        textPrimary = Color(0xFFF4F6FA),
+        textSecondary = Color(0xFFA8B3C5),
+        textMuted = Color(0xFF6B778C),
+        overlayPanel = Color(0xEB0B0F16),
+        overlayPill = Color(0xC20E141D)
     )
 
-    // 2. AMOLED SİYAH (Saf OLED siyah + neon camgöbeği)
+    // 2. AMOLED SİYAH (Saf OLED siyah + camgöbeği)
     val AmoledBlack = VegaPalette(
         id = "AMOLED",
         canvas = Color(0xFF000000),
@@ -63,7 +63,7 @@ object AppThemes {
         surfaceElevated = Color(0xFF121924),
         surfaceVariant = Color(0xFF192231),
         surfaceAccent = Color(0xFF212C3E),
-        border = Color(0x2E5C7599),
+        border = Color(0x229BB2D1),
         brand = Color(0xFF00E5FF),
         brandStrong = Color(0xFF66F0FF),
         onAccent = Color(0xFF001418),
@@ -74,7 +74,7 @@ object AppThemes {
         textSecondary = Color(0xFF94A3B8),
         textMuted = Color(0xFF64748B),
         overlayPanel = Color(0xEB080C12),
-        overlayPill = Color(0xA6080C12)
+        overlayPill = Color(0xC2080C12)
     )
 
     // 3. OKYANUS (Derin petrol + turkuaz)
@@ -86,7 +86,7 @@ object AppThemes {
         surfaceElevated = Color(0xFF122F38),
         surfaceVariant = Color(0xFF1A414C),
         surfaceAccent = Color(0xFF22525F),
-        border = Color(0x33517F87),
+        border = Color(0x246FA3AC),
         brand = Color(0xFF67D9D5),
         brandStrong = Color(0xFF9AF2E8),
         onAccent = Color(0xFF002B2A),
@@ -96,8 +96,8 @@ object AppThemes {
         textPrimary = Color(0xFFF0FAFA),
         textSecondary = Color(0xFFB9D0D3),
         textMuted = Color(0xFF7F9CA1),
-        overlayPanel = Color(0xE8081B22),
-        overlayPill = Color(0xA6081B22)
+        overlayPanel = Color(0xEB081B22),
+        overlayPill = Color(0xC2081B22)
     )
 
     // 4. ORMAN (Derin zümrüt yeşili)
@@ -109,7 +109,7 @@ object AppThemes {
         surfaceElevated = Color(0xFF162E23),
         surfaceVariant = Color(0xFF204031),
         surfaceAccent = Color(0xFF28503D),
-        border = Color(0x335B8A70),
+        border = Color(0x2473A68A),
         brand = Color(0xFF79D6A5),
         brandStrong = Color(0xFFA2F0C5),
         onAccent = Color(0xFF052817),
@@ -119,8 +119,8 @@ object AppThemes {
         textPrimary = Color(0xFFF1F8F3),
         textSecondary = Color(0xFFBDCEC2),
         textMuted = Color(0xFF83978A),
-        overlayPanel = Color(0xE80A1A13),
-        overlayPill = Color(0xA60A1A13)
+        overlayPanel = Color(0xEB0A1A13),
+        overlayPill = Color(0xC20A1A13)
     )
 
     // 5. MOR (M3 Koyu Grafit + Lavanta)
@@ -132,7 +132,7 @@ object AppThemes {
         surfaceElevated = Color(0xFF1B1B26),
         surfaceVariant = Color(0xFF242433),
         surfaceAccent = Color(0xFF2E2E42),
-        border = Color(0x2E9B8CC2),
+        border = Color(0x22A898CF),
         brand = Color(0xFFD0BCFF),
         brandStrong = Color(0xFFEADDFF),
         onAccent = Color(0xFF2B1459),
@@ -142,8 +142,8 @@ object AppThemes {
         textPrimary = Color(0xFFF5F7FB),
         textSecondary = Color(0xFFC2C2C8),
         textMuted = Color(0xFF8A8A92),
-        overlayPanel = Color(0xE8101018),
-        overlayPill = Color(0xA6101018)
+        overlayPanel = Color(0xEB101018),
+        overlayPill = Color(0xC2101018)
     )
 
     // 6. GÜN BATIMI (Sıcak kestane + şeftali)
@@ -155,7 +155,7 @@ object AppThemes {
         surfaceElevated = Color(0xFF33201A),
         surfaceVariant = Color(0xFF432920),
         surfaceAccent = Color(0xFF543326),
-        border = Color(0x337B5747),
+        border = Color(0x24997160),
         brand = Color(0xFFFFB27F),
         brandStrong = Color(0xFFFFD0AD),
         onAccent = Color(0xFF3A1809),
@@ -165,8 +165,8 @@ object AppThemes {
         textPrimary = Color(0xFFFFF6F0),
         textSecondary = Color(0xFFD9C4B8),
         textMuted = Color(0xFFA88D80),
-        overlayPanel = Color(0xE81E120F),
-        overlayPill = Color(0xA61E120F)
+        overlayPanel = Color(0xEB1E120F),
+        overlayPill = Color(0xC21E120F)
     )
 
     // 7. GÜL (Derin mürdüm + gül pembesi)
@@ -178,7 +178,7 @@ object AppThemes {
         surfaceElevated = Color(0xFF321E30),
         surfaceVariant = Color(0xFF432841),
         surfaceAccent = Color(0xFF53324F),
-        border = Color(0x337D5873),
+        border = Color(0x249B7290),
         brand = Color(0xFFF0A4CC),
         brandStrong = Color(0xFFFFC6E2),
         onAccent = Color(0xFF3E122B),
@@ -188,8 +188,8 @@ object AppThemes {
         textPrimary = Color(0xFFFFF5FA),
         textSecondary = Color(0xFFD9C1D0),
         textMuted = Color(0xFFA88C9E),
-        overlayPanel = Color(0xE81C101B),
-        overlayPill = Color(0xA61C101B)
+        overlayPanel = Color(0xEB1C101B),
+        overlayPill = Color(0xC21C101B)
     )
 
     // 8. VİNTAGE (Koyu kahve + sıcak altın)
@@ -201,7 +201,7 @@ object AppThemes {
         surfaceElevated = Color(0xFF2D251C),
         surfaceVariant = Color(0xFF3B3024),
         surfaceAccent = Color(0xFF4A3D2E),
-        border = Color(0x337D6B54),
+        border = Color(0x249C886D),
         brand = Color(0xFFE5C07B),
         brandStrong = Color(0xFFF4D9A0),
         onAccent = Color(0xFF2B200B),
@@ -211,8 +211,8 @@ object AppThemes {
         textPrimary = Color(0xFFF8F2E8),
         textSecondary = Color(0xFFD1C4B2),
         textMuted = Color(0xFF9C8D79),
-        overlayPanel = Color(0xE81A1510),
-        overlayPill = Color(0xA61A1510)
+        overlayPanel = Color(0xEB1A1510),
+        overlayPill = Color(0xC21A1510)
     )
 
     fun forName(themeName: String?): VegaPalette = when (themeName?.trim()?.uppercase()) {

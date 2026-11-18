@@ -2,11 +2,12 @@ package com.tivimax.player.ui.components
 
 import android.view.KeyEvent as AndroidKeyEvent
 import android.view.SoundEffectConstants
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import android.view.ViewConfiguration
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -33,78 +34,141 @@ import androidx.compose.ui.zIndex
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.util.LocalIsTvDevice
 
+private class PendingClickHolder(
+    var pending: Boolean = false,
+    var longPressConsumed: Boolean = false
+)
+
 /**
- * StreamVault'tan uyarlanan güvenli odak istemi yardımcısı.
+ * Güvenli odak istemi yardımcısı.
  * Öğe henüz yerleşmediyse çökme yerine sessizce false döner.
  */
 fun FocusRequester.requestFocusSafely(): Boolean =
     runCatching { requestFocus(); true }.getOrDefault(false)
 
+@OptIn(ExperimentalFoundationApi::class)
 fun Modifier.dpadFocusable(
     focusedBorderColor: Color = VegaColors.FocusBorder,
     shape: Shape = RoundedCornerShape(10.dp),
     scale: Float = 1.035f,
     onClick: (() -> Unit)? = null,
-    onFocusStateChange: ((Boolean) -> Unit)? = null
+    onFocusStateChange: ((Boolean) -> Unit)? = null,
+    drawFocusBorder: Boolean = true,
+    onLongClick: (() -> Unit)? = null
 ): Modifier = composed {
     val isTv = LocalIsTvDevice.current
+
+    // Mobil cihazlarda sıfır GPU katmanı, sıfır Animatable, sıfır tuş dinleyici maliyeti
+    if (!isTv) {
+        return@composed when {
+            onLongClick != null -> this.combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onClick?.invoke() },
+                onLongClick = onLongClick
+            )
+            onClick != null -> this.clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            else -> this
+        }
+    }
+
     val view = LocalView.current
     var isFocused by remember { mutableStateOf(false) }
-    var pendingKeyClick by remember { mutableStateOf(false) }
+    val clickHolder = remember { PendingClickHolder() }
     val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnLongClick by rememberUpdatedState(onLongClick)
     val currentOnFocusStateChange by rememberUpdatedState(onFocusStateChange)
 
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isFocused) scale else 1.0f,
-        animationSpec = tween(durationMillis = 130),
-        label = "dpadFocusScale"
-    )
-
     val performClick: () -> Unit = {
-        if (isTv) {
-            runCatching { view.playSoundEffect(SoundEffectConstants.CLICK) }
-        }
+        runCatching { view.playSoundEffect(SoundEffectConstants.CLICK) }
         currentOnClick?.invoke()
     }
 
+    val performLongClick: () -> Unit = {
+        runCatching { view.playSoundEffect(SoundEffectConstants.CLICK) }
+        currentOnLongClick?.invoke()
+    }
+
+    val hasClickHandler = onClick != null || onLongClick != null
+
+    val focusTransformModifier = if (isFocused) {
+        Modifier
+            .zIndex(2f)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+    } else {
+        Modifier
+    }
+
     this
-        .zIndex(if (isFocused) 2f else 0f)
-        .graphicsLayer {
-            scaleX = animatedScale
-            scaleY = animatedScale
-        }
+        .then(focusTransformModifier)
         .onFocusChanged { state ->
             val nowFocused = state.isFocused
-            if (nowFocused && !isFocused && isTv) {
+            if (nowFocused && !isFocused) {
                 runCatching { view.playSoundEffect(SoundEffectConstants.NAVIGATION_RIGHT) }
             }
             if (!nowFocused) {
-                pendingKeyClick = false
+                clickHolder.pending = false
+                clickHolder.longPressConsumed = false
             }
             isFocused = nowFocused
             currentOnFocusStateChange?.invoke(nowFocused)
         }
         .then(
-            if (onClick != null) {
+            if (hasClickHandler) {
+                val clickModifier = if (onLongClick != null) {
+                    Modifier.combinedClickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = performClick,
+                        onLongClick = performLongClick
+                    )
+                } else {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = performClick
+                    )
+                }
                 Modifier
                     .onPreviewKeyEvent { event ->
                         if (!isFocused) return@onPreviewKeyEvent false
-                        val code = event.nativeKeyEvent.keyCode
+                        val native = event.nativeKeyEvent
+                        val code = native.keyCode
                         val isConfirmKey = code == AndroidKeyEvent.KEYCODE_DPAD_CENTER ||
                             code == AndroidKeyEvent.KEYCODE_ENTER ||
                             code == AndroidKeyEvent.KEYCODE_NUMPAD_ENTER ||
-                            code == AndroidKeyEvent.KEYCODE_BUTTON_A
+                            code == AndroidKeyEvent.KEYCODE_BUTTON_A ||
+                            code == AndroidKeyEvent.KEYCODE_SPACE
                         if (!isConfirmKey) return@onPreviewKeyEvent false
                         when (event.type) {
                             KeyEventType.KeyDown -> {
-                                if (event.nativeKeyEvent.repeatCount == 0) {
-                                    pendingKeyClick = true
+                                if (native.repeatCount == 0) {
+                                    clickHolder.pending = true
+                                    clickHolder.longPressConsumed = false
+                                } else if (
+                                    currentOnLongClick != null &&
+                                    !clickHolder.longPressConsumed &&
+                                    (native.isLongPress || (native.eventTime - native.downTime) >= ViewConfiguration.getLongPressTimeout())
+                                ) {
+                                    clickHolder.longPressConsumed = true
+                                    clickHolder.pending = false
+                                    performLongClick()
                                 }
                                 true
                             }
                             KeyEventType.KeyUp -> {
-                                if (pendingKeyClick) {
-                                    pendingKeyClick = false
+                                if (clickHolder.longPressConsumed) {
+                                    clickHolder.longPressConsumed = false
+                                    clickHolder.pending = false
+                                } else if (clickHolder.pending) {
+                                    clickHolder.pending = false
                                     performClick()
                                 }
                                 true
@@ -112,17 +176,13 @@ fun Modifier.dpadFocusable(
                             else -> false
                         }
                     }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = performClick
-                    )
+                    .then(clickModifier)
             } else {
                 Modifier.focusable()
             }
         )
         .then(
-            if (isFocused) Modifier.border(2.dp, focusedBorderColor, shape) else Modifier
+            if (isFocused && drawFocusBorder) Modifier.border(2.dp, focusedBorderColor, shape) else Modifier
         )
 }
 

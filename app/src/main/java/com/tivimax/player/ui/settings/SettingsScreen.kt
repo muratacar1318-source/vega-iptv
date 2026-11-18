@@ -24,9 +24,11 @@ import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -35,7 +37,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.config.AppConfig
@@ -47,6 +48,7 @@ import com.tivimax.player.theme.VegaPalette
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.ParentalPin
 import com.tivimax.player.ui.components.CategoryManagementDialog
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import com.tivimax.player.ui.design.VegaButtonVariant
@@ -54,20 +56,23 @@ import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaBackdrop
-import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.util.CrashLogger
 import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.LocalIsTvDevice
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class SettingsSection(val title: String, val icon: ImageVector, val subtitle: String) {
-    PLAYLISTS("Listelerim", Icons.AutoMirrored.Filled.PlaylistPlay, "Oynatma listelerini ekle ve aralarında geç"),
-    ACCOUNT("Hesabım", Icons.Default.AccountCircle, "Abonelik bilgileri ve içerik özeti"),
-    PLAYER("Oynatıcı", Icons.Default.Tune, "Ses, altyazı dili, görüntü ve akıcılık"),
-    APPEARANCE("Görünüm", Icons.Default.Palette, "Renk teması, ekran düzeni ve altyazı"),
-    DEVICE_MODE("Cihaz Türü", Icons.Default.Tv, "Telefon, tablet veya televizyon düzeni"),
-    PARENTAL("Ebeveyn Kilidi", Icons.Default.Security, "Yetişkin içerikleri şifreyle kilitle"),
-    BACKUP_APP("Güncelleme ve Bakım", Icons.Default.SystemUpdate, "Güncellemeler, bağlantı testi ve destek")
+    PLAYLISTS("Listelerim", Icons.AutoMirrored.Filled.PlaylistPlay, "Oynatma listelerini yönet"),
+    ACCOUNT("Hesabım", Icons.Default.AccountCircle, "Abonelik ve içerik özeti"),
+    PLAYER("Oynatıcı", Icons.Default.Tune, "Ses, altyazı ve görüntü"),
+    APPEARANCE("Görünüm", Icons.Default.Palette, "Tema, ekran düzeni ve altyazı"),
+    DEVICE_MODE("Cihaz Türü", Icons.Default.Tv, "Telefon, tablet veya TV düzeni"),
+    PARENTAL("Ebeveyn Kilidi", Icons.Default.Security, "Yetişkin içerik koruması"),
+    BACKUP_APP("Güncelleme ve Bakım", Icons.Default.SystemUpdate, "Güncelleme, bağlantı testi ve destek")
 }
 
 private enum class PlayerDialogType {
@@ -97,6 +102,11 @@ private val VegaThemeOptions = listOf(
     ThemeOption("VINTAGE", "Vintage", AppThemes.Vintage)
 )
 
+private fun themeDisplayLabel(themeKey: String): String {
+    if (themeKey.equals("CLASSIC_BLUE", ignoreCase = true)) return "Klasik Mavi"
+    return VegaThemeOptions.firstOrNull { it.key.equals(themeKey, ignoreCase = true) }?.label ?: "Klasik Mavi"
+}
+
 private fun deviceModeDisplayTitle(mode: DeviceMode): String = when (mode) {
     DeviceMode.PHONE -> "Telefon"
     DeviceMode.TABLET -> "Tablet"
@@ -104,14 +114,15 @@ private fun deviceModeDisplayTitle(mode: DeviceMode): String = when (mode) {
 }
 
 private fun deviceModeDisplayDescription(mode: DeviceMode): String = when (mode) {
-    DeviceMode.PHONE -> "Dikey kullanım öncelikli; video açılınca kendiliğinden tam ekran yatay olur."
-    DeviceMode.TABLET -> "Geniş ekran iki sütunlu düzen ve serbest ekran döndürme desteği."
-    DeviceMode.TV -> "Kumanda ile rahat kullanım için tam ekran yatay düzen ve belirgin odak çerçevesi."
+    DeviceMode.PHONE -> "Dikey düzen; video açılınca yatay tam ekran"
+    DeviceMode.TABLET -> "Geniş ekran iki sütunlu düzen"
+    DeviceMode.TV -> "Kumanda odaklı tam ekran yatay düzen"
 }
 
 @Composable
 fun SettingsScreen(viewModel: MainViewModel) {
     val userInfo by viewModel.userInfo.collectAsState()
+    val activePlaylist by viewModel.activePlaylist.collectAsState()
     val targetSectionStr by viewModel.targetSettingsSection.collectAsState()
     val speedTestResult by viewModel.speedTestResult.collectAsState()
     val isTestingSpeed by viewModel.isTestingSpeed.collectAsState()
@@ -128,12 +139,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val subtitleSize by viewModel.subtitleSize.collectAsState()
     val subtitleColor by viewModel.subtitleColor.collectAsState()
     val storedParentalPin by viewModel.parentalPin.collectAsState()
+    val appTheme by viewModel.appTheme.collectAsState()
+    val activeDeviceMode by viewModel.deviceMode.collectAsState()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var selectedSection by remember { mutableStateOf(SettingsSection.PLAYLISTS) }
-    var activeSubPage by remember { mutableStateOf<SettingsSection?>(null) }
+    var selectedSection by rememberSaveable { mutableStateOf(SettingsSection.PLAYLISTS) }
+    var activeSubPage by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
 
     LaunchedEffect(targetSectionStr) {
         if (targetSectionStr == "PLAYLISTS") {
@@ -145,7 +158,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
-    var showDeviceModeDialog by remember { mutableStateOf(false) }
     var newPinInput by remember { mutableStateOf("") }
     var currentPinInput by remember { mutableStateOf("") }
     var repeatPinInput by remember { mutableStateOf("") }
@@ -165,80 +177,42 @@ fun SettingsScreen(viewModel: MainViewModel) {
     ) {
         if (isWideScreen) {
             // ==========================================
-            // YATAY / ANDROID TV DÜZENİ (STREAMVAULT SOL MENÜ + SAĞ İÇERİK)
+            // YATAY / ANDROID TV DÜZENİ (260dp SAKİN SOL RAY + SAĞ İÇERİK)
             // ==========================================
             val contentScrollState = rememberScrollState()
             LaunchedEffect(selectedSection) {
                 contentScrollState.scrollTo(0)
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // SOL PANEL (280dp, vegaPanel)
+            Row(modifier = Modifier.fillMaxSize()) {
+                // SOL RAY (260dp, sakin yüzey + ince sağ ayırıcı)
                 Column(
                     modifier = Modifier
-                        .width(280.dp)
+                        .width(260.dp)
                         .fillMaxHeight()
-                        .vegaPanel(VegaShapes.Large)
-                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                        .background(VegaColors.Surface.copy(alpha = 0.86f))
+                        .padding(horizontal = 12.dp, vertical = 18.dp)
                 ) {
-                    // Üst Ayarlar Başlığı
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 6.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(VegaShapes.Medium)
-                                .background(VegaColors.Accent.copy(alpha = 0.16f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = null,
-                                tint = VegaColors.Accent,
-                                modifier = Modifier.size(21.dp)
-                            )
-                        }
-                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            Text(
-                                text = "Ayarlar",
-                                color = VegaColors.TextPrimary,
-                                fontSize = VegaText.ScreenTitle,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                            Text(
-                                text = "Uygulama tercihleri",
-                                color = VegaColors.TextSecondary,
-                                fontSize = VegaText.Caption
-                            )
-                        }
-                    }
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
-                        color = VegaColors.Border,
-                        thickness = 1.dp
+                    Text(
+                        text = "Ayarlar",
+                        color = VegaColors.TextPrimary,
+                        fontSize = VegaText.ScreenTitle,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
+
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Column(
                         modifier = Modifier
                             .weight(1f)
                             .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         SettingsSection.entries.forEach { section ->
                             SettingsRailItem(
                                 title = section.title,
-                                subtitle = section.subtitle,
+                                subtitle = "",
                                 icon = section.icon,
                                 selected = selectedSection == section,
                                 onClick = { selectedSection = section }
@@ -248,51 +222,66 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     }
                 }
 
+                Box(
+                    modifier = Modifier
+                        .width(0.5.dp)
+                        .fillMaxHeight()
+                        .background(VegaColors.Border.copy(alpha = 0.6f))
+                )
+
                 // SAĞ İÇERİK PANELİ
-                Column(
+                Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .verticalScroll(contentScrollState)
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                        .fillMaxHeight(),
+                    contentAlignment = Alignment.TopCenter
                 ) {
-                    SettingsSectionHeader(
-                        title = selectedSection.title,
-                        description = selectedSection.subtitle,
-                        icon = selectedSection.icon
-                    )
+                    Column(
+                        modifier = Modifier
+                            .widthIn(max = 780.dp)
+                            .fillMaxWidth()
+                            .fillMaxHeight()
+                            .verticalScroll(contentScrollState)
+                            .padding(horizontal = 24.dp, vertical = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        SettingsSectionHeader(
+                            title = selectedSection.title,
+                            description = selectedSection.subtitle,
+                            icon = selectedSection.icon
+                        )
 
-                    RenderSelectedSection(
-                        section = selectedSection,
-                        viewModel = viewModel,
-                        userInfo = userInfo,
-                        lastSync = lastSync,
-                        decoderMode = decoderMode,
-                        streamFormat = streamFormat,
-                        defaultAspectRatio = defaultAspectRatio,
-                        autoPipEnabled = autoPipEnabled,
-                        autoFrameRate = autoFrameRate,
-                        autoStartLastChannel = autoStartLastChannel,
-                        liveBufferSeconds = liveBufferSeconds,
-                        vodBufferSeconds = vodBufferSeconds,
-                        subtitleSize = subtitleSize,
-                        subtitleColor = subtitleColor,
-                        storedParentalPin = storedParentalPin,
-                        speedTestResult = speedTestResult,
-                        isTestingSpeed = isTestingSpeed,
-                        pinSuccessMessage = pinSuccessMessage,
-                        context = context,
-                        onOpenCategoryDialog = { showCategoryDialog = true },
-                        onOpenPinDialog = { showPinDialog = true }
-                    )
+                        RenderSelectedSection(
+                            section = selectedSection,
+                            viewModel = viewModel,
+                            userInfo = userInfo,
+                            lastSync = lastSync,
+                            decoderMode = decoderMode,
+                            streamFormat = streamFormat,
+                            defaultAspectRatio = defaultAspectRatio,
+                            autoPipEnabled = autoPipEnabled,
+                            autoFrameRate = autoFrameRate,
+                            autoStartLastChannel = autoStartLastChannel,
+                            liveBufferSeconds = liveBufferSeconds,
+                            vodBufferSeconds = vodBufferSeconds,
+                            subtitleSize = subtitleSize,
+                            subtitleColor = subtitleColor,
+                            storedParentalPin = storedParentalPin,
+                            speedTestResult = speedTestResult,
+                            isTestingSpeed = isTestingSpeed,
+                            pinSuccessMessage = pinSuccessMessage,
+                            context = context,
+                            onOpenCategoryDialog = { showCategoryDialog = true },
+                            onOpenPinDialog = { showPinDialog = true }
+                        )
 
-                    Spacer(modifier = Modifier.height(80.dp))
+                        Spacer(modifier = Modifier.height(72.dp))
+                    }
                 }
             }
         } else {
             // ==========================================
-            // DİKEY TELEFON DÜZENİ (KATEGORİ LİSTESİ <-> AKICI ALT SAYFA)
+            // DİKEY TELEFON DÜZENİ (GRUPLANMIŞ LİSTE <-> TAM EKRAN ALT SAYFA)
             // ==========================================
             BackHandler(enabled = activeSubPage != null) {
                 activeSubPage = null
@@ -312,63 +301,116 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 label = "settingsPortraitTransition"
             ) { currentPage ->
                 if (currentPage == null) {
+                    val activeThemeLabel = remember(appTheme) { themeDisplayLabel(appTheme) }
+                    val playerSummary = remember(decoderMode, liveBufferSeconds) {
+                        "${if (decoderMode == "SOFTWARE") "Uyumlu" else "Hızlı"} · $liveBufferSeconds sn"
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .statusBarsPadding()
                             .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        SettingsSectionHeader(
-                            title = "Ayarlar",
-                            description = "Uygulama, oynatıcı ve görünüm tercihleri",
-                            icon = Icons.Default.Settings,
-                            modifier = Modifier.padding(bottom = 8.dp)
+                        Text(
+                            text = "Ayarlar",
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.ScreenTitle,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                         )
 
-                        SettingsSection.entries.forEach { section ->
+                        // Grup 1: Hesap ve Listeler
+                        SettingsGroupCard(title = "Hesap ve listeler") {
                             SettingsCategoryListItem(
-                                title = section.title,
-                                subtitle = section.subtitle,
-                                icon = section.icon,
-                                onClick = { activeSubPage = section }
+                                title = SettingsSection.PLAYLISTS.title,
+                                subtitle = "",
+                                icon = SettingsSection.PLAYLISTS.icon,
+                                valueSummary = activePlaylist?.name ?: "",
+                                inGroup = true,
+                                onClick = { activeSubPage = SettingsSection.PLAYLISTS }
+                            )
+                            SettingsGroupDivider()
+                            SettingsCategoryListItem(
+                                title = SettingsSection.ACCOUNT.title,
+                                subtitle = "",
+                                icon = SettingsSection.ACCOUNT.icon,
+                                valueSummary = userInfo?.username?.ifBlank { null } ?: "",
+                                inGroup = true,
+                                onClick = { activeSubPage = SettingsSection.ACCOUNT }
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(90.dp))
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 12.dp)
-                    ) {
-                        // StreamVault tarzı "← Ayarlar" geri hapı
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            SettingsBackPill(
-                                label = "Ayarlar",
-                                onClick = { activeSubPage = null }
+                        // Grup 2: Tercihler
+                        SettingsGroupCard(title = "Tercihler") {
+                            SettingsCategoryListItem(
+                                title = SettingsSection.PLAYER.title,
+                                subtitle = "",
+                                icon = SettingsSection.PLAYER.icon,
+                                valueSummary = playerSummary,
+                                inGroup = true,
+                                onClick = { activeSubPage = SettingsSection.PLAYER }
+                            )
+                            SettingsGroupDivider()
+                            SettingsCategoryListItem(
+                                title = SettingsSection.APPEARANCE.title,
+                                subtitle = "",
+                                icon = SettingsSection.APPEARANCE.icon,
+                                valueSummary = activeThemeLabel,
+                                inGroup = true,
+                                onClick = { activeSubPage = SettingsSection.APPEARANCE }
+                            )
+                            SettingsGroupDivider()
+                            SettingsCategoryListItem(
+                                title = SettingsSection.DEVICE_MODE.title,
+                                subtitle = "",
+                                icon = SettingsSection.DEVICE_MODE.icon,
+                                valueSummary = deviceModeDisplayTitle(activeDeviceMode),
+                                inGroup = true,
+                                onClick = { activeSubPage = SettingsSection.DEVICE_MODE }
+                            )
+                            SettingsGroupDivider()
+                            SettingsCategoryListItem(
+                                title = SettingsSection.PARENTAL.title,
+                                subtitle = "",
+                                icon = SettingsSection.PARENTAL.icon,
+                                valueSummary = if (storedParentalPin.isNotEmpty()) "Açık" else "Kapalı",
+                                inGroup = true,
+                                onClick = { activeSubPage = SettingsSection.PARENTAL }
                             )
                         }
+
+                        // Grup 3: Sistem
+                        SettingsGroupCard(title = "Sistem") {
+                            SettingsCategoryListItem(
+                                title = SettingsSection.BACKUP_APP.title,
+                                subtitle = "",
+                                icon = SettingsSection.BACKUP_APP.icon,
+                                valueSummary = "v${com.tivimax.player.BuildConfig.VERSION_NAME}",
+                                inGroup = true,
+                                onClick = { activeSubPage = SettingsSection.BACKUP_APP }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(88.dp))
+                    }
+                } else {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        SettingsMobileTopBar(
+                            title = currentPage.title,
+                            onBack = { activeSubPage = null }
+                        )
 
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(18.dp)
+                                .verticalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
-                            SettingsSectionHeader(
-                                title = currentPage.title,
-                                description = currentPage.subtitle,
-                                icon = currentPage.icon
-                            )
-
                             RenderSelectedSection(
                                 section = currentPage,
                                 viewModel = viewModel,
@@ -393,7 +435,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                                 onOpenPinDialog = { showPinDialog = true }
                             )
 
-                            Spacer(modifier = Modifier.height(90.dp))
+                            Spacer(modifier = Modifier.height(88.dp))
                         }
                     }
                 }
@@ -412,6 +454,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
     // PIN DEĞİŞTİRME / BELİRLEME DİYALOĞU
     if (showPinDialog) {
         val pinSet = storedParentalPin.isNotEmpty()
+        val firstPinFocusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            for (attempt in 0 until 2) {
+                withFrameNanos { }
+                delay(60)
+                if (firstPinFocusRequester.requestFocusSafely()) break
+            }
+        }
         val closeDialog = {
             showPinDialog = false
             newPinInput = ""
@@ -421,7 +471,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
         }
         AlertDialog(
             onDismissRequest = closeDialog,
-            containerColor = VegaColors.Surface,
+            containerColor = VegaColors.SurfaceElevated,
             shape = VegaShapes.Large,
             title = {
                 Text(
@@ -435,9 +485,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         text = if (pinSet) {
-                            "Önce mevcut şifreni, sonra yeni 4 haneli şifreyi gir."
+                            "Mevcut şifreni ve yeni 4 haneli şifreni gir."
                         } else {
-                            "+18 içerikleri korumak için 4 haneli bir şifre belirle."
+                            "+18 içerikler için 4 haneli şifre belirle."
                         },
                         color = VegaColors.TextSecondary,
                         fontSize = VegaText.Secondary
@@ -446,7 +496,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         PinDialogField(
                             value = currentPinInput,
                             label = "Mevcut şifre",
-                            isError = pinDialogError != null
+                            isError = pinDialogError != null,
+                            modifier = Modifier.focusRequester(firstPinFocusRequester)
                         ) {
                             currentPinInput = it
                             pinDialogError = null
@@ -455,7 +506,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     PinDialogField(
                         value = newPinInput,
                         label = if (pinSet) "Yeni şifre" else "Şifre",
-                        isError = pinDialogError != null
+                        isError = pinDialogError != null,
+                        modifier = if (!pinSet) Modifier.focusRequester(firstPinFocusRequester) else Modifier
                     ) {
                         newPinInput = it
                         pinDialogError = null
@@ -510,14 +562,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
         )
     }
-
-    // CİHAZ MODU SEÇİM DİYALOĞU
-    if (showDeviceModeDialog) {
-        DeviceModeSelectionDialog(
-            viewModel = viewModel,
-            onDismiss = { showDeviceModeDialog = false }
-        )
-    }
 }
 
 @Composable
@@ -525,6 +569,7 @@ private fun PinDialogField(
     value: String,
     label: String,
     isError: Boolean,
+    modifier: Modifier = Modifier,
     onChange: (String) -> Unit
 ) {
     OutlinedTextField(
@@ -543,12 +588,12 @@ private fun PinDialogField(
             errorBorderColor = VegaColors.Danger,
             focusedLabelColor = VegaColors.Accent,
             unfocusedLabelColor = VegaColors.TextSecondary,
-            focusedContainerColor = VegaColors.Card,
-            unfocusedContainerColor = VegaColors.Card,
+            focusedContainerColor = VegaColors.Surface,
+            unfocusedContainerColor = VegaColors.Surface,
             focusedTextColor = VegaColors.TextPrimary,
             unfocusedTextColor = VegaColors.TextPrimary
         ),
-        modifier = Modifier
+        modifier = modifier
             .tvOpenKeyboardOnOk()
             .fillMaxWidth()
     )
@@ -647,16 +692,8 @@ private fun RenderSelectedSection(
             }
             val streamFormatOptions = remember {
                 listOf(
-                    SettingsChoiceItem(
-                        "TS",
-                        "Standart (önerilen)",
-                        "En kararlı canlı yayın akışı."
-                    ),
-                    SettingsChoiceItem(
-                        "HLS",
-                        "Düşük gecikme",
-                        "Yayın canlıdan geride kalıyorsa bunu dene."
-                    )
+                    SettingsChoiceItem("TS", "Standart (önerilen)", "En kararlı canlı yayın akışı"),
+                    SettingsChoiceItem("HLS", "Düşük gecikme", "Yayın geride kalıyorsa dene")
                 )
             }
             val liveBufferOptions = remember {
@@ -677,39 +714,29 @@ private fun RenderSelectedSection(
             }
             val decoderOptions = remember {
                 listOf(
-                    SettingsChoiceItem(
-                        "HARDWARE",
-                        "Hızlı (önerilen)",
-                        "Daha akıcı görüntü ve düşük güç tüketimi."
-                    ),
-                    SettingsChoiceItem(
-                        "SOFTWARE",
-                        "Uyumlu",
-                        "Görüntü takılıyor, renkler bozuk ya da ekran siyah kalıyorsa dene."
-                    )
+                    SettingsChoiceItem("HARDWARE", "Hızlı (önerilen)", "Daha akıcı görüntü ve düşük güç"),
+                    SettingsChoiceItem("SOFTWARE", "Uyumlu", "Siyah ekran veya takılmada dene")
                 )
             }
             val aspectRatioOptions = remember {
                 listOf(
-                    SettingsChoiceItem("FIT", "Orijinal", "Görüntü oranını bozmadan sığdırır."),
-                    SettingsChoiceItem("FILL", "Doldur", "Tüm ekranı kaplar."),
-                    SettingsChoiceItem("ZOOM", "Yakınlaştır", "Kenar boşluklarını kırpar."),
-                    SettingsChoiceItem("16:9", "16:9", "Geniş ekran oranına sabitler.")
+                    SettingsChoiceItem("FIT", "Orijinal", "Oranı bozmadan sığdırır"),
+                    SettingsChoiceItem("FILL", "Doldur", "Tüm ekranı kaplar"),
+                    SettingsChoiceItem("ZOOM", "Yakınlaştır", "Kenar boşluklarını kırpar"),
+                    SettingsChoiceItem("16:9", "16:9", "Geniş ekran oranına sabitler")
                 )
             }
 
-            // Seçim Diyalogları
             when (openDialog) {
                 PlayerDialogType.AUDIO_LANG -> {
                     SettingsSelectionDialog(
                         title = "Tercih edilen ses dili",
-                        subtitle = "Birden fazla dili olan yayınlarda önce bu dil açılır.",
                         options = audioOptions,
                         selectedValue = defaultAudioLang,
                         onSelect = { code ->
                             val label = audioOptions.firstOrNull { it.value == code }?.label ?: code
                             scope.launch { viewModel.preferences.setDefaultAudioLang(code) }
-                            Toast.makeText(context, "Tercih edilen ses dili: $label", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Ses dili: $label", Toast.LENGTH_SHORT).show()
                         },
                         onDismiss = { openDialog = null }
                     )
@@ -717,13 +744,12 @@ private fun RenderSelectedSection(
                 PlayerDialogType.SUBTITLE_LANG -> {
                     SettingsSelectionDialog(
                         title = "Tercih edilen altyazı dili",
-                        subtitle = "Altyazısı olan içeriklerde kendiliğinden açılacak dil.",
                         options = subtitleOptions,
                         selectedValue = defaultSubtitleLang,
                         onSelect = { code ->
                             val label = subtitleOptions.firstOrNull { it.value == code }?.label ?: code
                             scope.launch { viewModel.preferences.setDefaultSubtitleLang(code) }
-                            Toast.makeText(context, "Tercih edilen altyazı dili: $label", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Altyazı dili: $label", Toast.LENGTH_SHORT).show()
                         },
                         onDismiss = { openDialog = null }
                     )
@@ -731,13 +757,13 @@ private fun RenderSelectedSection(
                 PlayerDialogType.STREAM_FORMAT -> {
                     SettingsSelectionDialog(
                         title = "Canlı yayın biçimi",
-                        subtitle = "Değişiklik bir sonraki açtığın kanalda geçerli olur.",
+                        subtitle = "Sonraki açtığın kanalda geçerli olur.",
                         options = streamFormatOptions,
                         selectedValue = streamFormat,
                         onSelect = { fmt ->
                             viewModel.setStreamFormat(fmt)
                             val label = if (fmt == "HLS") "Düşük gecikme" else "Standart"
-                            Toast.makeText(context, "Canlı yayın biçimi: $label", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Yayın biçimi: $label", Toast.LENGTH_SHORT).show()
                         },
                         onDismiss = { openDialog = null }
                     )
@@ -745,12 +771,11 @@ private fun RenderSelectedSection(
                 PlayerDialogType.LIVE_BUFFER -> {
                     SettingsSelectionDialog(
                         title = "Canlı yayın ön yükleme",
-                        subtitle = "İnternetin zayıfsa artır: kanal biraz geç açılır ama daha az takılır.",
                         options = liveBufferOptions,
                         selectedValue = liveBufferSeconds,
                         onSelect = { secs ->
                             viewModel.setLiveBufferSeconds(secs)
-                            Toast.makeText(context, "Canlı yayın ön yükleme: $secs sn", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Canlı ön yükleme: $secs sn", Toast.LENGTH_SHORT).show()
                         },
                         onDismiss = { openDialog = null }
                     )
@@ -758,7 +783,6 @@ private fun RenderSelectedSection(
                 PlayerDialogType.VOD_BUFFER -> {
                     SettingsSelectionDialog(
                         title = "Film ve dizi ön yükleme",
-                        subtitle = "Takılma oluyorsa ön yükleme süresini artır.",
                         options = vodBufferOptions,
                         selectedValue = vodBufferSeconds,
                         onSelect = { secs ->
@@ -771,7 +795,6 @@ private fun RenderSelectedSection(
                 PlayerDialogType.DECODER_MODE -> {
                     SettingsSelectionDialog(
                         title = "Görüntü işleme",
-                        subtitle = "Görüntü takılıyor veya siyah ekran oluşuyorsa uyumlu modu seç.",
                         options = decoderOptions,
                         selectedValue = decoderMode,
                         onSelect = { mode ->
@@ -785,7 +808,6 @@ private fun RenderSelectedSection(
                 PlayerDialogType.ASPECT_RATIO -> {
                     SettingsSelectionDialog(
                         title = "Görüntü boyutu",
-                        subtitle = "Video ekrana nasıl sığdırılsın.",
                         options = aspectRatioOptions,
                         selectedValue = defaultAspectRatio,
                         onSelect = { mode ->
@@ -809,30 +831,28 @@ private fun RenderSelectedSection(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                // Grup 1: Dil Tercihleri
                 SettingsGroupCard(title = "Dil tercihleri") {
                     SettingsValueRow(
-                        title = "Tercih edilen ses dili",
-                        subtitle = "Birden fazla dili olan yayınlarda önce bu dil açılır.",
+                        title = "Ses dili",
+                        subtitle = "Çok dilli yayınlarda öncelikli dil",
                         valueText = audioOptions.firstOrNull { it.value == defaultAudioLang }?.label ?: "Türkçe",
                         icon = Icons.Default.VolumeUp,
                         onClick = { openDialog = PlayerDialogType.AUDIO_LANG }
                     )
                     SettingsGroupDivider()
                     SettingsValueRow(
-                        title = "Tercih edilen altyazı dili",
-                        subtitle = "Altyazısı olan içeriklerde kendiliğinden açılacak dil.",
+                        title = "Altyazı dili",
+                        subtitle = "Otomatik açılacak altyazı dili",
                         valueText = subtitleOptions.firstOrNull { it.value == defaultSubtitleLang }?.label ?: "Türkçe",
                         icon = Icons.Default.ClosedCaption,
                         onClick = { openDialog = PlayerDialogType.SUBTITLE_LANG }
                     )
                 }
 
-                // Grup 2: Yayın ve Akıcılık
                 SettingsGroupCard(title = "Yayın ve akıcılık") {
                     SettingsValueRow(
                         title = "Canlı yayın biçimi",
-                        subtitle = "Yayın canlıdan geride kalıyorsa düşük gecikmeyi dene.",
+                        subtitle = "Akış kararlılığı ve gecikme tercihi",
                         valueText = if (streamFormat == "HLS") "Düşük gecikme" else "Standart",
                         icon = Icons.Default.LiveTv,
                         onClick = { openDialog = PlayerDialogType.STREAM_FORMAT }
@@ -840,7 +860,7 @@ private fun RenderSelectedSection(
                     SettingsGroupDivider()
                     SettingsValueRow(
                         title = "Canlı yayın ön yükleme",
-                        subtitle = "İnternetin zayıfsa artır; daha az takılma sağlar.",
+                        subtitle = "Zayıf bağlantıda takılmayı azaltır",
                         valueText = "$liveBufferSeconds sn",
                         icon = Icons.Default.Speed,
                         onClick = { openDialog = PlayerDialogType.LIVE_BUFFER }
@@ -848,7 +868,7 @@ private fun RenderSelectedSection(
                     SettingsGroupDivider()
                     SettingsValueRow(
                         title = "Film ve dizi ön yükleme",
-                        subtitle = "İzleme sırasında takılma oluyorsa artır.",
+                        subtitle = "İzleme öncesi tampon süresi",
                         valueText = "$vodBufferSeconds sn",
                         icon = Icons.Default.Movie,
                         onClick = { openDialog = PlayerDialogType.VOD_BUFFER }
@@ -856,18 +876,17 @@ private fun RenderSelectedSection(
                     SettingsGroupDivider()
                     SettingsValueRow(
                         title = "Görüntü işleme",
-                        subtitle = "Takılma veya siyah ekran sorununda uyumlu modu dene.",
+                        subtitle = "Siyah ekran veya takılmada uyumlu seç",
                         valueText = if (decoderMode == "SOFTWARE") "Uyumlu" else "Hızlı",
                         icon = Icons.Default.HighQuality,
                         onClick = { openDialog = PlayerDialogType.DECODER_MODE }
                     )
                 }
 
-                // Grup 3: Görüntü ve Davranış
                 SettingsGroupCard(title = "Görüntü ve davranış") {
                     SettingsValueRow(
                         title = "Görüntü boyutu",
-                        subtitle = "Video ekrana nasıl sığdırılsın.",
+                        subtitle = "Videonun ekrana yerleşme biçimi",
                         valueText = aspectRatioOptions.firstOrNull { it.value == defaultAspectRatio }?.label ?: "Orijinal",
                         icon = Icons.Default.AspectRatio,
                         onClick = { openDialog = PlayerDialogType.ASPECT_RATIO }
@@ -875,7 +894,7 @@ private fun RenderSelectedSection(
                     SettingsGroupDivider()
                     SettingsToggleRow(
                         title = "Kare hızı eşleme",
-                        subtitle = "Ekran yenileme hızını yayına uyarlayarak daha akıcı görüntü sunar.",
+                        subtitle = "Ekran yenilemesini yayına uyarlar",
                         checked = autoFrameRate,
                         icon = Icons.Default.DisplaySettings,
                         onCheckedChange = { enabled ->
@@ -885,11 +904,7 @@ private fun RenderSelectedSection(
                     SettingsGroupDivider()
                     SettingsToggleRow(
                         title = "Küçük pencerede devam et",
-                        subtitle = if (autoPipEnabled) {
-                            "Uygulamadan çıkınca canlı yayın köşede küçük pencerede oynamaya devam eder."
-                        } else {
-                            "Kapalı."
-                        },
+                        subtitle = "Çıkınca canlı yayın küçük pencerede sürer",
                         checked = autoPipEnabled,
                         icon = Icons.Default.PictureInPictureAlt,
                         onCheckedChange = { enabled -> viewModel.setAutoPip(enabled) }
@@ -897,7 +912,7 @@ private fun RenderSelectedSection(
                     SettingsGroupDivider()
                     SettingsToggleRow(
                         title = "Son kanalla açıl",
-                        subtitle = "Uygulama açıldığında en son izlediğin canlı kanalı kendiliğinden başlatır.",
+                        subtitle = "Açılışta son izlenen kanalı başlatır",
                         checked = autoStartLastChannel,
                         icon = Icons.Default.PlayCircleOutline,
                         onCheckedChange = { enabled ->
@@ -922,17 +937,17 @@ private fun RenderSelectedSection(
                     SettingsChoiceItem(
                         UserPreferences.PORTRAIT_CAT_NAV_CHIPS,
                         "Üstte kaydırmalı",
-                        "Kategoriler üstte, afişler altta görünür."
+                        "Kategoriler üst şeritte"
                     ),
                     SettingsChoiceItem(
                         UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR,
                         "Yan panel",
-                        "Kategoriler solda liste halinde durur."
+                        "Kategoriler solda liste halinde"
                     ),
                     SettingsChoiceItem(
                         UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN,
                         "Açılır menü",
-                        "Kategoriler tek bir menüde toplanır, afişlere daha çok yer kalır."
+                        "Afişler için en geniş alan"
                     )
                 )
             }
@@ -940,7 +955,6 @@ private fun RenderSelectedSection(
             if (showPortraitNavDialog) {
                 SettingsSelectionDialog(
                     title = "Film ve dizi kategorileri",
-                    subtitle = "Telefonda kategorilerin nasıl gösterileceğini seç.",
                     options = portraitNavOptions,
                     selectedValue = portraitNavStyle,
                     onSelect = { style ->
@@ -953,15 +967,11 @@ private fun RenderSelectedSection(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                // Grup 1: 8 Görsel Renk Teması Önizleme Kartı
-                SettingsGroupCard(
-                    title = "Renk teması",
-                    subtitle = "Uygulamanın renk paletini seç."
-                ) {
+                SettingsGroupCard(title = "Renk teması") {
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(8.dp)
+                            .padding(10.dp)
                     ) {
                         val columns = if (maxWidth >= 520.dp) 4 else 2
                         val rows = remember(columns) { VegaThemeOptions.chunked(columns) }
@@ -995,27 +1005,19 @@ private fun RenderSelectedSection(
                     }
                 }
 
-                // Grup 2: Ekran Düzeni
                 SettingsGroupCard(title = "Ekran düzeni") {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = "Canlı TV görünümü",
-                                color = VegaColors.TextPrimary,
-                                fontSize = VegaText.Body,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Canlı yayın ekranının görünüm düzeni.",
-                                color = VegaColors.TextSecondary,
-                                fontSize = VegaText.Caption
-                            )
-                        }
+                        Text(
+                            text = "Canlı TV görünümü",
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.Body,
+                            fontWeight = FontWeight.Medium
+                        )
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1023,7 +1025,7 @@ private fun RenderSelectedSection(
                         ) {
                             SettingsOptionCard(
                                 title = "Raflar",
-                                description = "Kanallar kategorilere göre yan yana kaydırılan satırlarda.",
+                                description = "Kategorilere göre yatay satırlar",
                                 icon = Icons.Default.ViewCarousel,
                                 selected = liveLayoutMode == UserPreferences.LIVE_LAYOUT_SHELF,
                                 compactVertical = true,
@@ -1037,7 +1039,7 @@ private fun RenderSelectedSection(
                             )
                             SettingsOptionCard(
                                 title = "Liste",
-                                description = "Kategoriler üstte, kanallar altta liste halinde.",
+                                description = "Kategoriler üstte, kanallar altta",
                                 icon = Icons.AutoMirrored.Filled.ViewList,
                                 selected = liveLayoutMode == UserPreferences.LIVE_LAYOUT_CLASSIC,
                                 compactVertical = true,
@@ -1055,15 +1057,14 @@ private fun RenderSelectedSection(
                     SettingsGroupDivider()
 
                     SettingsValueRow(
-                        title = "Film ve dizi kategorileri (telefon)",
-                        subtitle = "Telefonda film ve dizi kategorilerinin nasıl gösterileceği.",
+                        title = "Kategori çubuğu (telefon)",
+                        subtitle = "Film ve dizi kategorilerinin konumu",
                         valueText = portraitNavOptions.firstOrNull { it.value == portraitNavStyle }?.label ?: "Üstte kaydırmalı",
                         icon = Icons.Default.ViewAgenda,
                         onClick = { showPortraitNavDialog = true }
                     )
                 }
 
-                // Grup 3: Altyazı Görünümü
                 SettingsGroupCard(title = "Altyazı görünümü") {
                     val currentNorm = when (subtitleSize) {
                         "KUCUK" -> "14"
@@ -1083,24 +1084,23 @@ private fun RenderSelectedSection(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Canlı Önizleme Kutusu
                         Surface(
                             shape = VegaShapes.Medium,
                             color = VegaColors.Background,
-                            border = BorderStroke(1.dp, VegaColors.Border),
+                            border = BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.65f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 18.dp, horizontal = 14.dp),
+                                    .padding(vertical = 16.dp, horizontal = 14.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Örnek altyazı metni burada görünür",
+                                    text = "Örnek altyazı metni",
                                     color = previewColor,
                                     fontSize = (previewSp * 0.85f).sp,
                                     fontWeight = FontWeight.Bold,
@@ -1109,13 +1109,12 @@ private fun RenderSelectedSection(
                             }
                         }
 
-                        // Altyazı Boyutu
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "Altyazı boyutu",
-                                color = VegaColors.TextPrimary,
-                                fontSize = VegaText.Body,
-                                fontWeight = FontWeight.SemiBold
+                                text = "Boyut",
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Secondary,
+                                fontWeight = FontWeight.Medium
                             )
                             val sizeOptions = listOf(
                                 "14" to "Küçük",
@@ -1141,13 +1140,12 @@ private fun RenderSelectedSection(
                             }
                         }
 
-                        // Altyazı Rengi
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "Altyazı rengi",
-                                color = VegaColors.TextPrimary,
-                                fontSize = VegaText.Body,
-                                fontWeight = FontWeight.SemiBold
+                                text = "Renk",
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Secondary,
+                                fontWeight = FontWeight.Medium
                             )
                             val colorOptions = listOf(
                                 Triple("BEYAZ", "Beyaz", Color.White),
@@ -1176,11 +1174,10 @@ private fun RenderSelectedSection(
                     }
                 }
 
-                // Grup 4: Kategori Yönetimi
                 SettingsGroupCard(title = "Kategori yönetimi") {
                     SettingsActionRow(
                         title = "Kategorileri düzenle",
-                        subtitle = "İstemediğin kategorileri gizle, sık izlediklerini en üste al.",
+                        subtitle = "Kategorileri gizle veya en üste sabitle",
                         icon = Icons.Default.Tune,
                         onClick = onOpenCategoryDialog
                     )
@@ -1197,13 +1194,13 @@ private fun RenderSelectedSection(
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 SettingsGroupCard(
                     title = "Cihaz düzeni",
-                    subtitle = "Şu an aktif: ${deviceModeDisplayTitle(activeDeviceMode)}"
+                    subtitle = "Aktif: ${deviceModeDisplayTitle(activeDeviceMode)}"
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         DeviceMode.entries.forEach { mode ->
                             val icon = when (mode) {
@@ -1232,13 +1229,13 @@ private fun RenderSelectedSection(
 
                 SettingsGroupCard(title = "İlk kurulum") {
                     SettingsActionRow(
-                        title = "İlk kurulum ekranını tekrar göster",
-                        subtitle = "Uygulama bir sonraki açılışta cihaz türünü yeniden sorar.",
+                        title = "İlk kurulumu tekrar göster",
+                        subtitle = "Sonraki açılışta cihaz türünü yeniden sorar",
                         icon = Icons.Default.RestartAlt,
                         accentColor = VegaColors.Danger,
                         onClick = {
                             viewModel.resetDeviceMode()
-                            Toast.makeText(context, "İlk kurulum ekranı sıfırlandı.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "İlk kurulum sıfırlandı.", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -1264,13 +1261,13 @@ private fun RenderSelectedSection(
                             color = VegaColors.Success,
                             fontSize = VegaText.Caption,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
                         )
                     }
                     SettingsGroupDivider()
                     SettingsActionRow(
                         title = if (pinSet) "Şifreyi değiştir" else "Şifre belirle",
-                        subtitle = "Yetişkin kategorilerini açmak için 4 haneli şifre istenir.",
+                        subtitle = "Yetişkin kategorileri 4 haneli şifreyle açılır",
                         icon = Icons.Default.Lock,
                         accentColor = VegaColors.Success,
                         onClick = onOpenPinDialog
@@ -1280,7 +1277,7 @@ private fun RenderSelectedSection(
                 SettingsGroupCard(title = "Kategori kontrolü") {
                     SettingsActionRow(
                         title = "Kategorileri gizle veya sırala",
-                        subtitle = "İstemediğin kategorileri gizle, sık izlediklerini en üste sabitle.",
+                        subtitle = "İstemediğin kategorileri gizle, sık izlediklerini sabitle",
                         icon = Icons.Default.VisibilityOff,
                         onClick = onOpenCategoryDialog
                     )
@@ -1293,53 +1290,49 @@ private fun RenderSelectedSection(
         // ==========================================
         SettingsSection.BACKUP_APP -> {
             val isCheckingUpdate by viewModel.autoUpdateManager.isChecking.collectAsState()
-            var crashCount by remember { mutableStateOf(CrashLogger.listReports(context).size) }
+            val playlistSyncState by viewModel.playlistSyncState.collectAsState()
+            var crashCount by remember { mutableIntStateOf(0) }
+            var isClearingCache by remember { mutableStateOf(false) }
+
+            LaunchedEffect(Unit) {
+                crashCount = withContext(Dispatchers.IO) {
+                    CrashLogger.listReports(context).size
+                }
+            }
 
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                // Grup 1: Uygulama Güncellemesi
                 SettingsGroupCard(title = "Uygulama güncellemesi") {
                     SettingsActionRow(
                         title = "Güncellemeleri kontrol et",
-                        subtitle = if (isCheckingUpdate) {
-                            "Yeni sürüm denetleniyor…"
-                        } else {
-                            "Yeni bir sürüm olup olmadığını şimdi kontrol et."
-                        },
+                        subtitle = if (isCheckingUpdate) "Yeni sürüm denetleniyor…" else "Yeni sürüm olup olmadığını kontrol et",
                         icon = Icons.Default.SystemUpdate,
                         isLoading = isCheckingUpdate,
                         onClick = { viewModel.checkForUpdates(isManual = true) }
                     )
                 }
 
-                // Grup 2: Bağlantı ve Önbellek
                 SettingsGroupCard(title = "Bağlantı ve önbellek") {
                     SettingsActionRow(
                         title = "Bağlantı testi",
-                        subtitle = if (isTestingSpeed) {
-                            "Bağlantı hızın ölçülüyor…"
-                        } else {
-                            "Yayınlar takılıyorsa bağlantını kontrol et."
-                        },
+                        subtitle = if (isTestingSpeed) "Bağlantı hızın ölçülüyor…" else "Yayınlar takılıyorsa bağlantını kontrol et",
                         icon = Icons.Default.NetworkCheck,
                         isLoading = isTestingSpeed,
                         onClick = { viewModel.runSpeedTest() }
                     )
 
                     speedTestResult?.let { result ->
-                        Surface(
-                            color = VegaColors.SurfaceVariant,
-                            shape = VegaShapes.Medium,
-                            border = BorderStroke(1.dp, VegaColors.Border),
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                                .background(VegaColors.SurfaceVariant, VegaShapes.Small)
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
                         ) {
                             Text(
                                 text = result,
                                 color = VegaColors.Accent,
                                 fontSize = VegaText.Secondary,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(12.dp)
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
@@ -1348,22 +1341,38 @@ private fun RenderSelectedSection(
 
                     SettingsActionRow(
                         title = "Önbelleği temizle",
-                        subtitle = "Kanal logoları ve resimler yeniden yüklenir. Listelerin silinmez.",
+                        subtitle = if (isClearingCache) "Önbellek temizleniyor…" else "Logolar ve görseller yenilenir, listelerin silinmez",
                         icon = Icons.Default.CleaningServices,
+                        isLoading = isClearingCache,
                         onClick = {
-                            try {
-                                context.cacheDir.deleteRecursively()
-                                coil.Coil.imageLoader(context).diskCache?.clear()
-                                coil.Coil.imageLoader(context).memoryCache?.clear()
-                                Toast.makeText(context, "Önbellek temizlendi", Toast.LENGTH_SHORT).show()
-                            } catch (_: Exception) {
+                            if (isClearingCache) return@SettingsActionRow
+                            isClearingCache = true
+                            val isSyncingNow = playlistSyncState.isSyncing
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        val syncDir = File(context.cacheDir, "sync")
+                                        context.cacheDir.listFiles()?.forEach { child ->
+                                            if (isSyncingNow && child.absolutePath == syncDir.absolutePath) {
+                                                return@forEach
+                                            }
+                                            child.deleteRecursively()
+                                        }
+                                    }
+                                    runCatching {
+                                        coil.Coil.imageLoader(context).diskCache?.clear()
+                                    }
+                                }
+                                runCatching {
+                                    coil.Coil.imageLoader(context).memoryCache?.clear()
+                                }
+                                isClearingCache = false
                                 Toast.makeText(context, "Önbellek temizlendi", Toast.LENGTH_SHORT).show()
                             }
                         }
                     )
                 }
 
-                // Grup 3: Destek ve Hakkında
                 SettingsGroupCard(title = "Destek ve hakkında") {
                     SettingsInfoRow(
                         label = "Sürüm",
@@ -1376,26 +1385,27 @@ private fun RenderSelectedSection(
                     // G-051/G-062: "Sorun bildir" her zaman görünür; "Kayıtları sil" yalnızca kayıt varken görünür.
                     SettingsActionRow(
                         title = "Sorun bildir",
-                        subtitle = if (crashCount > 0) {
-                            "Son çökmeler: $crashCount kayıt. Hata raporunu paylaş."
-                        } else {
-                            "Yaşadığın bir sorunu hata raporuyla paylaş."
-                        },
+                        subtitle = if (crashCount > 0) "Son çökmeler: $crashCount kayıt" else "Hata raporunu paylaş",
                         icon = Icons.Default.BugReport,
                         onClick = {
-                            try {
-                                val send = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, "${AppConfig.APP_NAME} hata raporu")
-                                    putExtra(Intent.EXTRA_TEXT, CrashLogger.buildShareText(context))
+                            scope.launch {
+                                val reportText = withContext(Dispatchers.IO) {
+                                    CrashLogger.buildShareText(context)
                                 }
-                                val chooser = Intent.createChooser(send, "Hata raporunu gönder").apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                try {
+                                    val send = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "${AppConfig.APP_NAME} hata raporu")
+                                        putExtra(Intent.EXTRA_TEXT, reportText)
+                                    }
+                                    val chooser = Intent.createChooser(send, "Hata raporunu gönder").apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(chooser)
+                                } catch (e: Exception) {
+                                    Log.w("SettingsScreen", "Hata raporu paylaşılamadı: ${e.javaClass.simpleName}")
+                                    Toast.makeText(context, "Bu cihazda paylaşım uygulaması yok", Toast.LENGTH_SHORT).show()
                                 }
-                                context.startActivity(chooser)
-                            } catch (e: Exception) {
-                                Log.w("SettingsScreen", "Hata raporu paylaşılamadı: ${e.javaClass.simpleName}")
-                                Toast.makeText(context, "Bu cihazda paylaşım uygulaması yok", Toast.LENGTH_SHORT).show()
                             }
                         }
                     )
@@ -1404,12 +1414,16 @@ private fun RenderSelectedSection(
                         SettingsGroupDivider()
                         SettingsActionRow(
                             title = "Kayıtları sil",
-                            subtitle = "Cihazda biriken çökme kayıtlarını temizler.",
+                            subtitle = "Biriken çökme kayıtlarını temizler",
                             icon = Icons.Default.DeleteOutline,
                             accentColor = VegaColors.Danger,
                             onClick = {
-                                CrashLogger.clear(context)
-                                crashCount = CrashLogger.listReports(context).size
+                                scope.launch {
+                                    crashCount = withContext(Dispatchers.IO) {
+                                        CrashLogger.clear(context)
+                                        CrashLogger.listReports(context).size
+                                    }
+                                }
                             }
                         )
                     }
@@ -1421,7 +1435,6 @@ private fun RenderSelectedSection(
 
 /**
  * Cihaz Modu Seçim ve Değiştirme Modal Diyaloğu.
- * Kullanıcının uygulama açıkken hızlıca Telefon / Tablet / Televizyon modları arasında geçiş yapmasını sağlar.
  */
 @Composable
 fun DeviceModeSelectionDialog(
@@ -1434,38 +1447,21 @@ fun DeviceModeSelectionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = VegaColors.Surface,
+        containerColor = VegaColors.SurfaceElevated,
         shape = VegaShapes.Large,
         title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Tv,
-                    contentDescription = null,
-                    tint = VegaColors.Accent,
-                    modifier = Modifier.size(22.dp)
-                )
-                Text(
-                    text = "Cihaz türünü değiştir",
-                    color = VegaColors.TextPrimary,
-                    fontSize = VegaText.SectionTitle,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            Text(
+                text = "Cihaz türünü değiştir",
+                color = VegaColors.TextPrimary,
+                fontSize = VegaText.SectionTitle,
+                fontWeight = FontWeight.Bold
+            )
         },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Uygulamayı hangi cihazda kullanıyorsun?",
-                    color = VegaColors.TextSecondary,
-                    fontSize = VegaText.Secondary
-                )
-
                 DeviceMode.entries.forEach { mode ->
                     val icon = when (mode) {
                         DeviceMode.PHONE -> Icons.Default.PhoneAndroid
@@ -1483,12 +1479,12 @@ fun DeviceModeSelectionDialog(
                 }
 
                 SettingsActionButton(
-                    text = "İlk kurulum ekranını tekrar göster",
+                    text = "İlk kurulumu tekrar göster",
                     variant = VegaButtonVariant.TEXT,
                     icon = Icons.Default.RestartAlt,
                     onClick = {
                         viewModel.resetDeviceMode()
-                        Toast.makeText(context, "İlk kurulum ekranı sıfırlandı.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "İlk kurulum sıfırlandı.", Toast.LENGTH_SHORT).show()
                         onDismiss()
                     },
                     modifier = Modifier.fillMaxWidth()

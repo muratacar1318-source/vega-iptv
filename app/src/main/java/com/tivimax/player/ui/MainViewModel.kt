@@ -16,6 +16,7 @@ import com.tivimax.player.data.repository.XtreamRepository
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.player.TiviPlayerManager
 import com.tivimax.player.ui.main.HomeTab
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -118,16 +119,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val repository = XtreamRepository(application)
     val preferences = UserPreferences(application)
     val playlistRepository = PlaylistRepository(application)
-    val playlists: StateFlow<List<Playlist>> = playlistRepository.playlistsFlow.stateIn(
-        viewModelScope,
-        SharingStarted.Eagerly,
-        emptyList()
-    )
-    val activePlaylist: StateFlow<Playlist?> = playlistRepository.activePlaylistFlow.stateIn(
-        viewModelScope,
-        SharingStarted.Eagerly,
-        null
-    )
+    val playlists: StateFlow<List<Playlist>> = playlistRepository.playlistsFlow
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            emptyList()
+        )
+    val activePlaylist: StateFlow<Playlist?> = playlistRepository.activePlaylistFlow
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            null
+        )
     val playerManager = TiviPlayerManager(application)
     val autoUpdateManager = com.tivimax.player.data.update.AutoUpdateManager(application)
     val vodPrewarmer = com.tivimax.player.player.VodPrewarmer(
@@ -242,39 +249,152 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val seriesSearchQuery = MutableStateFlow("")
     val currentSeriesInfo = MutableStateFlow<SeriesInfoResponse?>(null)
 
+    private val _seriesDetailLoading = MutableStateFlow(false)
+    val seriesDetailLoading: StateFlow<Boolean> = _seriesDetailLoading.asStateFlow()
+
+    private val _seriesDetailError = MutableStateFlow<String?>(null)
+    val seriesDetailError: StateFlow<String?> = _seriesDetailError.asStateFlow()
+
+    // Katalog Raf / Izgara Görünüm Modu (Navigasyonlar arası korunur)
+    private val _vodUseShelfMode = MutableStateFlow(true)
+    val vodUseShelfMode: StateFlow<Boolean> = _vodUseShelfMode.asStateFlow()
+    fun setVodUseShelfMode(enabled: Boolean) {
+        _vodUseShelfMode.value = enabled
+    }
+
+    private val _seriesUseShelfMode = MutableStateFlow(true)
+    val seriesUseShelfMode: StateFlow<Boolean> = _seriesUseShelfMode.asStateFlow()
+    fun setSeriesUseShelfMode(enabled: Boolean) {
+        _seriesUseShelfMode.value = enabled
+    }
+
+    // G-054: Kategori yönetimi ve ebeveyn kilidi ui/vm/CategoryAccessController.kt'ye taşındı.
+    // Eski public adlar aynen ileri yönlendirilir. Favoriler/önizlemelerden ÖNCE kurulur (başlatma sırası).
+    private val categoryAccess = com.tivimax.player.ui.vm.CategoryAccessController(
+        scope = viewModelScope,
+        preferences = preferences,
+        liveCategories = liveCategories,
+        vodCategories = vodCategories,
+        seriesCategories = seriesCategories
+    )
+    val hiddenCategories: StateFlow<Set<String>> get() = categoryAccess.hiddenCategories
+    val pinnedCategories: StateFlow<Set<String>> get() = categoryAccess.pinnedCategories
+    val isParentalUnlocked: MutableStateFlow<Boolean> get() = categoryAccess.isParentalUnlocked
+    val parentalPin: StateFlow<String> get() = categoryAccess.parentalPin
+    val blockedLiveCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedLiveCategoryIds
+    val blockedVodCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedVodCategoryIds
+    val blockedSeriesCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedSeriesCategoryIds
+    val hasAdultLiveCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultLiveCategory
+    val hasAdultVodCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultVodCategory
+    val hasAdultSeriesCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultSeriesCategory
+    val visibleLiveCategories: StateFlow<List<LiveCategory>> get() = categoryAccess.visibleLiveCategories
+    val visibleVodCategories: StateFlow<List<VodCategory>> get() = categoryAccess.visibleVodCategories
+    val visibleSeriesCategories: StateFlow<List<SeriesCategory>> get() = categoryAccess.visibleSeriesCategories
+
+    fun isAdultCategory(name: String): Boolean = categoryAccess.isAdultCategory(name)
+    fun toggleCategoryHidden(categoryId: String, isHidden: Boolean) = categoryAccess.toggleCategoryHidden(categoryId, isHidden)
+    fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) = categoryAccess.setAllCategoriesHidden(categoryIds, isHidden)
+    fun toggleCategoryPinned(categoryId: String) = categoryAccess.toggleCategoryPinned(categoryId)
+    fun unlockParental(pin: String): Boolean = categoryAccess.unlockParental(pin)
+    fun createParentalPin(pin: String, repeat: String): Boolean = categoryAccess.createParentalPin(pin, repeat)
+    fun lockParental() = categoryAccess.lockParental()
+    fun setParentalPin(newPin: String) = categoryAccess.setParentalPin(newPin)
+    fun toggleCategoryHidden(categoryId: String) = categoryAccess.toggleCategoryHidden(categoryId)
+
+    // Ana Sayfa Son Eklenen Film ve Dizi Önizlemeleri (Room LIMIT 20 + Yetişkin Filtreli)
+    val recentVodPreview: StateFlow<List<VodStream>> =
+        combine(vodCategories, blockedVodCategoryIds) { cats, blocked ->
+            cats.isNotEmpty() to blocked
+        }
+            .distinctUntilChanged()
+            .flatMapLatest { (hasCats, blocked) ->
+                if (!hasCats) {
+                    flowOf(emptyList())
+                } else {
+                    repository.getRecentVodStreamsFlow(excludedCategoryIds = blocked, limit = 20)
+                        .map { list -> AdultFilter.filterBlocked(list, blocked) { it.categoryId } }
+                }
+            }
+            .flowOn(Dispatchers.Default)
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val recentSeriesPreview: StateFlow<List<SeriesStream>> =
+        combine(seriesCategories, blockedSeriesCategoryIds) { cats, blocked ->
+            cats.isNotEmpty() to blocked
+        }
+            .distinctUntilChanged()
+            .flatMapLatest { (hasCats, blocked) ->
+                if (!hasCats) {
+                    flowOf(emptyList())
+                } else {
+                    repository.getRecentSeriesStreamsFlow(excludedCategoryIds = blocked, limit = 20)
+                        .map { list -> AdultFilter.filterBlocked(list, blocked) { it.categoryId } }
+                }
+            }
+            .flowOn(Dispatchers.Default)
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     // Favoriler & Son İzlenenler
     val favoriteLiveIds = preferences.favoriteLiveFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val favoriteVodIds = preferences.favoriteVodFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val favoriteSeriesIds = preferences.favoriteSeriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     
-    // Tüm Veritabanındaki Favoriler (Kategori Bağımsız & Room DAO Düzeyinde Optimize)
+    // Tüm Veritabanındaki Favoriler (Kategori Bağımsız, Room DAO Optimize & Yetişkin Filtreli)
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val favoriteLiveStreams: StateFlow<List<LiveStream>> = favoriteLiveIds.flatMapLatest { ids ->
-        val intIds = ids.mapNotNull { it.toIntOrNull() }
-        repository.getLiveStreamsByIdsFlow(intIds).catch { emit(emptyList()) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val favoriteLiveStreams: StateFlow<List<LiveStream>> =
+        combine(favoriteLiveIds, blockedLiveCategoryIds) { ids, blocked -> ids to blocked }
+            .flatMapLatest { (ids, blocked) ->
+                val intIds = ids.mapNotNull { it.toIntOrNull() }
+                if (intIds.isEmpty()) flowOf(emptyList())
+                else repository.getLiveStreamsByIdsFlow(intIds)
+                    .map { list -> AdultFilter.filterBlocked(list, blocked) { it.categoryId } }
+            }
+            .flowOn(Dispatchers.Default)
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val favoriteVodStreams: StateFlow<List<VodStream>> = favoriteVodIds.flatMapLatest { ids ->
-        val intIds = ids.mapNotNull { it.toIntOrNull() }
-        repository.getVodStreamsByIdsFlow(intIds).catch { emit(emptyList()) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val favoriteVodStreams: StateFlow<List<VodStream>> =
+        combine(favoriteVodIds, blockedVodCategoryIds) { ids, blocked -> ids to blocked }
+            .flatMapLatest { (ids, blocked) ->
+                val intIds = ids.mapNotNull { it.toIntOrNull() }
+                if (intIds.isEmpty()) flowOf(emptyList())
+                else repository.getVodStreamsByIdsFlow(intIds)
+                    .map { list -> AdultFilter.filterBlocked(list, blocked) { it.categoryId } }
+            }
+            .flowOn(Dispatchers.Default)
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val favoriteSeriesStreams: StateFlow<List<SeriesStream>> = favoriteSeriesIds.flatMapLatest { ids ->
-        val intIds = ids.mapNotNull { it.toIntOrNull() }
-        repository.getSeriesStreamsByIdsFlow(intIds).catch { emit(emptyList()) }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val favoriteSeriesStreams: StateFlow<List<SeriesStream>> =
+        combine(favoriteSeriesIds, blockedSeriesCategoryIds) { ids, blocked -> ids to blocked }
+            .flatMapLatest { (ids, blocked) ->
+                val intIds = ids.mapNotNull { it.toIntOrNull() }
+                if (intIds.isEmpty()) flowOf(emptyList())
+                else repository.getSeriesStreamsByIdsFlow(intIds)
+                    .map { list -> AdultFilter.filterBlocked(list, blocked) { it.categoryId } }
+            }
+            .flowOn(Dispatchers.Default)
+            .catch { emit(emptyList()) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val recentChannels = MutableStateFlow<List<LiveStream>>(emptyList())
 
-    // Kategori İçerik İşleri (Room Database üzerinden Flow ile canlı gözlemlenir)
+    // Kategori İçerik & Detay İşleri
     private var liveStreamJob: Job? = null
     private var vodStreamJob: Job? = null
     private var seriesStreamJob: Job? = null
     private var liveCategoriesJob: Job? = null
     private var vodCategoriesJob: Job? = null
     private var seriesCategoriesJob: Job? = null
+    private var vodDetailJob: Job? = null
+    private var seriesDetailJob: Job? = null
+    private var channelEpgJob: Job? = null
+    private var playJob: Job? = null
+    private var isDemoMode: Boolean = false
 
     // Genel Arama Durumu (Tüm kategoriler/bölümler arası arama aktarımı)
     val globalSearchQuery = MutableStateFlow("")
@@ -316,39 +436,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Son İzlenen Önceki Canlı Kanal (Zapping Recall - Tek tuşla önceki kanala dönüş)
     val lastPlayedLiveChannel = MutableStateFlow<LiveStream?>(null)
-
-    // G-054: Kategori yönetimi ve ebeveyn kilidi ui/vm/CategoryAccessController.kt'ye taşındı.
-    // Eski public adlar aynen ileri yönlendirilir. Parça, aşağıdaki akışlardan ÖNCE kurulur (başlatma sırası).
-    private val categoryAccess = com.tivimax.player.ui.vm.CategoryAccessController(
-        scope = viewModelScope,
-        preferences = preferences,
-        liveCategories = liveCategories,
-        vodCategories = vodCategories,
-        seriesCategories = seriesCategories
-    )
-    val hiddenCategories: StateFlow<Set<String>> get() = categoryAccess.hiddenCategories
-    val pinnedCategories: StateFlow<Set<String>> get() = categoryAccess.pinnedCategories
-    val isParentalUnlocked: MutableStateFlow<Boolean> get() = categoryAccess.isParentalUnlocked
-    val parentalPin: StateFlow<String> get() = categoryAccess.parentalPin
-    val blockedLiveCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedLiveCategoryIds
-    val blockedVodCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedVodCategoryIds
-    val blockedSeriesCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedSeriesCategoryIds
-    val hasAdultLiveCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultLiveCategory
-    val hasAdultVodCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultVodCategory
-    val hasAdultSeriesCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultSeriesCategory
-    val visibleLiveCategories: StateFlow<List<LiveCategory>> get() = categoryAccess.visibleLiveCategories
-    val visibleVodCategories: StateFlow<List<VodCategory>> get() = categoryAccess.visibleVodCategories
-    val visibleSeriesCategories: StateFlow<List<SeriesCategory>> get() = categoryAccess.visibleSeriesCategories
-
-    fun isAdultCategory(name: String): Boolean = categoryAccess.isAdultCategory(name)
-    fun toggleCategoryHidden(categoryId: String, isHidden: Boolean) = categoryAccess.toggleCategoryHidden(categoryId, isHidden)
-    fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) = categoryAccess.setAllCategoriesHidden(categoryIds, isHidden)
-    fun toggleCategoryPinned(categoryId: String) = categoryAccess.toggleCategoryPinned(categoryId)
-    fun unlockParental(pin: String): Boolean = categoryAccess.unlockParental(pin)
-    fun createParentalPin(pin: String, repeat: String): Boolean = categoryAccess.createParentalPin(pin, repeat)
-    fun lockParental() = categoryAccess.lockParental()
-    fun setParentalPin(newPin: String) = categoryAccess.setParentalPin(newPin)
-    fun toggleCategoryHidden(categoryId: String) = categoryAccess.toggleCategoryHidden(categoryId)
 
     // G-054: Kanal geçişi ui/vm/ZapController.kt'ye taşındı; eski public adlar aynen ileri yönlendirilir.
     // Sonradan kurulan akışlar ve oynatma işlevleri lambda ile verilir (çağrı anında okunur).
@@ -395,11 +482,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Tüm Canlı Kanallar (Raf Düzeni Kategorizasyonu ve Hızlı Erişim İçin)
     // G-052: Ham liste yalnızca "Bu kanal kilitli" kararı için tutulur; dışarıya süzülmüşü verilir.
     private val allLiveStreamsRaw: StateFlow<List<LiveStream>> = repository.getLiveStreamsFilteredFlow(null, "", "DEFAULT")
+        .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val allLiveStreams: StateFlow<List<LiveStream>> =
         combine(allLiveStreamsRaw, blockedLiveCategoryIds) { list, blocked ->
             AdultFilter.filterBlocked(list, blocked) { it.categoryId }
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun refreshLiveChannels() {
         loadLiveStreams(selectedLiveCategory.value, forceRefresh = true)
@@ -485,26 +575,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val decoderMode = preferences.decoderModeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "HARDWARE")
     val watchProgressMap = preferences.watchProgressMapFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
-    /** G-030: Ana ekran "Kaldığın Yerden Devam Et" — sadece bu listede gerçekten bulunan filmler. */
+    /** G-030: Ana ekran "Kaldığın Yerden Devam Et" — sadece bu listede gerçekten bulunan ve engellenmemiş filmler. */
     val continueWatchingMovies: StateFlow<List<Pair<WatchProgress, VodStream>>> =
-        watchProgressMap
-            .map { map ->
+        combine(
+            watchProgressMap.map { map ->
                 map.values
                     .filter { it.positionMs > 10_000L && !it.isWatched }
                     .sortedByDescending { it.timestamp }
                     .take(30)
-            }
-            .flatMapLatest { progressList ->
+            },
+            blockedVodCategoryIds
+        ) { progressList, blocked -> progressList to blocked }
+            .flatMapLatest { (progressList, blocked) ->
                 if (progressList.isEmpty()) {
                     flowOf(emptyList())
                 } else {
                     repository.getVodStreamsByIdsFlow(progressList.map { it.streamId })
                         .map { movies ->
-                            val byId = movies.associateBy { it.streamId }
+                            val filtered = AdultFilter.filterBlocked(movies, blocked) { it.categoryId }
+                            val byId = filtered.associateBy { it.streamId }
                             progressList.mapNotNull { p -> byId[p.streamId]?.let { p to it } }.take(10)
                         }
                 }
             }
+            .flowOn(Dispatchers.Default)
             .catch { emit(emptyList()) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -585,6 +679,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadEpgSummary(streamId: Int) = epgCache.loadEpgSummary(streamId)
+    fun loadEpgSummariesBatch(streamIds: List<Int>) = epgCache.loadEpgSummariesBatch(streamIds)
 
     init {
         repository.cleanupSyncTempFiles()
@@ -643,20 +738,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
 
+        viewModelScope.launch {
+            preferences.aspectRatioFlow
+                .distinctUntilChanged()
+                .collect { ratio ->
+                    val mode = when (ratio.uppercase(Locale.ROOT)) {
+                        "FILL" -> AspectRatioMode.FILL
+                        "ZOOM" -> AspectRatioMode.ZOOM
+                        "16:9", "RATIO_16_9" -> AspectRatioMode.RATIO_16_9
+                        "4:3", "RATIO_4_3" -> AspectRatioMode.RATIO_4_3
+                        else -> AspectRatioMode.FIT
+                    }
+                    playerManager.setAspectRatio(mode)
+                }
+        }
+
         // Reaktif Room DB Akışları (Arama & Kategori & Sıralama Değişimlerinde SQL Index Tabanlı Anlık Filtreleme)
+        // Debounce yalnızca arama metnine uygulanır; kategori veya sıralama geçişleri anlıktır.
         viewModelScope.launch {
             // G-057: Açılışta Canlı kategorileri yüklenmeden içerik gösterme (+18 anlık görünmesin);
             // en fazla 2 sn beklenir, yalnız ilk açılışta bir kez (collectLatest dışında).
             kotlinx.coroutines.withTimeoutOrNull(2_000L) { liveCategories.first { it.isNotEmpty() } }
-            combine(selectedLiveCategory, liveSearchQuery, liveSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
+            val debouncedLiveQuery = liveSearchQuery.debounce { if (it.isBlank()) 0L else 300L }
+            combine(selectedLiveCategory, debouncedLiveQuery, liveSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
-            .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all" || cat == "favorites" || cat == "recents") null else cat
                 combine(repository.getLiveStreamsFilteredFlow(filterCat, q, sort.name), blockedLiveCategoryIds) { list, blocked ->
                     AdultFilter.filterBlocked(list, blocked) { it.categoryId }
                 }
+                    .flowOn(Dispatchers.Default)
                     .catch { e -> Log.w("MainViewModel", "Live streams filtered flow error", e) }
                     .collect { streams ->
                         liveStreams.value = streams
@@ -671,15 +783,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // G-057: Açılışta Film kategorileri yüklenmeden içerik gösterme (+18 anlık görünmesin);
             // en fazla 2 sn beklenir, yalnız ilk açılışta bir kez (collectLatest dışında).
             kotlinx.coroutines.withTimeoutOrNull(2_000L) { vodCategories.first { it.isNotEmpty() } }
-            combine(selectedVodCategory, vodSearchQuery, vodSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
+            val debouncedVodQuery = vodSearchQuery.debounce { if (it.isBlank()) 0L else 300L }
+            combine(selectedVodCategory, debouncedVodQuery, vodSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
-            .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all") null else cat
                 combine(repository.getVodStreamsFilteredFlow(filterCat, q, sort.name), blockedVodCategoryIds) { list, blocked ->
                     AdultFilter.filterBlocked(list, blocked) { it.categoryId }
                 }
+                    .flowOn(Dispatchers.Default)
                     .catch { e -> Log.w("MainViewModel", "Vod streams filtered flow error", e) }
                     .collect { streams ->
                         vodStreams.value = streams
@@ -694,15 +807,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             // G-057: Açılışta Dizi kategorileri yüklenmeden içerik gösterme (+18 anlık görünmesin);
             // en fazla 2 sn beklenir, yalnız ilk açılışta bir kez (collectLatest dışında).
             kotlinx.coroutines.withTimeoutOrNull(2_000L) { seriesCategories.first { it.isNotEmpty() } }
-            combine(selectedSeriesCategory, seriesSearchQuery, seriesSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
+            val debouncedSeriesQuery = seriesSearchQuery.debounce { if (it.isBlank()) 0L else 300L }
+            combine(selectedSeriesCategory, debouncedSeriesQuery, seriesSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
-            .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all") null else cat
                 combine(repository.getSeriesStreamsFilteredFlow(filterCat, q, sort.name), blockedSeriesCategoryIds) { list, blocked ->
                     AdultFilter.filterBlocked(list, blocked) { it.categoryId }
                 }
+                    .flowOn(Dispatchers.Default)
                     .catch { e -> Log.w("MainViewModel", "Series streams filtered flow error", e) }
                     .collect { streams ->
                         seriesStreams.value = streams
@@ -730,35 +844,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val isModeSet = preferences.isDeviceModeSetFlow.first()
             if (!isModeSet) {
-                _currentScreen.value = Screen.DeviceModeSetup
+                navigateTo(Screen.DeviceModeSetup, addToBackStack = false)
                 return@launch
             }
 
             checkUserLoginAndNavigate()
         }
 
-        // Kaydedilmiş son izlenen canlı kanalları geri yükle (Son 20 Kanal)
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val json = preferences.recentLiveChannelsFlow.first()
-                val type = object : TypeToken<List<Int>>() {}.type
-                val ids: List<Int> = Gson().fromJson(json, type) ?: emptyList()
-                if (ids.isNotEmpty()) {
-                    val list = mutableListOf<LiveStream>()
-                    for (id in ids) {
-                        repository.database?.liveDao()?.getStreamById(id)?.let {
-                            list.add(it.toModel())
-                        }
-                    }
-                    if (list.isNotEmpty()) {
-                        withContext(Dispatchers.Main) {
-                            recentChannels.value = list
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Ignore parsing errors
+        // Kaydedilmiş son izlenen canlı kanalları aktif veritabanı ve tercihlere göre reaktif yükle (Son 20 Kanal)
+        viewModelScope.launch {
+            val recentGson = Gson()
+            val listIntType = object : TypeToken<List<Int>>() {}.type
+            combine(
+                repository.activeDbFlow,
+                preferences.recentLiveChannelsFlow.distinctUntilChanged(),
+                blockedLiveCategoryIds
+            ) { db, json, blocked ->
+                Triple(db, json, blocked)
             }
+                .mapLatest { (db, json, blocked) ->
+                    if (db == null) return@mapLatest emptyList<LiveStream>()
+                    val ids: List<Int> = try {
+                        recentGson.fromJson<List<Int>>(json, listIntType) ?: emptyList()
+                    } catch (e: Exception) {
+                        Log.w("MainViewModel", "Recent live channels parse failed (${e.javaClass.simpleName})")
+                        emptyList()
+                    }
+                    if (ids.isEmpty()) return@mapLatest emptyList<LiveStream>()
+                    val streams = withContext(Dispatchers.IO) {
+                        val dao = db.liveDao()
+                        ids.distinct().take(20).mapNotNull { id ->
+                            dao.getStreamById(id)?.toModel()
+                        }
+                    }
+                    AdultFilter.filterBlocked(streams, blocked) { it.categoryId }
+                }
+                .flowOn(Dispatchers.Default)
+                .catch { e -> Log.w("MainViewModel", "Recent live channels flow error", e) }
+                .collect { list ->
+                    recentChannels.value = list
+                }
         }
 
         // Arka planda sessizce yeni sürüm kontrolü yap
@@ -800,7 +925,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resetDeviceMode() {
         viewModelScope.launch {
             preferences.resetDeviceMode()
-            _currentScreen.value = Screen.DeviceModeSetup
+            navigateTo(Screen.DeviceModeSetup, addToBackStack = false)
         }
     }
 
@@ -843,6 +968,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val activePl = playlistRepository.getActivePlaylist()
 
             if (activePl != null) {
+                isDemoMode = false
                 repository.updateCredentials(activePl.serverUrl, activePl.username, activePl.password)
                 repository.switchDatabase(activePl.dbName)
                 _isLoggedIn.value = true
@@ -866,24 +992,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 if (activePl.isSynced && hasLocalContent()) {
-                    _currentScreen.value = Screen.Home
+                    navigateTo(Screen.Home, addToBackStack = false)
                     loadInitialData()
                 } else {
-                    _currentScreen.value = Screen.PlaylistSync
+                    navigateTo(Screen.PlaylistSync, addToBackStack = false)
                     startPlaylistSync(fromStep = 1)
                 }
 
                 refreshAccountInfo(silent = true)
             } else {
-                _currentScreen.value = Screen.Login
+                navigateTo(Screen.Login, addToBackStack = false)
             }
         }
     }
 
     fun resetSessionState() {
+        tvZapJob?.cancel()
+        zapper.cancelPendingZap()
         detachMiniPlayer()
         playerManager.closeDualView()
         activePreviewChannel.value = null
+        lastPlayedLiveChannel.value = null
+        currentPlayingEpisode.value = null
+        isDemoMode = false
 
         liveStreamJob?.cancel()
         vodStreamJob?.cancel()
@@ -891,26 +1022,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         liveCategoriesJob?.cancel()
         vodCategoriesJob?.cancel()
         seriesCategoriesJob?.cancel()
+        vodDetailJob?.cancel()
+        seriesDetailJob?.cancel()
+        channelEpgJob?.cancel()
+        playJob?.cancel()
         universalSearch.cancelSearch()
+        epgCache.clear()
         catalogPositions.clear()
+        lastSelectedSeasonBySeries.clear()
 
         liveCategories.value = emptyList()
         liveStreams.value = emptyList()
         selectedLiveCategory.value = "all"
         liveSearchQuery.value = ""
         currentEpgList.value = emptyList()
+        recentChannels.value = emptyList()
 
         vodCategories.value = emptyList()
         vodStreams.value = emptyList()
         selectedVodCategory.value = "all"
         vodSearchQuery.value = ""
         currentVodDetail.value = null
+        _vodUseShelfMode.value = true
 
         seriesCategories.value = emptyList()
         seriesStreams.value = emptyList()
         selectedSeriesCategory.value = "all"
         seriesSearchQuery.value = ""
         currentSeriesInfo.value = null
+        _seriesDetailLoading.value = false
+        _seriesDetailError.value = null
+        _seriesUseShelfMode.value = true
 
         universalSearchQuery.value = ""
         universalLiveResults.value = emptyList()
@@ -934,16 +1076,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun switchPlaylist(targetId: String, onComplete: ((Boolean) -> Unit)? = null) {
+        if (!_isSwitchingPlaylist.compareAndSet(false, true)) {
+            onComplete?.invoke(false)
+            return
+        }
         viewModelScope.launch {
-            val previousActive = playlistRepository.getActivePlaylist()
-            val targetPlaylist = playlistRepository.getPlaylists().find { it.id == targetId }
-            if (targetPlaylist == null) {
-                onComplete?.invoke(false)
-                return@launch
-            }
-
-            _isSwitchingPlaylist.value = true
+            var previousActive: Playlist? = null
             try {
+                previousActive = playlistRepository.getActivePlaylist()
+                val targetPlaylist = playlistRepository.getPlaylists().find { it.id == targetId }
+                if (targetPlaylist == null) {
+                    onComplete?.invoke(false)
+                    return@launch
+                }
+
                 // 1. Oynatıcıyı kapat
                 playerManager.release()
 
@@ -961,10 +1107,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 // 5. Yönlendir
                 if (targetPlaylist.isSynced && hasLocalContent()) {
-                    _currentScreen.value = Screen.Home
+                    navigateTo(Screen.Home, addToBackStack = false)
                     loadInitialData()
                 } else {
-                    _currentScreen.value = Screen.PlaylistSync
+                    navigateTo(Screen.PlaylistSync, addToBackStack = false)
                     startPlaylistSync(fromStep = 1)
                 }
 
@@ -974,13 +1120,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 onComplete?.invoke(true)
             } catch (e: Exception) {
-                Log.e("MainViewModel", "switchPlaylist error: ${e.message}", e)
+                if (e is CancellationException) throw e
+                Log.e("MainViewModel", "switchPlaylist error (${e.javaClass.simpleName})")
                 // Güvenlik ağı: Hata durumunda önceki listeye geri dön
-                if (previousActive != null && previousActive.id != targetId) {
+                val prev = previousActive
+                if (prev != null && prev.id != targetId) {
                     try {
-                        playlistRepository.setActive(previousActive.id)
-                        repository.updateCredentials(previousActive.serverUrl, previousActive.username, previousActive.password)
-                        repository.switchDatabase(previousActive.dbName)
+                        playlistRepository.setActive(prev.id)
+                        repository.updateCredentials(prev.serverUrl, prev.username, prev.password)
+                        repository.switchDatabase(prev.dbName)
                     } catch (_: Exception) {}
                 }
                 withContext(Dispatchers.Main) {
@@ -1135,7 +1283,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     val activeId = playlistRepository.getActivePlaylistId()
                     if (id == activeId) {
                         repository.updateCredentials(cleanServer, newUsername, newPassword)
-                        _currentScreen.value = Screen.PlaylistSync
+                        navigateTo(Screen.PlaylistSync, addToBackStack = false)
                         startPlaylistSync(fromStep = 1)
                     }
 
@@ -1166,7 +1314,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ) { result ->
             result.onFailure {
                 if (isAutoLogin) {
-                    _currentScreen.value = Screen.Login
+                    navigateTo(Screen.Login, addToBackStack = false)
                 }
             }
         }
@@ -1183,16 +1331,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 playerManager.release()
                 cancelPlaylistSync()
                 resetSessionState()
+                repository.closeActiveDatabase()
             }
 
-            // 1. Veritabanı dosyasını sil
-            try {
-                if (isRemovingActive) {
-                    AppDatabase.close()
+            // 1. Veritabanı dosyasını sil (aktif veritabanı kapatıldıktan sonra)
+            withContext(Dispatchers.IO) {
+                try {
+                    getApplication<Application>().deleteDatabase(toRemove.dbName)
+                } catch (e: Exception) {
+                    Log.w("MainViewModel", "deleteDatabase failed (${e.javaClass.simpleName})")
                 }
-                getApplication<Application>().deleteDatabase(toRemove.dbName)
-            } catch (e: Exception) {
-                Log.w("MainViewModel", "deleteDatabase failed: ${e.message}")
             }
 
             // 2. Tercihleri sil
@@ -1206,9 +1354,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (nextActive != null) {
                     switchPlaylist(nextActive.id)
                 } else {
-                    preferences.logout()
+                    preferences.logout(id)
                     _isLoggedIn.value = false
-                    _currentScreen.value = Screen.Login
+                    navigateTo(Screen.Login, addToBackStack = false)
                 }
             }
             onComplete?.invoke()
@@ -1218,7 +1366,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun logout() {
         viewModelScope.launch {
             val activeId = playlistRepository.getActivePlaylistId()
-            removePlaylist(activeId)
+            val playlists = playlistRepository.getPlaylists()
+            if (playlists.any { it.id == activeId }) {
+                removePlaylist(activeId)
+            } else {
+                playerManager.release()
+                cancelPlaylistSync()
+                resetSessionState()
+                repository.closeActiveDatabase()
+                preferences.logout(activeId)
+                _isLoggedIn.value = false
+                navigateTo(Screen.Login, addToBackStack = false)
+            }
         }
     }
 
@@ -1315,6 +1474,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         vodPrewarmer.cancelAll("Playlist sync")
 
         syncJob = viewModelScope.launch(Dispatchers.IO) {
+            val targetPlaylistId = playlistRepository.getActivePlaylistId()
             val baseSteps = playlistSyncState.value.steps
             val initialSteps = baseSteps.mapIndexed { index, step ->
                 val num = index + 1
@@ -1345,7 +1505,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val catRes = repository.syncAllCategories(onRetry = onRetryCallback)
                 if (catRes.isFailure) {
                     val ex = catRes.exceptionOrNull()
-                    Log.w("MainViewModel", "Kategori senkronizasyon hatası: ${ex?.message}")
+                    Log.w("MainViewModel", "Kategori senkronizasyon hatası (${ex?.javaClass?.simpleName})")
                     failStep(1, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
@@ -1365,21 +1525,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 if (liveRes.isFailure) {
                     val ex = liveRes.exceptionOrNull()
-                    Log.w("MainViewModel", "Canlı TV senkronizasyon hatası: ${ex?.message}")
+                    Log.w("MainViewModel", "Canlı TV senkronizasyon hatası (${ex?.javaClass?.simpleName})")
                     failStep(2, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
                 val liveCount = liveRes.getOrNull() ?: 0
                 updateStep(2, SyncStepStatus.COMPLETED, "$liveCount canlı kanal hazır", 1f)
 
-                // Canlı TV kanalları hazır olduğunda ilk kurulumu geçerli say ve Canlı TV'yi yükle
-                val nowStr = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
-                preferences.setPlaylistSynced(true, nowStr)
+                // Aktif liste değişmediyse ilk kurulumu geçerli say ve Canlı TV'yi yükle
                 val activeId = playlistRepository.getActivePlaylistId()
-                playlistRepository.markSynced(activeId, nowStr)
+                if (activeId != targetPlaylistId) return@launch
+                val nowStr = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                preferences.setPlaylistSynced(true, nowStr, playlistId = targetPlaylistId)
+                playlistRepository.markSynced(targetPlaylistId, nowStr)
                 if (!background) {
-                    loadLiveCategories()
-                    loadLiveStreams("all")
+                    withContext(Dispatchers.Main) {
+                        loadLiveCategories()
+                        loadLiveStreams("all")
+                    }
                 }
             }
 
@@ -1397,7 +1560,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 if (vodRes.isFailure) {
                     val ex = vodRes.exceptionOrNull()
-                    Log.w("MainViewModel", "Film senkronizasyon hatası: ${ex?.message}")
+                    Log.w("MainViewModel", "Film senkronizasyon hatası (${ex?.javaClass?.simpleName})")
                     failStep(3, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
@@ -1419,7 +1582,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 if (seriesRes.isFailure) {
                     val ex = seriesRes.exceptionOrNull()
-                    Log.w("MainViewModel", "Dizi senkronizasyon hatası: ${ex?.message}")
+                    Log.w("MainViewModel", "Dizi senkronizasyon hatası (${ex?.javaClass?.simpleName})")
                     failStep(4, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
@@ -1433,12 +1596,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val optRes = repository.optimizeAndPreload()
                 if (optRes.isFailure) {
                     val ex = optRes.exceptionOrNull()
-                    Log.w("MainViewModel", "Optimizasyon hatası: ${ex?.message}")
+                    Log.w("MainViewModel", "Optimizasyon hatası (${ex?.javaClass?.simpleName})")
                     failStep(5, mapSyncErrorToUserMessage(ex))
                     return@launch
                 }
                 updateStep(5, SyncStepStatus.COMPLETED, "Tüm içerikler anında açılmaya hazır!", 1f)
             }
+
+            // Aktif liste senkron sırasında değiştiyse işaretleme/yönlendirme yapma
+            val currentActiveId = playlistRepository.getActivePlaylistId()
+            if (currentActiveId != targetPlaylistId) return@launch
 
             // Bellek önbelleklerini temizle ve yenile
             repository.clearCache()
@@ -1454,13 +1621,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             // Başarıyla tamamlandı
             val nowStr = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
-            preferences.setPlaylistSynced(true, nowStr)
-            val activeId = playlistRepository.getActivePlaylistId()
-            playlistRepository.markSynced(activeId, nowStr)
+            preferences.setPlaylistSynced(true, nowStr, playlistId = targetPlaylistId)
+            playlistRepository.markSynced(targetPlaylistId, nowStr)
             if (background) {
                 loadAccountContentCounts()
             } else {
-                loadInitialData()
+                withContext(Dispatchers.Main) {
+                    loadInitialData()
+                }
             }
 
             playlistSyncState.value = playlistSyncState.value.copy(
@@ -1479,10 +1647,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            // 1.5 saniye sonra kullanıcıyı otomatik olarak Ana Ekrana yönlendir
+            // 1.5 saniye sonra kullanıcıyı otomatik olarak Ana Ekrana yönlendir (Main thread üzerinde)
             kotlinx.coroutines.delay(1500)
-            if (_currentScreen.value == Screen.PlaylistSync) {
-                _currentScreen.value = Screen.Home
+            withContext(Dispatchers.Main) {
+                if (_currentScreen.value == Screen.PlaylistSync) {
+                    navigateTo(Screen.Home, addToBackStack = false)
+                }
             }
         }
     }
@@ -1576,22 +1746,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadLiveStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedLiveCategory.value = categoryId
-        val cached = repository.getCachedLiveStreams(if (categoryId == "all" || categoryId == "favorites") null else categoryId)
-        if (!cached.isNullOrEmpty()) {
-            liveStreams.value = cached
-            liveLoading.value = false
-        }
-
-        viewModelScope.launch {
+        liveStreamJob?.cancel()
+        liveStreamJob = viewModelScope.launch {
             val countInDb = withContext(Dispatchers.IO) {
-                if (categoryId == "all" || categoryId == "favorites") repository.database?.liveDao()?.getTotalStreamCount() ?: 0
-                else repository.database?.liveDao()?.getStreamCountByCategory(categoryId) ?: 0
+                if (categoryId == "all" || categoryId == "favorites" || categoryId == "recents") {
+                    repository.database?.liveDao()?.getTotalStreamCount() ?: 0
+                } else {
+                    repository.database?.liveDao()?.getStreamCountByCategory(categoryId) ?: 0
+                }
             }
 
             if (countInDb == 0 || forceRefresh) {
                 liveLoading.value = true
-                repository.fetchAndSaveLiveStreams(if (categoryId == "all" || categoryId == "favorites") null else categoryId)
-                liveLoading.value = false
+                try {
+                    repository.fetchAndSaveLiveStreams(
+                        if (categoryId == "all" || categoryId == "favorites" || categoryId == "recents") null else categoryId
+                    )
+                } finally {
+                    liveLoading.value = false
+                }
             }
         }
     }
@@ -1613,13 +1786,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadVodStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedVodCategory.value = categoryId
-        val cached = repository.getCachedVodStreams(if (categoryId == "all") null else categoryId)
-        if (!cached.isNullOrEmpty()) {
-            vodStreams.value = cached
-            vodLoading.value = false
-        }
-
-        viewModelScope.launch {
+        vodStreamJob?.cancel()
+        vodStreamJob = viewModelScope.launch {
             val countInDb = withContext(Dispatchers.IO) {
                 if (categoryId == "all") repository.database?.vodDao()?.getTotalStreamCount() ?: 0
                 else repository.database?.vodDao()?.getStreamCountByCategory(categoryId) ?: 0
@@ -1627,21 +1795,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             if (countInDb == 0 || forceRefresh) {
                 vodLoading.value = true
-                repository.fetchAndSaveVodStreams(if (categoryId == "all") null else categoryId)
-                vodLoading.value = false
+                try {
+                    repository.fetchAndSaveVodStreams(if (categoryId == "all") null else categoryId)
+                } finally {
+                    vodLoading.value = false
+                }
             }
         }
     }
 
     fun loadVodDetail(vod: VodStream) {
-        viewModelScope.launch {
-            currentVodDetail.value = null
-            navigateTo(Screen.VodDetail(vod))
+        vodDetailJob?.cancel()
+        currentVodDetail.value = null
+        navigateTo(Screen.VodDetail(vod))
+        vodDetailJob = viewModelScope.launch {
             repository.getVodInfo(vod.streamId).onSuccess { res ->
+                if ((_currentScreen.value as? Screen.VodDetail)?.vodStream?.streamId != vod.streamId) return@onSuccess
                 currentVodDetail.value = res
                 // TMDb Smart Scraper Entegrasyonu (Afiş, Fragman, Oyuncu Kadrosu ve IMDb Puanı)
                 val enrichedInfo = com.tivimax.player.data.network.TmdbScraper.fetchEnrichedVodInfo(vod.name, res.info)
-                if (enrichedInfo != null) {
+                if (enrichedInfo != null && (_currentScreen.value as? Screen.VodDetail)?.vodStream?.streamId == vod.streamId) {
                     currentVodDetail.value = res.copy(info = enrichedInfo)
                 }
             }
@@ -1665,13 +1838,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadSeriesStreams(categoryId: String = "all", forceRefresh: Boolean = false) {
         selectedSeriesCategory.value = categoryId
-        val cached = repository.getCachedSeriesStreams(if (categoryId == "all") null else categoryId)
-        if (!cached.isNullOrEmpty()) {
-            seriesStreams.value = cached
-            seriesLoading.value = false
-        }
-
-        viewModelScope.launch {
+        seriesStreamJob?.cancel()
+        seriesStreamJob = viewModelScope.launch {
             val countInDb = withContext(Dispatchers.IO) {
                 if (categoryId == "all") repository.database?.seriesDao()?.getTotalStreamCount() ?: 0
                 else repository.database?.seriesDao()?.getStreamCountByCategory(categoryId) ?: 0
@@ -1679,8 +1847,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             if (countInDb == 0 || forceRefresh) {
                 seriesLoading.value = true
-                repository.fetchAndSaveSeriesStreams(if (categoryId == "all") null else categoryId)
-                seriesLoading.value = false
+                try {
+                    repository.fetchAndSaveSeriesStreams(if (categoryId == "all") null else categoryId)
+                } finally {
+                    seriesLoading.value = false
+                }
             }
         }
     }
@@ -1708,17 +1879,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadSeriesDetail(series: SeriesStream) {
-        viewModelScope.launch {
-            currentSeriesInfo.value = null
-            navigateTo(Screen.SeriesDetail(series))
-            repository.getSeriesInfo(series.seriesId).onSuccess { info ->
-                currentSeriesInfo.value = info
-            }
+        seriesDetailJob?.cancel()
+        currentSeriesInfo.value = null
+        _seriesDetailLoading.value = true
+        _seriesDetailError.value = null
+        navigateTo(Screen.SeriesDetail(series))
+        seriesDetailJob = viewModelScope.launch {
+            repository.getSeriesInfo(series.seriesId)
+                .onSuccess { info ->
+                    if ((_currentScreen.value as? Screen.SeriesDetail)?.seriesStream?.seriesId == series.seriesId) {
+                        currentSeriesInfo.value = info
+                        _seriesDetailError.value = null
+                        _seriesDetailLoading.value = false
+                    }
+                }
+                .onFailure { e ->
+                    Log.w("MainViewModel", "Series detail load failed (${e.javaClass.simpleName})")
+                    if ((_currentScreen.value as? Screen.SeriesDetail)?.seriesStream?.seriesId == series.seriesId) {
+                        _seriesDetailError.value = "Dizi bilgileri yüklenemedi. Lütfen tekrar deneyin."
+                        _seriesDetailLoading.value = false
+                    }
+                }
         }
     }
 
     fun loginDemo() {
         if (!BuildConfig.DEBUG) return
+        isDemoMode = true
         _isLoggedIn.value = true
         userInfo.value = XtreamUserInfo(
             username = "Demo Kullanıcı",
@@ -1823,7 +2010,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.database?.seriesDao()?.insertStreams(seriesStreams.value.map { it.toEntity() })
         }
 
-        _currentScreen.value = Screen.Home
+        navigateTo(Screen.Home, addToBackStack = false)
     }
 
     fun recordRecentChannel(channel: LiveStream) {
@@ -1866,12 +2053,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun closeMiniPlayer() {
+        tvZapJob?.cancel()
+        zapper.cancelPendingZap()
         playerManager.release()
         activePreviewChannel.value = null
         isMiniPlayerActive.value = false
     }
 
     fun detachMiniPlayer() {
+        tvZapJob?.cancel()
+        zapper.cancelPendingZap()
         activePreviewChannel.value = null
         isMiniPlayerActive.value = false
         playerManager.stopAndClear()
@@ -1899,16 +2090,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadEpgForChannel(streamId: Int) {
-        viewModelScope.launch {
+        channelEpgJob?.cancel()
+        channelEpgJob = viewModelScope.launch {
             repository.getShortEpg(streamId).onSuccess { list ->
-                currentEpgList.value = list
+                if (activePreviewChannel.value?.streamId == streamId) {
+                    currentEpgList.value = list
+                }
             }.onFailure {
-                currentEpgList.value = emptyList()
+                if (activePreviewChannel.value?.streamId == streamId) {
+                    currentEpgList.value = emptyList()
+                }
             }
         }
     }
 
     fun playLiveChannel(channel: LiveStream) {
+        tvZapJob?.cancel()
+        zapper.cancelPendingZap()
+        playJob?.cancel()
         stopBackgroundSyncForPlayback()
         val t0 = SystemClock.elapsedRealtime()
         if (BuildConfig.DEBUG) {
@@ -1936,8 +2135,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         playerManager.playWithFallbacks(urls, isLive = true, t0Ms = t0)
         loadEpgForChannel(channel.streamId)
-        
-        if (deviceMode.value != com.tivimax.player.util.DeviceMode.TV) {
+
+        if (deviceMode.value == DeviceMode.TV) {
+            if (selectedHomeTab.value != HomeTab.LIVE_TV) {
+                setSelectedHomeTab(HomeTab.LIVE_TV)
+            }
+            if (_currentScreen.value !is Screen.Home) {
+                navigateTo(Screen.Home, addToBackStack = false)
+            }
+        } else {
             navigateTo(
                 Screen.Player(
                     streamUrl = urls.firstOrNull() ?: "",
@@ -2000,6 +2206,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val now = SystemClock.elapsedRealtime()
         if (now - lastPlayActionTime < 500L) return
         lastPlayActionTime = now
+        tvZapJob?.cancel()
+        zapper.cancelPendingZap()
+        playJob?.cancel()
         stopBackgroundSyncForPlayback()
         vodPrewarmer.cancelAll("oynat basıldı")
         val t0 = SystemClock.elapsedRealtime()
@@ -2010,21 +2219,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         activePreviewChannel.value = null
         currentPlayingEpisode.value = null
         playerManager.stopAndClear()
-        viewModelScope.launch {
+        playJob = viewModelScope.launch {
             var startPos = 0L
             if (resume) {
                 val progress = preferences.getWatchProgress(vod.streamId)
-                startPos = progress?.positionMs ?: 0L
+                startPos = if (progress != null && !progress.isWatched) progress.positionMs else 0L
             }
             if (BuildConfig.DEBUG) {
                 val elapsed = SystemClock.elapsedRealtime() - t0
                 Log.d(TAG_TIMING, "[+${elapsed}ms] MainViewModel.playVod: DataStore okuma tamamlandı. startPositionMs=$startPos. playWithFallbacks çağrılıyor.")
             }
-            val urls = when (vod.streamId) {
-                101 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
-                102 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4")
-                103 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4")
-                else -> repository.buildVodStreamUrls(vod.streamId, vod.containerExtension)
+            val urls = if (BuildConfig.DEBUG && isDemoMode) {
+                when (vod.streamId) {
+                    101 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
+                    102 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4")
+                    103 -> listOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4")
+                    else -> repository.buildVodStreamUrls(vod.streamId, vod.containerExtension)
+                }
+            } else {
+                repository.buildVodStreamUrls(vod.streamId, vod.containerExtension)
             }
             playerManager.playWithFallbacks(urls, isLive = false, startPositionMs = startPos, t0Ms = t0)
             navigateTo(
@@ -2043,6 +2256,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val now = SystemClock.elapsedRealtime()
         if (now - lastPlayActionTime < 500L) return
         lastPlayActionTime = now
+        tvZapJob?.cancel()
+        zapper.cancelPendingZap()
+        playJob?.cancel()
         stopBackgroundSyncForPlayback()
         vodPrewarmer.cancelAll("oynat basıldı")
         val t0 = SystemClock.elapsedRealtime()
@@ -2053,12 +2269,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         activePreviewChannel.value = null
         currentPlayingEpisode.value = Pair(episode, seriesTitle)
         playerManager.stopAndClear()
-        viewModelScope.launch {
+        playJob = viewModelScope.launch {
             val epId = episode.id.toIntOrNull() ?: 0
             var startPos = 0L
             if (resume) {
                 val progress = preferences.getWatchProgress(epId)
-                startPos = progress?.positionMs ?: 0L
+                startPos = if (progress != null && !progress.isWatched) progress.positionMs else 0L
             }
             if (BuildConfig.DEBUG) {
                 val elapsed = SystemClock.elapsedRealtime() - t0
@@ -2081,19 +2297,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun getNextEpisode(): SeriesEpisode? {
         val (currentEp, _) = currentPlayingEpisode.value ?: return null
         val episodesMap = currentSeriesInfo.value?.episodes ?: return null
-        val seasonStr = currentEp.season.toString()
-        val currentSeasonEpisodes = episodesMap[seasonStr] ?: emptyList()
+        val sortedKeys = episodesMap.keys.sortedBy { it.toIntOrNull() ?: Int.MAX_VALUE }
+        val currentKeyIndex = sortedKeys.indexOfFirst { key ->
+            episodesMap[key]?.any { it.id == currentEp.id } == true
+        }.takeIf { it >= 0 } ?: sortedKeys.indexOfFirst { key ->
+            key.toIntOrNull() == currentEp.season || key == currentEp.season.toString()
+        }
+        if (currentKeyIndex < 0) return null
+
+        val currentSeasonEpisodes = episodesMap[sortedKeys[currentKeyIndex]] ?: emptyList()
         val currentIndex = currentSeasonEpisodes.indexOfFirst { it.id == currentEp.id }
 
         if (currentIndex in 0 until currentSeasonEpisodes.size - 1) {
             return currentSeasonEpisodes[currentIndex + 1]
         }
 
-        // Mevcut sezon bittiyse sonraki sezonun 1. bölümüne geç
-        val nextSeasonStr = (currentEp.season + 1).toString()
-        val nextSeasonEpisodes = episodesMap[nextSeasonStr]
-        if (!nextSeasonEpisodes.isNullOrEmpty()) {
-            return nextSeasonEpisodes.firstOrNull()
+        // Mevcut sezon bittiyse sıradaki boş olmayan sezonun 1. bölümüne geç (atlanan veya "01" biçimli sezonlar dahil)
+        for (nextKeyIdx in (currentKeyIndex + 1) until sortedKeys.size) {
+            val nextEp = episodesMap[sortedKeys[nextKeyIdx]]?.firstOrNull()
+            if (nextEp != null) return nextEp
         }
         return null
     }
@@ -2108,19 +2330,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun getPreviousEpisode(): SeriesEpisode? {
         val (currentEp, _) = currentPlayingEpisode.value ?: return null
         val episodesMap = currentSeriesInfo.value?.episodes ?: return null
-        val seasonStr = currentEp.season.toString()
-        val currentSeasonEpisodes = episodesMap[seasonStr] ?: emptyList()
+        val sortedKeys = episodesMap.keys.sortedBy { it.toIntOrNull() ?: Int.MAX_VALUE }
+        val currentKeyIndex = sortedKeys.indexOfFirst { key ->
+            episodesMap[key]?.any { it.id == currentEp.id } == true
+        }.takeIf { it >= 0 } ?: sortedKeys.indexOfFirst { key ->
+            key.toIntOrNull() == currentEp.season || key == currentEp.season.toString()
+        }
+        if (currentKeyIndex < 0) return null
+
+        val currentSeasonEpisodes = episodesMap[sortedKeys[currentKeyIndex]] ?: emptyList()
         val currentIndex = currentSeasonEpisodes.indexOfFirst { it.id == currentEp.id }
 
         if (currentIndex > 0) {
             return currentSeasonEpisodes[currentIndex - 1]
         }
 
-        // Mevcut sezonun 1. bölümüyse bir önceki sezonun son bölümüne geç
-        val prevSeasonStr = (currentEp.season - 1).toString()
-        val prevSeasonEpisodes = episodesMap[prevSeasonStr]
-        if (!prevSeasonEpisodes.isNullOrEmpty()) {
-            return prevSeasonEpisodes.lastOrNull()
+        // Mevcut sezonun 1. bölümüyse bir önceki boş olmayan sezonun son bölümüne geç
+        for (prevKeyIdx in (currentKeyIndex - 1) downTo 0) {
+            val prevEp = episodesMap[sortedKeys[prevKeyIdx]]?.lastOrNull()
+            if (prevEp != null) return prevEp
         }
         return null
     }
