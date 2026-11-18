@@ -6,7 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -40,14 +40,19 @@ fun CategoryChipsRow(
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
+    val contentCategories = remember(categories) {
+        categories
+            .filter { it.categoryId != "all" && it.categoryId != "favorites" }
+            .distinctBy { it.categoryId }
+    }
 
-    LaunchedEffect(selectedCategory) {
+    LaunchedEffect(selectedCategory, contentCategories) {
         if (selectedCategory == "all") {
             listState.animateScrollToItem(0)
         } else if (selectedCategory == "favorites") {
             listState.animateScrollToItem(1)
         } else {
-            val index = categories.indexOfFirst { it.categoryId == selectedCategory }
+            val index = contentCategories.indexOfFirst { it.categoryId == selectedCategory }
             if (index >= 0) {
                 listState.animateScrollToItem((index + 2).coerceAtLeast(0))
             }
@@ -104,12 +109,10 @@ fun CategoryChipsRow(
             }
 
             // 3. İçerik Kategorileri
-            items(
-                items = categories
-                    .filter { it.categoryId != "all" && it.categoryId != "favorites" }
-                    .distinctBy { it.categoryId },
-                key = { "chip_${it.categoryId}" }
-            ) { category ->
+            itemsIndexed(
+                items = contentCategories,
+                key = { index, cat -> "chip_${cat.categoryId}_$index" }
+            ) { _, category ->
                 val isSelected = selectedCategory == category.categoryId
                 CategoryChipItem(
                     title = category.categoryName,

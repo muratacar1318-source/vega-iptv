@@ -68,6 +68,7 @@ fun VegaTopNavBar(
         HomeTab.FAVORITES
     )
     val tabRequesters = remember { mutableMapOf<HomeTab, FocusRequester>() }
+    val attachedRequesters = remember { mutableSetOf<FocusRequester>() }
     val scrollState = rememberScrollState()
     val isTv = LocalIsTvDevice.current
     var playlistFocused by remember { mutableStateOf(false) }
@@ -82,12 +83,10 @@ fun VegaTopNavBar(
             .onFocusChanged { onBarFocusChanged(it.hasFocus) }
             .focusProperties {
                 onEnter = {
-                    val activeReq = if (selectedTabFocusRequester != null) {
-                        selectedTabFocusRequester
-                    } else {
-                        tabRequesters[selectedTab]
+                    val activeReq = selectedTabFocusRequester ?: tabRequesters[selectedTab]
+                    if (activeReq != null && activeReq in attachedRequesters) {
+                        activeReq.requestFocusSafely()
                     }
-                    activeReq ?: FocusRequester.Default
                 }
             }
             .focusGroup()
@@ -152,6 +151,10 @@ fun VegaTopNavBar(
                     } else {
                         tabRequesters.getOrPut(tab) { FocusRequester() }
                     }
+                    DisposableEffect(requester) {
+                        attachedRequesters.add(requester)
+                        onDispose { attachedRequesters.remove(requester) }
+                    }
                     TopNavPillItem(
                         icon = tab.icon,
                         label = tab.title,
@@ -173,6 +176,10 @@ fun VegaTopNavBar(
                     selectedTabFocusRequester
                 } else {
                     tabRequesters.getOrPut(HomeTab.SETTINGS) { FocusRequester() }
+                }
+                DisposableEffect(settingsRequester) {
+                    attachedRequesters.add(settingsRequester)
+                    onDispose { attachedRequesters.remove(settingsRequester) }
                 }
                 TopNavPillItem(
                     icon = HomeTab.SETTINGS.icon,

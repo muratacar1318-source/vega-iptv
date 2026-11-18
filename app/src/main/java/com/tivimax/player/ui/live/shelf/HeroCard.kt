@@ -33,7 +33,6 @@ import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.tv.StreamVaultProgressBar
 import com.tivimax.player.util.LocalIsTvDevice
-import kotlinx.coroutines.delay
 
 /**
  * Raf Düzeni Öne Çıkan / Hero Kartı (StreamVault görsel dili).
@@ -47,7 +46,8 @@ fun HeroCard(
     onPlay: (LiveStream) -> Unit,
     onFavoriteToggle: (LiveStream) -> Unit,
     onLoadEpg: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    nowEpochSec: Long = System.currentTimeMillis() / 1000L
 ) {
     val isTv = LocalIsTvDevice.current
 
@@ -55,29 +55,32 @@ fun HeroCard(
         onLoadEpg()
     }
 
-    var tick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(60_000L)
-            tick++
-        }
-    }
-
-    val programTitle = remember(epg, tick) {
+    val programTitle = remember(epg, channel.currentProgram) {
         epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı yayın"
     }
 
-    val progress = remember(epg, tick) {
-        epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else null)
+    val progress = remember(epg, channel.programProgress, nowEpochSec) {
+        if (epg != null && epg.startTimestamp > 0 && epg.stopTimestamp > epg.startTimestamp) {
+            when {
+                nowEpochSec in epg.startTimestamp..epg.stopTimestamp ->
+                    ((nowEpochSec - epg.startTimestamp).toFloat() / (epg.stopTimestamp - epg.startTimestamp).toFloat())
+                        .coerceIn(0.05f, 0.98f)
+                nowEpochSec > epg.stopTimestamp -> 1.0f
+                else -> 0.0f
+            }
+        } else if (channel.programProgress > 0f) {
+            channel.programProgress
+        } else {
+            null
+        }
     }
 
-    val timeText = remember(epg, tick) {
+    val timeText = remember(epg, channel.programStart, channel.programEnd, nowEpochSec) {
         val formattedTime = epg?.getFormattedTime()
             ?: (if (channel.programStart != null) "${channel.programStart} - ${channel.programEnd}" else "")
 
         val remainingMinutes = if (epg?.stopTimestamp != null && epg.stopTimestamp > 0) {
-            val nowSec = System.currentTimeMillis() / 1000L
-            ((epg.stopTimestamp - nowSec) / 60).coerceAtLeast(0)
+            ((epg.stopTimestamp - nowEpochSec) / 60).coerceAtLeast(0)
         } else null
 
         if (formattedTime.isNotBlank() && remainingMinutes != null && remainingMinutes > 0) {

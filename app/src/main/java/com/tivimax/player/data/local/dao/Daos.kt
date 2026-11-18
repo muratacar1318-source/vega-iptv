@@ -34,7 +34,7 @@ interface LiveDao {
     @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId ORDER BY CASE WHEN num > 0 THEN 0 ELSE 1 END, num ASC, rowid ASC")
     fun getStreamsByCategory(categoryId: String): Flow<List<LiveStreamEntity>>
 
-    @Query("SELECT * FROM live_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
+    @Query("SELECT * FROM live_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC LIMIT 150")
     fun searchStreams(query: String): Flow<List<LiveStreamEntity>>
 
     @Query("SELECT * FROM live_streams WHERE categoryId = :categoryId AND name LIKE '%' || :query || '%' ORDER BY name ASC")
@@ -123,8 +123,14 @@ interface VodDao {
     @Query("SELECT * FROM vod_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
     fun getStreamsByCategory(categoryId: String): Flow<List<VodStreamEntity>>
 
-    @Query("SELECT * FROM vod_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
+    @Query("SELECT * FROM vod_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC LIMIT 150")
     fun searchStreams(query: String): Flow<List<VodStreamEntity>>
+
+    @Query("SELECT * FROM vod_streams ORDER BY CAST(COALESCE(NULLIF(added, ''), '0') AS INTEGER) DESC, rowid DESC LIMIT :limit")
+    fun getRecentStreams(limit: Int = 20): Flow<List<VodStreamEntity>>
+
+    @Query("SELECT * FROM vod_streams WHERE categoryId NOT IN (:excludedCategoryIds) ORDER BY CAST(COALESCE(NULLIF(added, ''), '0') AS INTEGER) DESC, rowid DESC LIMIT :limit")
+    fun getRecentStreamsExcluding(excludedCategoryIds: List<String>, limit: Int = 20): Flow<List<VodStreamEntity>>
 
     @Query("SELECT * FROM vod_streams WHERE categoryId = :categoryId AND name LIKE '%' || :query || '%' ORDER BY name ASC")
     fun searchStreamsInCategory(categoryId: String, query: String): Flow<List<VodStreamEntity>>
@@ -213,8 +219,14 @@ interface SeriesDao {
     @Query("SELECT * FROM series_streams WHERE categoryId = :categoryId ORDER BY rowid ASC")
     fun getStreamsByCategory(categoryId: String): Flow<List<SeriesStreamEntity>>
 
-    @Query("SELECT * FROM series_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC")
+    @Query("SELECT * FROM series_streams WHERE name LIKE '%' || :query || '%' ORDER BY name ASC LIMIT 150")
     fun searchStreams(query: String): Flow<List<SeriesStreamEntity>>
+
+    @Query("SELECT * FROM series_streams ORDER BY CAST(COALESCE(NULLIF(lastModified, ''), NULLIF(added, ''), '0') AS INTEGER) DESC, rowid DESC LIMIT :limit")
+    fun getRecentStreams(limit: Int = 20): Flow<List<SeriesStreamEntity>>
+
+    @Query("SELECT * FROM series_streams WHERE categoryId NOT IN (:excludedCategoryIds) ORDER BY CAST(COALESCE(NULLIF(lastModified, ''), NULLIF(added, ''), '0') AS INTEGER) DESC, rowid DESC LIMIT :limit")
+    fun getRecentStreamsExcluding(excludedCategoryIds: List<String>, limit: Int = 20): Flow<List<SeriesStreamEntity>>
 
     @Query("SELECT * FROM series_streams WHERE categoryId = :categoryId AND name LIKE '%' || :query || '%' ORDER BY name ASC")
     fun searchStreamsInCategory(categoryId: String, query: String): Flow<List<SeriesStreamEntity>>

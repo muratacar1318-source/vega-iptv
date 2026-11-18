@@ -7,9 +7,12 @@ import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.data.repository.XtreamRepository
 import com.tivimax.player.ui.SearchFilter
 import com.tivimax.player.ui.live.modern.TurkishStringNormalizer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,7 +23,7 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
- * G-054: Evrensel arama (MainViewModel'den taşındı; mantık değişmedi).
+ * G-054: Evrensel arama (MainViewModel'den taşındı).
  * İzin verilen kategori kümeleri tembel (lambda) alınır: arama anında güncel değer okunur.
  */
 class UniversalSearchController(
@@ -52,7 +55,12 @@ class UniversalSearchController(
     }
 
     fun setFilter(filter: SearchFilter) {
-        searchFilter.value = filter
+        if (searchFilter.value != filter) {
+            searchFilter.value = filter
+            if (searchQuery.value.trim().length >= 2) {
+                triggerSearch(searchQuery.value)
+            }
+        }
     }
 
     fun saveRecentSearch(query: String) {
@@ -87,6 +95,7 @@ class UniversalSearchController(
             return
         }
 
+        val activeFilter = searchFilter.value
         searchJob = scope.launch(Dispatchers.IO) {
             delay(300) // 300ms debounce
             isSearching.value = true
@@ -97,63 +106,83 @@ class UniversalSearchController(
             val qNorm = TurkishStringNormalizer.normalize(clean)
             val variants = setOf(clean, qLower, qUpperTr, qUpperEn, qNorm).filter { it.length >= 2 }
 
-            val allowedLiveCats = allowedLiveCategoryIds()
-            val allowedVodCats = allowedVodCategoryIds()
-            val allowedSeriesCats = allowedSeriesCategoryIds()
+            val needLive = activeFilter == SearchFilter.ALL || activeFilter == SearchFilter.LIVE
+            val needVod = activeFilter == SearchFilter.ALL || activeFilter == SearchFilter.MOVIES
+            val needSeries = activeFilter == SearchFilter.ALL || activeFilter == SearchFilter.SERIES
 
-            // 1. Canlı TV
-            val liveMap = mutableMapOf<Int, LiveStream>()
-            for (v in variants) {
-                try {
-                    val list = repository.searchLiveStreamsFlow(v).first()
-                    for (stream in list) {
-                        if (stream.categoryId in allowedLiveCats && TurkishStringNormalizer.matches(stream.name, clean)) {
-                            liveMap[stream.streamId] = stream
+            val allowedLiveCats = if (needLive) allowedLiveCategoryIds() else emptySet()
+            val allowedVodCats = if (needVod) allowedVodCategoryIds() else emptySet()
+            val allowedSeriesCats = if (needSeries) allowedSeriesCategoryIds() else emptySet()
+
+            val (sortedLive, sortedVod, sortedSeries) = coroutineScope {
+                val liveDeferred = async {
+                    if (!needLive) return@async emptyList<LiveStream>()
+                    val liveMap = mutableMapOf<Int, LiveStream>()
+                    for (v in variants) {
+                        try {
+                            val list = repository.searchLiveStreamsFlow(v).first()
+                            for (stream in list) {
+                                if (stream.categoryId in allowedLiveCats && TurkishStringNormalizer.matches(stream.name, clean)) {
+                                    liveMap[stream.streamId] = stream
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
                         }
                     }
-                } catch (_: Exception) {}
-            }
-            val sortedLive = liveMap.values.sortedWith(
-                compareByDescending<LiveStream> {
-                    TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
-                }.thenBy { it.name }
-            ).take(30)
+                    liveMap.values.sortedWith(
+                        compareByDescending<LiveStream> {
+                            TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
+                        }.thenBy { it.name }
+                    ).take(30)
+                }
 
-            // 2. Filmler (VOD)
-            val vodMap = mutableMapOf<Int, VodStream>()
-            for (v in variants) {
-                try {
-                    val list = repository.searchVodStreamsFlow(v).first()
-                    for (stream in list) {
-                        if (stream.categoryId in allowedVodCats && TurkishStringNormalizer.matches(stream.name, clean)) {
-                            vodMap[stream.streamId] = stream
+                val vodDeferred = async {
+                    if (!needVod) return@async emptyList<VodStream>()
+                    val vodMap = mutableMapOf<Int, VodStream>()
+                    for (v in variants) {
+                        try {
+                            val list = repository.searchVodStreamsFlow(v).first()
+                            for (stream in list) {
+                                if (stream.categoryId in allowedVodCats && TurkishStringNormalizer.matches(stream.name, clean)) {
+                                    vodMap[stream.streamId] = stream
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
                         }
                     }
-                } catch (_: Exception) {}
-            }
-            val sortedVod = vodMap.values.sortedWith(
-                compareByDescending<VodStream> {
-                    TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
-                }.thenBy { it.name }
-            ).take(30)
+                    vodMap.values.sortedWith(
+                        compareByDescending<VodStream> {
+                            TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
+                        }.thenBy { it.name }
+                    ).take(30)
+                }
 
-            // 3. Diziler
-            val seriesMap = mutableMapOf<Int, SeriesStream>()
-            for (v in variants) {
-                try {
-                    val list = repository.searchSeriesStreamsFlow(v).first()
-                    for (stream in list) {
-                        if (stream.categoryId in allowedSeriesCats && TurkishStringNormalizer.matches(stream.name, clean)) {
-                            seriesMap[stream.seriesId] = stream
+                val seriesDeferred = async {
+                    if (!needSeries) return@async emptyList<SeriesStream>()
+                    val seriesMap = mutableMapOf<Int, SeriesStream>()
+                    for (v in variants) {
+                        try {
+                            val list = repository.searchSeriesStreamsFlow(v).first()
+                            for (stream in list) {
+                                if (stream.categoryId in allowedSeriesCats && TurkishStringNormalizer.matches(stream.name, clean)) {
+                                    seriesMap[stream.seriesId] = stream
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
                         }
                     }
-                } catch (_: Exception) {}
+                    seriesMap.values.sortedWith(
+                        compareByDescending<SeriesStream> {
+                            TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
+                        }.thenBy { it.name }
+                    ).take(30)
+                }
+
+                Triple(liveDeferred.await(), vodDeferred.await(), seriesDeferred.await())
             }
-            val sortedSeries = seriesMap.values.sortedWith(
-                compareByDescending<SeriesStream> {
-                    TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
-                }.thenBy { it.name }
-            ).take(30)
 
             liveResults.value = sortedLive
             vodResults.value = sortedVod
@@ -165,5 +194,6 @@ class UniversalSearchController(
     /** Devam eden aramayı iptal eder (oturum sıfırlanırken kullanılır). */
     fun cancelSearch() {
         searchJob?.cancel()
+        isSearching.value = false
     }
 }

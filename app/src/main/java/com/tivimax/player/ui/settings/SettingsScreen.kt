@@ -24,9 +24,12 @@ import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -47,6 +50,7 @@ import com.tivimax.player.theme.VegaPalette
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.ParentalPin
 import com.tivimax.player.ui.components.CategoryManagementDialog
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import com.tivimax.player.ui.design.VegaButtonVariant
@@ -58,7 +62,11 @@ import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.util.CrashLogger
 import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.LocalIsTvDevice
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class SettingsSection(val title: String, val icon: ImageVector, val subtitle: String) {
     PLAYLISTS("Listelerim", Icons.AutoMirrored.Filled.PlaylistPlay, "Oynatma listelerini ekle ve aralarında geç"),
@@ -132,8 +140,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var selectedSection by remember { mutableStateOf(SettingsSection.PLAYLISTS) }
-    var activeSubPage by remember { mutableStateOf<SettingsSection?>(null) }
+    var selectedSection by rememberSaveable { mutableStateOf(SettingsSection.PLAYLISTS) }
+    var activeSubPage by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
 
     LaunchedEffect(targetSectionStr) {
         if (targetSectionStr == "PLAYLISTS") {
@@ -145,7 +153,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
 
     var showCategoryDialog by remember { mutableStateOf(false) }
     var showPinDialog by remember { mutableStateOf(false) }
-    var showDeviceModeDialog by remember { mutableStateOf(false) }
     var newPinInput by remember { mutableStateOf("") }
     var currentPinInput by remember { mutableStateOf("") }
     var repeatPinInput by remember { mutableStateOf("") }
@@ -412,6 +419,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
     // PIN DEĞİŞTİRME / BELİRLEME DİYALOĞU
     if (showPinDialog) {
         val pinSet = storedParentalPin.isNotEmpty()
+        val firstPinFocusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            for (attempt in 0 until 2) {
+                withFrameNanos { }
+                delay(60)
+                if (firstPinFocusRequester.requestFocusSafely()) break
+            }
+        }
         val closeDialog = {
             showPinDialog = false
             newPinInput = ""
@@ -446,7 +461,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                         PinDialogField(
                             value = currentPinInput,
                             label = "Mevcut şifre",
-                            isError = pinDialogError != null
+                            isError = pinDialogError != null,
+                            modifier = Modifier.focusRequester(firstPinFocusRequester)
                         ) {
                             currentPinInput = it
                             pinDialogError = null
@@ -455,7 +471,8 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     PinDialogField(
                         value = newPinInput,
                         label = if (pinSet) "Yeni şifre" else "Şifre",
-                        isError = pinDialogError != null
+                        isError = pinDialogError != null,
+                        modifier = if (!pinSet) Modifier.focusRequester(firstPinFocusRequester) else Modifier
                     ) {
                         newPinInput = it
                         pinDialogError = null
@@ -510,14 +527,6 @@ fun SettingsScreen(viewModel: MainViewModel) {
             }
         )
     }
-
-    // CİHAZ MODU SEÇİM DİYALOĞU
-    if (showDeviceModeDialog) {
-        DeviceModeSelectionDialog(
-            viewModel = viewModel,
-            onDismiss = { showDeviceModeDialog = false }
-        )
-    }
 }
 
 @Composable
@@ -525,6 +534,7 @@ private fun PinDialogField(
     value: String,
     label: String,
     isError: Boolean,
+    modifier: Modifier = Modifier,
     onChange: (String) -> Unit
 ) {
     OutlinedTextField(
@@ -548,7 +558,7 @@ private fun PinDialogField(
             focusedTextColor = VegaColors.TextPrimary,
             unfocusedTextColor = VegaColors.TextPrimary
         ),
-        modifier = Modifier
+        modifier = modifier
             .tvOpenKeyboardOnOk()
             .fillMaxWidth()
     )
@@ -1293,7 +1303,15 @@ private fun RenderSelectedSection(
         // ==========================================
         SettingsSection.BACKUP_APP -> {
             val isCheckingUpdate by viewModel.autoUpdateManager.isChecking.collectAsState()
-            var crashCount by remember { mutableStateOf(CrashLogger.listReports(context).size) }
+            val playlistSyncState by viewModel.playlistSyncState.collectAsState()
+            var crashCount by remember { mutableIntStateOf(0) }
+            var isClearingCache by remember { mutableStateOf(false) }
+
+            LaunchedEffect(Unit) {
+                crashCount = withContext(Dispatchers.IO) {
+                    CrashLogger.listReports(context).size
+                }
+            }
 
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 // Grup 1: Uygulama Güncellemesi
@@ -1348,15 +1366,36 @@ private fun RenderSelectedSection(
 
                     SettingsActionRow(
                         title = "Önbelleği temizle",
-                        subtitle = "Kanal logoları ve resimler yeniden yüklenir. Listelerin silinmez.",
+                        subtitle = if (isClearingCache) {
+                            "Önbellek temizleniyor…"
+                        } else {
+                            "Kanal logoları ve resimler yeniden yüklenir. Listelerin silinmez."
+                        },
                         icon = Icons.Default.CleaningServices,
+                        isLoading = isClearingCache,
                         onClick = {
-                            try {
-                                context.cacheDir.deleteRecursively()
-                                coil.Coil.imageLoader(context).diskCache?.clear()
-                                coil.Coil.imageLoader(context).memoryCache?.clear()
-                                Toast.makeText(context, "Önbellek temizlendi", Toast.LENGTH_SHORT).show()
-                            } catch (_: Exception) {
+                            if (isClearingCache) return@SettingsActionRow
+                            isClearingCache = true
+                            val isSyncingNow = playlistSyncState.isSyncing
+                            scope.launch {
+                                withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        val syncDir = File(context.cacheDir, "sync")
+                                        context.cacheDir.listFiles()?.forEach { child ->
+                                            if (isSyncingNow && child.absolutePath == syncDir.absolutePath) {
+                                                return@forEach
+                                            }
+                                            child.deleteRecursively()
+                                        }
+                                    }
+                                    runCatching {
+                                        coil.Coil.imageLoader(context).diskCache?.clear()
+                                    }
+                                }
+                                runCatching {
+                                    coil.Coil.imageLoader(context).memoryCache?.clear()
+                                }
+                                isClearingCache = false
                                 Toast.makeText(context, "Önbellek temizlendi", Toast.LENGTH_SHORT).show()
                             }
                         }
@@ -1383,19 +1422,24 @@ private fun RenderSelectedSection(
                         },
                         icon = Icons.Default.BugReport,
                         onClick = {
-                            try {
-                                val send = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, "${AppConfig.APP_NAME} hata raporu")
-                                    putExtra(Intent.EXTRA_TEXT, CrashLogger.buildShareText(context))
+                            scope.launch {
+                                val reportText = withContext(Dispatchers.IO) {
+                                    CrashLogger.buildShareText(context)
                                 }
-                                val chooser = Intent.createChooser(send, "Hata raporunu gönder").apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                try {
+                                    val send = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "${AppConfig.APP_NAME} hata raporu")
+                                        putExtra(Intent.EXTRA_TEXT, reportText)
+                                    }
+                                    val chooser = Intent.createChooser(send, "Hata raporunu gönder").apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(chooser)
+                                } catch (e: Exception) {
+                                    Log.w("SettingsScreen", "Hata raporu paylaşılamadı: ${e.javaClass.simpleName}")
+                                    Toast.makeText(context, "Bu cihazda paylaşım uygulaması yok", Toast.LENGTH_SHORT).show()
                                 }
-                                context.startActivity(chooser)
-                            } catch (e: Exception) {
-                                Log.w("SettingsScreen", "Hata raporu paylaşılamadı: ${e.javaClass.simpleName}")
-                                Toast.makeText(context, "Bu cihazda paylaşım uygulaması yok", Toast.LENGTH_SHORT).show()
                             }
                         }
                     )
@@ -1408,8 +1452,12 @@ private fun RenderSelectedSection(
                             icon = Icons.Default.DeleteOutline,
                             accentColor = VegaColors.Danger,
                             onClick = {
-                                CrashLogger.clear(context)
-                                crashCount = CrashLogger.listReports(context).size
+                                scope.launch {
+                                    crashCount = withContext(Dispatchers.IO) {
+                                        CrashLogger.clear(context)
+                                        CrashLogger.listReports(context).size
+                                    }
+                                }
                             }
                         )
                     }

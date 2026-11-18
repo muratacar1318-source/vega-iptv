@@ -8,7 +8,6 @@ import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.res.Configuration
-import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
 import android.util.Rational
@@ -35,6 +34,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -149,14 +149,13 @@ fun PlayerScreen(
 
     val isPlaying by playerManager.isPlaying.collectAsState()
     val isBuffering by playerManager.isBuffering.collectAsState()
-    val currentPosition by playerManager.currentPosition.collectAsState()
     val duration by playerManager.duration.collectAsState()
-    val bufferedPosition by playerManager.bufferedPosition.collectAsState()
     val errorMessage by playerManager.errorMessage.collectAsState()
     val reconnectStatus by playerManager.reconnectStatus.collectAsState()
     val aspectRatio by playerManager.aspectRatio.collectAsState()
     val audioTracks by playerManager.audioTracks.collectAsState()
     val subtitleTracks by playerManager.subtitleTracks.collectAsState()
+    val playerInstanceVersion by playerManager.playerInstanceVersion.collectAsState()
 
     val streamDiagnostics by playerManager.streamDiagnostics.collectAsState()
     val sleepTimerSeconds by playerManager.sleepTimerSeconds.collectAsState()
@@ -256,9 +255,7 @@ fun PlayerScreen(
     val zapperMatchedChannel by viewModel.zapperMatchedChannel.collectAsState()
     val recentLiveChannels by viewModel.recentChannels.collectAsState()
 
-    // Dokunmatik Hareket Geri Bildirimleri (Parlaklık & Ses)
-    var brightnessFeedback by remember { mutableStateOf<Int?>(null) }
-    var volumeFeedback by remember { mutableStateOf<Int?>(null) }
+    // Bilgi Balonu ve Dokunmatik Sürükleme Durumu
     var infoBannerText by remember { mutableStateOf<String?>(null) }
     var lastInfoBannerTime by remember { mutableLongStateOf(0L) }
     var dragStartOffset by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
@@ -268,35 +265,13 @@ fun PlayerScreen(
     var seekAccumulatedSeconds by remember { mutableIntStateOf(0) }
     var lastSeekTriggerTime by remember { mutableLongStateOf(0L) }
 
-    LaunchedEffect(brightnessFeedback) {
-        if (brightnessFeedback != null) {
-            delay(1500)
-            brightnessFeedback = null
-        }
-    }
-
-    LaunchedEffect(volumeFeedback) {
-        if (volumeFeedback != null) {
-            delay(1500)
-            volumeFeedback = null
-        }
-    }
-
     val favoriteLiveIds by viewModel.favoriteLiveIds.collectAsState()
     val isFavorite = favoriteLiveIds.contains(streamId.toString())
     val epgList by viewModel.currentEpgList.collectAsState()
     val allLiveStreams by viewModel.liveStreams.collectAsState()
 
-    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
-    val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
-    var currentVolume by remember { mutableIntStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)) }
-    var currentBrightness by remember { mutableFloatStateOf(activity?.window?.attributes?.screenBrightness.let { if (it == null || it < 0f) 0.5f else it }) }
-
     val configuration = LocalConfiguration.current
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-
-    val density = LocalDensity.current
-    val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
 
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPosition by remember { mutableFloatStateOf(0f) }
@@ -307,14 +282,7 @@ fun PlayerScreen(
     var gestureScrubTargetMs by remember { mutableLongStateOf(0L) }
     var gestureScrubDiffMs by remember { mutableLongStateOf(0L) }
     var gestureDragInitialPos by remember { mutableLongStateOf(0L) }
-    var dragDirection by remember { mutableStateOf<String?>(null) } // "horizontal", "vertical_left", "vertical_right"
-
-    val effectivePosition = when {
-        isScrubbing -> scrubPosition.toLong()
-        gestureScrubActive -> gestureScrubTargetMs
-        optimisticSeekPosition != null -> optimisticSeekPosition!!
-        else -> currentPosition
-    }
+    var dragDirection by remember { mutableStateOf<String?>(null) } // "horizontal", "vertical_center"
 
     LaunchedEffect(lastSeekTriggerTime) {
         if (seekDirection != null) {
@@ -331,17 +299,16 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(currentPosition, optimisticSeekPosition) {
-        if (optimisticSeekPosition != null) {
-            if (kotlin.math.abs(currentPosition - optimisticSeekPosition!!) <= 1500L) {
-                optimisticSeekPosition = null
+    LaunchedEffect(optimisticSeekPosition) {
+        val target = optimisticSeekPosition ?: return@LaunchedEffect
+        kotlinx.coroutines.withTimeoutOrNull(1200L) {
+            playerManager.currentPosition.collect { pos ->
+                if (kotlin.math.abs(pos - target) <= 1500L) {
+                    optimisticSeekPosition = null
+                }
             }
         }
-    }
-
-    LaunchedEffect(optimisticSeekPosition) {
-        if (optimisticSeekPosition != null) {
-            delay(1200L)
+        if (optimisticSeekPosition == target) {
             optimisticSeekPosition = null
         }
     }
@@ -482,14 +449,47 @@ fun PlayerScreen(
     val nextEpisode = remember(currentEpisode) { viewModel.getNextEpisode() }
     var autoNextDismissed by remember(currentEpisode) { mutableStateOf(false) }
 
-    // Bölüm bittiğinde otomatik sonraki bölüme geçiş (Recomposition döngüsünü önleyen periyodik kontrol)
-    LaunchedEffect(streamId, currentEpisode) {
+    // Bölüm bittiğinde (STATE_ENDED veya son 1.5 sn) otomatik sonraki bölüme geçiş
+    val isCurrentlyScrubbing by rememberUpdatedState(isScrubbing || gestureScrubActive)
+    val latestNextEpisode by rememberUpdatedState(nextEpisode)
+    var autoNextTriggered by remember(streamId, currentEpisode) { mutableStateOf(false) }
+
+    DisposableEffect(streamId, currentEpisode, playerInstanceVersion, isLive) {
+        val player = if (!isLive && currentEpisode != null) playerManager.player else null
+        val listener = if (player != null) {
+            object : androidx.media3.common.Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == androidx.media3.common.Player.STATE_ENDED &&
+                        !autoNextTriggered &&
+                        !isCurrentlyScrubbing &&
+                        latestNextEpisode != null
+                    ) {
+                        autoNextTriggered = true
+                        viewModel.playNextEpisode()
+                    }
+                }
+            }
+        } else null
+        if (player != null && listener != null) {
+            player.addListener(listener)
+        }
+        onDispose {
+            if (player != null && listener != null) {
+                player.removeListener(listener)
+            }
+        }
+    }
+
+    LaunchedEffect(streamId, currentEpisode, isLive) {
         if (!isLive && currentEpisode != null) {
-            while (true) {
+            while (!autoNextTriggered) {
                 delay(1000L)
+                if (autoNextTriggered || isCurrentlyScrubbing || !playerManager.isPlaying.value) continue
+                if (latestNextEpisode == null) continue
                 val pos = playerManager.currentPosition.value
                 val dur = playerManager.duration.value
-                if (dur > 30_000L && pos >= dur - 1500L && dur > 0L) {
+                if (dur > 30_000L && pos >= dur - 1500L) {
+                    autoNextTriggered = true
                     viewModel.playNextEpisode()
                     break
                 }
@@ -559,10 +559,6 @@ fun PlayerScreen(
                 if (!inPip && !inMultiWindow) {
                     playerManager.pause()
                 }
-            } else if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
-                if (!isControlsLocked && isLive) {
-                    playerManager.play()
-                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -593,12 +589,20 @@ fun PlayerScreen(
         }
     }
 
-    // Video izlerken ekranın kapanmasını önle (KEEP_SCREEN_ON) ve çıkışta belleği temizle
+    // Video READY olup kare hızı/boyutu belli olduğunda ekran yenileme hızını eşle (AFR)
+    LaunchedEffect(isPlaying, streamDiagnostics.frameRate, streamDiagnostics.resolution, streamId, playerInstanceVersion) {
+        if (activity != null && isPlaying) {
+            playerManager.applyAutoFrameRate(activity)
+        }
+    }
+
+    // Video izlerken ekranın kapanmasını önle (KEEP_SCREEN_ON) ve çıkışta AFR + belleği temizle
     DisposableEffect(Unit) {
         val window = activity?.window
         window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose {
             window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            playerManager.resetAutoFrameRate(activity)
             if (viewModel.currentScreen.value !is Screen.Player && !viewModel.isMiniPlayerActive.value) {
                 playerManager.stopAndClear()
             }
@@ -688,8 +692,9 @@ fun PlayerScreen(
             playerManager.closeDualView()
         } else {
             if (!isLive) {
-                if (currentPosition > 0) {
-                    viewModel.saveWatchProgress(streamId, currentPosition, duration)
+                val pos = playerManager.currentPosition.value
+                if (pos > 0) {
+                    viewModel.saveWatchProgress(streamId, pos, playerManager.duration.value)
                 }
                 playerManager.release()
             } else {
@@ -1128,8 +1133,6 @@ fun PlayerScreen(
                             dragDirection = null
                             gestureScrubActive = false
                             gestureDragInitialPos = if (optimisticSeekPosition != null) optimisticSeekPosition!! else playerManager.currentPosition.value
-                            currentBrightness = activity?.window?.attributes?.screenBrightness.let { if (it == null || it < 0f) 0.5f else it }
-                            currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                         },
                         onDragEnd = {
                             registerInteraction()
@@ -1290,13 +1293,6 @@ fun PlayerScreen(
                 )
             }
         }
-
-        // İnce Yarı Saydam Dikey Parlaklık Çubuğu (Sol Kenar)
-        BrightnessFeedbackBar(brightnessFeedback)
-
-        // İnce Yarı Saydam Dikey Ses Seviye Çubuğu (Sağ Kenar)
-        VolumeFeedbackBar(volumeFeedback)
-
 
         // EKRAN KİLİDİ BİLGİLENDİRME BİLDİRİMİ
         AnimatedVisibility(
@@ -1508,8 +1504,9 @@ fun PlayerScreen(
                     BouncyIconButton(
                         onClick = {
                             if (!isLive) {
-                                if (currentPosition > 0) {
-                                    viewModel.saveWatchProgress(streamId, currentPosition, duration)
+                                val pos = playerManager.currentPosition.value
+                                if (pos > 0) {
+                                    viewModel.saveWatchProgress(streamId, pos, playerManager.duration.value)
                                 }
                                 playerManager.release()
                             } else {
@@ -1869,70 +1866,14 @@ fun PlayerScreen(
                             // FİLM / DİZİ: STREAMVAULT BUZLU GECE CAM ALT KONTROL PANELİ
                             // ====================================================================
                             if (duration > 0) {
-                                AnimatedVisibility(
+                                VodScrubPreviewPopup(
                                     visible = isScrubbing,
-                                    enter = fadeIn(tween(150)) + expandVertically(),
-                                    exit = fadeOut(tween(150)) + shrinkVertically()
-                                ) {
-                                    val scrubMillis = scrubPosition.toLong()
-                                    val basePos = if (optimisticSeekPosition != null) optimisticSeekPosition!! else currentPosition
-                                    val diffSeconds = (scrubMillis - basePos) / 1000L
-                                    val diffText = if (diffSeconds >= 0) "+${formatDuration(diffSeconds * 1000)}" else "-${formatDuration(-diffSeconds * 1000)}"
-
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(bottom = 8.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Surface(
-                                            shape = VegaShapes.Medium,
-                                            color = VegaColors.OverlayPanel,
-                                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.7f)),
-                                            tonalElevation = 8.dp
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                if (!thumbnailImage.isNullOrEmpty()) {
-                                                    AsyncImage(
-                                                        model = thumbnailImage,
-                                                        contentDescription = null,
-                                                        contentScale = ContentScale.Crop,
-                                                        modifier = Modifier
-                                                            .size(width = 64.dp, height = 38.dp)
-                                                            .clip(VegaShapes.Small)
-                                                            .background(Color.Black)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(10.dp))
-                                                }
-
-                                                Column {
-                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        Text(
-                                                            text = formatDuration(scrubMillis),
-                                                            color = VegaColors.Accent,
-                                                            fontSize = VegaText.BodyProminent,
-                                                            fontWeight = FontWeight.ExtraBold
-                                                        )
-                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
-                                                            text = "/ ${formatDuration(duration)}",
-                                                            color = VegaColors.TextSecondary,
-                                                            fontSize = VegaText.Caption
-                                                        )
-                                                    }
-                                                    Text(
-                                                        text = "Hedef süre ($diffText)",
-                                                        color = VegaColors.TextSecondary,
-                                                        fontSize = VegaText.Caption
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                    scrubPosition = scrubPosition,
+                                    duration = duration,
+                                    optimisticSeekPosition = optimisticSeekPosition,
+                                    playerManager = playerManager,
+                                    thumbnailImage = thumbnailImage
+                                )
                             }
 
                             Surface(
@@ -1949,180 +1890,26 @@ fun PlayerScreen(
                                     ),
                                     verticalArrangement = Arrangement.spacedBy(if (isPortrait) 8.dp else 12.dp)
                                 ) {
-                                    // 1. STREAMVAULT İLERLEME / SARMA ÇUBUĞU
+                                    // 1. STREAMVAULT İLERLEME / SARMA ÇUBUĞU (4 Hz recomposition bu alt bileşende izole)
                                     if (duration > 0) {
-                                        val currentPosVal = effectivePosition
-                                        val remainingMs = (duration - currentPosVal).coerceAtLeast(0L)
-                                        val remainingText = "-${formatDuration(remainingMs)}"
-                                        val currentFraction = (effectivePosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-                                        val bufferFraction = (bufferedPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-
-                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = formatDuration(currentPosVal),
-                                                    color = VegaColors.TextPrimary,
-                                                    fontSize = VegaText.Secondary,
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
-                                                Text(
-                                                    text = "${formatDuration(duration)}  ($remainingText)",
-                                                    color = VegaColors.TextSecondary,
-                                                    fontSize = VegaText.Caption,
-                                                    fontWeight = FontWeight.Medium
-                                                )
-                                            }
-
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clip(VegaShapes.Small)
-                                                    .border(
-                                                        width = if (isSliderFocused) 2.dp else 0.dp,
-                                                        color = if (isSliderFocused) VegaColors.Accent else Color.Transparent,
-                                                        shape = VegaShapes.Small
-                                                    )
-                                                    .padding(horizontal = if (isSliderFocused) 6.dp else 2.dp, vertical = 4.dp)
-                                                    .focusRequester(sliderFocusRequester)
-                                                    .onFocusChanged {
-                                                        isSliderFocused = it.isFocused
-                                                        if (it.isFocused) registerInteraction()
-                                                    }
-                                                    .focusProperties {
-                                                        down = firstButtonFocusRequester
-                                                    }
-                                                    .focusable()
-                                                    .onPreviewKeyEvent { keyEvent ->
-                                                        if (keyEvent.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
-                                                        when (keyEvent.nativeKeyEvent.keyCode) {
-                                                            KeyEvent.KEYCODE_DPAD_DOWN -> {
-                                                                try { firstButtonFocusRequester.requestFocus() } catch (_: Exception) {}
-                                                                registerInteraction()
-                                                                true
-                                                            }
-                                                            KeyEvent.KEYCODE_DPAD_LEFT -> {
-                                                                triggerSeek(false)
-                                                                true
-                                                            }
-                                                            KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                                                                triggerSeek(true)
-                                                                true
-                                                            }
-                                                            KeyEvent.KEYCODE_DPAD_CENTER,
-                                                            KeyEvent.KEYCODE_ENTER,
-                                                            KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                                                                playerManager.togglePlayPause()
-                                                                registerInteraction()
-                                                                true
-                                                            }
-                                                            else -> false
-                                                        }
-                                                    }
-                                                    .pointerInput(duration) {
-                                                        detectTapGestures { offset ->
-                                                            if (size.width > 0 && duration > 0) {
-                                                                val tapFraction = (offset.x / size.width).coerceIn(0f, 1f)
-                                                                val target = (tapFraction * duration).toLong()
-                                                                optimisticSeekPosition = target
-                                                                playerManager.seekTo(target)
-                                                                registerInteraction()
-                                                            }
-                                                        }
-                                                    }
-                                                    .pointerInput(duration) {
-                                                        detectHorizontalDragGestures(
-                                                            onDragStart = { offset ->
-                                                                if (size.width > 0 && duration > 0) {
-                                                                    isScrubbing = true
-                                                                    val startFraction = (offset.x / size.width).coerceIn(0f, 1f)
-                                                                    scrubPosition = startFraction * duration
-                                                                    registerInteraction()
-                                                                }
-                                                            },
-                                                            onHorizontalDrag = { change, _ ->
-                                                                if (size.width > 0 && duration > 0) {
-                                                                    val dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
-                                                                    scrubPosition = dragFraction * duration
-                                                                    registerInteraction()
-                                                                }
-                                                            },
-                                                            onDragEnd = {
-                                                                val target = scrubPosition.toLong().coerceIn(0L, duration)
-                                                                optimisticSeekPosition = target
-                                                                playerManager.seekTo(target)
-                                                                isScrubbing = false
-                                                                registerInteraction()
-                                                            },
-                                                            onDragCancel = {
-                                                                isScrubbing = false
-                                                            }
-                                                        )
-                                                    },
-                                                contentAlignment = Alignment.CenterStart
-                                            ) {
-                                                // StreamVault Parlak Mavi İlerleme Çubuğu
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(if (isSliderFocused) 7.dp else 5.dp)
-                                                        .clip(VegaShapes.Pill)
-                                                        .background(VegaColors.SurfaceAccent)
-                                                ) {
-                                                    if (bufferFraction > 0f) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth(bufferFraction)
-                                                                .fillMaxHeight()
-                                                                .background(Color.White.copy(alpha = 0.25f))
-                                                        )
-                                                    }
-                                                    if (currentFraction > 0f) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth(currentFraction)
-                                                                .fillMaxHeight()
-                                                                .background(
-                                                                    Brush.horizontalGradient(
-                                                                        listOf(
-                                                                            VegaColors.Accent.copy(alpha = 0.85f),
-                                                                            VegaColors.Accent
-                                                                        )
-                                                                    )
-                                                                )
-                                                        )
-                                                    }
-                                                }
-
-                                                // Parlak Tutamaç (Thumb)
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(18.dp),
-                                                    contentAlignment = Alignment.CenterStart
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier.fillMaxWidth(currentFraction.coerceAtLeast(0.001f))
-                                                    ) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(if (isSliderFocused) 16.dp else 12.dp)
-                                                                .align(Alignment.CenterEnd)
-                                                                .clip(CircleShape)
-                                                                .background(if (isSliderFocused) Color.White else VegaColors.Accent)
-                                                                .border(
-                                                                    width = 2.dp,
-                                                                    color = if (isSliderFocused) VegaColors.Accent else Color.White,
-                                                                    shape = CircleShape
-                                                                )
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        VodSeekBarSection(
+                                            playerManager = playerManager,
+                                            duration = duration,
+                                            isScrubbing = isScrubbing,
+                                            scrubPosition = scrubPosition,
+                                            onScrubbingChange = { isScrubbing = it },
+                                            onScrubPositionChange = { scrubPosition = it },
+                                            optimisticSeekPosition = optimisticSeekPosition,
+                                            onOptimisticSeekPositionChange = { optimisticSeekPosition = it },
+                                            gestureScrubActive = gestureScrubActive,
+                                            gestureScrubTargetMs = gestureScrubTargetMs,
+                                            isSliderFocused = isSliderFocused,
+                                            onSliderFocusChange = { isSliderFocused = it },
+                                            sliderFocusRequester = sliderFocusRequester,
+                                            firstButtonFocusRequester = firstButtonFocusRequester,
+                                            triggerSeek = triggerSeek,
+                                            registerInteraction = registerInteraction
+                                        )
                                     }
 
                                     // 2. BÜYÜK VE ODAKLANABİLİR ULAŞIM DÜĞMELERİ (Otomatik odak: Oynat / Duraklat)
@@ -2473,7 +2260,7 @@ fun PlayerScreen(
                             .padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        items(categories, key = { it.categoryId }) { cat ->
+                        itemsIndexed(categories, key = { idx, cat -> "cat_${cat.categoryId}_$idx" }) { _, cat ->
                             val isSel = cat.categoryId == selectedCategory
                             var isCatFocused by remember { mutableStateOf(false) }
                             Surface(
@@ -2543,11 +2330,11 @@ fun PlayerScreen(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        items(
+                        itemsIndexed(
                             items = pagedDrawerList,
-                            key = { it.streamId },
-                            contentType = { "drawer_channel" }
-                        ) { channel ->
+                            key = { idx, ch -> "drawer_${ch.streamId}_$idx" },
+                            contentType = { _, _ -> "drawer_channel" }
+                        ) { _, channel ->
                             val isCurrent = channel.streamId == streamId
                             var isChannelFocused by remember { mutableStateOf(false) }
                             Surface(
@@ -2636,116 +2423,19 @@ fun PlayerScreen(
             }
         }
 
-        // OTOMATİK SONRAKİ BÖLÜM GEÇİŞ KARTI (Binge-Watching Popup)
-        val timeRemainingMs = if (duration > 0) duration - currentPosition else Long.MAX_VALUE
-        val showNextEpisodePrompt = !isLive && currentEpisode != null && nextEpisode != null &&
-                !autoNextDismissed && duration > 60_000L && timeRemainingMs in 1000L..25_000L
-
-        AnimatedVisibility(
-            visible = showNextEpisodePrompt && !isInPipMode,
-            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = if (isPortrait) 120.dp else 80.dp)
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = VegaColors.OverlayPanel),
-                shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.7f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
-                modifier = Modifier.widthIn(max = 300.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SkipNext,
-                            contentDescription = null,
-                            tint = VegaColors.Danger,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "Sonraki bölüm (${(timeRemainingMs / 1000L)} sn)",
-                            color = VegaColors.Accent,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = VegaText.Secondary
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        var dismissNextFocused by remember { mutableStateOf(false) }
-                        Surface(
-                            shape = VegaShapes.Pill,
-                            color = if (dismissNextFocused) VegaColors.Accent else VegaColors.OverlayPill,
-                            border = BorderStroke(1.dp, if (dismissNextFocused) Color.White else VegaColors.Border),
-                            modifier = Modifier
-                                .size(30.dp)
-                                .dpadFocusable(
-                                    shape = VegaShapes.Pill,
-                                    focusedBorderColor = Color.White,
-                                    scale = 1.05f,
-                                    onClick = { autoNextDismissed = true },
-                                    onFocusStateChange = { dismissNextFocused = it }
-                                )
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Kapat",
-                                    tint = if (dismissNextFocused) VegaColors.OnAccent else VegaColors.TextSecondary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Text(
-                        text = "S${nextEpisode?.season} B${nextEpisode?.episodeNum}: ${nextEpisode?.title}",
-                        color = Color.White,
-                        fontSize = VegaText.Secondary,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        var watchNowFocused by remember { mutableStateOf(false) }
-                        Surface(
-                            shape = VegaShapes.Small,
-                            color = VegaColors.Accent,
-                            border = if (watchNowFocused) BorderStroke(2.dp, Color.White) else null,
-                            modifier = Modifier
-                                .height(38.dp)
-                                .dpadFocusable(
-                                    shape = VegaShapes.Small,
-                                    focusedBorderColor = Color.White,
-                                    scale = 1.04f,
-                                    onClick = { viewModel.playNextEpisode() },
-                                    onFocusStateChange = { watchNowFocused = it }
-                                )
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(horizontal = 16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Hemen izle",
-                                    fontSize = VegaText.Secondary,
-                                    fontWeight = FontWeight.Bold,
-                                    color = VegaColors.OnAccent
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+        // OTOMATİK SONRAKİ BÖLÜM GEÇİŞ KARTI (Binge-Watching Popup — 4 Hz recomposition izole)
+        if (!isLive && currentEpisode != null && nextEpisode != null && !autoNextDismissed && duration > 60_000L && !isInPipMode) {
+            NextEpisodeCountdownOverlay(
+                playerManager = playerManager,
+                duration = duration,
+                nextEpisode = nextEpisode,
+                isPortrait = isPortrait,
+                onDismiss = { autoNextDismissed = true },
+                onWatchNow = { viewModel.playNextEpisode() },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = if (isPortrait) 120.dp else 80.dp)
+            )
         }
 
         // DAHA FAZLA (⋯) İKİNCİL SEÇENEKLER YAN PANELİ (G-023)
@@ -2928,7 +2618,7 @@ fun PlayerScreen(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(seasonEpisodes.size, key = { seasonEpisodes[it].id }) { idx ->
+                    items(seasonEpisodes.size, key = { "${seasonEpisodes[it].id}_$it" }) { idx ->
                         val ep = seasonEpisodes[idx]
                         val isCurrentEp = activeEpisode?.id == ep.id
                         var isItemFocused by remember { mutableStateOf(false) }
@@ -3279,6 +2969,417 @@ private fun VodStreamVaultTile(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+/**
+ * Film/Dizi sarma önizleme balonu — currentPosition okumasını kök PlayerScreen'den izole eder.
+ */
+@Composable
+private fun VodScrubPreviewPopup(
+    visible: Boolean,
+    scrubPosition: Float,
+    duration: Long,
+    optimisticSeekPosition: Long?,
+    playerManager: TiviPlayerManager,
+    thumbnailImage: String?
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(150)) + expandVertically(),
+        exit = fadeOut(tween(150)) + shrinkVertically()
+    ) {
+        val currentPosition by playerManager.currentPosition.collectAsState()
+        val scrubMillis = scrubPosition.toLong()
+        val basePos = optimisticSeekPosition ?: currentPosition
+        val diffSeconds = (scrubMillis - basePos) / 1000L
+        val diffText = if (diffSeconds >= 0) "+${formatDuration(diffSeconds * 1000)}" else "-${formatDuration(-diffSeconds * 1000)}"
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                shape = VegaShapes.Medium,
+                color = VegaColors.OverlayPanel,
+                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.7f)),
+                tonalElevation = 8.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!thumbnailImage.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = thumbnailImage,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(width = 64.dp, height = 38.dp)
+                                .clip(VegaShapes.Small)
+                                .background(Color.Black)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = formatDuration(scrubMillis),
+                                color = VegaColors.Accent,
+                                fontSize = VegaText.BodyProminent,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "/ ${formatDuration(duration)}",
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Caption
+                            )
+                        }
+                        Text(
+                            text = "Hedef süre ($diffText)",
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Caption
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Film/Dizi ilerleme ve sarma çubuğu — 4 Hz currentPosition/bufferedPosition akışını
+ * yalnızca bu küçük alt bileşende toplar; kök PlayerScreen ve VideoPlayerSurface etkilenmez.
+ */
+@Composable
+private fun VodSeekBarSection(
+    playerManager: TiviPlayerManager,
+    duration: Long,
+    isScrubbing: Boolean,
+    scrubPosition: Float,
+    onScrubbingChange: (Boolean) -> Unit,
+    onScrubPositionChange: (Float) -> Unit,
+    optimisticSeekPosition: Long?,
+    onOptimisticSeekPositionChange: (Long?) -> Unit,
+    gestureScrubActive: Boolean,
+    gestureScrubTargetMs: Long,
+    isSliderFocused: Boolean,
+    onSliderFocusChange: (Boolean) -> Unit,
+    sliderFocusRequester: FocusRequester,
+    firstButtonFocusRequester: FocusRequester,
+    triggerSeek: (Boolean) -> Unit,
+    registerInteraction: () -> Unit
+) {
+    val currentPosition by playerManager.currentPosition.collectAsState()
+    val bufferedPosition by playerManager.bufferedPosition.collectAsState()
+
+    val effectivePosition = when {
+        isScrubbing -> scrubPosition.toLong()
+        gestureScrubActive -> gestureScrubTargetMs
+        optimisticSeekPosition != null -> optimisticSeekPosition
+        else -> currentPosition
+    }
+
+    val remainingMs = (duration - effectivePosition).coerceAtLeast(0L)
+    val remainingText = "-${formatDuration(remainingMs)}"
+    val currentFraction = (effectivePosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    val bufferFraction = (bufferedPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = formatDuration(effectivePosition),
+                color = VegaColors.TextPrimary,
+                fontSize = VegaText.Secondary,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "${formatDuration(duration)}  ($remainingText)",
+                color = VegaColors.TextSecondary,
+                fontSize = VegaText.Caption,
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(VegaShapes.Small)
+                .border(
+                    width = if (isSliderFocused) 2.dp else 0.dp,
+                    color = if (isSliderFocused) VegaColors.Accent else Color.Transparent,
+                    shape = VegaShapes.Small
+                )
+                .padding(horizontal = if (isSliderFocused) 6.dp else 2.dp, vertical = 4.dp)
+                .focusRequester(sliderFocusRequester)
+                .onFocusChanged {
+                    onSliderFocusChange(it.isFocused)
+                    if (it.isFocused) registerInteraction()
+                }
+                .focusProperties {
+                    down = firstButtonFocusRequester
+                }
+                .focusable()
+                .onPreviewKeyEvent { keyEvent ->
+                    if (keyEvent.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_DOWN -> {
+                            try { firstButtonFocusRequester.requestFocus() } catch (_: Exception) {}
+                            registerInteraction()
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_LEFT -> {
+                            triggerSeek(false)
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                            triggerSeek(true)
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_CENTER,
+                        KeyEvent.KEYCODE_ENTER,
+                        KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                            playerManager.togglePlayPause()
+                            registerInteraction()
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                .pointerInput(duration) {
+                    detectTapGestures { offset ->
+                        if (size.width > 0 && duration > 0) {
+                            val tapFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                            val target = (tapFraction * duration).toLong()
+                            onOptimisticSeekPositionChange(target)
+                            playerManager.seekTo(target)
+                            registerInteraction()
+                        }
+                    }
+                }
+                .pointerInput(duration) {
+                    var currentDragPos = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            if (size.width > 0 && duration > 0) {
+                                onScrubbingChange(true)
+                                val startFraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                currentDragPos = startFraction * duration
+                                onScrubPositionChange(currentDragPos)
+                                registerInteraction()
+                            }
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            if (size.width > 0 && duration > 0) {
+                                val dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                                currentDragPos = dragFraction * duration
+                                onScrubPositionChange(currentDragPos)
+                                registerInteraction()
+                            }
+                        },
+                        onDragEnd = {
+                            val target = currentDragPos.toLong().coerceIn(0L, duration)
+                            onOptimisticSeekPositionChange(target)
+                            playerManager.seekTo(target)
+                            onScrubbingChange(false)
+                            registerInteraction()
+                        },
+                        onDragCancel = {
+                            onScrubbingChange(false)
+                        }
+                    )
+                },
+            contentAlignment = Alignment.CenterStart
+        ) {
+            // StreamVault Parlak Mavi İlerleme Çubuğu
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (isSliderFocused) 7.dp else 5.dp)
+                    .clip(VegaShapes.Pill)
+                    .background(VegaColors.SurfaceAccent)
+            ) {
+                if (bufferFraction > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(bufferFraction)
+                            .fillMaxHeight()
+                            .background(Color.White.copy(alpha = 0.25f))
+                    )
+                }
+                if (currentFraction > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(currentFraction)
+                            .fillMaxHeight()
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        VegaColors.Accent.copy(alpha = 0.85f),
+                                        VegaColors.Accent
+                                    )
+                                )
+                            )
+                    )
+                }
+            }
+
+            // Parlak Tutamaç (Thumb)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(18.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(currentFraction.coerceAtLeast(0.001f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(if (isSliderFocused) 16.dp else 12.dp)
+                            .align(Alignment.CenterEnd)
+                            .clip(CircleShape)
+                            .background(if (isSliderFocused) Color.White else VegaColors.Accent)
+                            .border(
+                                width = 2.dp,
+                                color = if (isSliderFocused) VegaColors.Accent else Color.White,
+                                shape = CircleShape
+                            )
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Otomatik sonraki bölüm geri sayım kartı — 4 Hz currentPosition akışını kendi içinde izole eder.
+ */
+@Composable
+private fun NextEpisodeCountdownOverlay(
+    playerManager: TiviPlayerManager,
+    duration: Long,
+    nextEpisode: com.tivimax.player.data.model.SeriesEpisode,
+    isPortrait: Boolean,
+    onDismiss: () -> Unit,
+    onWatchNow: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentPosition by playerManager.currentPosition.collectAsState()
+    val timeRemainingMs = if (duration > 0) duration - currentPosition else Long.MAX_VALUE
+    val showNextEpisodePrompt = timeRemainingMs in 1000L..25_000L
+
+    AnimatedVisibility(
+        visible = showNextEpisodePrompt,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+        exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
+        modifier = modifier
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = VegaColors.OverlayPanel),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.7f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+            modifier = Modifier.widthIn(max = if (isPortrait) 280.dp else 300.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = null,
+                        tint = VegaColors.Danger,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Sonraki bölüm (${(timeRemainingMs / 1000L)} sn)",
+                        color = VegaColors.Accent,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = VegaText.Secondary
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    var dismissNextFocused by remember { mutableStateOf(false) }
+                    Surface(
+                        shape = VegaShapes.Pill,
+                        color = if (dismissNextFocused) VegaColors.Accent else VegaColors.OverlayPill,
+                        border = BorderStroke(1.dp, if (dismissNextFocused) Color.White else VegaColors.Border),
+                        modifier = Modifier
+                            .size(30.dp)
+                            .dpadFocusable(
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = Color.White,
+                                scale = 1.05f,
+                                onClick = onDismiss,
+                                onFocusStateChange = { dismissNextFocused = it }
+                            )
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Kapat",
+                                tint = if (dismissNextFocused) VegaColors.OnAccent else VegaColors.TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = "S${nextEpisode.season} B${nextEpisode.episodeNum}: ${nextEpisode.title}",
+                    color = Color.White,
+                    fontSize = VegaText.Secondary,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    var watchNowFocused by remember { mutableStateOf(false) }
+                    Surface(
+                        shape = VegaShapes.Small,
+                        color = VegaColors.Accent,
+                        border = if (watchNowFocused) BorderStroke(2.dp, Color.White) else null,
+                        modifier = Modifier
+                            .height(38.dp)
+                            .dpadFocusable(
+                                shape = VegaShapes.Small,
+                                focusedBorderColor = Color.White,
+                                scale = 1.04f,
+                                onClick = onWatchNow,
+                                onFocusStateChange = { watchNowFocused = it }
+                            )
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Hemen izle",
+                                fontSize = VegaText.Secondary,
+                                fontWeight = FontWeight.Bold,
+                                color = VegaColors.OnAccent
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * VOD Akıllı Ön Isıtma (Prewarming) Yöneticisi
@@ -37,6 +38,7 @@ class VodPrewarmer(
         private const val TAG_TIMING = "VodTiming"
         private const val COOLDOWN_MS = 60_000L
         private const val CIRCUIT_BREAKER_WINDOW_MS = 15_000L
+        private const val MAX_COOLDOWN_ENTRIES = 100
     }
 
     private val prewarmClient: OkHttpClient by lazy {
@@ -55,8 +57,7 @@ class VodPrewarmer(
     @Volatile
     private var lastPrewarmCompletedElapsedMs: Long = 0L
 
-    @Volatile
-    private var consecutiveAuthFailures: Int = 0
+    private val consecutiveAuthFailures = AtomicInteger(0)
 
     private val urlCooldownMap = ConcurrentHashMap<String, Long>()
 
@@ -125,12 +126,12 @@ class VodPrewarmer(
                     return@launch
                 }
 
-                executePrewarm(url)
+                executePrewarm(url, this)
             }
         }
     }
 
-    private fun executePrewarm(url: String) {
+    private fun executePrewarm(url: String, callerScope: CoroutineScope) {
         val maskedUrl = TiviPlayerManager.maskUrl(url)
         val startTime = SystemClock.elapsedRealtime()
 
@@ -146,9 +147,15 @@ class VodPrewarmer(
             .build()
 
         val call = prewarmClient.newCall(request)
-        synchronized(jobLock) {
-            currentCall = call
+        val shouldExecute = synchronized(jobLock) {
+            if (!callerScope.isActive || currentPrewarmJob != callerScope.coroutineContext[Job]) {
+                false
+            } else {
+                currentCall = call
+                true
+            }
         }
+        if (!shouldExecute) return
 
         try {
             val response = call.execute()
@@ -157,8 +164,10 @@ class VodPrewarmer(
             // Yanıt geldiğinde: response body'yi OKUMA, hemen response.close() çağır
             response.close()
 
-            urlCooldownMap[url] = SystemClock.elapsedRealtime()
-            lastPrewarmCompletedElapsedMs = SystemClock.elapsedRealtime()
+            val completedAt = SystemClock.elapsedRealtime()
+            trimCooldownMapIfNeeded(completedAt)
+            urlCooldownMap[url] = completedAt
+            lastPrewarmCompletedElapsedMs = completedAt
 
             if (BuildConfig.DEBUG) {
                 Log.d(TAG_TIMING, "Ön ısıtma tamamlandı (HTTP $code, süre: ${durationMs}ms, url=$maskedUrl)")
@@ -183,6 +192,27 @@ class VodPrewarmer(
         }
     }
 
+    private fun trimCooldownMapIfNeeded(nowElapsedMs: Long) {
+        if (urlCooldownMap.size < MAX_COOLDOWN_ENTRIES) return
+        val iterator = urlCooldownMap.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if ((nowElapsedMs - entry.value) >= COOLDOWN_MS) {
+                iterator.remove()
+            }
+        }
+        if (urlCooldownMap.size >= MAX_COOLDOWN_ENTRIES) {
+            val excess = urlCooldownMap.size - MAX_COOLDOWN_ENTRIES + 1
+            val oldestKeys = urlCooldownMap.entries
+                .sortedBy { it.value }
+                .take(excess)
+                .map { it.key }
+            for (key in oldestKeys) {
+                urlCooldownMap.remove(key)
+            }
+        }
+    }
+
     fun cancelAll(reason: String = "") {
         synchronized(jobLock) {
             cancelAllInternal(reason)
@@ -203,11 +233,11 @@ class VodPrewarmer(
     fun onPlaybackAuthError(httpCode: Int) {
         val now = SystemClock.elapsedRealtime()
         if (lastPrewarmCompletedElapsedMs > 0 && (now - lastPrewarmCompletedElapsedMs) <= CIRCUIT_BREAKER_WINDOW_MS) {
-            consecutiveAuthFailures++
+            val failures = consecutiveAuthFailures.incrementAndGet()
             if (BuildConfig.DEBUG) {
-                Log.w(TAG_TIMING, "Ön ısıtma sonrası VOD oynatmada HTTP $httpCode hatası alındı (ardışık: $consecutiveAuthFailures/2)")
+                Log.w(TAG_TIMING, "Ön ısıtma sonrası VOD oynatmada HTTP $httpCode hatası alındı (ardışık: $failures/2)")
             }
-            if (consecutiveAuthFailures >= 2) {
+            if (failures >= 2) {
                 Log.w(TAG_TIMING, "Ön ısıtma sunucu bağlantı limitini aşıyor, kalıcı kapatıldı")
                 isCircuitBreakerTripped = true
                 coroutineScope.launch {
@@ -218,6 +248,6 @@ class VodPrewarmer(
     }
 
     fun onPlaybackSuccess() {
-        consecutiveAuthFailures = 0
+        consecutiveAuthFailures.set(0)
     }
 }

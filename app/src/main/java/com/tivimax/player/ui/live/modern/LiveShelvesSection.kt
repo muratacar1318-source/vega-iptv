@@ -2,18 +2,20 @@ package com.tivimax.player.ui.live.modern
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,13 +24,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 
 /**
  * Netflix tarzı "Devam Et" ve "Favoriler" üst yatay rafları.
@@ -52,7 +54,7 @@ fun LiveShelvesSection(
             ShelfBlock(
                 title = "Devam Et (Son İzlenenler)",
                 icon = Icons.Default.History,
-                iconTint = OpusCyan,
+                iconTint = VegaColors.Accent,
                 channels = recentChannels,
                 epgSummaryMap = epgSummaryMap,
                 currentPlayingId = currentPlayingId,
@@ -65,7 +67,7 @@ fun LiveShelvesSection(
             ShelfBlock(
                 title = "Favori Kanallar",
                 icon = Icons.Default.Star,
-                iconTint = TiviGold,
+                iconTint = VegaColors.Gold,
                 channels = favoriteChannels,
                 epgSummaryMap = epgSummaryMap,
                 currentPlayingId = currentPlayingId,
@@ -85,6 +87,8 @@ private fun ShelfBlock(
     currentPlayingId: Int?,
     onChannelClick: (LiveStream) -> Unit
 ) {
+    val limitedChannels = remember(channels) { channels.take(20) }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -101,14 +105,14 @@ private fun ShelfBlock(
             )
             Text(
                 text = title,
-                color = Color.White,
-                fontSize = 14.5.sp,
+                color = VegaColors.TextPrimary,
+                fontSize = VegaText.BodyProminent,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = "(${channels.size})",
-                color = TiviTextSecondary,
-                fontSize = 11.5.sp
+                color = VegaColors.TextSecondary,
+                fontSize = VegaText.Caption
             )
         }
 
@@ -119,31 +123,38 @@ private fun ShelfBlock(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(channels.take(20), key = { "shelf_${title}_${it.streamId}" }) { channel ->
+            itemsIndexed(
+                items = limitedChannels,
+                key = { index, ch -> "shelf_${title}_${ch.streamId}_${ch.categoryId}_$index" }
+            ) { _, channel ->
                 val isPlaying = currentPlayingId == channel.streamId
                 val epg = epgSummaryMap[channel.streamId]
-                val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı Yayın"
+                val programTitle = epg?.getDecodedTitle() ?: channel.currentProgram ?: "Canlı yayın"
                 val progress = epg?.getProgressFraction() ?: (if (channel.programProgress > 0f) channel.programProgress else null)
+                var isFocused by remember { mutableStateOf(false) }
 
                 Card(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = VegaShapes.Medium,
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isPlaying) OpusCyan.copy(alpha = 0.16f) else TiviCard
+                        containerColor = when {
+                            isFocused -> VegaColors.SurfaceVariant
+                            isPlaying -> VegaColors.Accent.copy(alpha = 0.16f)
+                            else -> VegaColors.SurfaceElevated
+                        }
                     ),
-                    border = BorderStroke(
+                    border = if (isFocused) null else BorderStroke(
                         width = if (isPlaying) 1.5.dp else 1.dp,
-                        color = if (isPlaying) OpusCyan else TiviCardBorder
+                        color = if (isPlaying) VegaColors.Accent else VegaColors.Border
                     ),
                     modifier = Modifier
                         .width(148.dp)
                         .height(86.dp)
                         .dpadFocusable(
-                            focusedBorderColor = OpusCyan,
-                            shape = RoundedCornerShape(12.dp),
-                            onClick = { onChannelClick(channel) }
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            shape = VegaShapes.Medium,
+                            onClick = { onChannelClick(channel) },
+                            onFocusStateChange = { isFocused = it }
                         )
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { onChannelClick(channel) }
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         // Logo ve Metin İçeriği
@@ -159,18 +170,19 @@ private fun ShelfBlock(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 // Kanal Logosu
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = Color.White.copy(alpha = 0.08f),
-                                    modifier = Modifier.size(38.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(VegaShapes.Small)
+                                        .background(VegaColors.SurfaceAccent)
+                                        .padding(3.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     AsyncShimmerImage(
                                         model = channel.streamIcon,
                                         contentDescription = channel.name,
                                         contentScale = ContentScale.Fit,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(3.dp),
+                                        modifier = Modifier.fillMaxSize(),
                                         placeholderIcon = Icons.Default.Tv
                                     )
                                 }
@@ -188,8 +200,8 @@ private fun ShelfBlock(
                                     Text(
                                         text = "Canlı",
                                         color = VegaColors.Live,
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.ExtraBold
+                                        fontSize = VegaText.Caption,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
@@ -197,16 +209,16 @@ private fun ShelfBlock(
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Text(
                                     text = channel.name,
-                                    color = if (isPlaying) OpusCyan else Color.White,
-                                    fontSize = 11.5.sp,
+                                    color = if (isPlaying) VegaColors.Accent else VegaColors.TextPrimary,
+                                    fontSize = VegaText.Caption,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = programTitle,
-                                    color = TiviTextSecondary,
-                                    fontSize = 9.5.sp,
+                                    color = VegaColors.TextSecondary,
+                                    fontSize = VegaText.Caption,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -221,8 +233,8 @@ private fun ShelfBlock(
                                     .align(Alignment.BottomCenter)
                                     .fillMaxWidth()
                                     .height(2.5.dp),
-                                color = OpusCyan,
-                                trackColor = Color.White.copy(alpha = 0.1f)
+                                color = VegaColors.Accent,
+                                trackColor = VegaColors.SurfaceAccent
                             )
                         }
                     }

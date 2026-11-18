@@ -22,16 +22,7 @@ val LocalDeviceMode = staticCompositionLocalOf { DeviceMode.PHONE }
 val LocalIsTvDevice = staticCompositionLocalOf { false }
 val LocalOrientationManager = staticCompositionLocalOf<OrientationManager?> { null }
 
-fun Context.isTvDevice(): Boolean {
-    val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
-    val isTvMode = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
-    val hasLeanback = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
-    @Suppress("DEPRECATION")
-    val hasTvFeature = packageManager.hasSystemFeature("android.hardware.type.television") || 
-                       packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION)
-    val hasNoTouch = !packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)
-    return isTvMode || hasLeanback || hasTvFeature || hasNoTouch
-}
+fun Context.isTvDevice(): Boolean = detectRecommendedDeviceMode() == DeviceMode.TV
 
 /**
  * Cihazın donanım ve ekran özelliklerini analiz ederek önerilen DeviceMode'u tespit eder:

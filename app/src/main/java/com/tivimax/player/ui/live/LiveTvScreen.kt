@@ -14,7 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuOpen
@@ -72,6 +72,7 @@ fun LiveTvScreen(viewModel: MainViewModel) {
     val selectedCategory by viewModel.selectedLiveCategory.collectAsState()
     val isLoading by viewModel.liveLoading.collectAsState()
     val favoriteIds by viewModel.favoriteLiveIds.collectAsState()
+    val favoriteStreams by viewModel.favoriteLiveStreams.collectAsState()
     val recentChannels by viewModel.recentChannels.collectAsState()
     val currentSort by viewModel.liveSortOption.collectAsState()
 
@@ -98,11 +99,18 @@ fun LiveTvScreen(viewModel: MainViewModel) {
         viewModel.setLiveSearchQuery(searchQuery)
     }
 
-    val displayedChannels = remember(channels, selectedCategory, favoriteIds) {
-        if (selectedCategory == "favorites") {
-            channels.filter { favoriteIds.contains(it.streamId.toString()) }
-        } else {
-            channels
+    // Raf düzenine geçildiğinde canlı önizleme sesini ve bağlantısını anında durdur
+    LaunchedEffect(liveLayoutMode) {
+        if (liveLayoutMode == UserPreferences.LIVE_LAYOUT_SHELF) {
+            viewModel.detachMiniPlayer()
+        }
+    }
+
+    val displayedChannels = remember(channels, selectedCategory, favoriteStreams, recentChannels) {
+        when (selectedCategory) {
+            "favorites" -> favoriteStreams
+            "recents" -> recentChannels
+            else -> channels
         }
     }
 
@@ -125,8 +133,8 @@ fun LiveTvScreen(viewModel: MainViewModel) {
     }
 
     // Geniş ekranda ilk açılışta ilk kanalı otomatik önizlemeye al
-    LaunchedEffect(isWideScreen, channels) {
-        if (isWideScreen && activePreviewChannel == null && channels.isNotEmpty()) {
+    LaunchedEffect(isWideScreen, channels, liveLayoutMode) {
+        if (liveLayoutMode != UserPreferences.LIVE_LAYOUT_SHELF && isWideScreen && activePreviewChannel == null && channels.isNotEmpty()) {
             if (viewModel.playerManager.player?.isPlaying != true) {
                 viewModel.previewChannel(channels.first())
             }
@@ -623,7 +631,10 @@ fun LiveTvPortraitLayout(
                             }
                         }
 
-                        items(categories, key = { it.categoryId }) { category ->
+                        itemsIndexed(
+                            items = categories,
+                            key = { index, category -> "portrait_cat_${category.categoryId}_$index" }
+                        ) { _, category ->
                             val isSelected = category.categoryId == selectedCategory
                             val categoryIcon = getCategoryIcon(category.categoryName)
 
@@ -862,7 +873,10 @@ fun LiveTvPortraitLayout(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(bottom = 6.dp)
                     ) {
-                        items(recentChannels, key = { "recent_${it.streamId}" }) { channel ->
+                        itemsIndexed(
+                            items = recentChannels,
+                            key = { index, channel -> "recent_${channel.streamId}_${channel.categoryId}_$index" }
+                        ) { _, channel ->
                             Surface(
                                 onClick = { viewModel.previewChannel(channel) },
                                 shape = VegaShapes.Small,
@@ -932,11 +946,11 @@ fun LiveTvPortraitLayout(
                             contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 90.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(
+                            itemsIndexed(
                                 items = pagedChannels,
-                                key = { "${it.streamId}_${it.num}" },
-                                contentType = { "live_channel" }
-                            ) { channel ->
+                                key = { index, channel -> "ch_${channel.streamId}_${channel.categoryId}_$index" },
+                                contentType = { _, _ -> "live_channel" }
+                            ) { _, channel ->
                                 val isFavorite = favoriteIds.contains(channel.streamId.toString())
                                 val isCurrentPlaying = activePreviewChannel?.streamId == channel.streamId && isMiniPlayerActive
 
@@ -966,8 +980,8 @@ fun LiveTvPortraitLayout(
                             }
 
                             if (visibleLimit < displayedChannels.size) {
-                                item {
-                                    LaunchedEffect(Unit) { visibleLimit += 30 }
+                                item(key = "more_$visibleLimit") {
+                                    LaunchedEffect(visibleLimit) { visibleLimit += 30 }
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()

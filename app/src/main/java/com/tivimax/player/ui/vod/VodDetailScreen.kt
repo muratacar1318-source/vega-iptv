@@ -7,13 +7,12 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -24,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -41,9 +41,11 @@ import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.vegaBackdrop
+import com.tivimax.player.util.LocalIsTvDevice
 import kotlinx.coroutines.delay
 
 /**
@@ -119,14 +121,21 @@ fun VodDetailScreen(
         } else null
     }
     val trailerUrl = info?.youtubeTrailer
-    val hasResume = watchProgress != null && watchProgress!!.positionMs > 10_000L
+    val hasResume = watchProgress != null && !watchProgress!!.isWatched && watchProgress!!.positionMs > 10_000L
 
-    // 1-Tık Kumanda Garantisi: Ekran açılır açılmaz (ve izleme durumu yüklenince) Oynat / Devam et butonuna güvenli odak
+    // 1-Tık Kumanda Garantisi: Kullanıcı odağı başka öğeye taşımadıysa Oynat / Devam et butonuna güvenli odak
+    var userMovedFocus by remember(movie.streamId) { mutableStateOf(false) }
+    var initialFocusApplied by remember(movie.streamId) { mutableStateOf(false) }
     LaunchedEffect(movie.streamId, hasResume) {
+        if (userMovedFocus || initialFocusApplied) return@LaunchedEffect
         repeat(3) {
             withFrameNanos { }
             delay(80)
-            if (runCatching { playButtonFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+            if (userMovedFocus) return@LaunchedEffect
+            if (playButtonFocusRequester.requestFocusSafely()) {
+                initialFocusApplied = true
+                return@LaunchedEffect
+            }
         }
     }
 
@@ -180,37 +189,196 @@ fun VodDetailScreen(
             )
         }
 
-        // 2. KAYDIRILABİLİR İÇERİK
-        Column(
+        // 2. KAYDIRILABİLİR İÇERİK (LazyColumn — TV D-Pad ile bilgi paneline akıcı kaydırma)
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(
-                    horizontal = if (isWideScreen) 52.dp else 16.dp,
-                    vertical = if (isWideScreen) 28.dp else 14.dp
-                ),
+                .statusBarsPadding(),
+            contentPadding = PaddingValues(
+                horizontal = if (isWideScreen) 52.dp else 16.dp,
+                vertical = if (isWideScreen) 28.dp else 14.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             // SOL ÜST: StreamVault "Kütüphaneye dön" Hap Butonu (MovieInfo.png)
-            StreamVaultBackButton(onClick = onBack)
+            item(key = "vod_back") {
+                StreamVaultBackButton(
+                    onClick = onBack,
+                    onFocusStateChange = { if (it) userMovedFocus = true }
+                )
+            }
 
             if (isWideScreen) {
                 // YATAY / TV DÜZENİ (StreamVault MovieInfo.png ile birebir 2 sütun, alt hizalı)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(32.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    // SOL: 2:3 Afiş Kartı
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                item(key = "vod_hero_wide") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(32.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        // SOL: 2:3 Afiş Kartı
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .width(236.dp)
+                                    .aspectRatio(2f / 3f)
+                                    .clip(VegaShapes.Large)
+                                    .background(VegaColors.SurfaceElevated)
+                                    .border(1.dp, VegaColors.Border, VegaShapes.Large)
+                            ) {
+                                AsyncShimmerImage(
+                                    model = posterUrl,
+                                    contentDescription = movieTitle,
+                                    contentScale = ContentScale.Crop,
+                                    placeholderIcon = Icons.Default.Movie,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            if (hasResume && watchProgress!!.durationMs > 0L) {
+                                val frac = (watchProgress!!.positionMs.toFloat() / watchProgress!!.durationMs.toFloat()).coerceIn(0f, 1f)
+                                Spacer(modifier = Modifier.height(10.dp))
+                                LinearProgressIndicator(
+                                    progress = { frac },
+                                    color = VegaColors.Accent,
+                                    trackColor = VegaColors.SurfaceAccent,
+                                    modifier = Modifier
+                                        .width(216.dp)
+                                        .height(4.dp)
+                                        .clip(VegaShapes.Pill)
+                                )
+                            }
+                        }
+
+                        // SAĞ: Rozetler, Başlık, Meta, StreamVault Butonları ve Özet
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            // Rozetler Satırı: [Filmler]  [★ 8.2/10]  [4K]
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    shape = VegaShapes.Small,
+                                    color = VegaColors.SurfaceAccent.copy(alpha = 0.88f),
+                                    border = BorderStroke(1.dp, VegaColors.Border)
+                                ) {
+                                    Text(
+                                        text = "Filmler",
+                                        color = VegaColors.TextPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+
+                                if (ratingText != null) {
+                                    Surface(
+                                        shape = VegaShapes.Small,
+                                        color = VegaColors.Gold.copy(alpha = 0.16f),
+                                        border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.35f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(13.dp))
+                                            Text(text = ratingText, color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                qualityBadges.forEach { badge -> QualityBadge(tag = badge) }
+                            }
+
+                            // Büyük Film Başlığı
+                            Text(
+                                text = movieTitle,
+                                color = VegaColors.TextPrimary,
+                                fontSize = 30.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = (-0.5).sp,
+                                lineHeight = 36.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                            // Noktalı Meta Bilgi Şeridi (2026 • 01:21:42 • Bilim Kurgu)
+                            val metaValues = listOfNotNull(releaseDate, durationText, genreText)
+                            if (metaValues.isNotEmpty()) {
+                                StreamVaultMetaStrip(values = metaValues)
+                            }
+
+                            // StreamVault Aksiyon Butonları
+                            VodActionRow(
+                                hasResume = hasResume,
+                                resumeTimeStr = if (hasResume) formatDuration(watchProgress!!.positionMs) else null,
+                                isFavorite = isFavorite,
+                                trailerUrl = trailerUrl,
+                                playButtonFocusRequester = playButtonFocusRequester,
+                                onPlayResume = { viewModel.playVod(movie, resume = true) },
+                                onPlayStart = { viewModel.playVod(movie, resume = false) },
+                                onToggleFavorite = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
+                                onOpenTrailer = { openTrailer(context, trailerUrl) },
+                                onOtherActionFocused = { userMovedFocus = true }
+                            )
+
+                            // Konu Özeti
+                            val plot = info?.plot ?: info?.description
+                            if (!plot.isNullOrBlank()) {
+                                Text(
+                                    text = plot,
+                                    color = VegaColors.TextSecondary,
+                                    fontSize = 14.sp,
+                                    lineHeight = 22.sp,
+                                    maxLines = 5,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // StreamVault Yarı Saydam Bilgi Kartı (DetailInfoPanel — Yönetmen, Türler, Oyuncular)
+                if (hasFactInfo) {
+                    item(key = "vod_facts_wide") {
+                        StreamVaultDetailInfoPanel(
+                            modifier = Modifier.fillMaxWidth(),
+                            spacing = 12.dp
+                        ) {
+                            StreamVaultDetailHeading(title = "Film bilgileri")
+                            Spacer(modifier = Modifier.height(2.dp))
+                            directorText?.let { StreamVaultFactRow(label = "Yönetmen", value = it) }
+                            releaseDate?.let { StreamVaultFactRow(label = "Yayın tarihi", value = it) }
+                            durationText?.let { StreamVaultFactRow(label = "Süre", value = it) }
+                            genreText?.let { StreamVaultFactRow(label = "Tür", value = it) }
+                            countryText?.let { StreamVaultFactRow(label = "Ülke", value = it) }
+                            if (castList.isNotEmpty()) {
+                                StreamVaultFactRow(
+                                    label = "Oyuncular",
+                                    value = castList.take(10).joinToString(", ")
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                // DİKEY TELEFON DÜZENİ (StreamVault kompakt)
+                item(key = "vod_hero_mobile") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
                         Box(
                             modifier = Modifier
-                                .width(236.dp)
+                                .width(126.dp)
                                 .aspectRatio(2f / 3f)
-                                .clip(VegaShapes.Large)
+                                .clip(VegaShapes.Medium)
                                 .background(VegaColors.SurfaceElevated)
-                                .border(1.dp, VegaColors.Border, VegaShapes.Large)
+                                .border(1.dp, VegaColors.Border, VegaShapes.Medium)
                         ) {
                             AsyncShimmerImage(
                                 model = posterUrl,
@@ -220,248 +388,111 @@ fun VodDetailScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
-                        if (hasResume && watchProgress!!.durationMs > 0L) {
-                            val frac = (watchProgress!!.positionMs.toFloat() / watchProgress!!.durationMs.toFloat()).coerceIn(0f, 1f)
-                            Spacer(modifier = Modifier.height(10.dp))
-                            LinearProgressIndicator(
-                                progress = { frac },
-                                color = VegaColors.Accent,
-                                trackColor = VegaColors.SurfaceAccent,
-                                modifier = Modifier
-                                    .width(216.dp)
-                                    .height(4.dp)
-                                    .clip(VegaShapes.Pill)
-                            )
-                        }
-                    }
 
-                    // SAĞ: Rozetler, Başlık, Meta, StreamVault Butonları ve Özet
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        // Rozetler Satırı: [Filmler]  [★ 8.2/10]  [4K]
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Surface(
-                                shape = VegaShapes.Small,
-                                color = VegaColors.SurfaceAccent.copy(alpha = 0.88f),
-                                border = BorderStroke(1.dp, VegaColors.Border)
-                            ) {
-                                Text(
-                                    text = "Filmler",
-                                    color = VegaColors.TextPrimary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
-                            }
-
-                            if (ratingText != null) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Surface(
                                     shape = VegaShapes.Small,
-                                    color = VegaColors.Gold.copy(alpha = 0.16f),
-                                    border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.35f))
+                                    color = VegaColors.SurfaceAccent,
+                                    border = BorderStroke(1.dp, VegaColors.Border)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    Text("Filmler", color = VegaColors.TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+                                }
+                                if (ratingText != null) {
+                                    Surface(
+                                        shape = VegaShapes.Small,
+                                        color = VegaColors.Gold.copy(alpha = 0.16f),
+                                        border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.35f))
                                     ) {
-                                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(13.dp))
-                                        Text(text = ratingText, color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                        ) {
+                                            Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(11.dp))
+                                            Text(ratingText, color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
                                     }
                                 }
                             }
 
-                            qualityBadges.forEach { badge -> QualityBadge(tag = badge) }
+                            Text(
+                                text = movieTitle,
+                                color = VegaColors.TextPrimary,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis,
+                                lineHeight = 24.sp
+                            )
+
+                            val metaValues = listOfNotNull(releaseDate, durationText)
+                            if (metaValues.isNotEmpty()) {
+                                StreamVaultMetaStrip(values = metaValues)
+                            }
                         }
+                    }
+                }
 
-                        // Büyük Film Başlığı
-                        Text(
-                            text = movieTitle,
-                            color = VegaColors.TextPrimary,
-                            fontSize = 30.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = (-0.5).sp,
-                            lineHeight = 36.sp,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                item(key = "vod_actions_mobile") {
+                    VodActionRow(
+                        hasResume = hasResume,
+                        resumeTimeStr = if (hasResume) formatDuration(watchProgress!!.positionMs) else null,
+                        isFavorite = isFavorite,
+                        trailerUrl = trailerUrl,
+                        playButtonFocusRequester = playButtonFocusRequester,
+                        onPlayResume = { viewModel.playVod(movie, resume = true) },
+                        onPlayStart = { viewModel.playVod(movie, resume = false) },
+                        onToggleFavorite = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
+                        onOpenTrailer = { openTrailer(context, trailerUrl) },
+                        onOtherActionFocused = { userMovedFocus = true }
+                    )
+                }
 
-                        // Noktalı Meta Bilgi Şeridi (2026 • 01:21:42 • Bilim Kurgu)
-                        val metaValues = listOfNotNull(releaseDate, durationText, genreText)
-                        if (metaValues.isNotEmpty()) {
-                            StreamVaultMetaStrip(values = metaValues)
-                        }
-
-                        // StreamVault Aksiyon Butonları
-                        VodActionRow(
-                            hasResume = hasResume,
-                            resumeTimeStr = if (hasResume) formatDuration(watchProgress!!.positionMs) else null,
-                            isFavorite = isFavorite,
-                            trailerUrl = trailerUrl,
-                            playButtonFocusRequester = playButtonFocusRequester,
-                            onPlayResume = { viewModel.playVod(movie, resume = true) },
-                            onPlayStart = { viewModel.playVod(movie, resume = false) },
-                            onToggleFavorite = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
-                            onOpenTrailer = { openTrailer(context, trailerUrl) }
-                        )
-
-                        // Konu Özeti
-                        val plot = info?.plot ?: info?.description
-                        if (!plot.isNullOrBlank()) {
+                val plot = info?.plot ?: info?.description
+                if (!plot.isNullOrBlank()) {
+                    item(key = "vod_plot_mobile") {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            StreamVaultDetailHeading(title = "Özet")
                             Text(
                                 text = plot,
                                 color = VegaColors.TextSecondary,
                                 fontSize = 14.sp,
-                                lineHeight = 22.sp,
-                                maxLines = 5,
-                                overflow = TextOverflow.Ellipsis
+                                lineHeight = 20.sp
                             )
                         }
                     }
-                }
-
-                // StreamVault Yarı Saydam Bilgi Kartı (DetailInfoPanel — Yönetmen, Türler, Oyuncular)
-                if (hasFactInfo) {
-                    StreamVaultDetailInfoPanel(
-                        modifier = Modifier.fillMaxWidth(),
-                        spacing = 12.dp
-                    ) {
-                        StreamVaultDetailHeading(title = "Film bilgileri")
-                        Spacer(modifier = Modifier.height(2.dp))
-                        directorText?.let { StreamVaultFactRow(label = "Yönetmen", value = it) }
-                        releaseDate?.let { StreamVaultFactRow(label = "Yayın tarihi", value = it) }
-                        durationText?.let { StreamVaultFactRow(label = "Süre", value = it) }
-                        genreText?.let { StreamVaultFactRow(label = "Tür", value = it) }
-                        countryText?.let { StreamVaultFactRow(label = "Ülke", value = it) }
-                        if (castList.isNotEmpty()) {
-                            StreamVaultFactRow(
-                                label = "Oyuncular",
-                                value = castList.take(10).joinToString(", ")
-                            )
-                        }
-                    }
-                }
-            } else {
-                // DİKEY TELEFON DÜZENİ (StreamVault kompakt)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(126.dp)
-                            .aspectRatio(2f / 3f)
-                            .clip(VegaShapes.Medium)
-                            .background(VegaColors.SurfaceElevated)
-                            .border(1.dp, VegaColors.Border, VegaShapes.Medium)
-                    ) {
-                        AsyncShimmerImage(
-                            model = posterUrl,
-                            contentDescription = movieTitle,
-                            contentScale = ContentScale.Crop,
-                            placeholderIcon = Icons.Default.Movie,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                shape = VegaShapes.Small,
-                                color = VegaColors.SurfaceAccent,
-                                border = BorderStroke(1.dp, VegaColors.Border)
-                            ) {
-                                Text("Filmler", color = VegaColors.TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
-                            }
-                            if (ratingText != null) {
-                                Surface(
-                                    shape = VegaShapes.Small,
-                                    color = VegaColors.Gold.copy(alpha = 0.16f),
-                                    border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.35f))
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                                    ) {
-                                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(11.dp))
-                                        Text(ratingText, color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-
-                        Text(
-                            text = movieTitle,
-                            color = VegaColors.TextPrimary,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            maxLines = 3,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 24.sp
-                        )
-
-                        val metaValues = listOfNotNull(releaseDate, durationText)
-                        if (metaValues.isNotEmpty()) {
-                            StreamVaultMetaStrip(values = metaValues)
-                        }
-                    }
-                }
-
-                VodActionRow(
-                    hasResume = hasResume,
-                    resumeTimeStr = if (hasResume) formatDuration(watchProgress!!.positionMs) else null,
-                    isFavorite = isFavorite,
-                    trailerUrl = trailerUrl,
-                    playButtonFocusRequester = playButtonFocusRequester,
-                    onPlayResume = { viewModel.playVod(movie, resume = true) },
-                    onPlayStart = { viewModel.playVod(movie, resume = false) },
-                    onToggleFavorite = { viewModel.toggleFavoriteVod(movie.streamId.toString()) },
-                    onOpenTrailer = { openTrailer(context, trailerUrl) }
-                )
-
-                val plot = info?.plot ?: info?.description
-                if (!plot.isNullOrBlank()) {
-                    StreamVaultDetailHeading(title = "Özet")
-                    Text(
-                        text = plot,
-                        color = VegaColors.TextSecondary,
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp
-                    )
                 }
 
                 if (hasFactInfo) {
-                    StreamVaultDetailInfoPanel(
-                        modifier = Modifier.fillMaxWidth(),
-                        spacing = 10.dp
-                    ) {
-                        StreamVaultDetailHeading(title = "Film bilgileri")
-                        directorText?.let { StreamVaultFactRow(label = "Yönetmen", value = it) }
-                        releaseDate?.let { StreamVaultFactRow(label = "Yayın tarihi", value = it) }
-                        durationText?.let { StreamVaultFactRow(label = "Süre", value = it) }
-                        genreText?.let { StreamVaultFactRow(label = "Tür", value = it) }
-                        countryText?.let { StreamVaultFactRow(label = "Ülke", value = it) }
-                        if (castList.isNotEmpty()) {
-                            StreamVaultFactRow(
-                                label = "Oyuncular",
-                                value = castList.take(10).joinToString(", ")
-                            )
+                    item(key = "vod_facts_mobile") {
+                        StreamVaultDetailInfoPanel(
+                            modifier = Modifier.fillMaxWidth(),
+                            spacing = 10.dp
+                        ) {
+                            StreamVaultDetailHeading(title = "Film bilgileri")
+                            directorText?.let { StreamVaultFactRow(label = "Yönetmen", value = it) }
+                            releaseDate?.let { StreamVaultFactRow(label = "Yayın tarihi", value = it) }
+                            durationText?.let { StreamVaultFactRow(label = "Süre", value = it) }
+                            genreText?.let { StreamVaultFactRow(label = "Tür", value = it) }
+                            countryText?.let { StreamVaultFactRow(label = "Ülke", value = it) }
+                            if (castList.isNotEmpty()) {
+                                StreamVaultFactRow(
+                                    label = "Oyuncular",
+                                    value = castList.take(10).joinToString(", ")
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            item(key = "vod_bottom_space") {
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
 }
@@ -470,7 +501,8 @@ fun VodDetailScreen(
 internal fun StreamVaultBackButton(
     onClick: () -> Unit,
     label: String = "Kütüphaneye dön",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocusStateChange: ((Boolean) -> Unit)? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val bgColor = if (isFocused) VegaColors.TextPrimary else VegaColors.Surface.copy(alpha = 0.78f)
@@ -490,7 +522,10 @@ internal fun StreamVaultBackButton(
                 shape = VegaShapes.Medium,
                 scale = 1.04f,
                 onClick = onClick,
-                onFocusStateChange = { isFocused = it }
+                onFocusStateChange = {
+                    isFocused = it
+                    onFocusStateChange?.invoke(it)
+                }
             )
     ) {
         Row(
@@ -524,7 +559,8 @@ private fun VodActionRow(
     onPlayResume: () -> Unit,
     onPlayStart: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onOpenTrailer: () -> Unit
+    onOpenTrailer: () -> Unit,
+    onOtherActionFocused: () -> Unit = {}
 ) {
     val actionShape = RoundedCornerShape(11.dp)
     LazyRow(
@@ -586,7 +622,10 @@ private fun VodActionRow(
                             shape = actionShape,
                             scale = 1.04f,
                             onClick = onPlayStart,
-                            onFocusStateChange = { isFocused = it }
+                            onFocusStateChange = {
+                                isFocused = it
+                                if (it) onOtherActionFocused()
+                            }
                         )
                 ) {
                     Row(
@@ -618,7 +657,10 @@ private fun VodActionRow(
                             shape = actionShape,
                             scale = 1.04f,
                             onClick = onOpenTrailer,
-                            onFocusStateChange = { isFocused = it }
+                            onFocusStateChange = {
+                                isFocused = it
+                                if (it) onOtherActionFocused()
+                            }
                         )
                 ) {
                     Row(
@@ -657,7 +699,10 @@ private fun VodActionRow(
                         shape = CircleShape,
                         scale = 1.06f,
                         onClick = onToggleFavorite,
-                        onFocusStateChange = { isFocused = it }
+                        onFocusStateChange = {
+                            isFocused = it
+                            if (it) onOtherActionFocused()
+                        }
                     )
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -676,6 +721,7 @@ private fun VodActionRow(
 /**
  * StreamVault CatalogDetailVisuals.kt — DetailInfoPanel uyarlaması.
  * Yarı saydam yuvarlatılmış bilgi kartı (Yönetmen, Türler, Oyuncular).
+ * TV'de D-Pad ile odaklanabilir ve kaydırılabilir.
  */
 @Composable
 internal fun StreamVaultDetailInfoPanel(
@@ -683,18 +729,34 @@ internal fun StreamVaultDetailInfoPanel(
     spacing: Dp = 12.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val isTv = LocalIsTvDevice.current
+    var isFocused by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .clip(VegaShapes.Hero)
+            .then(
+                if (isTv) {
+                    Modifier
+                        .onFocusChanged { isFocused = it.isFocused }
+                        .focusable()
+                } else {
+                    Modifier
+                }
+            )
             .background(
                 Brush.horizontalGradient(
                     listOf(
-                        VegaColors.SurfaceElevated.copy(alpha = 0.94f),
-                        VegaColors.Surface.copy(alpha = 0.88f)
+                        if (isFocused) VegaColors.SurfaceVariant.copy(alpha = 0.96f) else VegaColors.SurfaceElevated.copy(alpha = 0.94f),
+                        if (isFocused) VegaColors.SurfaceElevated.copy(alpha = 0.92f) else VegaColors.Surface.copy(alpha = 0.88f)
                     )
                 )
             )
-            .border(1.dp, VegaColors.Border, VegaShapes.Hero)
+            .border(
+                width = if (isFocused) 2.dp else 1.dp,
+                color = if (isFocused) VegaColors.FocusBorder else VegaColors.Border,
+                shape = VegaShapes.Hero
+            )
             .padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(spacing),
         content = content

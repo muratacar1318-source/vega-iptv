@@ -2,9 +2,6 @@ package com.tivimax.player.ui.live.modern
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -14,19 +11,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.ui.components.dpadFocusable
-import com.tivimax.player.ui.components.tvKeyboardOptions
-import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
-import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.ui.tv.StreamVaultSearchField
 
 /**
  * Modern ve Kompakt Canlı TV Üst Çubuğu (StreamVault görsel dili).
@@ -43,8 +34,6 @@ fun LiveTvTopBar(
     onToggleShelfLayout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val focusManager = LocalFocusManager.current
-
     Surface(
         color = VegaColors.Background.copy(alpha = 0.92f),
         modifier = modifier.fillMaxWidth()
@@ -56,71 +45,13 @@ fun LiveTvTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Arama Alanı (StreamVault gece laciverti yüzey + ince çerçeve)
-            Surface(
-                shape = VegaShapes.Medium,
-                color = VegaColors.SurfaceElevated,
-                border = BorderStroke(1.dp, VegaColors.Border),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(42.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Ara",
-                        tint = VegaColors.Accent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = "Kanal veya program ara...",
-                                color = VegaColors.TextMuted,
-                                fontSize = VegaText.Secondary,
-                                maxLines = 1
-                            )
-                        }
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = onSearchQueryChange,
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                color = VegaColors.TextPrimary,
-                                fontSize = VegaText.Secondary
-                            ),
-                            cursorBrush = SolidColor(VegaColors.Accent),
-                            keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
-                            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                            modifier = Modifier
-                                .tvOpenKeyboardOnOk()
-                                .fillMaxWidth()
-                        )
-                    }
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(
-                            onClick = { onSearchQueryChange("") },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Temizle",
-                                tint = VegaColors.TextMuted,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
-            }
+            // TV-güvenli StreamVault Arama Alanı (odak tuzağı olmadan)
+            StreamVaultSearchField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                placeholder = "Kanal veya program ara...",
+                modifier = Modifier.weight(1f)
+            )
 
             // Sağ Taraf Eylemleri: Görünüm Modu, Sıralama, Yenile, Raf Düzeni (Tek odak hedefli)
             Row(

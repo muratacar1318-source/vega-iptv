@@ -11,10 +11,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +48,7 @@ import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaBackdrop
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
 /**
@@ -87,8 +89,17 @@ fun LiveTvModernPortraitLayout(
 ) {
     val currentViewMode by viewModel.liveViewMode.collectAsState()
     val epgProgramsMap by viewModel.epgProgramsMap.collectAsState()
+    val favoriteStreams by viewModel.favoriteLiveStreams.collectAsState()
     val currentScreen by viewModel.currentScreen.collectAsState()
     val isPlayerScreen = currentScreen is Screen.Player
+
+    var nowEpochSec by remember { mutableLongStateOf(System.currentTimeMillis() / 1000L) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000L)
+            nowEpochSec = System.currentTimeMillis() / 1000L
+        }
+    }
 
     var showSortSheet by remember { mutableStateOf(false) }
     var showCategorySheet by remember { mutableStateOf(false) }
@@ -143,10 +154,13 @@ fun LiveTvModernPortraitLayout(
         filteredChannels.take(visibleLimit)
     }
 
-    // Favori kanallar listesi (Üst raf için)
-    val favoriteChannels = remember(displayedChannels, favoriteIds) {
-        displayedChannels.filter { favoriteIds.contains(it.streamId.toString()) }
+    // Toplam kanal sayısı ("Tümü" çipindeki rozet seçili kategoriye göre küçülmemeli)
+    val totalChannelsCount = remember(allCategories, displayedChannels) {
+        allCategories.firstOrNull { it.categoryId == "all" }?.itemCount ?: displayedChannels.size
     }
+
+    // Favori kanallar listesi (Üst raf için)
+    val favoriteChannels = favoriteStreams
 
     Column(
         modifier = modifier
@@ -277,7 +291,7 @@ fun LiveTvModernPortraitLayout(
         CategoryChipsRow(
             categories = categories,
             selectedCategory = selectedCategory,
-            totalChannelsCount = displayedChannels.size,
+            totalChannelsCount = totalChannelsCount,
             favoriteChannelsCount = favoriteIds.size,
             onCategorySelected = { catId ->
                 if (catId == "favorites") {
@@ -357,10 +371,10 @@ fun LiveTvModernPortraitLayout(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(
+                            gridItemsIndexed(
                                 items = pagedChannels,
-                                key = { "grid_${it.streamId}_${it.num}" }
-                            ) { channel ->
+                                key = { index, ch -> "grid_${ch.streamId}_${ch.categoryId}_$index" }
+                            ) { _, channel ->
                                 val isFavorite = favoriteIds.contains(channel.streamId.toString())
                                 val isCurrentPlaying = activePreviewChannel?.streamId == channel.streamId &&
                                         (isMiniPlayerActive || viewModel.playerManager.player?.isPlaying == true)
@@ -376,9 +390,12 @@ fun LiveTvModernPortraitLayout(
 
                             // Infinite Scroll / Lazy Chunking
                             if (visibleLimit < filteredChannels.size) {
-                                item {
-                                    LaunchedEffect(Unit) {
-                                        visibleLimit += 30
+                                item(
+                                    key = "more_grid_$visibleLimit",
+                                    span = { GridItemSpan(maxLineSpan) }
+                                ) {
+                                    LaunchedEffect(visibleLimit) {
+                                        visibleLimit += 50
                                     }
                                     Box(
                                         modifier = Modifier
@@ -407,23 +424,22 @@ fun LiveTvModernPortraitLayout(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxSize()
                         ) {
-                            items(
+                            itemsIndexed(
                                 items = pagedChannels,
-                                key = { "detail_${it.streamId}_${it.num}" }
-                            ) { channel ->
+                                key = { index, ch -> "detail_${ch.streamId}_${ch.categoryId}_$index" }
+                            ) { _, channel ->
                                 val isFavorite = favoriteIds.contains(channel.streamId.toString())
                                 val isCurrentPlaying = activePreviewChannel?.streamId == channel.streamId &&
                                         (isMiniPlayerActive || viewModel.playerManager.player?.isPlaying == true)
                                 val currentEpg = epgSummaryMap[channel.streamId]
                                 val channelPrograms = epgProgramsMap[channel.streamId]
-                                val nextEpg = remember(channelPrograms, currentEpg) {
+                                val nextEpg = remember(channelPrograms, currentEpg, nowEpochSec) {
                                     if (channelPrograms != null && currentEpg != null) {
                                         val idx = channelPrograms.indexOfFirst { it.id == currentEpg.id }
                                         if (idx >= 0 && idx + 1 < channelPrograms.size) {
                                             channelPrograms[idx + 1]
                                         } else {
-                                            val nowSec = System.currentTimeMillis() / 1000L
-                                            val threshold = if (currentEpg.stopTimestamp > 0) currentEpg.stopTimestamp else nowSec
+                                            val threshold = if (currentEpg.stopTimestamp > 0) currentEpg.stopTimestamp else nowEpochSec
                                             channelPrograms.firstOrNull { it.startTimestamp >= threshold }
                                         }
                                     } else {
@@ -439,14 +455,15 @@ fun LiveTvModernPortraitLayout(
                                     isPlaying = isCurrentPlaying,
                                     onChannelClick = { viewModel.playLiveChannel(channel) },
                                     onFavoriteToggle = { viewModel.toggleFavoriteLive(channel.streamId.toString()) },
-                                    onLoadEpg = { viewModel.loadEpgSummary(channel.streamId) }
+                                    onLoadEpg = { viewModel.loadEpgSummary(channel.streamId) },
+                                    nowEpochSec = nowEpochSec
                                 )
                             }
 
                             if (visibleLimit < filteredChannels.size) {
-                                item {
-                                    LaunchedEffect(Unit) {
-                                        visibleLimit += 30
+                                item(key = "more_detail_$visibleLimit") {
+                                    LaunchedEffect(visibleLimit) {
+                                        visibleLimit += 50
                                     }
                                     Box(
                                         modifier = Modifier
@@ -492,10 +509,10 @@ fun LiveTvModernPortraitLayout(
                             }
 
                             // Kanal Kartları
-                            items(
+                            itemsIndexed(
                                 items = pagedChannels,
-                                key = { "compact_${it.streamId}_${it.num}" }
-                            ) { channel ->
+                                key = { index, ch -> "compact_${ch.streamId}_${ch.categoryId}_$index" }
+                            ) { _, channel ->
                                 val isFavorite = favoriteIds.contains(channel.streamId.toString())
                                 val isCurrentPlaying = activePreviewChannel?.streamId == channel.streamId &&
                                         (isMiniPlayerActive || viewModel.playerManager.player?.isPlaying == true)
@@ -512,15 +529,16 @@ fun LiveTvModernPortraitLayout(
                                         epgSummaryMap[channel.streamId]?.let { prog ->
                                             onSelectProgramDetail(channel, prog)
                                         }
-                                    }
+                                    },
+                                    nowEpochSec = nowEpochSec
                                 )
                             }
 
                             // Infinite Scroll / Chunking
                             if (visibleLimit < filteredChannels.size) {
-                                item {
-                                    LaunchedEffect(Unit) {
-                                        visibleLimit += 30
+                                item(key = "more_compact_$visibleLimit") {
+                                    LaunchedEffect(visibleLimit) {
+                                        visibleLimit += 50
                                     }
                                     Box(
                                         modifier = Modifier

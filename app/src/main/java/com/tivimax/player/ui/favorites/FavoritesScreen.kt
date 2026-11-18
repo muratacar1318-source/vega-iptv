@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
@@ -229,8 +229,8 @@ fun FavoritesScreen(viewModel: MainViewModel) {
             ) {
                 // CANLI TV FAVORİLERİ
                 if (selectedTab == 0 || selectedTab == 1) {
-                    items(favChannels, key = { "fav_live_${it.streamId}" }) { channel ->
-                        val itemKey = "fav_live_${channel.streamId}"
+                    itemsIndexed(favChannels, key = { idx, it -> "fav_live_${it.streamId}_$idx" }) { idx, channel ->
+                        val itemKey = "fav_live_${channel.streamId}_$idx"
                         FocusRestoreSlot(itemKey, restoreFocusKey, restoreFocusRequester) {
                             MediaPosterCard(
                                 imageUrl = channel.streamIcon,
@@ -249,13 +249,13 @@ fun FavoritesScreen(viewModel: MainViewModel) {
 
                 // FİLM FAVORİLERİ
                 if (selectedTab == 0 || selectedTab == 2) {
-                    items(favMovies, key = { "fav_vod_${it.streamId}" }) { movie ->
+                    itemsIndexed(favMovies, key = { idx, it -> "fav_vod_${it.streamId}_$idx" }) { idx, movie ->
                         val rating = movie.rating ?: movie.rating5Based?.let { String.format(Locale.US, "%.1f", it * 2) }
                         val prog = watchProgressMap[movie.streamId.toString()]
-                        val progressFraction = if (prog != null && prog.durationMs > 0L) {
+                        val progressFraction = if (prog != null && !prog.isWatched && prog.durationMs > 0L) {
                             (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
                         } else 0f
-                        val itemKey = "fav_vod_${movie.streamId}"
+                        val itemKey = "fav_vod_${movie.streamId}_$idx"
                         FocusRestoreSlot(itemKey, restoreFocusKey, restoreFocusRequester) {
                             MediaPosterCard(
                                 imageUrl = movie.streamIcon,
@@ -275,15 +275,16 @@ fun FavoritesScreen(viewModel: MainViewModel) {
 
                 // DİZİ FAVORİLERİ
                 if (selectedTab == 0 || selectedTab == 2) {
-                    items(favSeries, key = { "fav_series_${it.seriesId}" }) { series ->
+                    itemsIndexed(favSeries, key = { idx, it -> "fav_series_${it.seriesId}_$idx" }) { idx, series ->
                         val rating = series.rating ?: series.rating5Based?.let { String.format(Locale.US, "%.1f", it * 2) }
-                        val releaseYear = series.releaseDate?.take(4)?.ifBlank { "2024" } ?: "2024"
-                        val itemKey = "fav_series_${series.seriesId}"
+                        val releaseYear = series.releaseDate?.trim()?.take(4)?.takeIf { it.length == 4 && it.all(Char::isDigit) }
+                        val seriesSubtitle = if (releaseYear != null) "$releaseYear • Dizi" else "Dizi"
+                        val itemKey = "fav_series_${series.seriesId}_$idx"
                         FocusRestoreSlot(itemKey, restoreFocusKey, restoreFocusRequester) {
                             MediaPosterCard(
                                 imageUrl = series.cover,
                                 title = series.name,
-                                subtitle = "$releaseYear • Dizi",
+                                subtitle = seriesSubtitle,
                                 rating = rating,
                                 isFavorite = true,
                                 onClick = {

@@ -43,7 +43,8 @@ fun ChannelDetailedCard(
     onFavoriteToggle: () -> Unit,
     onLoadEpg: () -> Unit,
     modifier: Modifier = Modifier,
-    onHideChannel: (() -> Unit)? = null
+    onHideChannel: (() -> Unit)? = null,
+    nowEpochSec: Long = System.currentTimeMillis() / 1000L
 ) {
     val isTv = LocalIsTvDevice.current
     var showContextMenu by remember { mutableStateOf(false) }
@@ -54,24 +55,28 @@ fun ChannelDetailedCard(
         onLoadEpg()
     }
 
-    var minuteTick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(60_000L)
-            minuteTick++
-        }
-    }
-
-    val rawTitle = remember(epg, minuteTick) {
+    val rawTitle = remember(epg, channel.currentProgram) {
         val t = epg?.getDecodedTitle() ?: channel.currentProgram
         if (!t.isNullOrBlank() && t != "Canlı Yayın" && t != "Canlı yayın") t else null
     }
 
-    val progress = remember(epg, minuteTick) {
-        epg?.getProgressFraction() ?: if (channel.programProgress > 0f) channel.programProgress else null
+    val progress = remember(epg, channel.programProgress, nowEpochSec) {
+        if (epg != null && epg.startTimestamp > 0 && epg.stopTimestamp > epg.startTimestamp) {
+            when {
+                nowEpochSec in epg.startTimestamp..epg.stopTimestamp ->
+                    ((nowEpochSec - epg.startTimestamp).toFloat() / (epg.stopTimestamp - epg.startTimestamp).toFloat())
+                        .coerceIn(0.05f, 0.98f)
+                nowEpochSec > epg.stopTimestamp -> 1.0f
+                else -> 0.0f
+            }
+        } else if (channel.programProgress > 0f) {
+            channel.programProgress
+        } else {
+            null
+        }
     }
 
-    val currentTimeSpan = remember(epg, minuteTick) {
+    val currentTimeSpan = remember(epg, channel.programStart, channel.programEnd) {
         epg?.getFormattedTime() ?: (if (channel.programStart != null) "${channel.programStart} - ${channel.programEnd}" else "")
     }
 

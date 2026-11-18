@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
 import com.tivimax.player.theme.VegaPalette
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.design.VegaButtonVariant
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
@@ -51,6 +52,7 @@ import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.util.LocalIsTvDevice
+import kotlinx.coroutines.delay
 
 /**
  * Tek odak + tek tıklama hedefli (Android TV D-Pad & dokunmatik) temel ayar etkileşim yüzeyi.
@@ -1281,11 +1283,14 @@ fun <T> SettingsSelectionDialog(
         options.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
     }
 
-    LaunchedEffect(Unit) {
-        runCatching { initialFocusRequester.requestFocus() }
-    }
-
     Dialog(onDismissRequest = onDismiss) {
+        LaunchedEffect(Unit) {
+            for (attempt in 0 until 2) {
+                withFrameNanos { }
+                delay(60)
+                if (initialFocusRequester.requestFocusSafely()) break
+            }
+        }
         Column(
             modifier = Modifier
                 .widthIn(max = 460.dp)

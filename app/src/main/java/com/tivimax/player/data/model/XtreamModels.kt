@@ -206,6 +206,14 @@ data class EpgProgram(
     @SerializedName("stop_timestamp") val stopTimestamp: Long = 0,
     @SerializedName("now_playing") val nowPlaying: Int = 0
 ) {
+    companion object {
+        internal val BASE64_REGEX = Regex("^[A-Za-z0-9+/]+={0,2}$")
+        private val TIME_FORMATTER = object : ThreadLocal<java.text.SimpleDateFormat>() {
+            override fun initialValue(): java.text.SimpleDateFormat =
+                java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+        }
+    }
+
     fun getDecodedTitle(): String {
         val decoded = title.decodeBase64IfNeeded("")
         return if (decoded.isNotBlank()) decoded else "Canlı Yayın"
@@ -218,7 +226,7 @@ data class EpgProgram(
     fun getFormattedTime(): String {
         return try {
             if (startTimestamp > 0 && stopTimestamp > 0) {
-                val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+                val sdf = TIME_FORMATTER.get() ?: java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
                 val s = sdf.format(java.util.Date(startTimestamp * 1000L))
                 val e = sdf.format(java.util.Date(stopTimestamp * 1000L))
                 "$s - $e"
@@ -261,23 +269,37 @@ data class EpgProgram(
 
 /**
  * Universal safe Base64 decoder for Xtream EPG / channel text.
- * Prevents raw Base64 strings (e.g. "VmFyIE3EsXPEsW4gWW9rIE11c3Vu") from leaking into UI.
+ * Prevents raw Base64 strings (e.g. "VmFyIE3EsXPEsW4gWW9rIE11c3Vu") from leaking into UI,
+ * while avoiding mangling plain ASCII words like "NEWS", "SPOR", "SHOW".
  */
 fun String?.decodeBase64IfNeeded(defaultText: String = ""): String {
     if (this.isNullOrBlank()) return defaultText
     val trimmed = this.trim()
-    // If it contains spaces or is too short, it's not a raw Base64 token
-    if (trimmed.contains(" ") || trimmed.length < 4) return trimmed
+    // Must be a valid Base64 block length (>= 4 and multiple of 4) with no whitespace
+    if (trimmed.length < 4 || trimmed.length % 4 != 0 || trimmed.any { it.isWhitespace() }) return trimmed
 
-    // Check if it's composed only of valid Base64 characters
-    if (!trimmed.matches(Regex("^[A-Za-z0-9+/=]+$"))) return trimmed
+    // Check if it's composed only of valid Base64 characters with valid trailing padding
+    if (!EpgProgram.BASE64_REGEX.matches(trimmed)) return trimmed
+
+    // Avoid mangling plain single-case or Title-case ASCII words (e.g. "NEWS", "SPOR", "SHOW", "News")
+    if (!trimmed.endsWith("=") && trimmed.all { it in 'A'..'Z' || it in 'a'..'z' }) {
+        val isAllUpper = trimmed.all { it in 'A'..'Z' }
+        val isAllLower = trimmed.all { it in 'a'..'z' }
+        val isTitleCase = trimmed[0] in 'A'..'Z' && trimmed.substring(1).all { it in 'a'..'z' }
+        if (isAllUpper || isAllLower || isTitleCase) return trimmed
+    }
 
     return try {
         val decoded = android.util.Base64.decode(trimmed, android.util.Base64.DEFAULT)
+        if (decoded.isEmpty()) return trimmed
+        // Verify canonical Base64 round-trip (rejects non-canonical trailing bits)
+        val reEncoded = android.util.Base64.encodeToString(decoded, android.util.Base64.NO_WRAP)
+        if (reEncoded != trimmed) return trimmed
+
         val str = String(decoded, Charsets.UTF_8).trim()
         if (str.isNotBlank() &&
             !str.contains("\uFFFD") &&
-            str.all { it.code >= 32 || it == '\n' || it == '\r' || it == '\t' }
+            str.all { (it.code >= 32 && it.code !in 0x7F..0x9F) || it == '\n' || it == '\r' || it == '\t' }
         ) {
             str
         } else {

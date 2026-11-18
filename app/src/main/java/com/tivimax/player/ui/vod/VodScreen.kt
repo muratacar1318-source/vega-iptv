@@ -11,8 +11,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.tivimax.player.ui.components.CategoryManagementDialog
+import com.tivimax.player.ui.components.CategoryUiItem
 import com.tivimax.player.ui.components.GlobalSearchOptionsCard
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.BorderStroke
@@ -46,12 +48,24 @@ import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.MediaPosterCard
 import com.tivimax.player.ui.components.MediaPosterCardBox
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.main.StreamVaultSectionHeader
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+
+private data class VodShelfData(
+    val topRated: List<VodStream> = emptyList(),
+    val categories: List<Pair<CategoryUiItem, List<VodStream>>> = emptyList(),
+    val countsByCat: Map<String, Int> = emptyMap(),
+    val isReady: Boolean = false
+)
 
 @Composable
 fun VodScreen(viewModel: MainViewModel) {
@@ -124,14 +138,15 @@ fun VodScreen(viewModel: MainViewModel) {
     val hasActiveCategory = selectedCategory != "all" && selectedCategory.isNotEmpty()
     val hasSearch = searchQuery.isNotBlank()
 
-    var useShelfMode by remember { mutableStateOf(true) }
+    val useShelfMode by viewModel.vodUseShelfMode.collectAsState()
     val favoriteVodIds by viewModel.favoriteVodIds.collectAsState()
     val hasAdultVod by viewModel.hasAdultVodCategory.collectAsState()
     var shelfSortMenuOpen by remember { mutableStateOf(false) }
+    var showShelfCategoryPicker by remember { mutableStateOf(false) }
 
-    // TV'de "Tümünü gör" ile açılan kategoriden Geri tuşuyla doğrudan raflara dön
+    // TV'de arama veya "Tümünü gör" ile açılan kategoriden Geri tuşuyla doğrudan raflara dön
     BackHandler(
-        enabled = (isTvDevice && useShelfMode && hasActiveCategory) ||
+        enabled = (isTvDevice && (hasSearch || (useShelfMode && hasActiveCategory))) ||
             (!isTvDevice && (showCategorySheet || hasSearch || hasActiveCategory))
     ) {
         when {
@@ -152,6 +167,21 @@ fun VodScreen(viewModel: MainViewModel) {
         )
     }
 
+    if (showShelfCategoryPicker) {
+        VodCategoryPickerDialog(
+            title = "Film kategorileri",
+            allLabel = "Tüm Filmler",
+            totalCount = totalVodCount,
+            categories = uiCategories,
+            selectedCategoryId = selectedCategory,
+            onSelect = { catId ->
+                showShelfCategoryPicker = false
+                viewModel.loadVodStreams(catId)
+            },
+            onDismiss = { showShelfCategoryPicker = false }
+        )
+    }
+
     if (showCategoryDialog) {
         CategoryManagementDialog(
             viewModel = viewModel,
@@ -161,18 +191,38 @@ fun VodScreen(viewModel: MainViewModel) {
     }
 
     if (isWideScreen && useShelfMode && !hasActiveCategory && !hasSearch && !isLoading && movies.isNotEmpty()) {
-        // STREAMVAULT MODERN RAF GÖRÜNÜMÜ (Movies.png)
-        val moviesByCat = remember(movies) { movies.groupBy { it.categoryId } }
-        val topRatedMovies = remember(movies) {
-            movies
-                .sortedByDescending { it.rating?.replace(',', '.')?.toFloatOrNull() ?: (it.rating5Based?.toFloat()?.times(2f) ?: 0f) }
-                .take(18)
+        // STREAMVAULT MODERN RAF GÖRÜNÜMÜ (Gruplama ve puan sıralaması Default dispatcher'da)
+        val shelfData by produceState(
+            initialValue = VodShelfData(),
+            key1 = movies,
+            key2 = uiCategories
+        ) {
+            value = withContext(Dispatchers.Default) {
+                val grouped = movies.groupBy { it.categoryId }
+                val counts = grouped.mapValues { it.value.size }
+                val top = movies
+                    .distinctBy { it.streamId }
+                    .sortedByDescending {
+                        it.rating?.replace(',', '.')?.toFloatOrNull()
+                            ?: (it.rating5Based?.toFloat()?.times(2f) ?: 0f)
+                    }
+                    .take(18)
+                val shelves = uiCategories.mapNotNull { cat ->
+                    val list = grouped[cat.id]?.distinctBy { it.streamId }?.take(16)
+                    if (!list.isNullOrEmpty()) cat to list else null
+                }
+                VodShelfData(
+                    topRated = top,
+                    categories = shelves,
+                    countsByCat = counts,
+                    isReady = true
+                )
+            }
         }
-        val shelfCategories = remember(uiCategories, moviesByCat) {
-            uiCategories.mapNotNull { cat ->
-                val list = moviesByCat[cat.id]?.take(16)
-                if (!list.isNullOrEmpty()) cat to list else null
-            }.take(20)
+        val topRatedMovies = shelfData.topRated
+        var visibleShelfCats by remember(shelfData.categories) { mutableIntStateOf(10) }
+        val visibleShelfCategories = remember(shelfData.categories, visibleShelfCats) {
+            shelfData.categories.take(visibleShelfCats)
         }
         val shelfPosterWidth = if (isTvDevice) 160.dp else 148.dp
         val topPosterWidth = if (isTvDevice) 160.dp else 152.dp
@@ -184,7 +234,7 @@ fun VodScreen(viewModel: MainViewModel) {
             contentPadding = PaddingValues(top = 8.dp, bottom = 36.dp),
             verticalArrangement = Arrangement.spacedBy(if (isTvDevice) 24.dp else 20.dp)
         ) {
-            // Üst Kontrol Şeridi (Arama, Sıralama, Görünüm Değiştirme, Kategoriler, Yetişkin Kilidi)
+            // Üst Kontrol Şeridi (Arama, Sıralama, Kategoriler, Klasik Liste, Düzenle, Yetişkin Kilidi)
             item(key = "vod_shelf_controls") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -284,6 +334,28 @@ fun VodScreen(viewModel: MainViewModel) {
                             )
                         }
 
+                        // Tüm Kategorilere Doğrudan Erişim (Kategori Seçici)
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = VegaColors.SurfaceElevated,
+                            border = BorderStroke(1.dp, VegaColors.Border),
+                            modifier = Modifier.dpadFocusable(
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                scale = 1.04f,
+                                onClick = { showShelfCategoryPicker = true }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(Icons.Default.Folder, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(15.dp))
+                                Text("Kategoriler", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+
                         // Klasik Liste Görünümü
                         Surface(
                             shape = VegaShapes.Pill,
@@ -293,7 +365,7 @@ fun VodScreen(viewModel: MainViewModel) {
                                 shape = VegaShapes.Pill,
                                 focusedBorderColor = VegaColors.FocusBorder,
                                 scale = 1.04f,
-                                onClick = { useShelfMode = false }
+                                onClick = { viewModel.setVodUseShelfMode(false) }
                             )
                         ) {
                             Row(
@@ -306,7 +378,7 @@ fun VodScreen(viewModel: MainViewModel) {
                             }
                         }
 
-                        // Kategori Düzenleme
+                        // Kategori Düzenleme (Gizle / Sabitle)
                         Surface(
                             shape = VegaShapes.Pill,
                             color = VegaColors.SurfaceElevated,
@@ -319,77 +391,110 @@ fun VodScreen(viewModel: MainViewModel) {
                             )
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
-                                Icon(Icons.Default.Tune, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(15.dp))
-                                Text("Kategoriler", color = VegaColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Icon(Icons.Default.Tune, contentDescription = "Kategorileri düzenle", tint = VegaColors.TextSecondary, modifier = Modifier.size(15.dp))
+                                Text("Düzenle", color = VegaColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                             }
                         }
                     }
                 }
             }
 
-            // Üst Vitrin Rafı (Movies.png üst şerit — büyük 160.dp posterler)
-            if (topRatedMovies.isNotEmpty()) {
-                item(key = "vod_shelf_top") {
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        modifier = Modifier.fillMaxWidth().focusRestorer()
+            if (!shelfData.isReady) {
+                item(key = "vod_shelf_loading") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        items(topRatedMovies, key = { "top_vod_${it.streamId}" }) { movie ->
-                            val prog = watchProgressMap[movie.streamId.toString()]
-                            val progFraction = if (prog != null && prog.durationMs > 0L) {
-                                (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
-                            } else 0f
-                            Box(modifier = Modifier.width(topPosterWidth)) {
-                                MediaPosterCard(
-                                    imageUrl = movie.streamIcon,
-                                    title = movie.name,
-                                    subtitle = "",
-                                    rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
-                                    watchProgress = progFraction,
-                                    isFavorite = favoriteVodIds.contains(movie.streamId.toString()),
-                                    onClick = { viewModel.loadVodDetail(movie) }
-                                )
+                        CircularProgressIndicator(color = VegaColors.Accent, strokeWidth = 2.5.dp)
+                    }
+                }
+            } else {
+                // Üst Vitrin Rafı (Movies.png üst şerit — büyük 160.dp posterler)
+                if (topRatedMovies.isNotEmpty()) {
+                    item(key = "vod_shelf_top") {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().focusRestorer()
+                        ) {
+                            itemsIndexed(topRatedMovies, key = { idx, it -> "top_vod_${it.streamId}_$idx" }) { _, movie ->
+                                val prog = watchProgressMap[movie.streamId.toString()]
+                                val progFraction = if (prog != null && !prog.isWatched && prog.durationMs > 0L) {
+                                    (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
+                                } else 0f
+                                Box(modifier = Modifier.width(topPosterWidth)) {
+                                    MediaPosterCard(
+                                        imageUrl = movie.streamIcon,
+                                        title = movie.name,
+                                        subtitle = "",
+                                        rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                        watchProgress = progFraction,
+                                        isFavorite = favoriteVodIds.contains(movie.streamId.toString()),
+                                        onClick = { viewModel.loadVodDetail(movie) }
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Kategori Rafları (StreamVault Movies.png — öğe sayısı + "Tümünü gör" mavi hapı)
-            items(shelfCategories, key = { "vod_shelf_${it.first.id}" }) { (cat, catMovies) ->
-                val catTotalCount = cat.count.takeIf { it > 0 } ?: moviesByCat[cat.id]?.size
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StreamVaultSectionHeader(
-                        title = cat.name,
-                        count = catTotalCount,
-                        onSeeAllClick = { viewModel.loadVodStreams(cat.id) }
-                    )
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                        modifier = Modifier.fillMaxWidth().focusRestorer()
-                    ) {
-                        items(catMovies, key = { "shelf_${cat.id}_${it.streamId}" }) { movie ->
-                            val prog = watchProgressMap[movie.streamId.toString()]
-                            val progFraction = if (prog != null && prog.durationMs > 0L) {
-                                (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
-                            } else 0f
-                            Box(modifier = Modifier.width(shelfPosterWidth)) {
-                                MediaPosterCard(
-                                    imageUrl = movie.streamIcon,
-                                    title = movie.name,
-                                    subtitle = "",
-                                    rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
-                                    watchProgress = progFraction,
-                                    isFavorite = favoriteVodIds.contains(movie.streamId.toString()),
-                                    onClick = { viewModel.loadVodDetail(movie) }
-                                )
+                // Kategori Rafları (StreamVault Movies.png — öğe sayısı + "Tümünü gör" mavi hapı)
+                itemsIndexed(visibleShelfCategories, key = { idx, pair -> "vod_shelf_${pair.first.id}_$idx" }) { _, (cat, catMovies) ->
+                    val catTotalCount = cat.count.takeIf { it > 0 } ?: shelfData.countsByCat[cat.id]
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StreamVaultSectionHeader(
+                            title = cat.name,
+                            count = catTotalCount,
+                            onSeeAllClick = { viewModel.loadVodStreams(cat.id) }
+                        )
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().focusRestorer()
+                        ) {
+                            itemsIndexed(catMovies, key = { idx, it -> "shelf_${cat.id}_${it.streamId}_$idx" }) { _, movie ->
+                                val prog = watchProgressMap[movie.streamId.toString()]
+                                val progFraction = if (prog != null && !prog.isWatched && prog.durationMs > 0L) {
+                                    (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
+                                } else 0f
+                                Box(modifier = Modifier.width(shelfPosterWidth)) {
+                                    MediaPosterCard(
+                                        imageUrl = movie.streamIcon,
+                                        title = movie.name,
+                                        subtitle = "",
+                                        rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                        watchProgress = progFraction,
+                                        isFavorite = favoriteVodIds.contains(movie.streamId.toString()),
+                                        onClick = { viewModel.loadVodDetail(movie) }
+                                    )
+                                }
                             }
+                        }
+                    }
+                }
+
+                if (visibleShelfCats < shelfData.categories.size) {
+                    item(key = "shelf_more_$visibleShelfCats") {
+                        LaunchedEffect(visibleShelfCats) {
+                            visibleShelfCats += 10
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = VegaColors.Accent,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
@@ -402,7 +507,7 @@ fun VodScreen(viewModel: MainViewModel) {
                 repeat(3) {
                     withFrameNanos { }
                     delay(70)
-                    if (runCatching { backToShelvesFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                    if (backToShelvesFocusRequester.requestFocusSafely()) return@LaunchedEffect
                 }
             }
         }
@@ -461,7 +566,8 @@ fun VodScreen(viewModel: MainViewModel) {
                                         focusedBorderColor = VegaColors.FocusBorder,
                                         scale = 1.04f,
                                         onClick = {
-                                            useShelfMode = true
+                                            viewModel.setVodUseShelfMode(true)
+                                            if (hasSearch) viewModel.setVodSearchQuery("")
                                             if (hasActiveCategory) viewModel.loadVodStreams("all")
                                         }
                                     )
@@ -494,7 +600,7 @@ fun VodScreen(viewModel: MainViewModel) {
                                     shape = VegaShapes.Pill,
                                     focusedBorderColor = VegaColors.FocusBorder,
                                     scale = 1.04f,
-                                    onClick = { useShelfMode = false }
+                                    onClick = { viewModel.setVodUseShelfMode(false) }
                                 )
                             ) {
                                 Row(
@@ -592,36 +698,292 @@ private fun VodSortDropdownMenu(
     onSelect: (SortOption) -> Unit,
     onDismiss: () -> Unit
 ) {
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss,
-        modifier = Modifier.background(VegaColors.Surface)
-    ) {
-        DropdownMenuItem(
-            text = { Text("Eklenme tarihi (yeni)", color = if (currentSort == SortOption.ADDED_DESC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(16.dp)) },
-            onClick = { onSelect(SortOption.ADDED_DESC) }
+    if (!expanded) return
+    val isTv = LocalIsTvDevice.current
+    val options = remember {
+        listOf(
+            Triple(SortOption.ADDED_DESC, "Eklenme tarihi (yeni)", Icons.Default.Schedule),
+            Triple(SortOption.RATING_DESC, "Puan sıralaması (en yüksek)", Icons.Default.Star),
+            Triple(SortOption.NAME_ASC, "A - Z (isme göre)", Icons.Default.SortByAlpha),
+            Triple(SortOption.NAME_DESC, "Z - A (isme göre ters)", Icons.Default.SortByAlpha),
+            Triple(SortOption.DEFAULT, "Varsayılan sıra", Icons.Default.Reorder)
         )
-        DropdownMenuItem(
-            text = { Text("Puan sıralaması (en yüksek)", color = if (currentSort == SortOption.RATING_DESC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(16.dp)) },
-            onClick = { onSelect(SortOption.RATING_DESC) }
-        )
-        DropdownMenuItem(
-            text = { Text("A - Z (isme göre)", color = if (currentSort == SortOption.NAME_ASC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(16.dp)) },
-            onClick = { onSelect(SortOption.NAME_ASC) }
-        )
-        DropdownMenuItem(
-            text = { Text("Z - A (isme göre ters)", color = if (currentSort == SortOption.NAME_DESC) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Default.SortByAlpha, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(16.dp)) },
-            onClick = { onSelect(SortOption.NAME_DESC) }
-        )
-        DropdownMenuItem(
-            text = { Text("Varsayılan sıra", color = if (currentSort == SortOption.DEFAULT) VegaColors.Accent else VegaColors.TextPrimary, fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Default.Reorder, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(16.dp)) },
-            onClick = { onSelect(SortOption.DEFAULT) }
-        )
+    }
+
+    if (isTv) {
+        val initialFocusRequester = remember { FocusRequester() }
+        val selectedIndex = remember(currentSort) {
+            options.indexOfFirst { it.first == currentSort }.coerceAtLeast(0)
+        }
+        Dialog(onDismissRequest = onDismiss) {
+            LaunchedEffect(Unit) {
+                repeat(2) {
+                    withFrameNanos { }
+                    delay(60)
+                    if (initialFocusRequester.requestFocusSafely()) return@LaunchedEffect
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 440.dp)
+                    .fillMaxWidth()
+                    .vegaPanel(VegaShapes.Large)
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Sıralama",
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.SectionTitle,
+                    fontWeight = FontWeight.Bold
+                )
+                options.forEachIndexed { idx, (opt, label, icon) ->
+                    val isSelected = currentSort == opt
+                    var isFocused by remember { mutableStateOf(false) }
+                    Surface(
+                        shape = VegaShapes.Medium,
+                        color = when {
+                            isFocused -> VegaColors.SurfaceAccent
+                            isSelected -> VegaColors.Accent.copy(alpha = 0.16f)
+                            else -> VegaColors.SurfaceElevated
+                        },
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) VegaColors.Accent else VegaColors.Border
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(if (idx == selectedIndex) Modifier.focusRequester(initialFocusRequester) else Modifier)
+                            .dpadFocusable(
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                scale = 1.02f,
+                                onClick = { onSelect(opt) },
+                                onFocusStateChange = { isFocused = it }
+                            )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = when {
+                                    opt == SortOption.RATING_DESC -> VegaColors.Gold
+                                    isSelected -> VegaColors.Accent
+                                    else -> VegaColors.TextSecondary
+                                },
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = label,
+                                color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                fontSize = VegaText.Body,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = VegaColors.Accent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = onDismiss,
+            modifier = Modifier.background(VegaColors.Surface)
+        ) {
+            options.forEach { (opt, label, icon) ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            label,
+                            color = if (currentSort == opt) VegaColors.Accent else VegaColors.TextPrimary,
+                            fontSize = 13.sp
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            icon,
+                            contentDescription = null,
+                            tint = when {
+                                opt == SortOption.RATING_DESC -> VegaColors.Gold
+                                opt == SortOption.ADDED_DESC -> VegaColors.Accent
+                                else -> VegaColors.TextSecondary
+                            },
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    onClick = { onSelect(opt) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VodCategoryPickerDialog(
+    title: String,
+    allLabel: String,
+    totalCount: Int,
+    categories: List<CategoryUiItem>,
+    selectedCategoryId: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val initialFocusRequester = remember { FocusRequester() }
+    val allItems = remember(categories, allLabel, totalCount) {
+        buildList {
+            add(CategoryUiItem(id = "all", name = allLabel, count = totalCount, icon = Icons.Default.GridView, iconTint = VegaColors.Accent))
+            addAll(categories.distinctBy { it.id })
+        }
+    }
+    val selectedIndex = remember(allItems, selectedCategoryId) {
+        val targetId = selectedCategoryId.ifEmpty { "all" }
+        allItems.indexOfFirst { it.id == targetId }.coerceAtLeast(0)
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        LaunchedEffect(Unit) {
+            repeat(2) {
+                withFrameNanos { }
+                delay(60)
+                if (initialFocusRequester.requestFocusSafely()) return@LaunchedEffect
+            }
+        }
+        Column(
+            modifier = Modifier
+                .widthIn(max = 480.dp)
+                .fillMaxWidth()
+                .vegaPanel(VegaShapes.Large)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    color = VegaColors.TextPrimary,
+                    fontSize = VegaText.SectionTitle,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${categories.size} kategori",
+                    color = VegaColors.TextSecondary,
+                    fontSize = VegaText.Secondary
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 380.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                itemsIndexed(allItems, key = { idx, item -> "vod_pick_${item.id}_$idx" }) { idx, cat ->
+                    val isSelected = (cat.id == "all" && (selectedCategoryId == "all" || selectedCategoryId.isEmpty())) ||
+                        cat.id == selectedCategoryId
+                    var isFocused by remember { mutableStateOf(false) }
+                    Surface(
+                        shape = VegaShapes.Medium,
+                        color = when {
+                            isFocused -> VegaColors.SurfaceAccent
+                            isSelected -> VegaColors.Accent.copy(alpha = 0.16f)
+                            else -> VegaColors.SurfaceElevated
+                        },
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) VegaColors.Accent else VegaColors.Border
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(if (idx == selectedIndex) Modifier.focusRequester(initialFocusRequester) else Modifier)
+                            .dpadFocusable(
+                                shape = VegaShapes.Medium,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                scale = 1.02f,
+                                onClick = { onSelect(cat.id) },
+                                onFocusStateChange = { isFocused = it }
+                            )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = cat.name,
+                                color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                                fontSize = VegaText.Body,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (cat.count > 0) {
+                                    Text(
+                                        text = "${cat.count}",
+                                        color = VegaColors.TextSecondary,
+                                        fontSize = VegaText.Caption,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = VegaColors.Accent,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.SurfaceVariant,
+                    border = BorderStroke(1.dp, VegaColors.Border),
+                    modifier = Modifier.dpadFocusable(
+                        shape = VegaShapes.Medium,
+                        focusedBorderColor = VegaColors.FocusBorder,
+                        onClick = onDismiss
+                    )
+                ) {
+                    Text(
+                        text = "Kapat",
+                        color = VegaColors.TextPrimary,
+                        fontSize = VegaText.Body,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -947,6 +1309,10 @@ private fun VodMediaContentGrid(
                         }
                     }
 
+                    val restoreTargetIndex = remember(pagedMovies, restoreFocusKey) {
+                        if (restoreFocusKey == null) -1
+                        else pagedMovies.indexOfFirst { "${it.streamId}_${it.num}" == restoreFocusKey }
+                    }
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(gridColumns),
                         state = gridState,
@@ -955,14 +1321,14 @@ private fun VodMediaContentGrid(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        items(
+                        itemsIndexed(
                             items = pagedMovies,
-                            key = { "${it.streamId}_${it.num}" },
-                            contentType = { "vod_movie" }
-                        ) { movie ->
+                            key = { idx, it -> "vod_grid_${it.streamId}_${it.num}_$idx" },
+                            contentType = { _, _ -> "vod_movie" }
+                        ) { idx, movie ->
                             val progress = watchProgressMap[movie.streamId.toString()]
                             val itemKey = "${movie.streamId}_${movie.num}"
-                            val progFraction = if (progress != null && progress.durationMs > 0 && progress.positionMs > 10_000L) {
+                            val progFraction = if (progress != null && !progress.isWatched && progress.durationMs > 0 && progress.positionMs > 10_000L) {
                                 (progress.positionMs.toFloat() / progress.durationMs.toFloat()).coerceIn(0f, 1f)
                             } else 0f
                             MediaPosterCardBox(
@@ -977,7 +1343,7 @@ private fun VodMediaContentGrid(
                                     positionStore.lastOpenedItemKey = itemKey
                                     viewModel.loadVodDetail(movie)
                                 },
-                                modifier = if (restoreFocusKey != null && itemKey == restoreFocusKey) {
+                                modifier = if (idx == restoreTargetIndex) {
                                     Modifier.focusRequester(restoreFocusRequester)
                                 } else {
                                     Modifier
@@ -987,8 +1353,8 @@ private fun VodMediaContentGrid(
 
                         // Sonsuz Kaydırma / Sayfalama Tetikleyici
                         if (visibleLimit < filteredMovies.size) {
-                            item(span = { GridItemSpan(gridColumns) }) {
-                                LaunchedEffect(Unit) {
+                            item(key = "vod_more_$visibleLimit", span = { GridItemSpan(gridColumns) }) {
+                                LaunchedEffect(visibleLimit) {
                                     onLoadMore()
                                 }
                                 Box(
@@ -1008,7 +1374,7 @@ private fun VodMediaContentGrid(
 
                         // Arama yapıldığında ızgaranın en altında alternatif arama seçenekleri
                         if (searchQuery.isNotBlank()) {
-                            item(span = { GridItemSpan(gridColumns) }) {
+                            item(key = "vod_global_search", span = { GridItemSpan(gridColumns) }) {
                                 GlobalSearchOptionsCard(
                                     query = searchQuery,
                                     currentScope = "vod",

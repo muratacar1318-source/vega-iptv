@@ -5,11 +5,15 @@ import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.FutureTask
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.SynchronousQueue
+import java.util.concurrent.ThreadFactory
+import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Bounded DNS resolver with stale IP fallback.
@@ -52,9 +56,19 @@ class BoundedDns(
 
     private val lastGood = ConcurrentHashMap<String, List<InetAddress>>()
     private val inFlight = ConcurrentHashMap<String, Future<List<InetAddress>>>()
-    private val executor = Executors.newCachedThreadPool { runnable ->
-        Thread(runnable, "vegaplayer-dns").apply { isDaemon = true }
-    }
+    private val threadCounter = AtomicInteger(1)
+    private val executor = ThreadPoolExecutor(
+        0,
+        12,
+        60L,
+        TimeUnit.SECONDS,
+        SynchronousQueue(),
+        ThreadFactory { runnable ->
+            Thread(runnable, "vegaplayer-dns-${threadCounter.getAndIncrement()}").apply {
+                isDaemon = true
+            }
+        }
+    )
 
     override fun lookup(hostname: String): List<InetAddress> {
         val mine = object : FutureTask<List<InetAddress>>(Callable { delegate.lookup(hostname) }) {
@@ -66,7 +80,19 @@ class BoundedDns(
             if (current == null || current.isDone) mine else current
         }!!
         if (pending === mine) {
-            executor.execute(mine)
+            try {
+                executor.execute(mine)
+            } catch (_: RejectedExecutionException) {
+                inFlight.remove(hostname, mine)
+                val stale = lastGood[hostname]
+                if (!stale.isNullOrEmpty()) {
+                    val msg = "DNS iş parçacığı havuzu dolu ($hostname), önbellekteki son geçerli IP kullanılıyor"
+                    logWarn(msg)
+                    logFallback?.invoke(msg)
+                    return stale
+                }
+                throw UnknownHostException("DNS havuzu dolu: $hostname")
+            }
         }
 
         val hasStale = lastGood.containsKey(hostname)
@@ -94,17 +120,6 @@ class BoundedDns(
             logWarn(msg)
             logFallback?.invoke(msg)
             return stale
-        }
-
-        // Önbellekte IP yoksa ve zaman aşımı olduysa doğrudan delegate ile son bir kurtarma dene
-        try {
-            val directResult = delegate.lookup(hostname)
-            if (directResult.isNotEmpty()) {
-                lastGood[hostname] = directResult
-                return directResult
-            }
-        } catch (e: Throwable) {
-            logWarn("Son kurtarma DNS sorgusu başarısız: ${e.javaClass.simpleName}")
         }
 
         throw failure

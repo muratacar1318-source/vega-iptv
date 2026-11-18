@@ -1,7 +1,10 @@
 package com.tivimax.player.ui.tv
 
+import android.app.Activity
 import android.view.KeyEvent
+import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
@@ -46,6 +49,7 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.tivimax.player.R
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.ui.components.extractQualityBadges
@@ -98,8 +102,12 @@ fun TvPlayerOverlay(
     val startupDebugInfo by playerManager.startupDebugInfo.collectAsState()
     // G-046: Oynatma hatası / yeniden bağlanma mesajı TV'de de görünsün
     val playerError by playerManager.errorMessage.collectAsState()
+    val reconnectStatus by playerManager.reconnectStatus.collectAsState()
+    val playerInstanceVersion by playerManager.playerInstanceVersion.collectAsState()
+    val useTextureView by playerManager.useTextureView.collectAsState()
 
     val context = LocalContext.current
+    val activity = context as? Activity
     val coroutineScope = rememberCoroutineScope()
     val delayedController = remember {
         DelayedSubtitleController(context, coroutineScope)
@@ -108,6 +116,48 @@ fun TvPlayerOverlay(
     DisposableEffect(delayedController) {
         onDispose {
             delayedController.detach()
+        }
+    }
+
+    // TV'de ekran koruyucusunu önle (FLAG_KEEP_SCREEN_ON) ve çıkışta AFR'yi varsayılana sıfırla
+    DisposableEffect(activity) {
+        val window = activity?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            playerManager.resetAutoFrameRate(activity)
+        }
+    }
+
+    // Yayın READY olup kare hızı/boyutu belli olunca otomatik yenileme hızını (AFR) uygula
+    LaunchedEffect(isPlaying, streamDiagnostics.frameRate, streamDiagnostics.resolution, activeChannel.streamId, playerInstanceVersion) {
+        if (activity != null && isPlaying) {
+            playerManager.applyAutoFrameRate(activity)
+        }
+    }
+
+    var tvPlayerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+
+    LaunchedEffect(tvPlayerViewRef, playerInstanceVersion) {
+        val view = tvPlayerViewRef ?: return@LaunchedEffect
+        val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive = true)
+        playerManager.attachView(view, isPrimary = true, tag = "TvPlayerOverlay-bind")
+        try {
+            delayedController.attach(view, currentPlayer)
+            delayedController.updateDelay(subtitleDelayMs)
+            delayedController.updateStyle(subtitleColor, subtitleSize)
+        } catch (_: Throwable) {}
+    }
+
+    LaunchedEffect(tvPlayerViewRef, subtitleDelayMs) {
+        if (tvPlayerViewRef != null) {
+            try { delayedController.updateDelay(subtitleDelayMs) } catch (_: Throwable) {}
+        }
+    }
+
+    LaunchedEffect(tvPlayerViewRef, subtitleColor, subtitleSize) {
+        if (tvPlayerViewRef != null) {
+            try { delayedController.updateStyle(subtitleColor, subtitleSize) } catch (_: Throwable) {}
         }
     }
 
@@ -483,57 +533,65 @@ fun TvPlayerOverlay(
             }
     ) {
         // 1. TAM EKRAN VİDEO YÜZEYİ (SINGLETON EXOPLAYER - ZERO REBUFFERING)
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    useController = false
-                    keepScreenOn = true
-                    setKeepContentOnPlayerReset(true)
-                    isFocusable = false
-                    isFocusableInTouchMode = false
-                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    layoutParams = FrameLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    val initialPlayer = playerManager.player ?: playerManager.initializePlayer(isLive = true)
-                    playerManager.attachView(this, isPrimary = true, tag = "TvPlayerOverlay")
-                    delayedController.attach(this, initialPlayer)
-                    delayedController.updateDelay(subtitleDelayMs)
-                    delayedController.updateStyle(subtitleColor, subtitleSize)
-                }
-            },
-            update = { playerView ->
-                val currentPlayer = playerManager.player ?: playerManager.initializePlayer(isLive = true)
-                playerManager.attachView(playerView, isPrimary = true, tag = "TvPlayerOverlay")
-                // G-042: En-boy oranı (telefon oynatıcısıyla aynı eşleme)
-                val (targetResizeMode, targetScaleX, targetScaleY) = when (aspectRatio) {
-                    AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
-                    AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                    AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
-                    AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
-                    AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
-                }
-                if (playerView.resizeMode != targetResizeMode) playerView.resizeMode = targetResizeMode
-                if (playerView.scaleX != targetScaleX || playerView.scaleY != targetScaleY) {
-                    playerView.scaleX = targetScaleX
-                    playerView.scaleY = targetScaleY
-                }
-                try {
-                    delayedController.attach(playerView, currentPlayer)
-                    delayedController.updateDelay(subtitleDelayMs)
-                    delayedController.updateStyle(subtitleColor, subtitleSize)
-                } catch (e: Throwable) {
-                    // Ignore
-                }
-            },
-            onRelease = { playerView ->
-                delayedController.detach()
-                playerManager.detachView(playerView, tag = "TvPlayerOverlay")
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+        key(useTextureView) {
+            AndroidView(
+                factory = { ctx ->
+                    val layoutRes = if (useTextureView) {
+                        R.layout.player_texture_view
+                    } else {
+                        R.layout.player_surface_view
+                    }
+                    val view = LayoutInflater.from(ctx).inflate(layoutRes, null, false) as PlayerView
+                    view.apply {
+                        useController = false
+                        keepScreenOn = true
+                        setKeepContentOnPlayerReset(true)
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                        setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        isFocusable = false
+                        isFocusableInTouchMode = false
+                        descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        val initialPlayer = playerManager.player ?: playerManager.initializePlayer(isLive = true)
+                        playerManager.attachView(this, isPrimary = true, tag = "TvPlayerOverlay")
+                        try {
+                            delayedController.attach(this, initialPlayer)
+                            delayedController.updateDelay(subtitleDelayMs)
+                            delayedController.updateStyle(subtitleColor, subtitleSize)
+                        } catch (_: Throwable) {}
+                    }
+                    tvPlayerViewRef = view
+                    view
+                },
+                update = { playerView ->
+                    // G-042: En-boy oranı (telefon oynatıcısıyla aynı eşleme)
+                    val (targetResizeMode, targetScaleX, targetScaleY) = when (aspectRatio) {
+                        AspectRatioMode.FIT -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 1.0f, 1.0f)
+                        AspectRatioMode.FILL -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                        AspectRatioMode.ZOOM -> Triple(AspectRatioFrameLayout.RESIZE_MODE_ZOOM, 1.18f, 1.18f)
+                        AspectRatioMode.RATIO_16_9 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FILL, 1.0f, 1.0f)
+                        AspectRatioMode.RATIO_4_3 -> Triple(AspectRatioFrameLayout.RESIZE_MODE_FIT, 0.75f, 1.0f)
+                    }
+                    if (playerView.resizeMode != targetResizeMode) playerView.resizeMode = targetResizeMode
+                    if (playerView.scaleX != targetScaleX || playerView.scaleY != targetScaleY) {
+                        playerView.scaleX = targetScaleX
+                        playerView.scaleY = targetScaleY
+                    }
+                },
+                onRelease = { playerView ->
+                    if (tvPlayerViewRef === playerView) {
+                        tvPlayerViewRef = null
+                    }
+                    delayedController.detach()
+                    playerManager.detachView(playerView, tag = "TvPlayerOverlay")
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         // BUFFET / YÜKLENİYOR
         if (isBuffering) {
@@ -542,35 +600,71 @@ fun TvPlayerOverlay(
             }
         }
 
-        // G-046: HATA / YENİDEN BAĞLANMA MESAJI
-        playerError?.let { msg ->
+        // YENİDEN BAĞLANMA HAP BİLDİRİMİ
+        reconnectStatus?.let { status ->
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 140.dp),
-                contentAlignment = Alignment.Center
+                    .padding(bottom = 56.dp),
+                contentAlignment = Alignment.BottomCenter
             ) {
                 Surface(
-                    shape = VegaShapes.Medium,
+                    shape = VegaShapes.Pill,
                     color = VegaColors.OverlayPanel,
                     border = BorderStroke(1.dp, VegaColors.Border)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        CircularProgressIndicator(
+                            color = VegaColors.Accent,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(14.dp)
+                        )
                         Text(
-                            text = msg,
+                            text = status,
                             color = VegaColors.TextPrimary,
                             fontSize = VegaText.Secondary,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "OK: Tekrar dene   ▲▼: Kanal değiştir",
-                            color = VegaColors.TextSecondary,
-                            fontSize = VegaText.Caption
-                        )
+                    }
+                }
+            }
+        }
+
+        // G-046: HATA / YENİDEN BAĞLANMA MESAJI
+        if (reconnectStatus == null) {
+            playerError?.let { msg ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 140.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        shape = VegaShapes.Medium,
+                        color = VegaColors.OverlayPanel,
+                        border = BorderStroke(1.dp, VegaColors.Border)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = msg,
+                                color = VegaColors.TextPrimary,
+                                fontSize = VegaText.Secondary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "OK: Tekrar dene   ▲▼: Kanal değiştir",
+                                color = VegaColors.TextSecondary,
+                                fontSize = VegaText.Caption
+                            )
+                        }
                     }
                 }
             }
@@ -907,7 +1001,7 @@ fun TvPlayerOverlay(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    items(recentChannels.take(10), key = { "rec_${it.streamId}" }) { rec ->
+                                    itemsIndexed(recentChannels.take(10), key = { idx, it -> "rec_${it.streamId}_$idx" }) { _, rec ->
                                         Surface(
                                             shape = VegaShapes.Small,
                                             color = VegaColors.SurfaceElevated,
@@ -1035,7 +1129,7 @@ fun TvPlayerOverlay(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        itemsIndexed(allStreams, key = { _, it -> "guide_${it.streamId}" }) { index, st ->
+                        itemsIndexed(allStreams, key = { index, it -> "guide_${it.streamId}_$index" }) { index, st ->
                             val isSel = st.streamId == activeChannel.streamId
                             var isRowFocused by remember { mutableStateOf(false) }
                             val rowEpg = epgSummaryMap[st.streamId]
@@ -1235,7 +1329,7 @@ fun TvPlayerOverlay(
                                 )
                             }
                         } else {
-                            itemsIndexed(audioTracks) { idx, track ->
+                            itemsIndexed(audioTracks, key = { idx, track -> "audio_${track.groupIndex}_${track.formatIndex}_$idx" }) { idx, track ->
                                 TvTrackSelectionRow(
                                     title = track.name,
                                     icon = Icons.Default.Audiotrack,
@@ -1273,7 +1367,7 @@ fun TvPlayerOverlay(
                             )
                         }
 
-                        items(subtitleTracks) { track ->
+                        itemsIndexed(subtitleTracks, key = { idx, track -> "sub_${track.groupIndex}_${track.formatIndex}_$idx" }) { _, track ->
                             TvTrackSelectionRow(
                                 title = track.name,
                                 icon = Icons.Default.ClosedCaption,

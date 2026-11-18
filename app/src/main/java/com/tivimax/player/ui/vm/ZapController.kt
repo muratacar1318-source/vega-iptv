@@ -33,6 +33,24 @@ class ZapController(
     val isZapperActive = MutableStateFlow(false)
     val zapperMatchedChannel = MutableStateFlow<LiveStream?>(null)
     private var zapperJob: Job? = null
+    private var nonTvZapJob: Job? = null
+    private var pendingNonTvStreamId: Int? = null
+
+    fun cancelPendingZap() {
+        nonTvZapJob?.cancel()
+        nonTvZapJob = null
+        pendingNonTvStreamId = null
+    }
+
+    private fun scheduleNonTvZap(channel: LiveStream) {
+        nonTvZapJob?.cancel()
+        pendingNonTvStreamId = channel.streamId
+        nonTvZapJob = scope.launch {
+            delay(350L)
+            pendingNonTvStreamId = null
+            playLiveChannel(channel)
+        }
+    }
 
     fun onNumericKeyPressed(digit: Int) {
         val current = zapperNumber.value
@@ -81,37 +99,47 @@ class ZapController(
     }
 
     fun zapNextChannel(currentStreamId: Int): LiveStream? {
-        val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
+        val effectiveId = if (!isTvMode() && nonTvZapJob?.isActive == true) {
+            pendingNonTvStreamId ?: currentStreamId
+        } else {
+            currentStreamId
+        }
+        val list = if (liveStreams.value.any { it.streamId == effectiveId }) {
             liveStreams.value
         } else {
             allLiveStreams().ifEmpty { liveStreams.value }
         }
         if (list.isEmpty()) return null
-        val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
+        val currentIndex = list.indexOfFirst { it.streamId == effectiveId }
         val nextIndex = if (currentIndex != -1) (currentIndex + 1) % list.size else 0
         val nextChannel = list[nextIndex]
         if (isTvMode()) {
             scheduleTvZap(nextChannel)
         } else {
-            playLiveChannel(nextChannel)
+            scheduleNonTvZap(nextChannel)
         }
         return nextChannel
     }
 
     fun zapPreviousChannel(currentStreamId: Int): LiveStream? {
-        val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
+        val effectiveId = if (!isTvMode() && nonTvZapJob?.isActive == true) {
+            pendingNonTvStreamId ?: currentStreamId
+        } else {
+            currentStreamId
+        }
+        val list = if (liveStreams.value.any { it.streamId == effectiveId }) {
             liveStreams.value
         } else {
             allLiveStreams().ifEmpty { liveStreams.value }
         }
         if (list.isEmpty()) return null
-        val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
+        val currentIndex = list.indexOfFirst { it.streamId == effectiveId }
         val prevIndex = if (currentIndex > 0) currentIndex - 1 else if (currentIndex == 0) list.size - 1 else 0
         val prevChannel = list[prevIndex]
         if (isTvMode()) {
             scheduleTvZap(prevChannel)
         } else {
-            playLiveChannel(prevChannel)
+            scheduleNonTvZap(prevChannel)
         }
         return prevChannel
     }
@@ -121,7 +149,7 @@ class ZapController(
         if (isTvMode()) {
             scheduleTvZap(prev)
         } else {
-            playLiveChannel(prev)
+            scheduleNonTvZap(prev)
         }
         return prev
     }

@@ -88,6 +88,13 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
             onDismissRequest = { showCancelDialog = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
+            LaunchedEffect(Unit) {
+                for (attempt in 0 until 2) {
+                    withFrameNanos { }
+                    delay(60)
+                    if (continueFocusRequester.requestFocusSafely()) break
+                }
+            }
             Box(
                 modifier = Modifier
                     .widthIn(max = 420.dp)
@@ -145,18 +152,16 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
                 }
             }
         }
-
-        LaunchedEffect(Unit) {
-            delay(100)
-            continueFocusRequester.requestFocusSafely()
-        }
     }
 
     // Hata, tamamlanma veya canlı yayın hazır olduğunda ana aksiyon butonuna otomatik odaklan
     LaunchedEffect(syncState.failedStepIndex, syncState.isCompleted, syncState.isLiveReady) {
         if (syncState.failedStepIndex != null || syncState.isCompleted || syncState.isLiveReady) {
-            delay(150)
-            primaryActionFocusRequester.requestFocusSafely()
+            for (attempt in 0 until 2) {
+                withFrameNanos { }
+                delay(60)
+                if (primaryActionFocusRequester.requestFocusSafely()) break
+            }
         }
     }
 
@@ -173,7 +178,8 @@ fun PlaylistSyncScreen(viewModel: MainViewModel) {
     val completedCount = syncState.steps.count { it.status == SyncStepStatus.COMPLETED }
     val activeStep = syncState.steps.firstOrNull { it.status == SyncStepStatus.IN_PROGRESS }
     val activeProgress = activeStep?.progress?.coerceIn(0f, 1f) ?: 0f
-    val overallProgress = if (syncState.isCompleted) 1f else ((completedCount + activeProgress) / 5f).coerceIn(0f, 1f)
+    val totalSteps = syncState.steps.size.coerceAtLeast(1).toFloat()
+    val overallProgress = if (syncState.isCompleted) 1f else ((completedCount + activeProgress) / totalSteps).coerceIn(0f, 1f)
     val percentage = (overallProgress * 100).toInt()
 
     val activeDetail = activeStep?.detailText?.ifBlank { null }

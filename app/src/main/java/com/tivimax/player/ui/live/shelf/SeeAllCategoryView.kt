@@ -1,36 +1,30 @@
 package com.tivimax.player.ui.live.shelf
 
-import com.tivimax.player.ui.components.tvKeyboardOptions
-import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.tivimax.player.R
 import com.tivimax.player.data.model.EpgProgram
 import com.tivimax.player.data.model.LiveStream
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.ui.design.vegaBackdrop
+import com.tivimax.player.ui.tv.StreamVaultSearchField
 
 /**
  * "Tümünü Gör" tıklandığında açılan tam kategori ızgara/liste görünümü.
@@ -48,10 +42,10 @@ fun SeeAllCategoryView(
     onFavoriteToggle: (LiveStream) -> Unit,
     onLoadEpg: (Int) -> Unit,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    nowEpochSec: Long = System.currentTimeMillis() / 1000L
 ) {
     var localQuery by remember { mutableStateOf("") }
-    val focusManager = LocalFocusManager.current
 
     // Donanım veya sistem geri tuşunu yakala: Arama varsa önce aramayı temizle, yoksa geri dön
     BackHandler {
@@ -71,101 +65,77 @@ fun SeeAllCategoryView(
         }
     }
 
+    var visibleLimit by remember(filteredList) { mutableIntStateOf(50) }
+    val pagedList = remember(filteredList, visibleLimit) {
+        filteredList.take(visibleLimit)
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .vegaBackdrop()
     ) {
         // Üst Bar
         Surface(
-            color = TiviSurfaceVariant,
+            color = VegaColors.Surface.copy(alpha = 0.92f),
+            border = BorderStroke(1.dp, VegaColors.Border.copy(alpha = 0.6f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.dpadFocusable(
-                        focusedBorderColor = OpusCyan,
-                        onClick = onBack
-                    )
+                var isBackFocused by remember { mutableStateOf(false) }
+                Surface(
+                    shape = VegaShapes.Small,
+                    color = if (isBackFocused) VegaColors.SurfaceVariant else VegaColors.SurfaceElevated,
+                    border = if (isBackFocused) null else BorderStroke(1.dp, VegaColors.Border),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .dpadFocusable(
+                            shape = VegaShapes.Small,
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            scale = 1.04f,
+                            onClick = onBack,
+                            onFocusStateChange = { isBackFocused = it }
+                        )
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Geri Dön",
-                        tint = Color.White
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Geri dön",
+                            tint = VegaColors.TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = categoryTitle,
-                        color = Color.White,
-                        fontSize = 17.sp,
+                        color = VegaColors.TextPrimary,
+                        fontSize = VegaText.SectionTitle,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "${filteredList.size} Kanal",
-                        color = OpusCyan,
-                        fontSize = 11.sp
+                        text = "${filteredList.size} kanal",
+                        color = VegaColors.Accent,
+                        fontSize = VegaText.Caption
                     )
                 }
             }
         }
 
-        // Kategori İçi Arama Çubuğu
-        OutlinedTextField(
+        // TV-güvenli Kategori İçi Arama Çubuğu
+        StreamVaultSearchField(
             value = localQuery,
             onValueChange = { localQuery = it },
-            placeholder = {
-                Text(
-                    text = "$categoryTitle içinde ara...",
-                    color = TiviTextMuted,
-                    fontSize = 12.sp
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = OpusCyan,
-                    modifier = Modifier.size(18.dp)
-                )
-            },
-            trailingIcon = {
-                if (localQuery.isNotEmpty()) {
-                    IconButton(onClick = { localQuery = "" }) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Temizle",
-                            tint = TiviTextMuted,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            },
-            singleLine = true,
-            keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
-            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = TiviCard,
-                unfocusedContainerColor = TiviCard,
-                focusedBorderColor = OpusCyan,
-                unfocusedBorderColor = TiviCardBorder,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.tvOpenKeyboardOnOk()
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .height(50.dp)
+            placeholder = "$categoryTitle içinde ara...",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
         // Kanal Izgarası (Grid)
@@ -178,8 +148,8 @@ fun SeeAllCategoryView(
             ) {
                 Text(
                     text = stringResource(R.string.live_shelf_empty),
-                    color = TiviTextSecondary,
-                    fontSize = 14.sp
+                    color = VegaColors.TextSecondary,
+                    fontSize = VegaText.Body
                 )
             }
         } else {
@@ -195,10 +165,10 @@ fun SeeAllCategoryView(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(
-                    items = filteredList,
-                    key = { it.streamId }
-                ) { channel ->
+                itemsIndexed(
+                    items = pagedList,
+                    key = { index, ch -> "seeall_${ch.streamId}_${ch.categoryId}_$index" }
+                ) { _, channel ->
                     val isFav = favoriteIds.contains(channel.streamId.toString())
                     val isPlaying = currentPlayingId == channel.streamId
 
@@ -210,8 +180,32 @@ fun SeeAllCategoryView(
                         onChannelClick = { onChannelClick(channel) },
                         onFavoriteToggle = { onFavoriteToggle(channel) },
                         onLoadEpg = { onLoadEpg(channel.streamId) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        nowEpochSec = nowEpochSec
                     )
+                }
+
+                if (visibleLimit < filteredList.size) {
+                    item(
+                        key = "more_seeall_$visibleLimit",
+                        span = { GridItemSpan(maxLineSpan) }
+                    ) {
+                        LaunchedEffect(visibleLimit) {
+                            visibleLimit += 50
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = VegaColors.Accent,
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    }
                 }
             }
         }

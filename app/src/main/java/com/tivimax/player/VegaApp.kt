@@ -1,21 +1,38 @@
 package com.tivimax.player
 
 import android.app.Application
-import android.database.CursorWindow
-import android.util.Log
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import com.tivimax.player.util.CrashLogger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
-class VegaApp : Application() {
+class VegaApp : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         CrashLogger.install(this)
-        try {
-            // IPTV listeleri (binlerce kanal, film ve EPG) için SQLite CursorWindow boyutunu 50MB'a genişlet
-            val field = CursorWindow::class.java.getDeclaredField("sCursorWindowSize")
-            field.isAccessible = true
-            field.set(null, 50 * 1024 * 1024) // 50 MB
-        } catch (e: Exception) {
-            Log.w("VegaApp", "CursorWindow size could not be set via reflection", e)
-        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.15)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("image_cache"))
+                    .maxSizeBytes(100L * 1024 * 1024)
+                    .build()
+            }
+            .fetcherDispatcher(Dispatchers.IO.limitedParallelism(6))
+            .decoderDispatcher(Dispatchers.Default.limitedParallelism(4))
+            .respectCacheHeaders(false)
+            .crossfade(150)
+            .build()
     }
 }

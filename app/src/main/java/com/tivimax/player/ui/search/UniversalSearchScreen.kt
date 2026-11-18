@@ -10,8 +10,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
@@ -32,6 +33,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -68,7 +70,9 @@ fun UniversalSearchScreen(
     val recentSearches by viewModel.recentSearches.collectAsState()
 
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val searchFocusRequester = remember { FocusRequester() }
+    val firstResultFocusRequester = remember { FocusRequester() }
     var isSearchFocused by remember { mutableStateOf(false) }
 
     val onBack: () -> Unit = {
@@ -163,8 +167,13 @@ fun UniversalSearchScreen(
                                     keyboardOptions = tvKeyboardOptions(KeyboardOptions(imeAction = ImeAction.Search)),
                                     keyboardActions = KeyboardActions(
                                         onSearch = {
-                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
                                             viewModel.saveRecentSearch(searchQuery)
+                                            if (totalCount > 0) {
+                                                if (!firstResultFocusRequester.requestFocusSafely()) {
+                                                    focusManager.moveFocus(FocusDirection.Down)
+                                                }
+                                            }
                                         }
                                     ),
                                     modifier = Modifier
@@ -218,7 +227,7 @@ fun UniversalSearchScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        item {
+                        item(key = "filter_all") {
                             SearchFilterChip(
                                 label = "Tümü",
                                 count = totalCount,
@@ -226,7 +235,7 @@ fun UniversalSearchScreen(
                                 onClick = { viewModel.setUniversalSearchFilter(SearchFilter.ALL) }
                             )
                         }
-                        item {
+                        item(key = "filter_live") {
                             SearchFilterChip(
                                 label = "Canlı TV",
                                 count = liveResults.size,
@@ -234,7 +243,7 @@ fun UniversalSearchScreen(
                                 onClick = { viewModel.setUniversalSearchFilter(SearchFilter.LIVE) }
                             )
                         }
-                        item {
+                        item(key = "filter_movies") {
                             SearchFilterChip(
                                 label = "Filmler",
                                 count = vodResults.size,
@@ -242,7 +251,7 @@ fun UniversalSearchScreen(
                                 onClick = { viewModel.setUniversalSearchFilter(SearchFilter.MOVIES) }
                             )
                         }
-                        item {
+                        item(key = "filter_series") {
                             SearchFilterChip(
                                 label = "Diziler",
                                 count = seriesResults.size,
@@ -361,6 +370,7 @@ fun UniversalSearchScreen(
                         liveResults = liveResults,
                         vodResults = vodResults,
                         seriesResults = seriesResults,
+                        firstResultFocusRequester = firstResultFocusRequester,
                         onChannelClick = { channel ->
                             viewModel.saveRecentSearch(searchQuery)
                             viewModel.playLiveChannel(channel)
@@ -487,7 +497,7 @@ private fun RecentSearchesSection(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(recentSearches, key = { it }) { query ->
+            itemsIndexed(recentSearches, key = { idx, q -> "recent_${q}_$idx" }) { _, query ->
                 var itemFocused by remember { mutableStateOf(false) }
 
                 Row(
@@ -605,6 +615,7 @@ private fun SearchResultsContent(
     liveResults: List<LiveStream>,
     vodResults: List<VodStream>,
     seriesResults: List<SeriesStream>,
+    firstResultFocusRequester: FocusRequester,
     onChannelClick: (LiveStream) -> Unit,
     onVodClick: (VodStream) -> Unit,
     onSeriesClick: (SeriesStream) -> Unit,
@@ -614,13 +625,17 @@ private fun SearchResultsContent(
 ) {
     when (activeFilter) {
         SearchFilter.ALL -> {
+            val firstInLive = liveResults.isNotEmpty()
+            val firstInVod = !firstInLive && vodResults.isNotEmpty()
+            val firstInSeries = !firstInLive && !firstInVod && seriesResults.isNotEmpty()
+
             LazyColumn(
                 contentPadding = PaddingValues(bottom = 24.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
                 // 1. CANLI TV BÖLÜMÜ
                 if (liveResults.isNotEmpty()) {
-                    item {
+                    item(key = "search_header_live") {
                         SectionHeader(
                             title = "Canlı TV",
                             count = liveResults.size,
@@ -628,17 +643,18 @@ private fun SearchResultsContent(
                             onSeeAllClick = onSeeAllLive
                         )
                     }
-                    items(liveResults.take(6), key = { "live_${it.streamId}" }) { channel ->
+                    itemsIndexed(liveResults.take(6), key = { idx, item -> "search_live_${item.streamId}_$idx" }) { idx, channel ->
                         UniversalSearchChannelRow(
                             channel = channel,
-                            onClick = { onChannelClick(channel) }
+                            onClick = { onChannelClick(channel) },
+                            modifier = if (firstInLive && idx == 0) Modifier.focusRequester(firstResultFocusRequester) else Modifier
                         )
                     }
                 }
 
                 // 2. FİLMLER BÖLÜMÜ
                 if (vodResults.isNotEmpty()) {
-                    item {
+                    item(key = "search_section_vod") {
                         SectionHeader(
                             title = "Filmler",
                             count = vodResults.size,
@@ -650,8 +666,12 @@ private fun SearchResultsContent(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth().focusRestorer() // G-047
                         ) {
-                            items(vodResults, key = { "vod_${it.streamId}" }) { vod ->
-                                Box(modifier = Modifier.width(120.dp)) {
+                            itemsIndexed(vodResults, key = { idx, item -> "search_vod_${item.streamId}_$idx" }) { idx, vod ->
+                                Box(
+                                    modifier = Modifier
+                                        .width(120.dp)
+                                        .then(if (firstInVod && idx == 0) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                                ) {
                                     MediaPosterCard(
                                         imageUrl = vod.streamIcon,
                                         title = vod.name,
@@ -668,7 +688,7 @@ private fun SearchResultsContent(
 
                 // 3. DİZİLER BÖLÜMÜ
                 if (seriesResults.isNotEmpty()) {
-                    item {
+                    item(key = "search_section_series") {
                         SectionHeader(
                             title = "Diziler",
                             count = seriesResults.size,
@@ -680,12 +700,17 @@ private fun SearchResultsContent(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth().focusRestorer() // G-047
                         ) {
-                            items(seriesResults, key = { "series_${it.seriesId}" }) { series ->
-                                Box(modifier = Modifier.width(120.dp)) {
+                            itemsIndexed(seriesResults, key = { idx, item -> "search_series_${item.seriesId}_$idx" }) { idx, series ->
+                                val releaseYear = series.releaseDate?.trim()?.take(4)?.takeIf { it.length == 4 && it.all(Char::isDigit) }
+                                Box(
+                                    modifier = Modifier
+                                        .width(120.dp)
+                                        .then(if (firstInSeries && idx == 0) Modifier.focusRequester(firstResultFocusRequester) else Modifier)
+                                ) {
                                     MediaPosterCard(
                                         imageUrl = series.cover,
                                         title = series.name,
-                                        subtitle = series.releaseDate?.take(4)?.let { "$it • Dizi" } ?: "Dizi",
+                                        subtitle = if (releaseYear != null) "$releaseYear • Dizi" else "Dizi",
                                         rating = series.rating,
                                         onClick = { onSeriesClick(series) }
                                     )
@@ -703,10 +728,11 @@ private fun SearchResultsContent(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(liveResults, key = { "live_tab_${it.streamId}" }) { channel ->
+                itemsIndexed(liveResults, key = { idx, item -> "search_live_tab_${item.streamId}_$idx" }) { idx, channel ->
                     UniversalSearchChannelRow(
                         channel = channel,
-                        onClick = { onChannelClick(channel) }
+                        onClick = { onChannelClick(channel) },
+                        modifier = if (idx == 0) Modifier.focusRequester(firstResultFocusRequester) else Modifier
                     )
                 }
             }
@@ -720,14 +746,16 @@ private fun SearchResultsContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(vodResults, key = { "vod_tab_${it.streamId}" }) { vod ->
-                    MediaPosterCard(
-                        imageUrl = vod.streamIcon,
-                        title = vod.name,
-                        subtitle = "Film",
-                        rating = vod.rating,
-                        onClick = { onVodClick(vod) }
-                    )
+                itemsIndexed(vodResults, key = { idx, item -> "search_vod_tab_${item.streamId}_$idx" }) { idx, vod ->
+                    Box(modifier = if (idx == 0) Modifier.focusRequester(firstResultFocusRequester) else Modifier) {
+                        MediaPosterCard(
+                            imageUrl = vod.streamIcon,
+                            title = vod.name,
+                            subtitle = "Film",
+                            rating = vod.rating,
+                            onClick = { onVodClick(vod) }
+                        )
+                    }
                 }
             }
         }
@@ -740,14 +768,17 @@ private fun SearchResultsContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(seriesResults, key = { "series_tab_${it.seriesId}" }) { series ->
-                    MediaPosterCard(
-                        imageUrl = series.cover,
-                        title = series.name,
-                        subtitle = series.releaseDate?.take(4)?.let { "$it • Dizi" } ?: "Dizi",
-                        rating = series.rating,
-                        onClick = { onSeriesClick(series) }
-                    )
+                itemsIndexed(seriesResults, key = { idx, item -> "search_series_tab_${item.seriesId}_$idx" }) { idx, series ->
+                    val releaseYear = series.releaseDate?.trim()?.take(4)?.takeIf { it.length == 4 && it.all(Char::isDigit) }
+                    Box(modifier = if (idx == 0) Modifier.focusRequester(firstResultFocusRequester) else Modifier) {
+                        MediaPosterCard(
+                            imageUrl = series.cover,
+                            title = series.name,
+                            subtitle = if (releaseYear != null) "$releaseYear • Dizi" else "Dizi",
+                            rating = series.rating,
+                            onClick = { onSeriesClick(series) }
+                        )
+                    }
                 }
             }
         }
@@ -819,7 +850,8 @@ private fun SectionHeader(
 @Composable
 private fun UniversalSearchChannelRow(
     channel: LiveStream,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
@@ -827,7 +859,7 @@ private fun UniversalSearchChannelRow(
         shape = VegaShapes.Medium,
         color = if (isFocused) VegaColors.SurfaceElevated else VegaColors.Card,
         border = if (!isFocused) BorderStroke(1.dp, VegaColors.Border) else null,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(58.dp)
             .padding(horizontal = 12.dp, vertical = 2.dp)

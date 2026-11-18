@@ -4,14 +4,12 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.filled.ViewSidebar
@@ -28,13 +26,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.preferences.UserPreferences
-import com.tivimax.player.theme.*
 import com.tivimax.player.ui.design.VegaColors
-import kotlinx.coroutines.launch
-
-private val NeonCyan = VegaColors.Accent
-private val DarkChipBg = VegaColors.Card
-private val DarkChipBorder = VegaColors.Border
+import com.tivimax.player.ui.design.VegaShapes
 
 /**
  * Modern ve akıcı dikey konum kategori yatay gezinme çubuğu (Chips Row).
@@ -91,7 +84,7 @@ fun MediaCategoryNavigationBar(
         }
 
         // 2. Kategori Çipleri
-        items(safeCategories, key = { "media_cat_${it.id}" }) { cat ->
+        itemsIndexed(safeCategories, key = { idx, it -> "media_cat_${it.id}_$idx" }) { _, cat ->
             val isSelected = cat.id == selectedCategoryId
             MediaChipItem(
                 title = cat.name,
@@ -102,15 +95,17 @@ fun MediaCategoryNavigationBar(
             )
         }
 
-        // 3. "Tüm Kategoriler ▾" Butonu
+        // 3. "Kategoriler ▾" Butonu
         item(key = "media_cat_more_btn") {
             Surface(
-                shape = RoundedCornerShape(50),
-                color = DarkChipBg,
-                border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f)),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .clickable { onOpenAllCategories() }
+                shape = VegaShapes.Pill,
+                color = VegaColors.Card,
+                border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.5f)),
+                modifier = Modifier.dpadFocusable(
+                    shape = VegaShapes.Pill,
+                    focusedBorderColor = VegaColors.FocusBorder,
+                    onClick = onOpenAllCategories
+                )
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -119,20 +114,20 @@ fun MediaCategoryNavigationBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Folder,
-                        contentDescription = "Tüm Kategoriler",
-                        tint = NeonCyan,
+                        contentDescription = "Tüm kategoriler",
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
                         text = "Kategoriler",
-                        color = NeonCyan,
-                        fontSize = 11.5.sp,
+                        color = VegaColors.Accent,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
                         contentDescription = null,
-                        tint = NeonCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -153,14 +148,17 @@ fun MediaCategoryDropdownBar(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = DarkChipBg,
-        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.35f)),
+        shape = VegaShapes.Medium,
+        color = VegaColors.Card,
+        border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f)),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { onOpenCategorySheet() }
+            .dpadFocusable(
+                shape = VegaShapes.Medium,
+                focusedBorderColor = VegaColors.FocusBorder,
+                onClick = onOpenCategorySheet
+            )
     ) {
         Row(
             modifier = Modifier
@@ -178,26 +176,26 @@ fun MediaCategoryDropdownBar(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
-                        .background(NeonCyan.copy(alpha = 0.15f)),
+                        .background(VegaColors.Accent.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.FolderOpen,
                         contentDescription = null,
-                        tint = NeonCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(16.dp)
                     )
                 }
                 Column {
                     Text(
                         text = "Kategori",
-                        color = TiviTextSecondary,
-                        fontSize = 10.sp,
+                        color = VegaColors.TextSecondary,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Normal
                     )
                     Text(
                         text = selectedCategoryName,
-                        color = Color.White,
+                        color = VegaColors.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -212,12 +210,12 @@ fun MediaCategoryDropdownBar(
             ) {
                 if (selectedCategoryCount > 0) {
                     Surface(
-                        shape = RoundedCornerShape(50),
-                        color = Color.White.copy(alpha = 0.1f)
+                        shape = VegaShapes.Pill,
+                        color = VegaColors.SurfaceVariant
                     ) {
                         Text(
                             text = "$selectedCategoryCount",
-                            color = NeonCyan,
+                            color = VegaColors.Accent,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
@@ -226,8 +224,8 @@ fun MediaCategoryDropdownBar(
                 }
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Kategoriyi Değiştir",
-                    tint = NeonCyan,
+                    contentDescription = "Kategoriyi değiştir",
+                    tint = VegaColors.Accent,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -247,21 +245,23 @@ private fun MediaChipItem(
     onClick: () -> Unit
 ) {
     val bgColor by animateColorAsState(
-        targetValue = if (isSelected) NeonCyan else DarkChipBg,
+        targetValue = if (isSelected) VegaColors.Accent else VegaColors.Card,
         animationSpec = tween(150),
         label = "chip_bg"
     )
-    val textColor = if (isSelected) Color.Black else Color.White
-    val iconColor = if (isSelected) Color.Black else NeonCyan
-    val border = if (isSelected) null else BorderStroke(1.dp, DarkChipBorder)
+    val textColor = if (isSelected) VegaColors.OnAccent else VegaColors.TextPrimary
+    val iconColor = if (isSelected) VegaColors.OnAccent else VegaColors.Accent
+    val border = if (isSelected) null else BorderStroke(1.dp, VegaColors.Border)
 
     Surface(
-        shape = RoundedCornerShape(50),
+        shape = VegaShapes.Pill,
         color = bgColor,
         border = border,
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .clickable(onClick = onClick)
+        modifier = Modifier.dpadFocusable(
+            shape = VegaShapes.Pill,
+            focusedBorderColor = if (isSelected) VegaColors.TextPrimary else VegaColors.FocusBorder,
+            onClick = onClick
+        )
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
@@ -282,18 +282,18 @@ private fun MediaChipItem(
                 maxLines = 1
             )
             if (count > 0) {
-                val badgeBg = if (isSelected) Color.Black.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.12f)
-                val badgeText = if (isSelected) Color.Black else VegaColors.TextSecondary
+                val badgeBg = if (isSelected) VegaColors.OnAccent.copy(alpha = 0.16f) else VegaColors.SurfaceVariant
+                val badgeText = if (isSelected) VegaColors.OnAccent else VegaColors.TextSecondary
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
+                        .clip(VegaShapes.Pill)
                         .background(badgeBg)
                         .padding(horizontal = 5.dp, vertical = 1.dp)
                 ) {
                     Text(
                         text = "$count",
                         color = badgeText,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -335,8 +335,8 @@ fun MediaCategoryBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = TiviBackground,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) }
+        containerColor = VegaColors.Background,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = VegaColors.Border) }
     ) {
         Column(
             modifier = Modifier
@@ -356,19 +356,19 @@ fun MediaCategoryBottomSheet(
                     Icon(
                         imageVector = Icons.Default.Folder,
                         contentDescription = null,
-                        tint = NeonCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
                         text = title,
-                        color = Color.White,
+                        color = VegaColors.TextPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
                 Text(
-                    text = "${safeCategories.size} Kategori",
-                    color = TiviTextSecondary,
+                    text = "${safeCategories.size} kategori",
+                    color = VegaColors.TextSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -378,38 +378,48 @@ fun MediaCategoryBottomSheet(
                 keyboardOptions = tvKeyboardOptions(),
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Kategori ara...", color = TiviTextSecondary, fontSize = 13.sp) },
+                placeholder = { Text("Kategori ara…", color = VegaColors.TextSecondary, fontSize = 13.sp) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Ara",
-                        tint = NeonCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(18.dp)
                     )
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .dpadFocusable(
+                                    shape = VegaShapes.Pill,
+                                    focusedBorderColor = VegaColors.FocusBorder,
+                                    onClick = { searchQuery = "" }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Temizle",
-                                tint = Color.White.copy(alpha = 0.7f),
+                                tint = VegaColors.TextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
                     }
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                shape = VegaShapes.Medium,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NeonCyan,
-                    unfocusedBorderColor = DarkChipBorder,
-                    focusedContainerColor = DarkChipBg,
-                    unfocusedContainerColor = DarkChipBg,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
+                    focusedBorderColor = VegaColors.Accent,
+                    unfocusedBorderColor = VegaColors.Border,
+                    focusedContainerColor = VegaColors.Card,
+                    unfocusedContainerColor = VegaColors.Card,
+                    focusedTextColor = VegaColors.TextPrimary,
+                    unfocusedTextColor = VegaColors.TextPrimary
                 ),
-                modifier = Modifier.tvOpenKeyboardOnOk()
+                modifier = Modifier
+                    .tvOpenKeyboardOnOk()
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
             )
@@ -440,7 +450,7 @@ fun MediaCategoryBottomSheet(
                     }
                 }
 
-                items(filteredCategories, key = { "bottom_sheet_${it.id}" }) { cat ->
+                itemsIndexed(filteredCategories, key = { idx, it -> "bottom_sheet_${it.id}_$idx" }) { _, cat ->
                     val isSelected = cat.id == selectedCategoryId
                     CategorySheetItem(
                         name = cat.name,
@@ -467,13 +477,16 @@ private fun CategorySheetItem(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = if (isSelected) NeonCyan.copy(alpha = 0.15f) else Color.Transparent,
-        border = if (isSelected) BorderStroke(1.dp, NeonCyan.copy(alpha = 0.6f)) else null,
+        shape = VegaShapes.Medium,
+        color = if (isSelected) VegaColors.Accent.copy(alpha = 0.15f) else Color.Transparent,
+        border = if (isSelected) BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.6f)) else null,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
+            .dpadFocusable(
+                shape = VegaShapes.Medium,
+                focusedBorderColor = VegaColors.FocusBorder,
+                onClick = onClick
+            )
     ) {
         Row(
             modifier = Modifier
@@ -490,13 +503,13 @@ private fun CategorySheetItem(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isSelected) NeonCyan else Color.White.copy(alpha = 0.7f),
+                    tint = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = name,
-                    color = if (isSelected) NeonCyan else Color.White,
-                    fontSize = 13.5.sp,
+                    color = if (isSelected) VegaColors.Accent else VegaColors.TextPrimary,
+                    fontSize = 14.sp,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -507,15 +520,15 @@ private fun CategorySheetItem(
                 if (count > 0) {
                     Text(
                         text = "$count içerik",
-                        color = TiviTextSecondary,
-                        fontSize = 11.5.sp
+                        color = VegaColors.TextSecondary,
+                        fontSize = 12.sp
                     )
                 }
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Seçili",
-                        tint = NeonCyan,
+                        tint = VegaColors.Accent,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -552,21 +565,21 @@ fun CategoryNavStyleToggleButton(
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(TiviSurface)
+            modifier = Modifier.background(VegaColors.Surface)
         ) {
             DropdownMenuItem(
                 text = {
                     Column {
                         Text(
                             text = "Yatay Çipler (Tam Ekran)",
-                            color = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_CHIPS) NeonCyan else Color.White,
-                            fontSize = 12.5.sp,
+                            color = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_CHIPS) VegaColors.Accent else VegaColors.TextPrimary,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Geniş afiş ızgarası ve üstte kategori çipleri",
-                            color = TiviTextSecondary,
-                            fontSize = 10.sp
+                            color = VegaColors.TextSecondary,
+                            fontSize = 11.sp
                         )
                     }
                 },
@@ -574,7 +587,7 @@ fun CategoryNavStyleToggleButton(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ViewList,
                         contentDescription = null,
-                        tint = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_CHIPS) NeonCyan else Color.White.copy(alpha = 0.6f),
+                        tint = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_CHIPS) VegaColors.Accent else VegaColors.TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 },
@@ -589,14 +602,14 @@ fun CategoryNavStyleToggleButton(
                     Column {
                         Text(
                             text = "Klasik Sol Panel",
-                            color = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) NeonCyan else Color.White,
-                            fontSize = 12.5.sp,
+                            color = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) VegaColors.Accent else VegaColors.TextPrimary,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Solda sabit kategori sütunu ve sağda içerikler",
-                            color = TiviTextSecondary,
-                            fontSize = 10.sp
+                            color = VegaColors.TextSecondary,
+                            fontSize = 11.sp
                         )
                     }
                 },
@@ -604,7 +617,7 @@ fun CategoryNavStyleToggleButton(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ViewSidebar,
                         contentDescription = null,
-                        tint = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) NeonCyan else Color.White.copy(alpha = 0.6f),
+                        tint = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) VegaColors.Accent else VegaColors.TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 },
@@ -619,14 +632,14 @@ fun CategoryNavStyleToggleButton(
                     Column {
                         Text(
                             text = "Kompakt Açılır Menü",
-                            color = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN) NeonCyan else Color.White,
-                            fontSize = 12.5.sp,
+                            color = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN) VegaColors.Accent else VegaColors.TextPrimary,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Tek satırlık kategori seçici ve maksimum alan",
-                            color = TiviTextSecondary,
-                            fontSize = 10.sp
+                            color = VegaColors.TextSecondary,
+                            fontSize = 11.sp
                         )
                     }
                 },
@@ -634,7 +647,7 @@ fun CategoryNavStyleToggleButton(
                     Icon(
                         imageVector = Icons.Default.ExpandCircleDown,
                         contentDescription = null,
-                        tint = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN) NeonCyan else Color.White.copy(alpha = 0.6f),
+                        tint = if (currentStyle == UserPreferences.PORTRAIT_CAT_NAV_DROPDOWN) VegaColors.Accent else VegaColors.TextSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 },

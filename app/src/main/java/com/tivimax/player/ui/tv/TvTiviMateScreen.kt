@@ -9,7 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
@@ -42,15 +42,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.tivimax.player.data.model.LiveStream
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import com.tivimax.player.ui.design.VegaColors
@@ -59,6 +62,10 @@ import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.ui.live.modern.AnimatedEqualizer
 import com.tivimax.player.util.LocalIsTvDevice
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * 3-BÖLGELİ STREAMVAULT TARZI CANLI TV EKRANI (ANDROID TV)
@@ -66,7 +73,7 @@ import com.tivimax.player.util.LocalIsTvDevice
  * - Orta kart: Seçili kategori başlığı + kanal arama + logo/EPG/ilerleme çubuklu kanal satırları
  * - Sağ kart: Kanal Önizleme (16:9 canlı önizleme, program bilgisi, zaman çubuğu ve OK ipucu)
  */
-@OptIn(UnstableApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
+@OptIn(UnstableApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class, FlowPreview::class)
 @Composable
 fun TvTiviMateScreen(
     viewModel: MainViewModel,
@@ -77,6 +84,7 @@ fun TvTiviMateScreen(
     val selectedCategory by viewModel.selectedLiveCategory.collectAsState()
     val isLoading by viewModel.liveLoading.collectAsState()
     val favoriteIds by viewModel.favoriteLiveIds.collectAsState()
+    val favoriteStreams by viewModel.favoriteLiveStreams.collectAsState()
     val recentChannels by viewModel.recentChannels.collectAsState()
 
     val activePreviewChannel by viewModel.activePreviewChannel.collectAsState()
@@ -95,21 +103,32 @@ fun TvTiviMateScreen(
     var categoryQuery by remember { mutableStateOf("") }
     var channelQuery by remember { mutableStateOf("") }
     var showQuickFilters by remember { mutableStateOf(true) }
+    var isCategorySearchEditing by remember { mutableStateOf(false) }
+    var isChannelSearchEditing by remember { mutableStateOf(false) }
+    val isSearchEditing = isCategorySearchEditing || isChannelSearchEditing
+    var lastFocusedChannelId by remember { mutableStateOf<Int?>(null) }
+    var quickActionChannel by remember { mutableStateOf<LiveStream?>(null) }
+    var hasInitialFocused by remember { mutableStateOf(false) }
+    var wasInSubScreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(isFullScreenPlayer, showEpgGrid) {
         onFullScreenChange(isFullScreenPlayer || showEpgGrid)
+        if (isFullScreenPlayer || showEpgGrid) {
+            wasInSubScreen = true
+        }
     }
     DisposableEffect(Unit) {
         onDispose {
             onFullScreenChange(false)
-            if (viewModel.currentScreen.value is Screen.Home) {
-                viewModel.playerManager.pause()
+            if (viewModel.currentScreen.value !is Screen.Player) {
+                viewModel.detachMiniPlayer()
             }
         }
     }
 
     val channelListState = rememberLazyListState()
     val defaultCategoryFocus = remember { FocusRequester() }
+    val channelFocusRequesters = remember { mutableMapOf<Int, FocusRequester>() }
 
     LaunchedEffect(Unit) {
         val previous = activePreviewChannel
@@ -130,9 +149,9 @@ fun TvTiviMateScreen(
         else categories.filter { it.categoryName.contains(q, ignoreCase = true) }
     }
 
-    val displayedChannels = remember(channels, selectedCategory, favoriteIds, recentChannels, channelQuery) {
+    val displayedChannels = remember(channels, selectedCategory, favoriteStreams, recentChannels, channelQuery) {
         val base = when (selectedCategory) {
-            "favorites" -> channels.filter { favoriteIds.contains(it.streamId.toString()) }
+            "favorites" -> favoriteStreams
             "recents" -> recentChannels
             else -> channels
         }
@@ -147,6 +166,54 @@ fun TvTiviMateScreen(
             "recents" -> "Son İzlenenler"
             "all", "" -> "Tüm Kanallar"
             else -> categories.firstOrNull { it.categoryId == selectedCategory }?.categoryName ?: "Kanallar"
+        }
+    }
+
+    // Görünür kanallar için toplu ve gecikmeli EPG yüklemesi (HTTP fırtınasını önler)
+    LaunchedEffect(channelListState, displayedChannels) {
+        snapshotFlow {
+            channelListState.layoutInfo.visibleItemsInfo.mapNotNull { info ->
+                displayedChannels.getOrNull(info.index)?.streamId
+            }
+        }
+            .distinctUntilChanged()
+            .debounce(150L)
+            .collect { visibleIds ->
+                if (visibleIds.isNotEmpty()) {
+                    viewModel.loadEpgSummariesBatch(visibleIds)
+                }
+            }
+    }
+
+    // Girişte ve tam ekran / rehberden dönüşte doğru kanala odaklan
+    LaunchedEffect(isFullScreenPlayer, showEpgGrid, displayedChannels.isNotEmpty()) {
+        if (isFullScreenPlayer || showEpgGrid || displayedChannels.isEmpty()) return@LaunchedEffect
+        val shouldRestore = !hasInitialFocused || wasInSubScreen
+        if (!shouldRestore) return@LaunchedEffect
+
+        val targetId = lastFocusedChannelId
+            ?: activePreviewChannel?.streamId
+            ?: displayedChannels.first().streamId
+        val foundIndex = displayedChannels.indexOfFirst { it.streamId == targetId }
+        val targetIndex = if (foundIndex >= 0) foundIndex else 0
+        val resolvedId = displayedChannels[targetIndex].streamId
+
+        runCatching {
+            val firstVisible = channelListState.firstVisibleItemIndex
+            val lastVisible = firstVisible + channelListState.layoutInfo.visibleItemsInfo.size
+            if (targetIndex < firstVisible || targetIndex >= lastVisible) {
+                channelListState.scrollToItem((targetIndex - 2).coerceAtLeast(0))
+            }
+        }
+        delay(60L)
+        val focused = channelFocusRequesters[resolvedId]?.requestFocusSafely() == true
+        if (focused) {
+            hasInitialFocused = true
+            wasInSubScreen = false
+        } else if (!hasInitialFocused) {
+            defaultCategoryFocus.requestFocusSafely()
+            hasInitialFocused = true
+            wasInSubScreen = false
         }
     }
 
@@ -189,6 +256,9 @@ fun TvTiviMateScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .onPreviewKeyEvent { keyEvent ->
+                    if (isSearchEditing || quickActionChannel != null) {
+                        return@onPreviewKeyEvent false
+                    }
                     if (keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) {
                         val keyCode = keyEvent.nativeKeyEvent.keyCode
                         if (keyCode in android.view.KeyEvent.KEYCODE_0..android.view.KeyEvent.KEYCODE_9) {
@@ -218,22 +288,22 @@ fun TvTiviMateScreen(
                         }
                         if (keyCode == android.view.KeyEvent.KEYCODE_LAST_CHANNEL ||
                             keyCode == android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS) {
-                            viewModel.zapRecall()
+                            viewModel.zapRecall()?.let { lastFocusedChannelId = it.streamId }
                             return@onPreviewKeyEvent true
                         }
                         if (keyCode == android.view.KeyEvent.KEYCODE_CHANNEL_UP ||
                             keyCode == android.view.KeyEvent.KEYCODE_PAGE_UP) {
-                            val currentId = activePreviewChannel?.streamId
+                            val currentId = activePreviewChannel?.streamId ?: displayedChannels.firstOrNull()?.streamId
                             if (currentId != null) {
-                                viewModel.zapNextChannel(currentId)
+                                viewModel.zapNextChannel(currentId)?.let { lastFocusedChannelId = it.streamId }
                                 return@onPreviewKeyEvent true
                             }
                         }
                         if (keyCode == android.view.KeyEvent.KEYCODE_CHANNEL_DOWN ||
                             keyCode == android.view.KeyEvent.KEYCODE_PAGE_DOWN) {
-                            val currentId = activePreviewChannel?.streamId
+                            val currentId = activePreviewChannel?.streamId ?: displayedChannels.firstOrNull()?.streamId
                             if (currentId != null) {
-                                viewModel.zapPreviousChannel(currentId)
+                                viewModel.zapPreviousChannel(currentId)?.let { lastFocusedChannelId = it.streamId }
                                 return@onPreviewKeyEvent true
                             }
                         }
@@ -286,7 +356,8 @@ fun TvTiviMateScreen(
                     StreamVaultSearchField(
                         value = categoryQuery,
                         onValueChange = { categoryQuery = it },
-                        placeholder = "Kategori ara..."
+                        placeholder = "Kategori ara...",
+                        onInputActiveChanged = { isCategorySearchEditing = it }
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -369,7 +440,10 @@ fun TvTiviMateScreen(
                             .focusRestorer(),
                         verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        items(filteredCategories, key = { it.categoryId }) { category ->
+                        itemsIndexed(
+                            items = filteredCategories,
+                            key = { index, category -> "tv_cat_${category.categoryId}_$index" }
+                        ) { _, category ->
                             val isSelected = category.categoryId == selectedCategory
                             TiviCategoryItem(
                                 title = category.categoryName,
@@ -458,7 +532,8 @@ fun TvTiviMateScreen(
                     StreamVaultSearchField(
                         value = channelQuery,
                         onValueChange = { channelQuery = it },
-                        placeholder = "Kanal ara..."
+                        placeholder = "Kanal ara...",
+                        onInputActiveChanged = { isChannelSearchEditing = it }
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -487,10 +562,10 @@ fun TvTiviMateScreen(
                                 .focusRestorer(),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            items(displayedChannels, key = { "${it.streamId}_${it.num}" }) { channel ->
-                                LaunchedEffect(channel.streamId) {
-                                    viewModel.loadEpgSummary(channel.streamId)
-                                }
+                            itemsIndexed(
+                                items = displayedChannels,
+                                key = { index, channel -> "ch_${channel.streamId}_${channel.categoryId}_$index" }
+                            ) { _, channel ->
                                 val isCurrentPreview = activePreviewChannel?.streamId == channel.streamId
                                 val isFav = favoriteIds.contains(channel.streamId.toString())
                                 val epg = epgSummaryMap[channel.streamId]
@@ -498,6 +573,9 @@ fun TvTiviMateScreen(
                                 val progress = epg?.getProgressFraction()
                                 val qualityBadges = remember(channel.name) { extractQualityBadges(channel.name) }
                                 var isRowFocused by remember { mutableStateOf(false) }
+                                val rowFocusRequester = remember(channel.streamId) {
+                                    channelFocusRequesters.getOrPut(channel.streamId) { FocusRequester() }
+                                }
 
                                 Surface(
                                     shape = VegaShapes.Medium,
@@ -513,6 +591,7 @@ fun TvTiviMateScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(64.dp)
+                                        .focusRequester(rowFocusRequester)
                                         .dpadFocusable(
                                             focusedBorderColor = VegaColors.FocusBorder,
                                             shape = VegaShapes.Medium,
@@ -524,7 +603,15 @@ fun TvTiviMateScreen(
                                                     viewModel.previewChannel(channel)
                                                 }
                                             },
-                                            onFocusStateChange = { isRowFocused = it }
+                                            onLongClick = {
+                                                quickActionChannel = channel
+                                            },
+                                            onFocusStateChange = { focused ->
+                                                isRowFocused = focused
+                                                if (focused) {
+                                                    lastFocusedChannelId = channel.streamId
+                                                }
+                                            }
                                         )
                                 ) {
                                     Row(
@@ -850,6 +937,167 @@ fun TvTiviMateScreen(
                     )
                 }
             }
+
+            // OK UZUN BASMA HIZLI İŞLEM MODALI
+            quickActionChannel?.let { targetChannel ->
+                val isTargetFav = favoriteIds.contains(targetChannel.streamId.toString())
+                val targetEpg = epgSummaryMap[targetChannel.streamId]
+                val firstActionFocus = remember(targetChannel.streamId) { FocusRequester() }
+
+                LaunchedEffect(targetChannel.streamId) {
+                    delay(40L)
+                    firstActionFocus.requestFocusSafely()
+                }
+
+                Dialog(onDismissRequest = { quickActionChannel = null }) {
+                    Column(
+                        modifier = Modifier
+                            .widthIn(min = 320.dp, max = 420.dp)
+                            .vegaPanel(VegaShapes.Large)
+                            .padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(VegaShapes.Small)
+                                    .background(VegaColors.SurfaceAccent)
+                                    .padding(5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AsyncShimmerImage(
+                                    model = targetChannel.streamIcon,
+                                    contentDescription = targetChannel.name,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize(),
+                                    placeholderIcon = Icons.Default.Tv
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = targetChannel.name,
+                                    color = VegaColors.TextPrimary,
+                                    fontSize = VegaText.SectionTitle,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = targetEpg?.getDecodedTitle()
+                                        ?: targetChannel.currentProgram
+                                        ?: "Canlı yayın",
+                                    color = VegaColors.TextSecondary,
+                                    fontSize = VegaText.Caption,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(color = VegaColors.Border, thickness = 0.5.dp)
+
+                        TvChannelQuickActionItem(
+                            label = if (isTargetFav) "Favorilerden çıkar" else "Favorilere ekle",
+                            icon = if (isTargetFav) Icons.Default.StarBorder else Icons.Default.Star,
+                            iconTint = VegaColors.Gold,
+                            focusRequester = firstActionFocus,
+                            onClick = {
+                                viewModel.toggleFavoriteLive(targetChannel.streamId.toString())
+                                quickActionChannel = null
+                            }
+                        )
+
+                        TvChannelQuickActionItem(
+                            label = "Program rehberini aç",
+                            icon = Icons.Default.Schedule,
+                            iconTint = VegaColors.Accent,
+                            onClick = {
+                                if (activePreviewChannel?.streamId != targetChannel.streamId) {
+                                    viewModel.previewChannel(targetChannel)
+                                }
+                                quickActionChannel = null
+                                showEpgGrid = true
+                            }
+                        )
+
+                        TvChannelQuickActionItem(
+                            label = "Tam ekran izle",
+                            icon = Icons.Default.PlayArrow,
+                            iconTint = VegaColors.Accent,
+                            onClick = {
+                                if (activePreviewChannel?.streamId != targetChannel.streamId) {
+                                    viewModel.previewChannel(targetChannel)
+                                }
+                                quickActionChannel = null
+                                isFullScreenPlayer = true
+                            }
+                        )
+
+                        TvChannelQuickActionItem(
+                            label = "Kapat",
+                            icon = Icons.Default.Close,
+                            iconTint = VegaColors.TextSecondary,
+                            onClick = { quickActionChannel = null }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvChannelQuickActionItem(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    focusRequester: FocusRequester? = null,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    Surface(
+        shape = VegaShapes.Medium,
+        color = if (isFocused) VegaColors.SurfaceVariant else VegaColors.SurfaceElevated,
+        border = if (isFocused) null else BorderStroke(1.dp, VegaColors.Border),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .dpadFocusable(
+                shape = VegaShapes.Medium,
+                focusedBorderColor = VegaColors.FocusBorder,
+                scale = 1.02f,
+                onClick = onClick,
+                onFocusStateChange = { isFocused = it }
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = label,
+                color = VegaColors.TextPrimary,
+                fontSize = VegaText.Body,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -859,7 +1107,8 @@ internal fun StreamVaultSearchField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onInputActiveChanged: ((Boolean) -> Unit)? = null
 ) {
     val isTv = LocalIsTvDevice.current
     val focusManager = LocalFocusManager.current
@@ -871,8 +1120,19 @@ internal fun StreamVaultSearchField(
     var hasInputFocus by remember { mutableStateOf(false) }
     var acceptsInput by remember { mutableStateOf(false) }
     var pendingInputActivation by remember { mutableStateOf(false) }
+    val currentOnInputActiveChanged by rememberUpdatedState(onInputActiveChanged)
 
     val isFocused = hasContainerFocus || hasInputFocus
+    val isInputActive = if (isTv) (acceptsInput || hasInputFocus) else hasInputFocus
+
+    LaunchedEffect(isInputActive) {
+        currentOnInputActiveChanged?.invoke(isInputActive)
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            currentOnInputActiveChanged?.invoke(false)
+        }
+    }
 
     fun activateInput() {
         acceptsInput = true

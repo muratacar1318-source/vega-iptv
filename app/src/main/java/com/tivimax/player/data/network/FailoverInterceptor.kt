@@ -24,6 +24,7 @@ class FailoverInterceptor : Interceptor {
 
     companion object {
         private const val TAG = "FailoverInterceptor"
+        private val XTREAM_PATH_CRED_REGEX = Regex("^/(live|movie|series)/[^/]+/[^/]+")
 
         // Oturum boyunca çalışan aktif sunucu adresi
         @Volatile
@@ -60,10 +61,10 @@ class FailoverInterceptor : Interceptor {
             if (response.isSuccessful || !isServerError(response.code)) {
                 return response
             }
-            Log.w(TAG, "Request to ${initialRequest.url} returned server error: ${response.code}")
+            Log.w(TAG, "Request to ${redactUrl(initialRequest.url)} returned server error: ${response.code}")
         } catch (e: IOException) {
             if (isNetworkFailure(e)) {
-                Log.w(TAG, "Request to ${initialRequest.url} failed: ${e.javaClass.simpleName} - ${e.message}")
+                Log.w(TAG, "Request to ${redactUrl(initialRequest.url)} failed: ${e.javaClass.simpleName}")
                 lastException = e
             } else {
                 throw e
@@ -110,7 +111,7 @@ class FailoverInterceptor : Interceptor {
                 }
             } catch (e: IOException) {
                 if (isNetworkFailure(e)) {
-                    Log.w(TAG, "Fallback candidate $candidate failed: ${e.javaClass.simpleName} - ${e.message}")
+                    Log.w(TAG, "Fallback candidate $candidate failed: ${e.javaClass.simpleName}")
                     lastException = e
                 } else {
                     throw e
@@ -120,7 +121,16 @@ class FailoverInterceptor : Interceptor {
 
         // Tüm adaylar tüketildiyse son cevabı dön veya hatayı fırlat
         response?.let { return it }
-        throw lastException ?: IOException("All fallback domains exhausted for request to ${originalRequest.url}")
+        throw lastException ?: IOException("All fallback domains exhausted for request to ${redactUrl(originalRequest.url)}")
+    }
+
+    private fun redactUrl(url: HttpUrl): String {
+        val safePath = url.encodedPath.replace(XTREAM_PATH_CRED_REGEX, "/$1/***/***")
+        return if (url.encodedQuery != null) {
+            "${url.scheme}://${url.host}:${url.port}$safePath?[REDACTED]"
+        } else {
+            "${url.scheme}://${url.host}:${url.port}$safePath"
+        }
     }
 
     private fun rewriteUrl(request: Request, targetBase: HttpUrl): Request {

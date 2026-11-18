@@ -5,9 +5,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -32,6 +33,7 @@ import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaBackdrop
 import com.tivimax.player.ui.tv.StreamVaultSearchField
+import kotlinx.coroutines.delay
 
 /**
  * Vega IPTV Raf Düzeni (StreamVault görsel dili).
@@ -57,6 +59,14 @@ fun ShelfLiveLayout(
     var searchQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
+    var nowEpochSec by remember { mutableLongStateOf(System.currentTimeMillis() / 1000L) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60_000L)
+            nowEpochSec = System.currentTimeMillis() / 1000L
+        }
+    }
+
     BackHandler(enabled = searchQuery.isNotBlank()) {
         searchQuery = ""
     }
@@ -75,7 +85,8 @@ fun ShelfLiveLayout(
             onFavoriteToggle = onFavoriteToggle,
             onLoadEpg = onLoadEpg,
             onBack = { selectedSeeAllCategory = null },
-            modifier = modifier
+            modifier = modifier,
+            nowEpochSec = nowEpochSec
         )
         return
     }
@@ -89,8 +100,27 @@ fun ShelfLiveLayout(
         }
     }
 
+    var searchVisibleLimit by remember(searchResults) { mutableIntStateOf(50) }
+    val pagedSearchResults = remember(searchResults, searchVisibleLimit) {
+        searchResults.take(searchVisibleLimit)
+    }
+
     val streamsByCategory = remember(allLiveStreams) {
         allLiveStreams.groupBy { it.categoryId }
+    }
+
+    val contentCategories = remember(visibleCategories, streamsByCategory) {
+        visibleCategories
+            .filter {
+                it.categoryId != "all" && it.categoryId != "favorites" && it.categoryId != "recents" &&
+                    !streamsByCategory[it.categoryId].isNullOrEmpty()
+            }
+            .distinctBy { it.categoryId }
+    }
+
+    var categoryVisibleLimit by remember(contentCategories) { mutableIntStateOf(15) }
+    val pagedContentCategories = remember(contentCategories, categoryVisibleLimit) {
+        contentCategories.take(categoryVisibleLimit)
     }
 
     val favoriteChannels = remember(allLiveStreams, favoriteIds) {
@@ -207,10 +237,10 @@ fun ShelfLiveLayout(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(
-                        items = searchResults,
-                        key = { it.streamId }
-                    ) { channel ->
+                    gridItemsIndexed(
+                        items = pagedSearchResults,
+                        key = { index, ch -> "shelf_search_${ch.streamId}_${ch.categoryId}_$index" }
+                    ) { _, channel ->
                         val isFav = favoriteIds.contains(channel.streamId.toString())
                         val isPlaying = currentPlayingId == channel.streamId
 
@@ -222,8 +252,32 @@ fun ShelfLiveLayout(
                             onChannelClick = { onChannelClick(channel) },
                             onFavoriteToggle = { onFavoriteToggle(channel) },
                             onLoadEpg = { onLoadEpg(channel.streamId) },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            nowEpochSec = nowEpochSec
                         )
+                    }
+
+                    if (searchVisibleLimit < searchResults.size) {
+                        item(
+                            key = "more_search_$searchVisibleLimit",
+                            span = { GridItemSpan(maxLineSpan) }
+                        ) {
+                            LaunchedEffect(searchVisibleLimit) {
+                                searchVisibleLimit += 50
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    color = VegaColors.Accent,
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -284,7 +338,8 @@ fun ShelfLiveLayout(
                             isFavorite = favoriteIds.contains(heroChannel.streamId.toString()),
                             onPlay = onChannelClick,
                             onFavoriteToggle = onFavoriteToggle,
-                            onLoadEpg = { onLoadEpg(heroChannel.streamId) }
+                            onLoadEpg = { onLoadEpg(heroChannel.streamId) },
+                            nowEpochSec = nowEpochSec
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
@@ -303,7 +358,8 @@ fun ShelfLiveLayout(
                             onLoadEpg = onLoadEpg,
                             onSeeAllClick = {
                                 selectedSeeAllCategory = Pair("Devam Et (Son İzlenenler)", recentChannels)
-                            }
+                            },
+                            nowEpochSec = nowEpochSec
                         )
                     }
                 }
@@ -321,7 +377,8 @@ fun ShelfLiveLayout(
                             onLoadEpg = onLoadEpg,
                             onSeeAllClick = {
                                 selectedSeeAllCategory = Pair("Favori Kanallar", favoriteChannels)
-                            }
+                            },
+                            nowEpochSec = nowEpochSec
                         )
                     }
                 }
@@ -339,19 +396,16 @@ fun ShelfLiveLayout(
                             onLoadEpg = onLoadEpg,
                             onSeeAllClick = {
                                 selectedSeeAllCategory = Pair("Şu An Canlı", nowPlayingChannels)
-                            }
+                            },
+                            nowEpochSec = nowEpochSec
                         )
                     }
                 }
 
-                val contentCategories = visibleCategories.filter {
-                    it.categoryId != "all" && it.categoryId != "favorites" && it.categoryId != "recents"
-                }
-
-                items(
-                    items = contentCategories,
-                    key = { "shelf_cat_${it.categoryId}" }
-                ) { cat ->
+                itemsIndexed(
+                    items = pagedContentCategories,
+                    key = { index, cat -> "shelf_cat_${cat.categoryId}_$index" }
+                ) { _, cat ->
                     val catChannels = streamsByCategory[cat.categoryId] ?: emptyList()
                     if (catChannels.isNotEmpty()) {
                         ShelfRow(
@@ -365,8 +419,29 @@ fun ShelfLiveLayout(
                             onLoadEpg = onLoadEpg,
                             onSeeAllClick = {
                                 selectedSeeAllCategory = Pair(cat.categoryName, catChannels)
-                            }
+                            },
+                            nowEpochSec = nowEpochSec
                         )
+                    }
+                }
+
+                if (categoryVisibleLimit < contentCategories.size) {
+                    item(key = "more_shelf_cats_$categoryVisibleLimit") {
+                        LaunchedEffect(categoryVisibleLimit) {
+                            categoryVisibleLimit += 15
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = VegaColors.Accent,
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
                     }
                 }
             }

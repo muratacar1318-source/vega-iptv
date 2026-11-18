@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -15,9 +16,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -27,9 +32,11 @@ import androidx.compose.ui.window.Dialog
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.data.playlist.Playlist
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import com.tivimax.player.ui.design.*
+import kotlinx.coroutines.delay
 
 @Composable
 fun SettingsPlaylistsSection(
@@ -48,7 +55,11 @@ fun SettingsPlaylistsSection(
         val target = playlistToDelete!!
         val cancelRequester = remember { FocusRequester() }
         LaunchedEffect(Unit) {
-            runCatching { cancelRequester.requestFocus() }
+            for (attempt in 0 until 2) {
+                withFrameNanos { }
+                delay(60)
+                if (cancelRequester.requestFocusSafely()) break
+            }
         }
 
         AlertDialog(
@@ -343,7 +354,42 @@ fun PlaylistFormDialog(
     var isChecking by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val nameFocusRequester = remember { FocusRequester() }
+
+    val canSave = name.isNotBlank() && username.isNotBlank() && password.isNotBlank() &&
+        (!isCustomServer || customServerUrl.isNotBlank())
+
+    val submitSave: () -> Unit = {
+        keyboardController?.hide()
+        if (!isChecking && canSave) {
+            isChecking = true
+            errorMessage = null
+            val effectiveServer = if (isCustomServer) customServerUrl.trim() else AppConfig.DEFAULT_SERVER_URL
+            onSave(name.trim(), effectiveServer, username.trim(), password.trim()) { result ->
+                isChecking = false
+                result.fold(
+                    onSuccess = { onDismiss() },
+                    onFailure = { err ->
+                        Log.w("SettingsPlaylists", "Liste kaydedilemedi: ${err.javaClass.simpleName}")
+                        errorMessage = "Sunucuya bağlanılamadı. Bilgilerini kontrol et."
+                    }
+                )
+            }
+        } else {
+            focusManager.moveFocus(FocusDirection.Down)
+        }
+    }
+
     Dialog(onDismissRequest = { if (!isChecking) onDismiss() }) {
+        LaunchedEffect(Unit) {
+            for (attempt in 0 until 2) {
+                withFrameNanos { }
+                delay(60)
+                if (nameFocusRequester.requestFocusSafely()) break
+            }
+        }
         Column(
             modifier = Modifier
                 .widthIn(max = 500.dp)
@@ -392,7 +438,15 @@ fun PlaylistFormDialog(
 
             // Liste Adı
             OutlinedTextField(
-                keyboardOptions = tvKeyboardOptions(),
+                keyboardOptions = tvKeyboardOptions(
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    )
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                ),
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Liste adı") },
@@ -402,6 +456,7 @@ fun PlaylistFormDialog(
                 shape = VegaShapes.Medium,
                 modifier = Modifier
                     .tvOpenKeyboardOnOk()
+                    .focusRequester(nameFocusRequester)
                     .fillMaxWidth()
             )
 
@@ -435,7 +490,15 @@ fun PlaylistFormDialog(
             // Başka Sunucu Adresi Girişi
             if (isCustomServer) {
                 OutlinedTextField(
-                    keyboardOptions = tvKeyboardOptions(),
+                    keyboardOptions = tvKeyboardOptions(
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Next
+                        )
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    ),
                     value = customServerUrl,
                     onValueChange = { customServerUrl = it },
                     label = { Text("Sunucu adresi") },
@@ -454,7 +517,15 @@ fun PlaylistFormDialog(
 
             // Kullanıcı Adı
             OutlinedTextField(
-                keyboardOptions = tvKeyboardOptions(),
+                keyboardOptions = tvKeyboardOptions(
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    )
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                ),
                 value = username,
                 onValueChange = { username = it },
                 label = { Text("Kullanıcı adı") },
@@ -490,7 +561,15 @@ fun PlaylistFormDialog(
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 colors = fieldColors,
                 shape = VegaShapes.Medium,
-                keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.Password)),
+                keyboardOptions = tvKeyboardOptions(
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    )
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = { submitSave() }
+                ),
                 modifier = Modifier
                     .tvOpenKeyboardOnOk()
                     .fillMaxWidth()
@@ -511,29 +590,12 @@ fun PlaylistFormDialog(
                     modifier = Modifier.weight(1f)
                 )
 
-                val canSave = name.isNotBlank() && username.isNotBlank() && password.isNotBlank() &&
-                    (!isCustomServer || customServerUrl.isNotBlank())
-
                 SettingsActionButton(
                     text = if (isChecking) "Kontrol ediliyor…" else "Kaydet",
                     variant = VegaButtonVariant.PRIMARY,
                     enabled = !isChecking && canSave,
                     isLoading = isChecking,
-                    onClick = {
-                        isChecking = true
-                        errorMessage = null
-                        val effectiveServer = if (isCustomServer) customServerUrl.trim() else AppConfig.DEFAULT_SERVER_URL
-                        onSave(name.trim(), effectiveServer, username.trim(), password.trim()) { result ->
-                            isChecking = false
-                            result.fold(
-                                onSuccess = { onDismiss() },
-                                onFailure = { err ->
-                                    Log.w("SettingsPlaylists", "Liste kaydedilemedi: ${err.javaClass.simpleName}")
-                                    errorMessage = "Sunucuya bağlanılamadı. Bilgilerini kontrol et."
-                                }
-                            )
-                        }
-                    },
+                    onClick = submitSave,
                     modifier = Modifier.weight(1f)
                 )
             }

@@ -9,7 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +43,7 @@ import com.tivimax.player.ui.components.CategoryItem
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
@@ -88,14 +89,18 @@ fun LiveTvWideScreenLayout(
     // Canlı TV açıldığında aktif kategoriye otomatik odaklan
     LaunchedEffect(Unit) {
         delay(150)
-        runCatching { categoryFocusRequester.requestFocus() }
+        categoryFocusRequester.requestFocusSafely()
     }
 
     // Tam ekrandan dönüldüğünde veya önizleme kanalı değiştiğinde kanal listesini o kanala kaydır
-    LaunchedEffect(activePreviewChannel?.streamId) {
+    LaunchedEffect(activePreviewChannel?.streamId, finalChannels) {
         val targetId = activePreviewChannel?.streamId ?: return@LaunchedEffect
-        val idx = pagedChannels.indexOfFirst { it.streamId == targetId }
+        val idx = finalChannels.indexOfFirst { it.streamId == targetId }
         if (idx >= 0) {
+            if (idx >= visibleLimit) {
+                visibleLimit = (idx + 20).coerceAtMost(finalChannels.size)
+                delay(30L)
+            }
             runCatching { channelListState.animateScrollToItem((idx - 2).coerceAtLeast(0)) }
         }
     }
@@ -224,18 +229,21 @@ fun LiveTvWideScreenLayout(
                 )
 
                 // Kategori Listesi
+                val distinctCategories = remember(filteredCategories) {
+                    filteredCategories
+                        .filter { it.categoryId != "all" }
+                        .distinctBy { it.categoryId }
+                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    items(
-                        items = filteredCategories
-                            .filter { it.categoryId != "all" }
-                            .distinctBy { it.categoryId },
-                        key = { it.categoryId }
-                    ) { category ->
+                    itemsIndexed(
+                        items = distinctCategories,
+                        key = { index, category -> "wide_cat_${category.categoryId}_$index" }
+                    ) { _, category ->
                         val isSelected = category.categoryId == selectedCategory
                         CategoryItem(
                             name = category.categoryName,
@@ -415,7 +423,10 @@ fun LiveTvWideScreenLayout(
                             .weight(1f),
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        items(pagedChannels, key = { "${it.streamId}_${it.num}" }) { channel ->
+                        itemsIndexed(
+                            items = pagedChannels,
+                            key = { index, channel -> "ch_${channel.streamId}_${channel.categoryId}_$index" }
+                        ) { _, channel ->
                             val isCurrentPreview = activePreviewChannel?.streamId == channel.streamId
                             val isFavorite = favoriteIds.contains(channel.streamId.toString())
                             val epg = epgSummaryMap[channel.streamId]
@@ -595,9 +606,9 @@ fun LiveTvWideScreenLayout(
 
                         // Sonsuz Kaydırma Sayfalama Tetikleyici
                         if (visibleLimit < finalChannels.size) {
-                            item {
-                                LaunchedEffect(Unit) {
-                                    visibleLimit += 40
+                            item(key = "more_$visibleLimit") {
+                                LaunchedEffect(visibleLimit) {
+                                    visibleLimit += 50
                                 }
                                 Box(
                                     modifier = Modifier

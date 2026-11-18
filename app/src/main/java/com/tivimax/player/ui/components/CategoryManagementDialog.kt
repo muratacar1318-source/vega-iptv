@@ -5,7 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.tivimax.player.ui.AdultFilter
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.design.*
 import kotlinx.coroutines.delay
@@ -39,37 +40,60 @@ fun CategoryManagementDialog(
     var canInteract by remember { mutableStateOf(false) }
     val firstTabFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(Unit) {
-        firstTabFocusRequester.requestFocusSafely()
-        delay(250)
-        canInteract = true
-    }
-
     val liveCats by viewModel.liveCategories.collectAsState()
     val vodCats by viewModel.vodCategories.collectAsState()
     val seriesCats by viewModel.seriesCategories.collectAsState()
+    val isParentalUnlocked by viewModel.isParentalUnlocked.collectAsState()
 
     val hiddenCats by viewModel.hiddenCategories.collectAsState()
     val pinnedCats by viewModel.pinnedCategories.collectAsState()
 
-    val currentRawCategories = when (selectedTab) {
-        0 -> liveCats.filter { it.categoryId != "all" }.map { Triple(it.categoryId, it.categoryName, it.itemCount) }
-        1 -> vodCats.filter { it.categoryId != "all" }.map { Triple(it.categoryId, it.categoryName, it.itemCount) }
-        else -> seriesCats.filter { it.categoryId != "all" }.map { Triple(it.categoryId, it.categoryName, it.itemCount) }
+    val safeLiveCats = remember(liveCats, isParentalUnlocked) {
+        liveCats
+            .filter { it.categoryId != "all" && (isParentalUnlocked || !AdultFilter.isAdult(it.categoryName)) }
+            .distinctBy { it.categoryId }
+    }
+    val safeVodCats = remember(vodCats, isParentalUnlocked) {
+        vodCats
+            .filter { it.categoryId != "all" && (isParentalUnlocked || !AdultFilter.isAdult(it.categoryName)) }
+            .distinctBy { it.categoryId }
+    }
+    val safeSeriesCats = remember(seriesCats, isParentalUnlocked) {
+        seriesCats
+            .filter { it.categoryId != "all" && (isParentalUnlocked || !AdultFilter.isAdult(it.categoryName)) }
+            .distinctBy { it.categoryId }
+    }
+
+    val currentRawCategories = remember(selectedTab, safeLiveCats, safeVodCats, safeSeriesCats) {
+        when (selectedTab) {
+            0 -> safeLiveCats.map { Triple(it.categoryId, it.categoryName, it.itemCount) }
+            1 -> safeVodCats.map { Triple(it.categoryId, it.categoryName, it.itemCount) }
+            else -> safeSeriesCats.map { Triple(it.categoryId, it.categoryName, it.itemCount) }
+        }
     }
 
     val filteredCategories = remember(currentRawCategories, searchQuery, pinnedCats) {
-        currentRawCategories.filter {
-            searchQuery.isBlank() || it.second.contains(searchQuery, ignoreCase = true)
-        }.sortedWith(
-            compareByDescending<Triple<String, String, Int>> { pinnedCats.contains(it.first) }
-        )
+        currentRawCategories
+            .filter { searchQuery.isBlank() || it.second.contains(searchQuery, ignoreCase = true) }
+            .distinctBy { it.first }
+            .sortedWith(
+                compareByDescending<Triple<String, String, Int>> { pinnedCats.contains(it.first) }
+            )
     }
 
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        LaunchedEffect(Unit) {
+            for (attempt in 0 until 2) {
+                withFrameNanos { }
+                delay(60)
+                if (firstTabFocusRequester.requestFocusSafely()) break
+            }
+            delay(180)
+            canInteract = true
+        }
         Box(
             modifier = Modifier
                 .widthIn(max = 720.dp)
@@ -159,7 +183,7 @@ fun CategoryManagementDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     VegaChoiceChip(
-                        label = "Canlı TV (${liveCats.size.coerceAtLeast(1) - 1})",
+                        label = "Canlı TV (${safeLiveCats.size})",
                         selected = selectedTab == 0,
                         onClick = { selectedTab = 0 },
                         modifier = Modifier
@@ -167,13 +191,13 @@ fun CategoryManagementDialog(
                             .focusRequester(firstTabFocusRequester)
                     )
                     VegaChoiceChip(
-                        label = "Filmler (${vodCats.size.coerceAtLeast(1) - 1})",
+                        label = "Filmler (${safeVodCats.size})",
                         selected = selectedTab == 1,
                         onClick = { selectedTab = 1 },
                         modifier = Modifier.weight(1f)
                     )
                     VegaChoiceChip(
-                        label = "Diziler (${seriesCats.size.coerceAtLeast(1) - 1})",
+                        label = "Diziler (${safeSeriesCats.size})",
                         selected = selectedTab == 2,
                         onClick = { selectedTab = 2 },
                         modifier = Modifier.weight(1f)
@@ -262,7 +286,7 @@ fun CategoryManagementDialog(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(filteredCategories, key = { it.first }) { (catId, catName, count) ->
+                    itemsIndexed(filteredCategories, key = { idx, item -> "cat_mgmt_${selectedTab}_${item.first}_$idx" }) { _, (catId, catName, count) ->
                         val isHidden = hiddenCats.contains(catId)
                         val isPinned = pinnedCats.contains(catId)
 

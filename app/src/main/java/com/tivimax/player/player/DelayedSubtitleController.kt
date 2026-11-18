@@ -48,6 +48,9 @@ class DelayedSubtitleController(
     private var subtitleDelayMs: Long = 0L
     private var subtitleColor: String = "BEYAZ"
     private var subtitleSize: String = "ORTA"
+    private var appliedStyleColor: String? = null
+    private var appliedStyleSize: String? = null
+    private var appliedStyleTargetView: PlayerView? = null
 
     private val cueQueue = ArrayList<CueEntry>()
     private var lastRenderedCueGroup: CueGroup? = null
@@ -90,8 +93,15 @@ class DelayedSubtitleController(
     }
 
     fun attach(playerView: PlayerView, player: Player) {
-        if (targetPlayer == player && targetPlayerView == playerView) {
-            applyStyling()
+        if (targetPlayer === player && targetPlayerView === playerView) {
+            if (appliedStyleColor != subtitleColor || appliedStyleSize != subtitleSize || appliedStyleTargetView !== playerView) {
+                applyStyling()
+            }
+            if (subtitleDelayMs > 0L && tickerJob?.isActive != true) {
+                startTicker()
+            } else if (subtitleDelayMs <= 0L) {
+                stopTicker()
+            }
             return
         }
 
@@ -118,7 +128,11 @@ class DelayedSubtitleController(
         updateVisibilityState()
 
         player.addListener(playerListener)
-        startTicker()
+        if (subtitleDelayMs > 0L) {
+            startTicker()
+        } else {
+            stopTicker()
+        }
     }
 
     fun updateDelay(delayMs: Long) {
@@ -128,6 +142,7 @@ class DelayedSubtitleController(
         subtitleDelayMs = clamped
 
         if (clamped == 0L) {
+            stopTicker()
             clearQueueAndCues()
             updateVisibilityState()
         } else {
@@ -136,10 +151,21 @@ class DelayedSubtitleController(
                 // Gecikme açıldığında mevcut pozisyonu sıfırdan takip et
                 clearQueueAndCues()
             }
+            if (targetPlayer != null && tickerJob?.isActive != true) {
+                startTicker()
+            }
         }
     }
 
     fun updateStyle(color: String, size: String) {
+        if (subtitleColor == color &&
+            subtitleSize == size &&
+            appliedStyleColor == color &&
+            appliedStyleSize == size &&
+            appliedStyleTargetView === targetPlayerView
+        ) {
+            return
+        }
         subtitleColor = color
         subtitleSize = size
         applyStyling()
@@ -154,8 +180,7 @@ class DelayedSubtitleController(
     }
 
     fun detach() {
-        tickerJob?.cancel()
-        tickerJob = null
+        stopTicker()
 
         targetPlayer?.removeListener(playerListener)
         targetPlayer = null
@@ -169,6 +194,9 @@ class DelayedSubtitleController(
         }
         customSubtitleView = null
         targetPlayerView = null
+        appliedStyleColor = null
+        appliedStyleSize = null
+        appliedStyleTargetView = null
     }
 
     private fun updateVisibilityState() {
@@ -177,10 +205,19 @@ class DelayedSubtitleController(
         customSubtitleView?.visibility = if (delayActive) View.VISIBLE else View.GONE
     }
 
+    private fun stopTicker() {
+        tickerJob?.cancel()
+        tickerJob = null
+    }
+
     private fun startTicker() {
+        if (subtitleDelayMs <= 0L) {
+            stopTicker()
+            return
+        }
         tickerJob?.cancel()
         tickerJob = scope.launch(Dispatchers.Main.immediate) {
-            while (isActive) {
+            while (isActive && subtitleDelayMs > 0L) {
                 delay(40L)
                 updateDelayedCues()
             }
@@ -281,6 +318,10 @@ class DelayedSubtitleController(
             it.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, subTextSp)
             it.setBottomPaddingFraction(0.12f)
         }
+
+        appliedStyleColor = subtitleColor
+        appliedStyleSize = subtitleSize
+        appliedStyleTargetView = targetPlayerView
     }
 
     companion object {

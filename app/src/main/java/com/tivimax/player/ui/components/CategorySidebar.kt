@@ -1,11 +1,10 @@
 package com.tivimax.player.ui.components
 
+import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Tune
@@ -19,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -27,9 +27,10 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,6 +39,7 @@ import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.ui.tv.StreamVaultSearchField
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -75,21 +77,30 @@ fun CategorySidebar(
         else categories.firstOrNull { it.id == "all" }?.count ?: safeCategories.sumOf { it.count }
     }
 
-    // G-045: TV odak davranışı
+    // G-045: TV odak davranışı — tek güvenli sağa geçiş; kullanıcı yan menüde yön tuşuna basarsa anında iptal
     val focusManager = LocalFocusManager.current
     val focusScope = rememberCoroutineScope()
     var listHasFocus by remember { mutableStateOf(false) }
     val selectedRequester = remember { FocusRequester() }
     var selectedItemAttached by remember { mutableStateOf(false) }
+    var pendingFocusMoveJob by remember { mutableStateOf<Job?>(null) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            pendingFocusMoveJob?.cancel()
+            pendingFocusMoveJob = null
+        }
+    }
+
     val selectCategory: (String) -> Unit = { id ->
+        pendingFocusMoveJob?.cancel()
         onCategorySelected(id)
         if (tvFocusBehavior) {
-            focusScope.launch {
-                delay(300)
-                repeat(6) {
-                    if (!listHasFocus) return@launch
+            pendingFocusMoveJob = focusScope.launch {
+                withFrameNanos { }
+                delay(120)
+                if (listHasFocus) {
                     focusManager.moveFocus(FocusDirection.Right)
-                    delay(250)
                 }
             }
         }
@@ -166,13 +177,31 @@ fun CategorySidebar(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .onFocusChanged { listHasFocus = it.hasFocus }
+                .onPreviewKeyEvent { event ->
+                    val code = event.nativeKeyEvent.keyCode
+                    if (code == AndroidKeyEvent.KEYCODE_DPAD_LEFT ||
+                        code == AndroidKeyEvent.KEYCODE_DPAD_UP ||
+                        code == AndroidKeyEvent.KEYCODE_DPAD_DOWN ||
+                        code == AndroidKeyEvent.KEYCODE_BACK
+                    ) {
+                        pendingFocusMoveJob?.cancel()
+                        pendingFocusMoveJob = null
+                    }
+                    false
+                }
+                .onFocusChanged {
+                    listHasFocus = it.hasFocus
+                    if (!it.hasFocus) {
+                        pendingFocusMoveJob?.cancel()
+                        pendingFocusMoveJob = null
+                    }
+                }
                 .then(
                     if (tvFocusBehavior) {
                         Modifier.focusProperties {
                             onEnter = {
                                 if (selectedItemAttached) {
-                                    try { selectedRequester.requestFocus() } catch (_: Exception) {}
+                                    selectedRequester.requestFocusSafely()
                                 }
                             }
                         }
@@ -203,7 +232,7 @@ fun CategorySidebar(
                 }
             }
 
-            items(filteredSidebarCategories, key = { "sidebar_cat_${it.id}" }) { cat ->
+            itemsIndexed(filteredSidebarCategories, key = { idx, it -> "sidebar_cat_${it.id}_$idx" }) { _, cat ->
                 val isSelected = cat.id == selectedCategoryId
                 SelectedCategoryAnchor(
                     isSelected = isSelected,

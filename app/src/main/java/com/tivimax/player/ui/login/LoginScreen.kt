@@ -18,9 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -33,9 +36,11 @@ import com.tivimax.player.BuildConfig
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import com.tivimax.player.ui.design.*
+import kotlinx.coroutines.delay
 
 @Composable
 fun LoginScreen(viewModel: MainViewModel) {
@@ -57,10 +62,24 @@ fun LoginScreen(viewModel: MainViewModel) {
     val isLoading by viewModel.loginLoading.collectAsState()
     val errorMessage by viewModel.loginError.collectAsState()
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val firstFieldFocusRequester = remember { FocusRequester() }
 
-    val canSubmit = !isLoading && playlistName.isNotBlank() && username.isNotBlank() && password.isNotBlank()
+    LaunchedEffect(Unit) {
+        for (attempt in 0 until 2) {
+            withFrameNanos { }
+            delay(60)
+            if (firstFieldFocusRequester.requestFocusSafely()) break
+        }
+    }
+
+    val canSubmit = !isLoading &&
+        playlistName.isNotBlank() &&
+        username.isNotBlank() &&
+        password.isNotBlank() &&
+        (!isCustomServer || customServerUrl.isNotBlank())
     val submitLogin: () -> Unit = {
-        focusManager.clearFocus()
+        keyboardController?.hide()
         if (canSubmit) {
             viewModel.login(
                 user = username.trim(),
@@ -200,7 +219,10 @@ fun LoginScreen(viewModel: MainViewModel) {
                     },
                     colors = fieldColors,
                     shape = VegaShapes.Medium,
-                    modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth(),
+                    modifier = Modifier
+                        .tvOpenKeyboardOnOk()
+                        .focusRequester(firstFieldFocusRequester)
+                        .fillMaxWidth(),
                     keyboardOptions = tvKeyboardOptions(
                         KeyboardOptions(
                             keyboardType = KeyboardType.Text,

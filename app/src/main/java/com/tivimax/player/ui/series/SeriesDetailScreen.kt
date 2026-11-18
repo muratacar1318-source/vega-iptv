@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +32,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,9 +44,14 @@ import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
+import com.tivimax.player.ui.components.requestFocusSafely
+import com.tivimax.player.ui.design.VegaButton
+import com.tivimax.player.ui.design.VegaButtonVariant
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaBackdrop
+import com.tivimax.player.ui.design.vegaPanel
 import com.tivimax.player.ui.vod.StreamVaultBackButton
 import com.tivimax.player.ui.vod.StreamVaultDetailHeading
 import com.tivimax.player.ui.vod.StreamVaultDetailInfoPanel
@@ -73,6 +80,8 @@ fun SeriesDetailScreen(
     val isWideScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || configuration.screenWidthDp >= 600
 
     val seriesInfoResponse by viewModel.currentSeriesInfo.collectAsState()
+    val isDetailLoading by viewModel.seriesDetailLoading.collectAsState()
+    val detailError by viewModel.seriesDetailError.collectAsState()
     val episodesMap = seriesInfoResponse?.episodes ?: emptyMap()
     val watchProgressMap by viewModel.watchProgressMap.collectAsState()
     val favoriteSeriesIds by viewModel.favoriteSeriesIds.collectAsState()
@@ -115,31 +124,36 @@ fun SeriesDetailScreen(
     val episodesForSeason = remember(episodesMap, selectedSeason) {
         episodesMap[selectedSeason] ?: emptyList()
     }
+    var visibleEpisodeLimit by remember(series.seriesId, selectedSeason) { mutableIntStateOf(60) }
+    val pagedEpisodes = remember(episodesForSeason, visibleEpisodeLimit) {
+        episodesForSeason.take(visibleEpisodeLimit)
+    }
     val primaryEp = resumeEpisode ?: episodesForSeason.firstOrNull()
 
-    // Dizi bölümü akıllı ön ısıtma
-    val nextEpForPrewarm = episodesForSeason.firstOrNull()
-    DisposableEffect(series.seriesId, selectedSeason, nextEpForPrewarm?.id) {
-        if (nextEpForPrewarm != null && series.seriesId !in listOf(101, 102, 103, 201)) {
-            val urls = viewModel.repository.buildSeriesStreamUrls(nextEpForPrewarm.id, nextEpForPrewarm.containerExtension)
+    // Dizi bölümü akıllı ön ısıtma (primaryEp hedeflenir)
+    DisposableEffect(series.seriesId, primaryEp?.id) {
+        if (primaryEp != null && series.seriesId !in listOf(101, 102, 103, 201)) {
+            val urls = viewModel.repository.buildSeriesStreamUrls(primaryEp.id, primaryEp.containerExtension)
             val firstUrl = urls.firstOrNull()
             if (!firstUrl.isNullOrBlank()) {
-                viewModel.vodPrewarmer.schedulePrewarm(firstUrl, nextEpForPrewarm.id.toIntOrNull())
+                viewModel.vodPrewarmer.schedulePrewarm(firstUrl, primaryEp.id.toIntOrNull())
             }
         }
         onDispose {
-            viewModel.vodPrewarmer.cancelAll("ekrandan çıkıldı / sezon değişti")
+            viewModel.vodPrewarmer.cancelAll("ekrandan çıkıldı / bölüm değişti")
         }
     }
 
-    // 1-Tık Kumanda Garantisi: Bölümler yüklendiği anda Oynat / Devam et butonuna güvenli odak ver
+    // 1-Tık Kumanda Garantisi: Kullanıcı odağı başka öğeye taşımadıysa Oynat / Devam et butonuna güvenli odak ver
+    var userMovedFocus by remember(series.seriesId) { mutableStateOf(false) }
     var initialFocusApplied by remember(series.seriesId) { mutableStateOf(false) }
     LaunchedEffect(series.seriesId, primaryEp?.id) {
-        if (primaryEp != null && !initialFocusApplied) {
+        if (primaryEp != null && !initialFocusApplied && !userMovedFocus) {
             repeat(3) {
                 withFrameNanos { }
                 delay(80)
-                if (runCatching { playButtonFocusRequester.requestFocus() }.isSuccess) {
+                if (userMovedFocus) return@LaunchedEffect
+                if (playButtonFocusRequester.requestFocusSafely()) {
                     initialFocusApplied = true
                     return@LaunchedEffect
                 }
@@ -234,13 +248,19 @@ fun SeriesDetailScreen(
         ) {
             // SOL ÜST: Kütüphaneye dön hapı
             item(key = "series_back") {
-                StreamVaultBackButton(onClick = onBack)
+                StreamVaultBackButton(
+                    onClick = onBack,
+                    onFocusStateChange = { if (it) userMovedFocus = true }
+                )
             }
 
             // HERO BÖLÜMÜ
             item(key = "series_hero") {
                 val primaryProg = primaryEp?.let { watchProgressMap[it.id] }
-                val hasPrimaryProg = primaryProg != null && primaryProg.positionMs > 10_000L && primaryProg.durationMs > 0L
+                val hasPrimaryProg = primaryProg != null &&
+                    !primaryProg.isWatched &&
+                    primaryProg.positionMs > 10_000L &&
+                    primaryProg.durationMs > 0L
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -339,7 +359,7 @@ fun SeriesDetailScreen(
                                                 focusedBorderColor = Color.White,
                                                 shape = actionShape,
                                                 scale = 1.045f,
-                                                onClick = { viewModel.playSeriesEpisode(primaryEp, series.name, resume = true) }
+                                                onClick = { viewModel.playSeriesEpisode(primaryEp, series.name, resume = hasPrimaryProg) }
                                             )
                                     ) {
                                         Row(
@@ -352,7 +372,7 @@ fun SeriesDetailScreen(
                                                 text = if (hasPrimaryProg) {
                                                     "Devam et (S${primaryEp.season}:B${primaryEp.episodeNum})"
                                                 } else {
-                                                    "Oynat (S${primaryEp.season}:B${primaryEp.episodeNum})"
+                                                    "İzle (S${primaryEp.season}:B${primaryEp.episodeNum})"
                                                 },
                                                 color = VegaColors.OnAccent,
                                                 fontSize = 14.sp,
@@ -380,7 +400,10 @@ fun SeriesDetailScreen(
                                                 shape = actionShape,
                                                 scale = 1.04f,
                                                 onClick = { openTrailer(context, trailerUrl) },
-                                                onFocusStateChange = { isFocused = it }
+                                                onFocusStateChange = {
+                                                    isFocused = it
+                                                    if (it) userMovedFocus = true
+                                                }
                                             )
                                     ) {
                                         Box(
@@ -417,7 +440,10 @@ fun SeriesDetailScreen(
                                             shape = CircleShape,
                                             scale = 1.06f,
                                             onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) },
-                                            onFocusStateChange = { isFocused = it }
+                                            onFocusStateChange = {
+                                                isFocused = it
+                                                if (it) userMovedFocus = true
+                                            }
                                         )
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -513,7 +539,10 @@ fun SeriesDetailScreen(
                                             shape = seasonShape,
                                             scale = 1.045f,
                                             onClick = { selectedSeason = seasonNum },
-                                            onFocusStateChange = { isFocused = it }
+                                            onFocusStateChange = {
+                                                isFocused = it
+                                                if (it) userMovedFocus = true
+                                            }
                                         )
                                 ) {
                                     Row(
@@ -557,7 +586,44 @@ fun SeriesDetailScreen(
                 )
             }
 
-            if (seriesInfoResponse == null) {
+            if (seriesInfoResponse == null && detailError != null) {
+                item(key = "episodes_error") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .vegaPanel(VegaShapes.Large)
+                            .padding(horizontal = 24.dp, vertical = 22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = VegaColors.Danger,
+                            modifier = Modifier.size(34.dp)
+                        )
+                        Text(
+                            text = "Dizi bilgileri yüklenemedi",
+                            color = VegaColors.TextPrimary,
+                            fontSize = VegaText.SectionTitle,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "Bağlantını kontrol edip tekrar dene.",
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Secondary,
+                            textAlign = TextAlign.Center
+                        )
+                        VegaButton(
+                            text = "Tekrar dene",
+                            variant = VegaButtonVariant.PRIMARY,
+                            icon = Icons.Default.Refresh,
+                            onClick = { viewModel.loadSeriesDetail(series) }
+                        )
+                    }
+                }
+            } else if (seriesInfoResponse == null && isDetailLoading) {
                 item(key = "episodes_loading") {
                     Box(
                         modifier = Modifier
@@ -566,6 +632,30 @@ fun SeriesDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(color = VegaColors.Accent, strokeWidth = 2.5.dp)
+                    }
+                }
+            } else if (seriesInfoResponse == null) {
+                item(key = "episodes_unavailable") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .vegaPanel(VegaShapes.Large)
+                            .padding(horizontal = 24.dp, vertical = 22.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Bölüm listesi alınamadı.",
+                            color = VegaColors.TextSecondary,
+                            fontSize = VegaText.Body,
+                            textAlign = TextAlign.Center
+                        )
+                        VegaButton(
+                            text = "Tekrar dene",
+                            variant = VegaButtonVariant.PRIMARY,
+                            icon = Icons.Default.Refresh,
+                            onClick = { viewModel.loadSeriesDetail(series) }
+                        )
                     }
                 }
             } else if (episodesForSeason.isEmpty()) {
@@ -578,15 +668,36 @@ fun SeriesDetailScreen(
                     )
                 }
             } else {
-                items(episodesForSeason, key = { "ep_${it.id}_${it.episodeNum}" }) { episode ->
+                itemsIndexed(pagedEpisodes, key = { idx, it -> "ep_${it.id}_${it.episodeNum}_$idx" }) { _, episode ->
+                    val epProgress = watchProgressMap[episode.id]
+                    val canResumeEpisode = epProgress != null && !epProgress.isWatched && epProgress.positionMs > 10_000L
                     StreamVaultEpisodeRowCard(
                         episode = episode,
                         fallbackCover = coverUrl,
-                        watchProgress = watchProgressMap[episode.id],
+                        watchProgress = epProgress,
                         isResumeTarget = resumeEpisode?.id == episode.id,
                         isWideScreen = isWideScreen,
-                        onClick = { viewModel.playSeriesEpisode(episode, series.name, resume = true) }
+                        onClick = { viewModel.playSeriesEpisode(episode, series.name, resume = canResumeEpisode) }
                     )
+                }
+
+                if (episodesForSeason.size > visibleEpisodeLimit) {
+                    val remainingCount = episodesForSeason.size - visibleEpisodeLimit
+                    item(key = "episodes_load_more_$visibleEpisodeLimit") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            VegaButton(
+                                text = "Daha fazla bölüm göster ($remainingCount)",
+                                variant = VegaButtonVariant.SECONDARY,
+                                icon = Icons.Default.ExpandMore,
+                                onClick = { visibleEpisodeLimit += 60 }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -742,7 +853,7 @@ private fun StreamVaultEpisodeRowCard(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                    if (isResumeTarget || hasProgress) {
+                    if (hasProgress) {
                         Surface(
                             shape = VegaShapes.Small,
                             color = VegaColors.Accent.copy(alpha = 0.18f),
@@ -750,6 +861,20 @@ private fun StreamVaultEpisodeRowCard(
                         ) {
                             Text(
                                 text = "Devam et",
+                                color = VegaColors.Accent,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+                    } else if (isResumeTarget && !isWatched) {
+                        Surface(
+                            shape = VegaShapes.Small,
+                            color = VegaColors.Accent.copy(alpha = 0.18f),
+                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.42f))
+                        ) {
+                            Text(
+                                text = "Sıradaki",
                                 color = VegaColors.Accent,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,

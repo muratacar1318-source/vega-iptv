@@ -12,11 +12,15 @@ import java.util.Locale
  */
 object LiveTimeFormatter {
 
-    private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-    private val fullDateFormats = listOf(
-        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()),
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-    )
+    private val timeFormat = object : ThreadLocal<SimpleDateFormat>() {
+        override fun initialValue(): SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    }
+    private val fullDateFormats = object : ThreadLocal<List<SimpleDateFormat>>() {
+        override fun initialValue(): List<SimpleDateFormat> = listOf(
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()),
+            SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+        )
+    }
 
     /**
      * Program saat aralığını ve kalan süreyi döner:
@@ -78,8 +82,9 @@ object LiveTimeFormatter {
 
         // 1. Unix Timestamp'ler (start_timestamp / stop_timestamp)
         if (epg.startTimestamp > 0 && epg.stopTimestamp > 0) {
-            startStr = timeFormat.format(Date(epg.startTimestamp * 1000L))
-            endStr = timeFormat.format(Date(epg.stopTimestamp * 1000L))
+            val tf = timeFormat.get()!!
+            startStr = tf.format(Date(epg.startTimestamp * 1000L))
+            endStr = tf.format(Date(epg.stopTimestamp * 1000L))
             stopTimeMs = epg.stopTimestamp * 1000L
             return Triple(startStr, endStr, stopTimeMs)
         }
@@ -104,10 +109,11 @@ object LiveTimeFormatter {
         if (trimmed.length == 5 && trimmed.contains(":")) {
             return trimmed
         }
-        for (sdf in fullDateFormats) {
+        val tf = timeFormat.get()!!
+        for (sdf in fullDateFormats.get()!!) {
             try {
                 val d = sdf.parse(trimmed)
-                if (d != null) return timeFormat.format(d)
+                if (d != null) return tf.format(d)
             } catch (_: Exception) {}
         }
         return ""
@@ -115,7 +121,7 @@ object LiveTimeFormatter {
 
     private fun parseToMillis(dateStr: String): Long {
         val trimmed = dateStr.trim()
-        for (sdf in fullDateFormats) {
+        for (sdf in fullDateFormats.get()!!) {
             try {
                 val d = sdf.parse(trimmed)
                 if (d != null) return d.time

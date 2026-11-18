@@ -6,6 +6,9 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.lazy.LazyRow
@@ -18,10 +21,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -36,34 +45,26 @@ import com.tivimax.player.data.preferences.WatchProgress
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
+import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.BackgroundSyncBanner
+import com.tivimax.player.ui.components.QuickPlaylistSwitchDialog
+import com.tivimax.player.ui.components.VegaTopNavBar
+import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaBackdrop
-import com.tivimax.player.ui.components.AsyncShimmerImage
-import com.tivimax.player.ui.components.QuickPlaylistSwitchDialog
-import com.tivimax.player.ui.components.VegaTopNavBar
-import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.favorites.FavoritesScreen
 import com.tivimax.player.ui.live.LiveTvScreen
-import com.tivimax.player.ui.settings.SettingsScreen
 import com.tivimax.player.ui.series.SeriesScreen
-import com.tivimax.player.ui.vod.VodScreen
-import androidx.compose.foundation.focusGroup
-import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
-import androidx.compose.ui.text.TextStyle
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-
+import com.tivimax.player.ui.settings.SettingsScreen
 import com.tivimax.player.ui.tv.TvNavigationRail
 import com.tivimax.player.ui.tv.TvTiviMateScreen
+import com.tivimax.player.ui.vod.VodScreen
 import com.tivimax.player.util.LocalIsTvDevice
+import kotlinx.coroutines.delay
 
 enum class HomeTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     DASHBOARD("Ana Sayfa", Icons.Default.Home),
@@ -89,21 +90,22 @@ fun HomeScreen(viewModel: MainViewModel) {
     val activePlaylist by viewModel.activePlaylist.collectAsState()
     val isSwitchingPlaylist by viewModel.isSwitchingPlaylist.collectAsState()
 
-    // Android TV: sol menü odak durumu ve Canlı TV tam ekran oynatıcı durumu
+    // Android TV: üst menü odak durumu ve Canlı TV tam ekran oynatıcı durumu
     val tvRailFocusRequester = remember { FocusRequester() }
-    // G-042: Sol menüden sekmeye girince odağı içeriğe (kategori sütununa) taşımak için
-    val tvFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
-    val tvFocusScope = rememberCoroutineScope()
     var tvRailHasFocus by remember { mutableStateOf(false) }
     var tvLiveFullScreen by remember { mutableStateOf(false) }
+    var initialTopBarFocused by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(isTvDevice) {
-        if (isTvDevice) {
-            // Kumandanın ilk basışta bir odak noktası bulabilmesi için üst çubuktaki seçili sekmeye odaklan
+        if (isTvDevice && !initialTopBarFocused) {
+            // İlk açılışta kumandanın odak noktası bulabilmesi için üst çubuktaki seçili sekmeye odaklan
             repeat(3) {
                 withFrameNanos { }
                 delay(70)
-                if (runCatching { tvRailFocusRequester.requestFocus() }.isSuccess) return@LaunchedEffect
+                if (tvRailFocusRequester.requestFocusSafely()) {
+                    initialTopBarFocused = true
+                    return@LaunchedEffect
+                }
             }
         }
     }
@@ -162,13 +164,15 @@ fun HomeScreen(viewModel: MainViewModel) {
 
     if (isTvDevice) {
         // ANDROID TV: StreamVault tarzı yüzen üst gezinme çubuğu + derin gece arka planı.
-        // Canlı TV tam ekran oynatılırken üst çubuk tamamen gizlenir.
+        // Canlı TV tam ekran oynatılırken üst çubuk ve overscan kenar boşluğu tamamen gizlenir.
+        val isTvFullscreenLive = selectedTab == HomeTab.LIVE_TV && tvLiveFullScreen
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .vegaBackdrop()
+                .then(if (!isTvFullscreenLive) Modifier.padding(horizontal = 24.dp) else Modifier)
         ) {
-            if (!(selectedTab == HomeTab.LIVE_TV && tvLiveFullScreen)) {
+            if (!isTvFullscreenLive) {
                 VegaTopNavBar(
                     selectedTab = selectedTab,
                     onTabSelected = { tab ->
@@ -176,14 +180,6 @@ fun HomeScreen(viewModel: MainViewModel) {
                             tvLiveFullScreen = false
                             viewModel.setVideoFullscreen(false)
                             viewModel.setSelectedHomeTab(tab)
-                        }
-                        tvFocusScope.launch {
-                            repeat(4) {
-                                withFrameNanos { }
-                                delay(80L)
-                                if (!tvRailHasFocus) return@launch
-                                tvFocusManager.moveFocus(FocusDirection.Down)
-                            }
                         }
                     },
                     onSearchClick = { viewModel.navigateTo(Screen.Search) },
@@ -202,7 +198,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                     syncPercentage = playlistSyncState.overallPercentage,
                     selectedTabFocusRequester = tvRailFocusRequester,
                     onBarFocusChanged = { tvRailHasFocus = it },
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                    modifier = Modifier.padding(vertical = 10.dp)
                 )
             }
             Box(
@@ -210,24 +206,22 @@ fun HomeScreen(viewModel: MainViewModel) {
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                key(selectedTab) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .focusRestorer()
-                            .focusGroup()
-                    ) {
-                        if (selectedTab == HomeTab.LIVE_TV) {
-                            TvTiviMateScreen(
-                                viewModel = viewModel,
-                                onFullScreenChange = {
-                                    tvLiveFullScreen = it
-                                    viewModel.setVideoFullscreen(it)
-                                }
-                            )
-                        } else {
-                            HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
-                        }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .focusRestorer()
+                        .focusGroup()
+                ) {
+                    if (selectedTab == HomeTab.LIVE_TV) {
+                        TvTiviMateScreen(
+                            viewModel = viewModel,
+                            onFullScreenChange = {
+                                tvLiveFullScreen = it
+                                viewModel.setVideoFullscreen(it)
+                            }
+                        )
+                    } else {
+                        HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
                     }
                 }
                 if (!tvLiveFullScreen) {
@@ -235,7 +229,7 @@ fun HomeScreen(viewModel: MainViewModel) {
                         status = backgroundSyncStatus,
                         percentage = playlistSyncState.overallPercentage,
                         isTv = true,
-                        onRetry = { },
+                        onRetry = { viewModel.startPlaylistSync(background = true) },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(16.dp)
@@ -254,6 +248,8 @@ fun HomeScreen(viewModel: MainViewModel) {
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .displayCutoutPadding()
             ) {
                 VegaTopNavBar(
                     selectedTab = selectedTab,
@@ -634,10 +630,22 @@ fun HomeScreen(viewModel: MainViewModel) {
     }
 
     if (isSwitchingPlaylist) {
+        val switchingFocusRequester = remember { FocusRequester() }
+        BackHandler(enabled = true) { }
+        LaunchedEffect(Unit) {
+            switchingFocusRequester.requestFocusSafely()
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f)),
+                .background(Color.Black.copy(alpha = 0.85f))
+                .focusRequester(switchingFocusRequester)
+                .onPreviewKeyEvent { true }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {}
+                ),
             contentAlignment = Alignment.Center
         ) {
             Column(

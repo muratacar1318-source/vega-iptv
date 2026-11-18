@@ -24,11 +24,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tivimax.player.data.model.XtreamUserInfo
+import com.tivimax.player.ui.components.requestFocusSafely
 import com.tivimax.player.ui.design.VegaButtonVariant
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.ui.design.vegaPanel
+import kotlinx.coroutines.delay
 
 @Composable
 fun SettingsAccountSection(
@@ -46,7 +48,11 @@ fun SettingsAccountSection(
     if (showLogoutDialog) {
         val cancelFocusRequester = remember { FocusRequester() }
         LaunchedEffect(Unit) {
-            runCatching { cancelFocusRequester.requestFocus() }
+            for (attempt in 0 until 2) {
+                withFrameNanos { }
+                delay(60)
+                if (cancelFocusRequester.requestFocusSafely()) break
+            }
         }
 
         AlertDialog(
