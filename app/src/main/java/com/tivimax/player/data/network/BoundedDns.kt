@@ -103,7 +103,9 @@ class BoundedDns(
                 lastGood[hostname] = directResult
                 return directResult
             }
-        } catch (_: Throwable) {}
+        } catch (e: Throwable) {
+            logWarn("Son kurtarma DNS sorgusu başarısız: ${e.javaClass.simpleName}")
+        }
 
         throw failure
     }

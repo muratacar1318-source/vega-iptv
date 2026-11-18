@@ -40,7 +40,8 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Öncelik | Durum |
 |---|---|---|---|
-| G-034 | TV: detaydan/oynatıcıdan dönünce aynı afişe ve kaydırma yerine dön | 🟠 | ⏸️ Claude detaylandıracak — **agent başlamasın** |
+| G-060 | Toplu program rehberi arka planda indirilsin, rehber 2 gün ileri | 🟢 | ⏳ Bekliyor |
+| G-061 | Geri izleme: rehberde geçmiş programa tıklayıp izleme — **G-060'tan sonra** | 🟢 | ⏳ Bekliyor |
 | G-035 | TV ana sayfa yeni düzen (büyük vitrin + yatay şeritler) | 🟡 | ⏸️ Kullanıcı onayı bekliyor — **agent başlamasın** |
 
 ---
@@ -49,6 +50,20 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 | # | Görev | Main'e alındı |
 |---|---|---|
+| G-062 | Sarmadan sonra takılınca 5 sn'de, ilk deneme mesajsız yeniden bağlanma; tampon dışı sarmada eski bağlantılar kapatılıyor; Ayarlar → Hakkında → "Sorun bildir" son 80 oynatma olayını paylaşıyor — PR #76 (cihazda denenecek) | 13 Kasım |
+| G-034 | Detaydan/oynatıcıdan dönünce aynı afiş ve kaydırma (sonsuz kaydırma sınırı dahil); TV'de odak aynı afişte — PR #75 (cihazda denenecek) | 13 Kasım |
+| G-055 | PlayerScreen 3902 → 3085 satır: çift ekran, video yüzeyi, göstergeler, hata katmanı, uyku zamanlayıcısı ayrı dosyalarda — PR #74 (cihazda denenecek) | 13 Kasım |
+| G-054 | MainViewModel 5 parçaya bölündü (ui/vm/: arama, kategori/ebeveyn, EPG önbelleği, hesap, kanal geçişi); 2628 → 2185 satır, ekranlar değişmedi — PR #73 | 13 Kasım |
+| G-058 | Film/dizide takılma bekçisi: ilk kareden sonra 15 sn takılınca kalınan saniyeden yeniden bağlanıyor — PR #72 | 13 Kasım |
+| G-057 | Sabit renkler tokenlara, veri katmanında sessiz hatalara log (adres/şifre yok), ana sayfada uydurma "1 / 1 Hat" ve sabit "Abonelik aktif" kaldırıldı, açılışta +18 anlık görünme — PR #71 | 13 Kasım |
+| G-053 | CI her PR'da birim testlerini çalıştırıyor (100 test); CI'da çıkan saat dilimine bağlı eski test hatası düzeltildi — PR #70 | 13 Kasım |
+| G-056 | İzleme ilerlemesi en fazla 500 kayıt, gereksiz yeniden ayrıştırma yok — PR #69 | 13 Kasım |
+| G-052 | +18 kilidi her yerde: Tümü listesi, arama, ana sayfa, numarayla geçiş; Film/Dizi ve TV'de kilit; arka planda kilitlenir — PR #68 | 13 Kasım |
+| PR #63 | Ana sayfa üst şerit ve buton taşmaları (kullanıcının PR'ı) | 13 Kasım |
+| G-051 | Çökme günlüğü cihazda, Ayarlar'da "Hata raporu gönder" (adres/şifre temizlenir) — PR #67 | 13 Kasım |
+| G-050 | Ebeveyn kilidi: 0000 açığı kapandı, ilk kullanımda PIN belirleniyor; yedekte içerik veritabanı yok, yedekten dönüşte liste yeniden iniyor — PR #66 | 13 Kasım |
+| G-049 | Demo girişi sadece geliştirici derlemesinde — PR #65 | 13 Kasım |
+| G-048 | Kayıtlı listeler ve izleme ilerlemesi R8'e dayanıklı (v1.5.1'deki kısa anahtarlar okunuyor) — PR #64 | 13 Kasım |
 | R-1.5.0 | v1.5.0 (build 64) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 9 Kasım |
 | R-1.4.3 | v1.4.3 (build 63) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 7 Kasım |
 | R-1.4.2 | v1.4.2 (build 62) yayınlandı — imza doğrulandı (2E:5C:18:FE…6F:2D) | 21 Ekim |
@@ -102,9 +117,6 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 ## 🧑 Kullanıcının yapması gerekenler (agent'lar bunlara dokunmaz)
 
-- [ ] **`feat/mobil-tablet-mini-oynatici` branch'i:** Daha önce bir agent tarafından yapılmış, main'e
-      alınmamış (6 dosya, PlayerScreen dahil). Alınacak mı, atılacak mı? Karar verilene kadar
-      G-001 ve G-002 bu branch'ten bağımsız, main üzerinden yapılır.
 - [ ] **Release anahtarı:** Yayınlanan tüm sürümler hâlâ derleme bilgisayarının geçici "Android Debug"
       anahtarıyla imzalı. `vega-release.jks` ve `keystore.properties` derleme bilgisayarına konmadı.
 
@@ -117,6 +129,10 @@ Görev dosyası belirsizse veya tarif edilenle kod uyuşmuyorsa: tahmin yürütm
 
 ## 💡 Fikirler
 
+- G-054b (G-054 raporundan): MainViewModel'de kalan büyük bloklar (liste yönetimi + senkronizasyon ~600 satır, oynatma ~350, içerik yükleme ~200) aynı cephe yöntemiyle taşınabilir. G-060 senkronizasyona dokunduğu için G-060'tan sonra.
+- G-057 notu: açılışta +18 anlık görünmeyi önleyen bekleme yalnız ilk açılışta; oynatma listesi değiştirilince kategoriler yeniden yüklenirken aynı kısa görünme olabilir. G-054'ten sonra küçük görev olarak yazılacak.
+- Karar (13 Kasım, Claude): `feat/mobil-tablet-mini-oynatici` birleştirilmeyecek (main'in 206 commit gerisinde, PlayerScreen/MainViewModel'e ağır dokunuyor). Mobil/tablette ana ekrana dönünce mini oynatıcıda kesintisiz oynatma fikri G-054/G-055 bölmelerinden sonra yeniden görev olarak yazılacak.
+- Karar (13 Kasım, Claude): PR #63 (ana sayfa üst şerit, buton taşmaları) main'e alındı; uydurma "1 / 1 Hat" ve sabit "Abonelik aktif" G-057 Bölüm C'de düzeltilecek.
 - Karar (20 Ekim): TV canlı ana ekranındaki orta kanal listesi böyle kalacak — 1. OK önizlemede açar, 2. OK tam ekran. (G-047 iptal)
 
 - (Referans: Extreme InfiniTV) TV raflarında odaklanan kartın komşu afişlerini önceden yükleme (kaydırma akıcılığı)

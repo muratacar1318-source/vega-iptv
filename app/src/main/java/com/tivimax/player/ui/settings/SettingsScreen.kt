@@ -3,6 +3,8 @@ package com.tivimax.player.ui.settings
 import com.tivimax.player.ui.components.tvKeyboardOptions
 import com.tivimax.player.ui.components.tvOpenKeyboardOnOk
 import android.content.Context
+import android.content.Intent
+import android.util.Log
 import android.content.res.Configuration
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -45,9 +47,14 @@ import com.tivimax.player.data.preferences.UserPreferences
 import com.tivimax.player.player.AspectRatioMode
 import com.tivimax.player.theme.*
 import com.tivimax.player.ui.MainViewModel
+import com.tivimax.player.ui.ParentalPin
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.tivimax.player.ui.components.CategoryManagementDialog
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.design.VegaButton
+import com.tivimax.player.ui.design.VegaButtonVariant
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.util.CrashLogger
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.vegaBackdrop
 import com.tivimax.player.ui.design.vegaPanel
@@ -99,6 +106,10 @@ fun SettingsScreen(viewModel: MainViewModel) {
     var showPinDialog by remember { mutableStateOf(false) }
     var showDeviceModeDialog by remember { mutableStateOf(false) }
     var newPinInput by remember { mutableStateOf("") }
+    var currentPinInput by remember { mutableStateOf("") }
+    var repeatPinInput by remember { mutableStateOf("") }
+    var pinDialogError by remember { mutableStateOf<String?>(null) }
+    val storedParentalPin by viewModel.parentalPin.collectAsState()
     var pinSuccessMessage by remember { mutableStateOf<String?>(null) }
 
     val configuration = LocalConfiguration.current
@@ -401,45 +412,69 @@ fun SettingsScreen(viewModel: MainViewModel) {
         )
     }
 
-    // PIN DEĞİŞTİRME DİYALOĞU
+    // PIN DEĞİŞTİRME / BELİRLEME DİYALOĞU
     if (showPinDialog) {
+        val pinSet = storedParentalPin.isNotEmpty()
+        val closeDialog = {
+            showPinDialog = false
+            newPinInput = ""
+            currentPinInput = ""
+            repeatPinInput = ""
+            pinDialogError = null
+        }
         AlertDialog(
-            onDismissRequest = { showPinDialog = false },
+            onDismissRequest = closeDialog,
             containerColor = TiviSurface,
-            title = { Text("Yeni şifre", color = TiviTextPrimary, fontWeight = FontWeight.Bold) },
+            title = {
+                Text(
+                    if (pinSet) "Ebeveyn PIN'ini değiştir" else "Ebeveyn PIN'i belirle",
+                    color = TiviTextPrimary, fontWeight = FontWeight.Bold
+                )
+            },
             text = {
                 Column {
                     Text(
-                        text = "4 haneli yeni şifreyi gir.",
+                        text = if (pinSet) "Önce mevcut PIN'ini, sonra yeni 4 haneli PIN'i gir."
+                        else "+18 içerikleri korumak için 4 haneli bir PIN belirle.",
                         color = TiviTextSecondary,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = newPinInput,
-                        onValueChange = { if (it.length <= 4) newPinInput = it },
-                        placeholder = { Text("••••") },
-                        singleLine = true,
-                        keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = OpusCyan,
-                            unfocusedBorderColor = TiviCardBorder,
-                            focusedTextColor = TiviTextPrimary,
-                            unfocusedTextColor = TiviTextPrimary
-                        ),
-                        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
-                    )
+                    if (pinSet) {
+                        PinDialogField(value = currentPinInput, label = "Mevcut PIN", isError = pinDialogError != null) {
+                            currentPinInput = it; pinDialogError = null
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+                    PinDialogField(value = newPinInput, label = if (pinSet) "Yeni PIN" else "PIN", isError = pinDialogError != null) {
+                        newPinInput = it; pinDialogError = null
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    PinDialogField(value = repeatPinInput, label = "PIN tekrar", isError = pinDialogError != null) {
+                        repeatPinInput = it; pinDialogError = null
+                    }
+                    pinDialogError?.let { msg ->
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(msg, color = VegaColors.Danger, fontSize = 11.sp)
+                    }
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (newPinInput.length == 4) {
+                        val hata = if (pinSet && !ParentalPin.canUnlock(storedParentalPin, currentPinInput)) {
+                            "Mevcut PIN yanlış"
+                        } else {
+                            ParentalPin.validateNewPin(newPinInput, repeatPinInput)
+                        }
+                        if (hata != null) {
+                            pinDialogError = hata
+                        } else {
+                            val yeniPin = newPinInput
                             scope.launch {
-                                viewModel.preferences.setParentalPin(newPinInput)
-                                pinSuccessMessage = "Şifre güncellendi."
-                                showPinDialog = false
-                                newPinInput = ""
+                                viewModel.preferences.setParentalPin(yeniPin)
+                                pinSuccessMessage = if (pinSet) "PIN güncellendi." else "PIN belirlendi."
+                                closeDialog()
                             }
                         }
                     },
@@ -449,7 +484,7 @@ fun SettingsScreen(viewModel: MainViewModel) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showPinDialog = false }) {
+                TextButton(onClick = closeDialog) {
                     Text("İptal", color = TiviTextSecondary)
                 }
             }
@@ -463,6 +498,28 @@ fun SettingsScreen(viewModel: MainViewModel) {
             onDismiss = { showDeviceModeDialog = false }
         )
     }
+}
+
+@Composable
+private fun PinDialogField(value: String, label: String, isError: Boolean, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { if (it.length <= 4 && it.all { ch -> ch in '0'..'9' }) onChange(it) },
+        label = { Text(label) },
+        placeholder = { Text("••••") },
+        isError = isError,
+        singleLine = true,
+        visualTransformation = PasswordVisualTransformation(),
+        keyboardOptions = tvKeyboardOptions(KeyboardOptions(keyboardType = KeyboardType.NumberPassword)),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = OpusCyan,
+            unfocusedBorderColor = TiviCardBorder,
+            errorBorderColor = VegaColors.Danger,
+            focusedTextColor = TiviTextPrimary,
+            unfocusedTextColor = TiviTextPrimary
+        ),
+        modifier = Modifier.tvOpenKeyboardOnOk().fillMaxWidth()
+    )
 }
 
 @OptIn(coil.annotation.ExperimentalCoilApi::class)
@@ -1748,6 +1805,49 @@ private fun RenderSelectedSection(
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(text = "Sürüm: ${AppConfig.APP_NAME} ${com.tivimax.player.BuildConfig.VERSION_NAME}", color = TiviTextSecondary, fontSize = 12.sp)
+                    }
+
+                    // G-051/G-062: "Sorun bildir" her zaman görünür (çökme olmasa da); çökme sayısı ve
+                    // "Kayıtları sil" yalnızca çökme kaydı varken görünür.
+                    var crashCount by remember { mutableStateOf(CrashLogger.listReports(context).size) }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if (crashCount > 0) {
+                        Text(text = "Son çökmeler: $crashCount kayıt", color = VegaColors.TextSecondary, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    VegaButton(
+                        text = "Sorun bildir",
+                        variant = VegaButtonVariant.SECONDARY,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            try {
+                                val send = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, "${AppConfig.APP_NAME} hata raporu")
+                                    putExtra(Intent.EXTRA_TEXT, CrashLogger.buildShareText(context))
+                                }
+                                val chooser = Intent.createChooser(send, "Hata raporunu gönder").apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(chooser)
+                            } catch (e: Exception) {
+                                // TV gibi paylaşım uygulaması olmayan cihazlarda çökme olmasın
+                                Log.w("SettingsScreen", "Hata raporu paylaşılamadı: ${e.javaClass.simpleName}")
+                                Toast.makeText(context, "Bu cihazda paylaşım uygulaması yok", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                    if (crashCount > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        VegaButton(
+                            text = "Kayıtları sil",
+                            variant = VegaButtonVariant.TEXT,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                CrashLogger.clear(context)
+                                crashCount = CrashLogger.listReports(context).size
+                            }
+                        )
                     }
                 }
             }

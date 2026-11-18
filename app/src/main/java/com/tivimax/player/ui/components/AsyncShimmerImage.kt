@@ -1,5 +1,6 @@
 package com.tivimax.player.ui.components
 
+import com.tivimax.player.ui.design.VegaColors
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -32,9 +33,9 @@ fun rememberShimmerBrush(
     targetValue: Float = 1000f
 ): Brush {
     val shimmerColors = listOf(
-        Color(0xFF0F141C),
-        Color(0xFF1E2638),
-        Color(0xFF0F141C)
+        VegaColors.Card,
+        VegaColors.SurfaceVariant,
+        VegaColors.Card
     )
     val transition = rememberInfiniteTransition(label = "ShimmerTransition")
     val translateAnim by transition.animateFloat(

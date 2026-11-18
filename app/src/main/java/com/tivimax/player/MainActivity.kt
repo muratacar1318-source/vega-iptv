@@ -257,6 +257,7 @@ class MainActivity : ComponentActivity() {
         if (::viewModel.isInitialized) {
             val inPip = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInPictureInPictureMode else false
             val inMultiWindow = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) isInMultiWindowMode else false
+            if (!inPip) viewModel.lockParental() // G-052: Arka plana giderken +18 kilidi tekrar kapanır
             // Kullanıcı uygulamadan tamamen ayrıldığında (PiP veya çoklu pencerede değilse) oynatıcıyı duraklat
             if (isTvModeActive() || (!inPip && !inMultiWindow)) {
                 if (viewModel.playerManager.isPlaying.value) {

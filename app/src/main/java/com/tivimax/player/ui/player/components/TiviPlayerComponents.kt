@@ -1862,7 +1862,8 @@ fun PlayerPillButton(
                 color = contentColor,
                 fontSize = if (isPortrait) VegaText.Caption else VegaText.Secondary,
                 fontWeight = if (isFocused || isActive) FontWeight.Bold else FontWeight.Medium,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

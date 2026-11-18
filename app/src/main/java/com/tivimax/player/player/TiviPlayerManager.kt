@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.tivimax.player.BuildConfig
+import com.tivimax.player.util.PlaybackEventLog
 import androidx.annotation.OptIn
 import androidx.core.view.doOnAttach
 import androidx.media3.ui.PlayerView
@@ -628,6 +629,8 @@ class TiviPlayerManager(private val context: Context) {
     private var pendingRetryJob: Job? = null
 
     // G-044: Canlı yayın takılma bekçisi — "yükleniyor"da uzun kalırsa aynı kanala yeniden bağlanır
+    // G-058: Film/dizide de çalışır (ilk kare görüntülendikten sonra 15 sn); kalınan saniyeden yeniden bağlanır.
+    // (Değişken adları canlı için yazıldığı gibi kaldı; canlı + film/dizi ortak kullanır.)
     private var liveStallJob: Job? = null
     private var liveStallRecoveries = 0
 
@@ -638,26 +641,48 @@ class TiviPlayerManager(private val context: Context) {
 
     private fun armLiveStallWatchdog() {
         cancelLiveStallWatchdog()
-        if (!isLiveStream) return
+        val liveAtArm = isLiveStream
+        // G-062: Son kullanıcı sarmasından bu yana geçen süre (hiç sarma olmadıysa null)
+        val msSinceSeek = if (lastSeekTimestamp > 0L) System.currentTimeMillis() - lastSeekTimestamp else null
+        val timeoutMs = StallPolicy.timeoutMs(liveAtArm, hasRenderedFirstFrameOrReady, msSinceSeek) ?: return
+        val seekRelated = !liveAtArm && StallPolicy.isSeekRelated(msSinceSeek)
         val urlAtArm = currentPlayingUrl ?: return
-        val timeoutMs = if (hasRenderedFirstFrameOrReady) 10_000L else 20_000L
         liveStallJob = scope.launch {
             delay(timeoutMs)
             val p = exoPlayer ?: return@launch
-            if (!isLiveStream || currentPlayingUrl != urlAtArm) return@launch
+            if (isLiveStream != liveAtArm || currentPlayingUrl != urlAtArm) return@launch
             if (p.playbackState != Player.STATE_BUFFERING || !p.playWhenReady) return@launch
             if (isReconnecting) return@launch
             if (liveStallRecoveries >= 3) {
                 _reconnectStatus.value = null
-                _errorMessage.value = "Kanal şu an yanıt vermiyor. Biraz sonra tekrar dene ya da başka bir kanal aç."
+                _errorMessage.value = if (liveAtArm) {
+                    "Kanal şu an yanıt vermiyor. Biraz sonra tekrar dene ya da başka bir kanal aç."
+                } else {
+                    "Bağlantı çok yavaş. Biraz sonra tekrar dene."
+                }
                 return@launch
             }
             liveStallRecoveries++
-            android.util.Log.w("VegaIPTV", "Canlı yayın ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
-            _reconnectStatus.value = "Yayın yeniden bağlanıyor... ($liveStallRecoveries/3)"
-            p.stop()
-            streamingHttpClient.evictAll()
-            p.seekToDefaultPosition()
+            PlaybackEventLog.add("bekçi", "${if (liveAtArm) "canlı" else "film/dizi"} ${timeoutMs} ms takıldı, deneme $liveStallRecoveries/3, sarmaya bağlı=$seekRelated, evictAll")
+            if (liveAtArm) {
+                android.util.Log.w("VegaIPTV", "Canlı yayın ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
+                _reconnectStatus.value = "Yayın yeniden bağlanıyor... ($liveStallRecoveries/3)"
+                p.stop()
+                streamingHttpClient.evictAll()
+                p.seekToDefaultPosition()
+            } else {
+                // G-058: Konum, durdurmadan ÖNCE alınır; kurtarma kalınan saniyeden devam eder
+                // (izleme ilerlemesi kaydı ve altyazı gecikmesi etkilenmez).
+                val pos = p.currentPosition
+                android.util.Log.w("VegaIPTV", "Film/dizi ${timeoutMs}ms takıldı, yeniden bağlanılıyor (Deneme $liveStallRecoveries)")
+                // G-062: Sarma kaynaklı kurtarmanın ilk denemesi sessiz (normal yükleniyor yuvarlağı görünür)
+                if (!(seekRelated && liveStallRecoveries == 1)) {
+                    _reconnectStatus.value = "Bağlantı yenileniyor... ($liveStallRecoveries/3)"
+                }
+                p.stop()
+                streamingHttpClient.evictAll()
+                p.seekTo(pos)
+            }
             p.prepare()
             p.play()
         }
@@ -737,6 +762,13 @@ class TiviPlayerManager(private val context: Context) {
 
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
+                PlaybackEventLog.add("durum", when (playbackState) {
+                    Player.STATE_BUFFERING -> "BUFFERING"
+                    Player.STATE_READY -> "READY"
+                    Player.STATE_IDLE -> "IDLE"
+                    Player.STATE_ENDED -> "ENDED"
+                    else -> "?"
+                })
                 when (playbackState) {
                     Player.STATE_BUFFERING -> {
                         _isBuffering.value = true
@@ -791,6 +823,7 @@ class TiviPlayerManager(private val context: Context) {
             }
 
             override fun onRenderedFirstFrame() {
+                PlaybackEventLog.add("ilk kare")
                 hasRenderedFirstFrameOrReady = true
                 decoderRecoveryAttempt = 0
                 networkRecoveryAttempt = 0
@@ -814,6 +847,7 @@ class TiviPlayerManager(private val context: Context) {
                 android.util.Log.e("VegaIPTV", "Player error: ${error.errorCodeName} (${error.errorCode})", error)
 
                 val httpStatusCode = extractHttpStatusCode(error)
+                PlaybackEventLog.add("hata", "${error.errorCodeName} http=${httpStatusCode ?: "-"}")
 
                 // SADECE isLive == false iken: İlk URL HTTP 403, 429 veya 509 ile başarısız olursa,
                 // sonraki fallback uzantısına geçmeden ÖNCE aynı URL'yi 1.500 ms bekleyip bir kez daha dene.
@@ -826,6 +860,7 @@ class TiviPlayerManager(private val context: Context) {
                         if (BuildConfig.DEBUG) {
                             Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] İlk VOD URL'si HTTP $httpStatusCode aldı (tek bağlantı emniyeti). 1500ms beklenip aynı URL tekrar deneniyor...")
                         }
+                        PlaybackEventLog.add("yeniden deneme", "aynı akış 1,5 sn sonra (HTTP $httpStatusCode)")
                         pendingRetryJob = scope.launch {
                             delay(1500L)
                             playInternal(sameUrl, isLive = false, startPositionMs = currentPos)
@@ -846,6 +881,7 @@ class TiviPlayerManager(private val context: Context) {
                      error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED) &&
                     decoderRecoveryAttempt < 3) {
                     decoderRecoveryAttempt++
+                    PlaybackEventLog.add("yeniden deneme", "dekoder kurtarma $decoderRecoveryAttempt/3")
                     val currentPos = exoPlayer?.currentPosition ?: 0L
                     android.util.Log.w("VegaIPTV", "Dekoder hatası algılandı, yayın ${currentPos}ms konumundan otomatik kurtarılıyor (Deneme $decoderRecoveryAttempt)...")
                     player.stop()
@@ -887,6 +923,7 @@ class TiviPlayerManager(private val context: Context) {
                                 return@launch
                             }
                             android.util.Log.w("VegaIPTV", "Ağ koptu, yeniden bağlanılıyor (Deneme $networkRecoveryAttempt)...")
+                            PlaybackEventLog.add("yeniden deneme", "ağ koptu, deneme $networkRecoveryAttempt")
                             player.stop()
                             player.seekTo(currentPos)
                             player.prepare()
@@ -903,6 +940,7 @@ class TiviPlayerManager(private val context: Context) {
                     val currentPos = exoPlayer?.currentPosition ?: 0L
                     fallbackAttempt++
                     val nextUrl = fallbackUrls[fallbackAttempt]
+                    PlaybackEventLog.add("yeniden deneme", "yedek akış $fallbackAttempt/${fallbackUrls.size}")
                     if (BuildConfig.DEBUG) {
                         Log.d(TAG_TIMING, "[+${timingOffsetMs()}ms] Fallback geçişi yapılıyor -> deneme=$fallbackAttempt/${fallbackUrls.size}")
                     }
@@ -1019,6 +1057,7 @@ class TiviPlayerManager(private val context: Context) {
         this.currentUrl = url
         this.currentPlayingUrl = url
         this.isLiveStream = isLive
+        PlaybackEventLog.add("oynatma", (if (isLive) "canlı" else "film/dizi") + " başladı, konum=${startPositionMs / 1000} sn, akış=${fallbackAttempt + 1}/${maxOf(1, fallbackUrls.size)}")
         this.smartSubtitleAppliedForUrl = null
         _errorMessage.value = null
         _streamDiagnostics.value = StreamDiagnostics()
@@ -1079,6 +1118,7 @@ class TiviPlayerManager(private val context: Context) {
     fun retryCurrent() {
         if (currentUrl.isNotBlank()) {
             val pos = exoPlayer?.currentPosition ?: 0L
+            PlaybackEventLog.add("yeniden deneme", "kullanıcı: tekrar dene")
             playInternal(currentUrl, isLive = isLiveStream, startPositionMs = pos)
         }
     }
@@ -1087,6 +1127,7 @@ class TiviPlayerManager(private val context: Context) {
         if (fallbackUrls.isNotEmpty()) {
             fallbackAttempt = (fallbackAttempt + 1) % fallbackUrls.size
             val nextUrl = fallbackUrls[fallbackAttempt]
+            PlaybackEventLog.add("yeniden deneme", "kullanıcı: alternatif akış ${fallbackAttempt + 1}/${fallbackUrls.size}")
             _errorMessage.value = null
             val currentPos = exoPlayer?.currentPosition ?: 0L
             if (BuildConfig.DEBUG) {
@@ -1123,6 +1164,24 @@ class TiviPlayerManager(private val context: Context) {
 
     private var lastSeekTimestamp = 0L
 
+    /**
+     * G-062: Film/dizide kullanıcı sarması tamponun dışına düşüyorsa, sarmadan HEMEN ÖNCE boşta kalan eski
+     * bağlantıları kapatır (tek bağlantı sınırı olan sağlayıcılarda yeni istek eski bağlantı yüzünden bekletilmesin).
+     * Tampon içindeki sarmada çağrılırsa hiçbir şey yapmaz (gereksiz yeniden bağlantı olmasın).
+     */
+    private fun prepareVodSeek(target: Long) {
+        if (isLiveStream) return
+        val p = exoPlayer ?: return
+        val outsideBuffer = target > p.bufferedPosition || target < p.currentPosition - 2000L
+        PlaybackEventLog.add(
+            "sarma",
+            "hedef=${target / 1000} sn, şimdi=${p.currentPosition / 1000} sn, tampon=${p.bufferedPosition / 1000} sn, ${if (outsideBuffer) "tampon dışı, evictAll" else "tampon içi"}"
+        )
+        if (outsideBuffer) {
+            streamingHttpClient.evictAll()
+        }
+    }
+
     fun seekTo(positionMs: Long) {
         val target = positionMs.coerceAtLeast(0L)
         lastSeekTimestamp = System.currentTimeMillis()
@@ -1134,6 +1193,7 @@ class TiviPlayerManager(private val context: Context) {
             seekTargetMs = target
         }
         _currentPosition.value = target
+        prepareVodSeek(target)
         exoPlayer?.seekTo(target)
     }
 
@@ -1150,6 +1210,7 @@ class TiviPlayerManager(private val context: Context) {
                 seekTargetMs = target
             }
             _currentPosition.value = target
+            prepareVodSeek(target)
             it.seekTo(target)
         }
     }
@@ -1166,6 +1227,7 @@ class TiviPlayerManager(private val context: Context) {
                 seekTargetMs = target
             }
             _currentPosition.value = target
+            prepareVodSeek(target)
             it.seekTo(target)
         }
     }
@@ -1183,6 +1245,7 @@ class TiviPlayerManager(private val context: Context) {
                 seekTargetMs = target
             }
             _currentPosition.value = target
+            prepareVodSeek(target)
             it.seekTo(target)
         }
     }
@@ -1199,6 +1262,7 @@ class TiviPlayerManager(private val context: Context) {
                 seekTargetMs = target
             }
             _currentPosition.value = target
+            prepareVodSeek(target)
             it.seekTo(target)
         }
     }
@@ -1730,5 +1794,28 @@ class TiviPlayerManager(private val context: Context) {
         streamingHttpClient.evictAll()
         _isBuffering.value = false
         _isPlaying.value = false
+    }
+}
+
+/**
+ * G-058: Takılma bekçisinin süre kuralı (saf; birim testle doğrulanır).
+ * Dönüş değeri null ise bekçi kurulmaz.
+ * - Canlı: ilk kare öncesi 20 sn, sonrası 10 sn (G-044, değişmedi).
+ * - Film/dizi: açılışta kurulmaz (açılış yavaşlığı G-027'nin işi); ilk kare görüldükten sonra 15 sn;
+ *   kullanıcı sarmasından ≤3 sn sonra başlayan takılmada 5 sn (G-062).
+ */
+object StallPolicy {
+    /** G-062: Kullanıcı sarmasından bu yana bu süre içinde başlayan takılma "sarma kaynaklı" sayılır. */
+    const val SEEK_WINDOW_MS = 3_000L
+    /** G-062: Sarma kaynaklı takılmada bekçi süresi. */
+    const val SEEK_STALL_MS = 5_000L
+
+    /** Takılma, kullanıcı sarmasından hemen sonra mı başladı? ([msSinceSeek] null = hiç sarma olmadı) */
+    fun isSeekRelated(msSinceSeek: Long?): Boolean = msSinceSeek != null && msSinceSeek in 0..SEEK_WINDOW_MS
+
+    fun timeoutMs(isLive: Boolean, firstFrameShown: Boolean, msSinceSeek: Long? = null): Long? = when {
+        isLive -> if (firstFrameShown) 10_000L else 20_000L
+        firstFrameShown -> if (isSeekRelated(msSinceSeek)) SEEK_STALL_MS else 15_000L
+        else -> null
     }
 }

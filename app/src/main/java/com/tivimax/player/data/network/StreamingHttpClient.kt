@@ -28,6 +28,14 @@ class StreamingHttpClient(
         private const val MAX_IDLE_CONNECTIONS = 5
         private const val KEEP_ALIVE_MINUTES = 5L
 
+        private fun logWarn(message: String) {
+            try {
+                android.util.Log.w(TAG, message)
+            } catch (_: Throwable) {
+                // sessiz: JVM birim test ortamında Android Log mock'lu olmayabilir
+            }
+        }
+
         private fun logDebug(message: String) {
             try {
                 android.util.Log.d(TAG, message)
@@ -59,7 +67,9 @@ class StreamingHttpClient(
         try {
             pool.evictAll()
             logDebug("Yayın bağlantı havuzu boşaltıldı (evictAll).")
-        } catch (_: Throwable) {}
+        } catch (e: Throwable) {
+            logWarn("Bağlantı havuzu boşaltılamadı: ${e.javaClass.simpleName}")
+        }
     }
 
     /**

@@ -9,25 +9,54 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.util.DeviceMode
 import com.tivimax.player.util.OrientationManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
 val Context.appDataStore by preferencesDataStore(name = "tivimax_preferences")
 
+// JSON anahtarları sabittir (G-048): v1.5.1 ve öncesinde R8'in kısalttığı adlar (a..d) okurken kabul edilir.
 data class WatchProgress(
+    @SerializedName(value = "streamId", alternate = ["a"])
     val streamId: Int,
+    @SerializedName(value = "positionMs", alternate = ["b"])
     val positionMs: Long,
+    @SerializedName(value = "durationMs", alternate = ["c"])
     val durationMs: Long,
+    @SerializedName(value = "timestamp", alternate = ["d"])
     val timestamp: Long = System.currentTimeMillis()
 ) {
     val isWatched: Boolean get() = durationMs > 0 && positionMs >= (durationMs * 0.88)
+}
+
+/** G-056: İzleme ilerlemesi kaydında tutulacak en fazla kayıt sayısı. */
+const val MAX_WATCH_PROGRESS_ENTRIES = 500
+
+/**
+ * G-056: Kayıt sayısı [max]'ı aşarsa `timestamp`'ı en eski olanları atar. [keepKey] verilirse (az önce
+ * eklenen kayıt) o hiçbir zaman atılmaz; zaman damgaları eşit olsa bile korunur.
+ */
+fun trimProgress(
+    map: Map<String, WatchProgress>,
+    max: Int = MAX_WATCH_PROGRESS_ENTRIES,
+    keepKey: String? = null
+): Map<String, WatchProgress> {
+    if (map.size <= max) return map
+    val kept = map.entries
+        .sortedWith(
+            compareByDescending<Map.Entry<String, WatchProgress>> { it.key == keepKey }
+                .thenByDescending { it.value.timestamp }
+        )
+        .take(max)
+    return kept.associate { it.key to it.value }
 }
 
 class UserPreferences(private val context: Context) {
@@ -219,7 +248,7 @@ class UserPreferences(private val context: Context) {
         context.appDataStore.data.map { it[stringSetPreferencesKey(keyFor("fav_series", id))] ?: emptySet() }
     }
 
-    val parentalPinFlow: Flow<String> = context.appDataStore.data.map { it[KEY_PARENTAL_PIN] ?: "0000" }
+    val parentalPinFlow: Flow<String> = context.appDataStore.data.map { it[KEY_PARENTAL_PIN] ?: "" } // boş = PIN henüz belirlenmemiş (G-050)
     val streamFormatFlow: Flow<String> = context.appDataStore.data.map { it[KEY_STREAM_FORMAT] ?: "TS" }
     val fastZappingFlow: Flow<Boolean> = context.appDataStore.data.map { it[KEY_FAST_ZAPPING] ?: true }
     val aspectRatioFlow: Flow<String> = context.appDataStore.data.map { it[KEY_ASPECT_RATIO] ?: "FIT" }
@@ -299,15 +328,20 @@ class UserPreferences(private val context: Context) {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val watchProgressMapFlow: Flow<Map<String, WatchProgress>> = activePlaylistIdFlow.flatMapLatest { id ->
-        context.appDataStore.data.map { prefs ->
-            val json = prefs[stringPreferencesKey(keyFor("watch_progress_json", id))] ?: "{}"
-            val type = object : TypeToken<Map<String, WatchProgress>>() {}.type
-            try {
-                gson.fromJson(json, type) ?: emptyMap()
-            } catch (e: Exception) {
-                emptyMap()
+        val key = stringPreferencesKey(keyFor("watch_progress_json", id))
+        context.appDataStore.data
+            .map { prefs -> prefs[key] ?: "{}" }
+            // G-056: Başka bir ayar (favori, tema, ses…) değişince JSON aynı kalır; yeniden ayrıştırma yapma.
+            .distinctUntilChanged()
+            .map { json ->
+                val type = object : TypeToken<Map<String, WatchProgress>>() {}.type
+                try {
+                    gson.fromJson<Map<String, WatchProgress>>(json, type) ?: emptyMap()
+                } catch (e: Exception) {
+                    logSilentFailure("İzleme ilerlemesi verisi okunamadı", e)
+                    emptyMap()
+                }
             }
-        }
     }
 
     suspend fun saveCredentials(username: String, pass: String, serverUrl: String) {
@@ -406,10 +440,12 @@ class UserPreferences(private val context: Context) {
             val map: MutableMap<String, WatchProgress> = try {
                 gson.fromJson(json, type) ?: mutableMapOf()
             } catch (e: Exception) {
+                logSilentFailure("İzleme ilerlemesi verisi okunamadı", e)
                 mutableMapOf()
             }
-            map[streamId.toString()] = WatchProgress(streamId, positionMs, durationMs)
-            prefs[key] = gson.toJson(map)
+            val entryKey = streamId.toString()
+            map[entryKey] = WatchProgress(streamId, positionMs, durationMs)
+            prefs[key] = gson.toJson(trimProgress(map, MAX_WATCH_PROGRESS_ENTRIES, keepKey = entryKey)) // G-056
         }
     }
 
@@ -422,6 +458,7 @@ class UserPreferences(private val context: Context) {
         val map: Map<String, WatchProgress> = try {
             gson.fromJson(json, type) ?: emptyMap()
         } catch (e: Exception) {
+            logSilentFailure("İzleme ilerlemesi verisi okunamadı", e)
             emptyMap()
         }
         return map[streamId.toString()]
@@ -436,6 +473,7 @@ class UserPreferences(private val context: Context) {
             val map: MutableMap<String, WatchProgress> = try {
                 gson.fromJson(json, type) ?: mutableMapOf()
             } catch (e: Exception) {
+                logSilentFailure("İzleme ilerlemesi verisi okunamadı", e)
                 mutableMapOf()
             }
             map.remove(streamId.toString())
@@ -595,7 +633,8 @@ class UserPreferences(private val context: Context) {
         else {
             try {
                 DeviceMode.valueOf(modeStr)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logSilentFailure("Kayıtlı cihaz modu geçersiz", e)
                 null
             }
         }
@@ -685,7 +724,8 @@ class UserPreferences(private val context: Context) {
             try {
                 val type = object : TypeToken<List<String>>() {}.type
                 gson.fromJson<List<String>>(json, type) ?: emptyList()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logSilentFailure("Son aramalar verisi okunamadı", e)
                 emptyList()
             }
         }
@@ -703,7 +743,8 @@ class UserPreferences(private val context: Context) {
                     val type = object : TypeToken<List<String>>() {}.type
                     (gson.fromJson<List<String>>(currentJson, type) ?: emptyList()).toMutableList()
                 } else mutableListOf()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logSilentFailure("Son aramalar verisi okunamadı", e)
                 mutableListOf()
             }
             currentList.removeAll { it.equals(clean, ignoreCase = true) }
@@ -722,7 +763,8 @@ class UserPreferences(private val context: Context) {
             val currentList: MutableList<String> = try {
                 val type = object : TypeToken<List<String>>() {}.type
                 (gson.fromJson<List<String>>(currentJson, type) ?: emptyList()).toMutableList()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                logSilentFailure("Son aramalar verisi okunamadı", e)
                 return@edit
             }
             currentList.removeAll { it.equals(clean, ignoreCase = true) }
@@ -761,5 +803,14 @@ class UserPreferences(private val context: Context) {
                 }
             }
         }
+    }
+}
+
+/** G-057: Yutulan hatayı kaydeder. Mesajda adres/kimlik bilgisi olmasın diye yalnızca hata türü yazılır. */
+private fun logSilentFailure(what: String, e: Throwable) {
+    try {
+        android.util.Log.w("UserPreferences", "$what (${e.javaClass.simpleName})")
+    } catch (_: Throwable) {
+        // sessiz: JVM birim test ortamında Android Log mock'lu olmayabilir
     }
 }

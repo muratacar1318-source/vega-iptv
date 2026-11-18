@@ -141,10 +141,20 @@ fun OpusDashboardScreen(viewModel: MainViewModel) {
     var currentSpotlight by remember { mutableStateOf<SpotlightContent?>(null) }
     val activeSpotlight = currentSpotlight ?: initialSpotlight
 
+    // G-034: Ana sayfa dikey kaydırma konumu korunur
+    val positionStore = viewModel.catalogPositions
+    val savedScroll = remember { positionStore.get("home:scroll")?.offset ?: 0 }
+    val pageScrollState = rememberScrollState(initial = savedScroll)
+    DisposableEffect(Unit) {
+        onDispose {
+            positionStore.save("home:scroll", 0, pageScrollState.value, 0)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(pageScrollState)
             .padding(horizontal = if (isTvDevice) 18.dp else 14.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {

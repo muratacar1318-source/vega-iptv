@@ -65,11 +65,22 @@ abstract class AppDatabase : RoomDatabase() {
                     if (instance?.isOpen == true) {
                         instance?.close()
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    logSilentFailure("Veritabanı kapatılırken hata", e)
+                }
                 instance = null
             }
         }
 
         fun getCurrentDbName(): String = currentDbName
+    }
+}
+
+/** G-057: Yutulan hatayı kaydeder. Mesajda adres/kimlik bilgisi olmasın diye yalnızca hata türü yazılır. */
+private fun logSilentFailure(what: String, e: Throwable) {
+    try {
+        android.util.Log.w("AppDatabase", "$what (${e.javaClass.simpleName})")
+    } catch (_: Throwable) {
+        // sessiz: JVM birim test ortamında Android Log mock'lu olmayabilir
     }
 }

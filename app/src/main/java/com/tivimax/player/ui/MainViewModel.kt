@@ -283,136 +283,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // EVRENSEL ARAMA (UNIVERSAL SEARCH)
     // ============================================================================
 
-    val universalSearchQuery = MutableStateFlow("")
-    val universalSearchFilter = MutableStateFlow(SearchFilter.ALL)
-    val isUniversalSearching = MutableStateFlow(false)
-    val universalLiveResults = MutableStateFlow<List<LiveStream>>(emptyList())
-    val universalVodResults = MutableStateFlow<List<VodStream>>(emptyList())
-    val universalSeriesResults = MutableStateFlow<List<SeriesStream>>(emptyList())
-
-    val recentSearches: StateFlow<List<String>> = preferences.recentSearchesFlow.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        emptyList()
+    // G-054: Evrensel arama ui/vm/UniversalSearchController.kt'ye taşındı; eski public adlar aynen ileri yönlendirilir.
+    private val universalSearch = com.tivimax.player.ui.vm.UniversalSearchController(
+        scope = viewModelScope,
+        repository = repository,
+        preferences = preferences,
+        allowedLiveCategoryIds = { visibleLiveCategories.value.map { it.categoryId }.toSet() },
+        allowedVodCategoryIds = { visibleVodCategories.value.map { it.categoryId }.toSet() },
+        allowedSeriesCategoryIds = { visibleSeriesCategories.value.map { it.categoryId }.toSet() }
     )
 
-    private var universalSearchJob: Job? = null
+    val universalSearchQuery: MutableStateFlow<String> get() = universalSearch.searchQuery
+    val universalSearchFilter: MutableStateFlow<SearchFilter> get() = universalSearch.searchFilter
+    val isUniversalSearching: MutableStateFlow<Boolean> get() = universalSearch.isSearching
+    val universalLiveResults: MutableStateFlow<List<LiveStream>> get() = universalSearch.liveResults
+    val universalVodResults: MutableStateFlow<List<VodStream>> get() = universalSearch.vodResults
+    val universalSeriesResults: MutableStateFlow<List<SeriesStream>> get() = universalSearch.seriesResults
+    val recentSearches: StateFlow<List<String>> get() = universalSearch.recentSearches
 
-    fun setUniversalSearchQuery(query: String) {
-        universalSearchQuery.value = query
-        triggerUniversalSearch(query)
-    }
-
-    fun setUniversalSearchFilter(filter: SearchFilter) {
-        universalSearchFilter.value = filter
-    }
-
-    fun saveRecentSearch(query: String) {
-        val clean = query.trim()
-        if (clean.length >= 2) {
-            viewModelScope.launch {
-                preferences.addRecentSearch(clean)
-            }
-        }
-    }
-
-    fun removeRecentSearch(query: String) {
-        viewModelScope.launch {
-            preferences.removeRecentSearch(query)
-        }
-    }
-
-    fun clearRecentSearches() {
-        viewModelScope.launch {
-            preferences.clearRecentSearches()
-        }
-    }
-
-    private fun triggerUniversalSearch(query: String) {
-        universalSearchJob?.cancel()
-        val clean = query.trim()
-        if (clean.length < 2) {
-            universalLiveResults.value = emptyList()
-            universalVodResults.value = emptyList()
-            universalSeriesResults.value = emptyList()
-            isUniversalSearching.value = false
-            return
-        }
-
-        universalSearchJob = viewModelScope.launch(Dispatchers.IO) {
-            delay(300) // 300ms debounce
-            isUniversalSearching.value = true
-
-            val qLower = clean.lowercase(Locale.ROOT)
-            val qUpperTr = clean.uppercase(Locale.forLanguageTag("tr-TR"))
-            val qUpperEn = clean.uppercase(Locale.ENGLISH)
-            val qNorm = TurkishStringNormalizer.normalize(clean)
-            val variants = setOf(clean, qLower, qUpperTr, qUpperEn, qNorm).filter { it.length >= 2 }
-
-            val allowedLiveCats = visibleLiveCategories.value.map { it.categoryId }.toSet()
-            val allowedVodCats = visibleVodCategories.value.map { it.categoryId }.toSet()
-            val allowedSeriesCats = visibleSeriesCategories.value.map { it.categoryId }.toSet()
-
-            // 1. Canlı TV
-            val liveMap = mutableMapOf<Int, LiveStream>()
-            for (v in variants) {
-                try {
-                    val list = repository.searchLiveStreamsFlow(v).first()
-                    for (stream in list) {
-                        if (stream.categoryId in allowedLiveCats && TurkishStringNormalizer.matches(stream.name, clean)) {
-                            liveMap[stream.streamId] = stream
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-            val sortedLive = liveMap.values.sortedWith(
-                compareByDescending<LiveStream> {
-                    TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
-                }.thenBy { it.name }
-            ).take(30)
-
-            // 2. Filmler (VOD)
-            val vodMap = mutableMapOf<Int, VodStream>()
-            for (v in variants) {
-                try {
-                    val list = repository.searchVodStreamsFlow(v).first()
-                    for (stream in list) {
-                        if (stream.categoryId in allowedVodCats && TurkishStringNormalizer.matches(stream.name, clean)) {
-                            vodMap[stream.streamId] = stream
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-            val sortedVod = vodMap.values.sortedWith(
-                compareByDescending<VodStream> {
-                    TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
-                }.thenBy { it.name }
-            ).take(30)
-
-            // 3. Diziler
-            val seriesMap = mutableMapOf<Int, SeriesStream>()
-            for (v in variants) {
-                try {
-                    val list = repository.searchSeriesStreamsFlow(v).first()
-                    for (stream in list) {
-                        if (stream.categoryId in allowedSeriesCats && TurkishStringNormalizer.matches(stream.name, clean)) {
-                            seriesMap[stream.seriesId] = stream
-                        }
-                    }
-                } catch (_: Exception) {}
-            }
-            val sortedSeries = seriesMap.values.sortedWith(
-                compareByDescending<SeriesStream> {
-                    TurkishStringNormalizer.normalize(it.name).startsWith(qNorm)
-                }.thenBy { it.name }
-            ).take(30)
-
-            universalLiveResults.value = sortedLive
-            universalVodResults.value = sortedVod
-            universalSeriesResults.value = sortedSeries
-            isUniversalSearching.value = false
-        }
-    }
+    fun setUniversalSearchQuery(query: String) = universalSearch.setQuery(query)
+    fun setUniversalSearchFilter(filter: SearchFilter) = universalSearch.setFilter(filter)
+    fun saveRecentSearch(query: String) = universalSearch.saveRecentSearch(query)
+    fun removeRecentSearch(query: String) = universalSearch.removeRecentSearch(query)
+    fun clearRecentSearches() = universalSearch.clearRecentSearches()
 
     // Mini-Player Canlı Önizleme (TiviMate Tarzı Dikey Önizleme)
     val activePreviewChannel = MutableStateFlow<LiveStream?>(null)
@@ -424,17 +317,64 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Son İzlenen Önceki Canlı Kanal (Zapping Recall - Tek tuşla önceki kanala dönüş)
     val lastPlayedLiveChannel = MutableStateFlow<LiveStream?>(null)
 
-    // Kategori Yönetimi & Ebeveyn Kilidi
-    val hiddenCategories = preferences.lockedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
-    val pinnedCategories = preferences.pinnedCategoriesFlow.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
-    val isParentalUnlocked = MutableStateFlow(false)
-    val parentalPin = preferences.parentalPinFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "0000")
+    // G-054: Kategori yönetimi ve ebeveyn kilidi ui/vm/CategoryAccessController.kt'ye taşındı.
+    // Eski public adlar aynen ileri yönlendirilir. Parça, aşağıdaki akışlardan ÖNCE kurulur (başlatma sırası).
+    private val categoryAccess = com.tivimax.player.ui.vm.CategoryAccessController(
+        scope = viewModelScope,
+        preferences = preferences,
+        liveCategories = liveCategories,
+        vodCategories = vodCategories,
+        seriesCategories = seriesCategories
+    )
+    val hiddenCategories: StateFlow<Set<String>> get() = categoryAccess.hiddenCategories
+    val pinnedCategories: StateFlow<Set<String>> get() = categoryAccess.pinnedCategories
+    val isParentalUnlocked: MutableStateFlow<Boolean> get() = categoryAccess.isParentalUnlocked
+    val parentalPin: StateFlow<String> get() = categoryAccess.parentalPin
+    val blockedLiveCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedLiveCategoryIds
+    val blockedVodCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedVodCategoryIds
+    val blockedSeriesCategoryIds: StateFlow<Set<String>> get() = categoryAccess.blockedSeriesCategoryIds
+    val hasAdultLiveCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultLiveCategory
+    val hasAdultVodCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultVodCategory
+    val hasAdultSeriesCategory: StateFlow<Boolean> get() = categoryAccess.hasAdultSeriesCategory
+    val visibleLiveCategories: StateFlow<List<LiveCategory>> get() = categoryAccess.visibleLiveCategories
+    val visibleVodCategories: StateFlow<List<VodCategory>> get() = categoryAccess.visibleVodCategories
+    val visibleSeriesCategories: StateFlow<List<SeriesCategory>> get() = categoryAccess.visibleSeriesCategories
 
-    // Hızlı Kanal Numarasıyla Geçiş (Numeric Zapper)
-    val zapperNumber = MutableStateFlow("")
-    val isZapperActive = MutableStateFlow(false)
-    val zapperMatchedChannel = MutableStateFlow<LiveStream?>(null)
-    private var zapperJob: Job? = null
+    fun isAdultCategory(name: String): Boolean = categoryAccess.isAdultCategory(name)
+    fun toggleCategoryHidden(categoryId: String, isHidden: Boolean) = categoryAccess.toggleCategoryHidden(categoryId, isHidden)
+    fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) = categoryAccess.setAllCategoriesHidden(categoryIds, isHidden)
+    fun toggleCategoryPinned(categoryId: String) = categoryAccess.toggleCategoryPinned(categoryId)
+    fun unlockParental(pin: String): Boolean = categoryAccess.unlockParental(pin)
+    fun createParentalPin(pin: String, repeat: String): Boolean = categoryAccess.createParentalPin(pin, repeat)
+    fun lockParental() = categoryAccess.lockParental()
+    fun setParentalPin(newPin: String) = categoryAccess.setParentalPin(newPin)
+    fun toggleCategoryHidden(categoryId: String) = categoryAccess.toggleCategoryHidden(categoryId)
+
+    // G-054: Kanal geçişi ui/vm/ZapController.kt'ye taşındı; eski public adlar aynen ileri yönlendirilir.
+    // Sonradan kurulan akışlar ve oynatma işlevleri lambda ile verilir (çağrı anında okunur).
+    private val zapper = com.tivimax.player.ui.vm.ZapController(
+        scope = viewModelScope,
+        appContext = application,
+        liveStreams = liveStreams,
+        lastPlayedLiveChannel = lastPlayedLiveChannel,
+        allLiveStreams = { allLiveStreams.value },
+        allLiveStreamsRaw = { allLiveStreamsRaw.value },
+        blockedLiveCategoryIds = { blockedLiveCategoryIds.value },
+        isTvMode = { deviceMode.value == com.tivimax.player.util.DeviceMode.TV },
+        showLiveTvTab = { setSelectedHomeTab(com.tivimax.player.ui.main.HomeTab.LIVE_TV) },
+        playLiveChannel = { playLiveChannel(it) },
+        scheduleTvZap = { scheduleTvZap(it) }
+    )
+    val zapperNumber: MutableStateFlow<String> get() = zapper.zapperNumber
+    val isZapperActive: MutableStateFlow<Boolean> get() = zapper.isZapperActive
+    val zapperMatchedChannel: MutableStateFlow<LiveStream?> get() = zapper.zapperMatchedChannel
+
+    fun onNumericKeyPressed(digit: Int) = zapper.onNumericKeyPressed(digit)
+    fun executeZapperSwitch() = zapper.executeZapperSwitch()
+    fun dismissZapper() = zapper.dismissZapper()
+    fun zapNextChannel(currentStreamId: Int): LiveStream? = zapper.zapNextChannel(currentStreamId)
+    fun zapPreviousChannel(currentStreamId: Int): LiveStream? = zapper.zapPreviousChannel(currentStreamId)
+    fun zapRecall(): LiveStream? = zapper.zapRecall()
 
     // Canlı TV Düzen Modu ("SHELF" = Raf Düzeni, "CLASSIC" = Klasik Düzen [Varsayılan])
     val liveLayoutMode: StateFlow<String> = preferences.liveLayoutModeFlow
@@ -453,8 +393,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Tüm Canlı Kanallar (Raf Düzeni Kategorizasyonu ve Hızlı Erişim İçin)
-    val allLiveStreams: StateFlow<List<LiveStream>> = repository.getLiveStreamsFilteredFlow(null, "", "DEFAULT")
+    // G-052: Ham liste yalnızca "Bu kanal kilitli" kararı için tutulur; dışarıya süzülmüşü verilir.
+    private val allLiveStreamsRaw: StateFlow<List<LiveStream>> = repository.getLiveStreamsFilteredFlow(null, "", "DEFAULT")
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val allLiveStreams: StateFlow<List<LiveStream>> =
+        combine(allLiveStreamsRaw, blockedLiveCategoryIds) { list, blocked ->
+            AdultFilter.filterBlocked(list, blocked) { it.categoryId }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun refreshLiveChannels() {
         loadLiveStreams(selectedLiveCategory.value, forceRefresh = true)
@@ -498,52 +443,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         scrollToTopLiveEvent.tryEmit(Unit)
     }
 
-    fun isAdultCategory(name: String): Boolean {
-        val clean = name.lowercase()
-        return clean.contains("+18") || clean.contains("18+") || clean.contains("xxx") ||
-                clean.contains("adult") || clean.contains("yetişkin") || clean.contains("erotik") ||
-                clean.contains("porn")
-    }
+    // G-054: Hesap bilgisi, içerik sayıları ve hız testi ui/vm/AccountController.kt'ye taşındı.
+    private val account = com.tivimax.player.ui.vm.AccountController(
+        scope = viewModelScope,
+        repository = repository,
+        preferences = preferences,
+        playlistRepository = playlistRepository,
+        userInfo = userInfo
+    )
+    val speedTestResult: MutableStateFlow<String?> get() = account.speedTestResult
+    val isTestingSpeed: MutableStateFlow<Boolean> get() = account.isTestingSpeed
+    val accountContentCounts: StateFlow<Triple<Int, Int, Int>?> get() = account.accountContentCounts
+    val accountRefreshing: StateFlow<Boolean> get() = account.accountRefreshing
 
-    val visibleLiveCategories: StateFlow<List<LiveCategory>> = combine(liveCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
-        cats.filter { cat ->
-            if (cat.categoryId == "all") return@filter true
-            if (hidden.contains(cat.categoryId)) return@filter false
-            if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
-            true
-        }.sortedWith(
-            compareByDescending<LiveCategory> { it.categoryId == "all" }
-                .thenByDescending { pinned.contains(it.categoryId) }
-        )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-
-    val visibleVodCategories: StateFlow<List<VodCategory>> = combine(vodCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
-        cats.filter { cat ->
-            if (cat.categoryId == "all") return@filter true
-            if (hidden.contains(cat.categoryId)) return@filter false
-            if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
-            true
-        }.sortedWith(
-            compareByDescending<VodCategory> { it.categoryId == "all" }
-                .thenByDescending { pinned.contains(it.categoryId) }
-        )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-
-    val visibleSeriesCategories: StateFlow<List<SeriesCategory>> = combine(seriesCategories, hiddenCategories, pinnedCategories, isParentalUnlocked) { cats, hidden, pinned, unlocked ->
-        cats.filter { cat ->
-            if (cat.categoryId == "all") return@filter true
-            if (hidden.contains(cat.categoryId)) return@filter false
-            if (!unlocked && isAdultCategory(cat.categoryName)) return@filter false
-            true
-        }.sortedWith(
-            compareByDescending<SeriesCategory> { it.categoryId == "all" }
-                .thenByDescending { pinned.contains(it.categoryId) }
-        )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-
-    // Hız Testi Durumu
-    val speedTestResult = MutableStateFlow<String?>(null)
-    val isTestingSpeed = MutableStateFlow(false)
+    fun loadAccountContentCounts() = account.loadAccountContentCounts()
+    fun refreshAccountInfo(
+        silent: Boolean = false,
+        onResult: ((success: Boolean, message: String) -> Unit)? = null
+    ) = account.refreshAccountInfo(silent, onResult)
+    fun runSpeedTest() = account.runSpeedTest()
 
     val streamFormat = preferences.streamFormatFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "TS")
 
@@ -609,112 +527,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Uygulama Tema Ayarı
     val appTheme = preferences.appThemeFlow.stateIn(viewModelScope, SharingStarted.Eagerly, "MIDNIGHT")
 
-    // Hesap ve Liste Bilgileri & İçerik Sayıları
-    private val _accountContentCounts = MutableStateFlow<Triple<Int, Int, Int>?>(null)
-    val accountContentCounts: StateFlow<Triple<Int, Int, Int>?> = _accountContentCounts.asStateFlow()
+    // G-054: Kısa EPG önbelleği ui/vm/EpgCache.kt'ye taşındı; eski public adlar aynen ileri yönlendirilir.
+    private val epgCache = com.tivimax.player.ui.vm.EpgCache(viewModelScope, repository)
 
-    private val _accountRefreshing = MutableStateFlow(false)
-    val accountRefreshing: StateFlow<Boolean> = _accountRefreshing.asStateFlow()
-
-    private var lastAccountRefreshTimeMs: Long = 0L
-
-    fun loadAccountContentCounts() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val liveCount = repository.database?.liveDao()?.getTotalStreamCount() ?: 0
-            val vodCount = repository.database?.vodDao()?.getTotalStreamCount() ?: 0
-            val seriesCount = repository.database?.seriesDao()?.getTotalStreamCount() ?: 0
-            _accountContentCounts.value = Triple(liveCount, vodCount, seriesCount)
-        }
-    }
-
-    fun refreshAccountInfo(
-        silent: Boolean = false,
-        onResult: ((success: Boolean, message: String) -> Unit)? = null
-    ) {
-        val now = System.currentTimeMillis()
-        if (silent && (now - lastAccountRefreshTimeMs) < 5 * 60 * 1000L) {
-            return
-        }
-
-        viewModelScope.launch {
-            _accountRefreshing.value = true
-            try {
-                val active = playlistRepository.getActivePlaylist()
-                if (active == null) {
-                    _accountRefreshing.value = false
-                    if (!silent) {
-                        onResult?.invoke(false, "Aktif liste bulunamadı")
-                    }
-                    return@launch
-                }
-
-                val user = active.username
-                val pass = active.password
-                val server = active.serverUrl
-                val effectiveServer = if (server.isBlank() || server.contains("my-iptv-server")) {
-                    AppConfig.DEFAULT_SERVER_URL
-                } else {
-                    server
-                }
-
-                if (user.isBlank() || pass.isBlank()) {
-                    _accountRefreshing.value = false
-                    if (!silent) {
-                        onResult?.invoke(false, "Bilgiler alınamadı, bağlantınızı kontrol edin")
-                    }
-                    return@launch
-                }
-
-                val result = repository.authenticate(effectiveServer, user, pass)
-                result.fold(
-                    onSuccess = { authResp ->
-                        lastAccountRefreshTimeMs = System.currentTimeMillis()
-                        val uInfo = authResp.userInfo
-                        if (uInfo != null) {
-                            userInfo.value = uInfo
-                            val currentExp = preferences.expDateFlow.first()
-                            val currentMax = preferences.maxConnectionsFlow.first()
-                            val currentActive = preferences.activeConnectionsFlow.first()
-                            val currentStatus = preferences.statusFlow.first()
-                            val currentTrial = preferences.isTrialFlow.first()
-                            val currentCreated = preferences.createdAtFlow.first()
-
-                            preferences.saveAuth(
-                                username = user,
-                                password = pass,
-                                serverUrl = effectiveServer,
-                                expDate = uInfo.expDate ?: currentExp,
-                                maxCons = uInfo.maxConnections ?: currentMax,
-                                activeCons = uInfo.activeCons ?: currentActive,
-                                status = uInfo.status ?: currentStatus,
-                                isTrial = uInfo.isTrial ?: currentTrial,
-                                createdAt = uInfo.createdAt ?: currentCreated,
-                                playlistId = active.id
-                            )
-                        }
-                        if (!silent) {
-                            onResult?.invoke(true, "Hesap bilgileri güncellendi")
-                        }
-                    },
-                    onFailure = {
-                        if (!silent) {
-                            onResult?.invoke(false, "Bilgiler alınamadı, bağlantınızı kontrol edin")
-                        }
-                    }
-                )
-            } catch (_: Exception) {
-                if (!silent) {
-                    onResult?.invoke(false, "Bilgiler alınamadı, bağlantınızı kontrol edin")
-                }
-            } finally {
-                _accountRefreshing.value = false
-            }
-        }
-    }
-
-    // Canlı TV Kanal Listesi Kısa EPG Önbelleği (Kanal Kartlarında Anlık Program & İlerleme)
-    val epgSummaryMap = MutableStateFlow<Map<Int, EpgProgram>>(emptyMap())
-    val epgProgramsMap = MutableStateFlow<Map<Int, List<EpgProgram>>>(emptyMap())
+    // G-034: Izgara/şerit kaydırma konumları (detaydan dönünce aynı yere dönmek için); liste değişince sıfırlanır.
+    val catalogPositions = com.tivimax.player.ui.vm.CatalogPositionStore()
+    val epgSummaryMap: MutableStateFlow<Map<Int, EpgProgram>> get() = epgCache.epgSummaryMap
+    val epgProgramsMap: MutableStateFlow<Map<Int, List<EpgProgram>>> get() = epgCache.epgProgramsMap
 
     fun setVodBufferSeconds(seconds: Int) {
         viewModelScope.launch {
@@ -765,27 +584,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loadEpgSummary(streamId: Int) {
-        if (epgSummaryMap.value.containsKey(streamId)) return
-        viewModelScope.launch(Dispatchers.IO) {
-            repository.getShortEpg(streamId).onSuccess { list ->
-                if (list.isNotEmpty()) {
-                    val nowSec = System.currentTimeMillis() / 1000L
-                    val currentProgram = list.firstOrNull {
-                        it.nowPlaying == 1 || (it.startTimestamp > 0 && it.stopTimestamp > 0 && nowSec in it.startTimestamp..it.stopTimestamp)
-                    } ?: list.first()
-
-                    withContext(Dispatchers.Main) {
-                        epgSummaryMap.value = epgSummaryMap.value + (streamId to currentProgram)
-                        epgProgramsMap.value = epgProgramsMap.value + (streamId to list)
-                        if (BuildConfig.DEBUG) {
-                            Log.d("G005_EPG", "EPG parsed: streamId=$streamId, title='${currentProgram.getDecodedTitle()}', rawStart='${currentProgram.start}', startTimestamp=${currentProgram.startTimestamp}, getFormattedTime='${currentProgram.getFormattedTime()}', LiveTimeFormatter='${com.tivimax.player.ui.player.components.LiveTimeFormatter.formatTimeRange(currentProgram)}'")
-                        }
-                    }
-                }
-            }
-        }
-    }
+    fun loadEpgSummary(streamId: Int) = epgCache.loadEpgSummary(streamId)
 
     init {
         repository.cleanupSyncTempFiles()
@@ -846,13 +645,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         // Reaktif Room DB Akışları (Arama & Kategori & Sıralama Değişimlerinde SQL Index Tabanlı Anlık Filtreleme)
         viewModelScope.launch {
+            // G-057: Açılışta Canlı kategorileri yüklenmeden içerik gösterme (+18 anlık görünmesin);
+            // en fazla 2 sn beklenir, yalnız ilk açılışta bir kez (collectLatest dışında).
+            kotlinx.coroutines.withTimeoutOrNull(2_000L) { liveCategories.first { it.isNotEmpty() } }
             combine(selectedLiveCategory, liveSearchQuery, liveSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
             .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all" || cat == "favorites" || cat == "recents") null else cat
-                repository.getLiveStreamsFilteredFlow(filterCat, q, sort.name)
+                combine(repository.getLiveStreamsFilteredFlow(filterCat, q, sort.name), blockedLiveCategoryIds) { list, blocked ->
+                    AdultFilter.filterBlocked(list, blocked) { it.categoryId }
+                }
                     .catch { e -> Log.w("MainViewModel", "Live streams filtered flow error", e) }
                     .collect { streams ->
                         liveStreams.value = streams
@@ -864,13 +668,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
+            // G-057: Açılışta Film kategorileri yüklenmeden içerik gösterme (+18 anlık görünmesin);
+            // en fazla 2 sn beklenir, yalnız ilk açılışta bir kez (collectLatest dışında).
+            kotlinx.coroutines.withTimeoutOrNull(2_000L) { vodCategories.first { it.isNotEmpty() } }
             combine(selectedVodCategory, vodSearchQuery, vodSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
             .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all") null else cat
-                repository.getVodStreamsFilteredFlow(filterCat, q, sort.name)
+                combine(repository.getVodStreamsFilteredFlow(filterCat, q, sort.name), blockedVodCategoryIds) { list, blocked ->
+                    AdultFilter.filterBlocked(list, blocked) { it.categoryId }
+                }
                     .catch { e -> Log.w("MainViewModel", "Vod streams filtered flow error", e) }
                     .collect { streams ->
                         vodStreams.value = streams
@@ -882,13 +691,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
+            // G-057: Açılışta Dizi kategorileri yüklenmeden içerik gösterme (+18 anlık görünmesin);
+            // en fazla 2 sn beklenir, yalnız ilk açılışta bir kez (collectLatest dışında).
+            kotlinx.coroutines.withTimeoutOrNull(2_000L) { seriesCategories.first { it.isNotEmpty() } }
             combine(selectedSeriesCategory, seriesSearchQuery, seriesSortOption, repository.activeDbFlow) { cat, q, sort, _ ->
                 Triple(cat, q, sort)
             }
             .debounce(300)
             .collectLatest { (cat, q, sort) ->
                 val filterCat = if (q.isNotBlank() || cat == "all") null else cat
-                repository.getSeriesStreamsFilteredFlow(filterCat, q, sort.name)
+                combine(repository.getSeriesStreamsFilteredFlow(filterCat, q, sort.name), blockedSeriesCategoryIds) { list, blocked ->
+                    AdultFilter.filterBlocked(list, blocked) { it.categoryId }
+                }
                     .catch { e -> Log.w("MainViewModel", "Series streams filtered flow error", e) }
                     .collect { streams ->
                         seriesStreams.value = streams
@@ -998,6 +812,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * G-050: Liste "kuruldu" görünse de yedekten dönüşte içerik veritabanı boş gelir
+     * (veritabanları yedeğe alınmaz). Canlı kanal, film ve dizi sayısı sıfırsa içerik yeniden indirilmeli.
+     * Sayım IO iş parçacığında yapılır; okunamazsa eski davranış korunur (true).
+     */
+    private suspend fun hasLocalContent(): Boolean = withContext(Dispatchers.IO) {
+        val db = repository.database ?: return@withContext true
+        try {
+            db.liveDao().getTotalStreamCount() > 0 ||
+                db.vodDao().getTotalStreamCount() > 0 ||
+                db.seriesDao().getTotalStreamCount() > 0
+        } catch (e: Exception) {
+            Log.w("MainViewModel", "hasLocalContent sayımı başarısız: ${e.message}")
+            true
+        }
+    }
+
     fun checkUserLoginAndNavigate() {
         viewModelScope.launch {
             // G-025 Tek seferlik geçiş (Migration)
@@ -1034,7 +865,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     auth = 1
                 )
 
-                if (activePl.isSynced) {
+                if (activePl.isSynced && hasLocalContent()) {
                     _currentScreen.value = Screen.Home
                     loadInitialData()
                 } else {
@@ -1060,7 +891,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         liveCategoriesJob?.cancel()
         vodCategoriesJob?.cancel()
         seriesCategoriesJob?.cancel()
-        universalSearchJob?.cancel()
+        universalSearch.cancelSearch()
+        catalogPositions.clear()
 
         liveCategories.value = emptyList()
         liveStreams.value = emptyList()
@@ -1128,7 +960,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _isLoggedIn.value = true
 
                 // 5. Yönlendir
-                if (targetPlaylist.isSynced) {
+                if (targetPlaylist.isSynced && hasLocalContent()) {
                     _currentScreen.value = Screen.Home
                     loadInitialData()
                 } else {
@@ -1137,7 +969,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 // 6. Arka planda hesap bilgisini tazele
-                lastAccountRefreshTimeMs = 0L
+                account.resetRefreshThrottle()
                 refreshAccountInfo(silent = true)
 
                 onComplete?.invoke(true)
@@ -1886,6 +1718,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loginDemo() {
+        if (!BuildConfig.DEBUG) return
         _isLoggedIn.value = true
         userInfo.value = XtreamUserInfo(
             username = "Demo Kullanıcı",
@@ -2010,63 +1843,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun toggleCategoryHidden(categoryId: String, isHidden: Boolean) {
-        viewModelScope.launch {
-            preferences.setCategoryHidden(categoryId, isHidden)
-        }
-    }
-
-    fun setAllCategoriesHidden(categoryIds: Collection<String>, isHidden: Boolean) {
-        viewModelScope.launch {
-            preferences.setAllCategoriesHidden(categoryIds, isHidden)
-        }
-    }
-
-    fun toggleCategoryPinned(categoryId: String) {
-        viewModelScope.launch {
-            preferences.toggleCategoryPinned(categoryId)
-        }
-    }
-
-    fun onNumericKeyPressed(digit: Int) {
-        val current = zapperNumber.value
-        val newNumber = if (current.length >= 4) digit.toString() else current + digit.toString()
-        zapperNumber.value = newNumber
-        isZapperActive.value = true
-
-        val targetNum = newNumber.toIntOrNull() ?: return
-        val allList = allLiveStreams.value.ifEmpty { liveStreams.value }
-        val matched = allList.firstOrNull { it.num == targetNum }
-            ?: allList.firstOrNull { it.streamId == targetNum }
-            ?: allList.getOrNull(targetNum - 1)
-        zapperMatchedChannel.value = matched
-
-        zapperJob?.cancel()
-        zapperJob = viewModelScope.launch {
-            delay(1500L)
-            executeZapperSwitch()
-        }
-    }
-
-    fun executeZapperSwitch() {
-        zapperJob?.cancel()
-        val matched = zapperMatchedChannel.value
-        if (matched != null) {
-            if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-                setSelectedHomeTab(com.tivimax.player.ui.main.HomeTab.LIVE_TV)
-            }
-            playLiveChannel(matched)
-        }
-        dismissZapper()
-    }
-
-    fun dismissZapper() {
-        zapperJob?.cancel()
-        zapperNumber.value = ""
-        isZapperActive.value = false
-        zapperMatchedChannel.value = null
-    }
-
     fun previewChannel(channel: LiveStream) {
         val t0 = SystemClock.elapsedRealtime()
         if (BuildConfig.DEBUG) {
@@ -2120,30 +1896,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 categoryId = channel.categoryId
             )
         )
-    }
-
-    fun unlockParental(pin: String): Boolean {
-        if (pin == parentalPin.value || pin == "0000") {
-            isParentalUnlocked.value = true
-            return true
-        }
-        return false
-    }
-
-    fun lockParental() {
-        isParentalUnlocked.value = false
-    }
-
-    fun setParentalPin(newPin: String) {
-        viewModelScope.launch {
-            preferences.setParentalPin(newPin)
-        }
-    }
-
-    fun toggleCategoryHidden(categoryId: String) {
-        viewModelScope.launch {
-            preferences.toggleCategoryHidden(categoryId)
-        }
     }
 
     fun loadEpgForChannel(streamId: Int) {
@@ -2240,52 +1992,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun tvGuidePreviewChannel(channel: LiveStream) {
         if (activePreviewChannel.value?.streamId == channel.streamId) return
         scheduleTvZap(channel)
-    }
-
-    fun zapNextChannel(currentStreamId: Int): LiveStream? {
-        val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
-            liveStreams.value
-        } else {
-            allLiveStreams.value.ifEmpty { liveStreams.value }
-        }
-        if (list.isEmpty()) return null
-        val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
-        val nextIndex = if (currentIndex != -1) (currentIndex + 1) % list.size else 0
-        val nextChannel = list[nextIndex]
-        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-            scheduleTvZap(nextChannel)
-        } else {
-            playLiveChannel(nextChannel)
-        }
-        return nextChannel
-    }
-
-    fun zapPreviousChannel(currentStreamId: Int): LiveStream? {
-        val list = if (liveStreams.value.any { it.streamId == currentStreamId }) {
-            liveStreams.value
-        } else {
-            allLiveStreams.value.ifEmpty { liveStreams.value }
-        }
-        if (list.isEmpty()) return null
-        val currentIndex = list.indexOfFirst { it.streamId == currentStreamId }
-        val prevIndex = if (currentIndex > 0) currentIndex - 1 else if (currentIndex == 0) list.size - 1 else 0
-        val prevChannel = list[prevIndex]
-        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-            scheduleTvZap(prevChannel)
-        } else {
-            playLiveChannel(prevChannel)
-        }
-        return prevChannel
-    }
-
-    fun zapRecall(): LiveStream? {
-        val prev = lastPlayedLiveChannel.value ?: return null
-        if (deviceMode.value == com.tivimax.player.util.DeviceMode.TV) {
-            scheduleTvZap(prev)
-        } else {
-            playLiveChannel(prev)
-        }
-        return prev
     }
 
     private var lastPlayActionTime = 0L
@@ -2441,40 +2147,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleFavoriteSeries(seriesId: String) {
         viewModelScope.launch {
             preferences.toggleFavoriteSeries(seriesId)
-        }
-    }
-
-    fun runSpeedTest() {
-        viewModelScope.launch {
-            isTestingSpeed.value = true
-            speedTestResult.value = "Ölçülüyor…"
-
-            withContext(Dispatchers.IO) {
-                try {
-                    val client = OkHttpClient.Builder()
-                        .dns(BoundedDns.instance)
-                        .connectTimeout(10, TimeUnit.SECONDS)
-                        .readTimeout(10, TimeUnit.SECONDS)
-                        .build()
-
-                    val startTime = System.currentTimeMillis()
-                    val req = Request.Builder().url(repository.serverUrl).head().build()
-                    val resp = client.newCall(req).execute()
-                    val ping = System.currentTimeMillis() - startTime
-
-                    val quality = when {
-                        ping < 150 -> "Bağlantı iyi (gecikme $ping ms)"
-                        ping < 400 -> "Bağlantı orta (gecikme $ping ms)"
-                        else -> "Bağlantı yavaş (gecikme $ping ms)"
-                    }
-                    speedTestResult.value = quality
-                } catch (e: Exception) {
-                    android.util.Log.w("MainViewModel", "Speed test failed", e)
-                    speedTestResult.value = "Bağlantı kurulamadı. İnternetini kontrol et."
-                } finally {
-                    isTestingSpeed.value = false
-                }
-            }
         }
     }
 
