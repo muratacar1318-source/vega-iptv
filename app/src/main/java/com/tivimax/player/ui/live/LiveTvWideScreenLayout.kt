@@ -46,7 +46,6 @@ import com.tivimax.player.ui.components.CategoryItem
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
-import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.vegaPanel
 import androidx.compose.foundation.basicMarquee

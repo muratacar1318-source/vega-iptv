@@ -93,7 +93,6 @@ fun UniversalSearchScreen(
 
     Scaffold(
         containerColor = Color.Transparent,
-        modifier = Modifier.vegaBackdrop(),
         topBar = {
             Column(
                 modifier = Modifier
@@ -258,7 +257,9 @@ fun UniversalSearchScreen(
                 }
             }
         },
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .vegaBackdrop()
     ) { innerPadding ->
         Box(
             modifier = Modifier
