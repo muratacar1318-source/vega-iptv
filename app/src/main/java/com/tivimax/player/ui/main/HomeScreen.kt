@@ -42,8 +42,10 @@ import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
+import com.tivimax.player.ui.design.vegaBackdrop
 import com.tivimax.player.ui.components.AsyncShimmerImage
 import com.tivimax.player.ui.components.QuickPlaylistSwitchDialog
+import com.tivimax.player.ui.components.VegaTopNavBar
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.favorites.FavoritesScreen
 import com.tivimax.player.ui.live.LiveTvScreen
@@ -159,16 +161,15 @@ fun HomeScreen(viewModel: MainViewModel) {
     val maxCons = userInfo?.maxConnections?.ifEmpty { "1" } ?: "1"
 
     if (isTvDevice) {
-        // ANDROID TV: Mobil arayüzün tüm sekmeleri (Ana Sayfa, Canlı TV, Filmler, Diziler, Favoriler, Ayarlar)
-        // kumanda ile gezilebilen sol menü ile gösterilir. Canlı TV sekmesi TiviMate rehber düzenini kullanır.
-        Row(
+        // ANDROID TV: StreamVault tarzı yüzen üst gezinme çubuğu + derin gece arka planı.
+        // Canlı TV tam ekran oynatılırken üst çubuk tamamen gizlenir.
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(VegaColors.Background)
+                .vegaBackdrop()
         ) {
-            // Canlı TV tam ekran oynatılırken menü gizlenir
             if (!(selectedTab == HomeTab.LIVE_TV && tvLiveFullScreen)) {
-                TvNavigationRail(
+                VegaTopNavBar(
                     selectedTab = selectedTab,
                     onTabSelected = { tab ->
                         if (tab != selectedTab) {
@@ -176,40 +177,39 @@ fun HomeScreen(viewModel: MainViewModel) {
                             viewModel.setVideoFullscreen(false)
                             viewModel.setSelectedHomeTab(tab)
                         }
-                        // G-042: Canlı TV / Filmler / Diziler'de imleç doğrudan kategorilere geçsin
                         if (tab == HomeTab.LIVE_TV || tab == HomeTab.MOVIES || tab == HomeTab.SERIES) {
                             tvFocusScope.launch {
                                 repeat(4) {
                                     delay(150L)
                                     if (!tvRailHasFocus) return@launch
-                                    tvFocusManager.moveFocus(FocusDirection.Right)
+                                    tvFocusManager.moveFocus(FocusDirection.Down)
                                 }
                             }
                         }
                     },
                     onSearchClick = { viewModel.navigateTo(Screen.Search) },
-                    onPlaylistsClick = { showQuickSwitchDialog = true },
-                    selectedTabFocusRequester = tvRailFocusRequester,
-                    onRailFocusChanged = { tvRailHasFocus = it },
+                    onPlaylistsClick = {
+                        if (playlists.size <= 1) {
+                            viewModel.openPlaylistsSettings()
+                        } else {
+                            showQuickSwitchDialog = true
+                        }
+                    },
+                    onSyncClick = { showSyncConfirmationDialog = true },
+                    activePlaylistName = activePlaylist?.name ?: "Ana liste",
                     activeCons = activeCons,
-                    maxCons = maxCons
+                    maxCons = maxCons,
+                    isSyncing = playlistSyncState.isSyncing,
+                    syncPercentage = playlistSyncState.overallPercentage,
+                    selectedTabFocusRequester = tvRailFocusRequester,
+                    onBarFocusChanged = { tvRailHasFocus = it },
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                 )
             }
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight()
-                    // G-033: ▲▼ ile sol menüye kaçma yok (menüye sadece ◀ ile girilir)
-                    .focusProperties {
-                        onExit = {
-                            if (requestedFocusDirection == FocusDirection.Up ||
-                                requestedFocusDirection == FocusDirection.Down
-                            ) {
-                                cancelFocusChange()
-                            }
-                        }
-                    }
-                    // G-033: menüden ▶ ile dönünce en son odaklanan öğeye gel
+                    .fillMaxWidth()
                     .focusRestorer()
                     .focusGroup()
             ) {
@@ -233,6 +233,61 @@ fun HomeScreen(viewModel: MainViewModel) {
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(16.dp)
+                    )
+                }
+            }
+        }
+    } else if (isWideScreen) {
+        // TABLET / YATAY MOD: StreamVault tarzı yüzen üst gezinme çubuğu ile tam genişlikli deneyim
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .vegaBackdrop()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
+                VegaTopNavBar(
+                    selectedTab = selectedTab,
+                    onTabSelected = { tab ->
+                        if (tab == HomeTab.LIVE_TV && selectedTab == HomeTab.LIVE_TV) {
+                            viewModel.triggerLiveScrollToTop()
+                        } else {
+                            viewModel.setSelectedHomeTab(tab)
+                        }
+                    },
+                    onSearchClick = { viewModel.navigateTo(Screen.Search) },
+                    onPlaylistsClick = {
+                        if (playlists.size <= 1) {
+                            viewModel.openPlaylistsSettings()
+                        } else {
+                            showQuickSwitchDialog = true
+                        }
+                    },
+                    onSyncClick = { showSyncConfirmationDialog = true },
+                    activePlaylistName = activePlaylist?.name ?: "Ana liste",
+                    activeCons = activeCons,
+                    maxCons = maxCons,
+                    isSyncing = playlistSyncState.isSyncing,
+                    syncPercentage = playlistSyncState.overallPercentage,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
+                    BackgroundSyncBanner(
+                        status = backgroundSyncStatus,
+                        percentage = playlistSyncState.overallPercentage,
+                        isTv = false,
+                        onRetry = { viewModel.refreshPlaylistContent() },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(14.dp)
                     )
                 }
             }
@@ -268,18 +323,16 @@ fun HomeScreen(viewModel: MainViewModel) {
             )
         },
         bottomBar = {
-            if (!isWideScreen) {
-                VegaBottomNavigationBar(
-                    activeTab = selectedTab,
-                    onTabSelected = { tab ->
-                        if (tab == HomeTab.LIVE_TV && selectedTab == HomeTab.LIVE_TV) {
-                            viewModel.triggerLiveScrollToTop()
-                        } else {
-                            viewModel.setSelectedHomeTab(tab)
-                        }
+            VegaBottomNavigationBar(
+                activeTab = selectedTab,
+                onTabSelected = { tab ->
+                    if (tab == HomeTab.LIVE_TV && selectedTab == HomeTab.LIVE_TV) {
+                        viewModel.triggerLiveScrollToTop()
+                    } else {
+                        viewModel.setSelectedHomeTab(tab)
                     }
-                )
-            }
+                }
+            )
         },
         snackbarHost = {
             BackgroundSyncBanner(
@@ -290,36 +343,15 @@ fun HomeScreen(viewModel: MainViewModel) {
                 modifier = Modifier.padding(bottom = 8.dp)
             )
         },
-        containerColor = VegaColors.Background
+        containerColor = Color.Transparent,
+        modifier = Modifier.vegaBackdrop()
     ) { innerPadding ->
-        if (isWideScreen) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                HomeNavigationRail(
-                    selectedTab = selectedTab,
-                    onTabSelected = { viewModel.setSelectedHomeTab(it) },
-                    activeCons = activeCons,
-                    maxCons = maxCons
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                ) {
-                    HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
-                }
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
-            }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            HomeContentBody(selectedTab = selectedTab, viewModel = viewModel)
         }
     }
 
@@ -591,7 +623,8 @@ private fun HomeTopBar(
     onSearchClick: () -> Unit = {}
 ) {
     Surface(
-        color = VegaColors.Background,
+        color = VegaColors.Surface.copy(alpha = 0.94f),
+        border = BorderStroke(0.5.dp, VegaColors.Border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -816,8 +849,8 @@ fun VegaBottomNavigationBar(
     )
 
     Surface(
-        color = VegaColors.Background,
-        border = BorderStroke(0.5.dp, VegaColors.Border),
+        color = VegaColors.Surface.copy(alpha = 0.96f),
+        border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(

@@ -1,86 +1,273 @@
 package com.tivimax.player.theme
 
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
-// ==========================================
-// VARSAYILAN KULLANILAN RENKLER (DEĞİŞKENLER)
-// Theme.kt içinden dinamik olarak atanacak ancak 
-// eski kodları bozmamak adına ColorSaver statik yapısı kullanılabilir.
-// ==========================================
-
-// Ortak / Sabit Renkler
-val TiviGold = Color(0xFFFFB300)            // IMDb/Puan Yıldızı
-val TiviGreen = Color(0xFF10B981)           // Aktif durum/yeşil
-val TiviTextPrimary = Color(0xFFF8FAFC)
-val TiviTextSecondary = Color(0xFF94A3B8)
-val TiviTextMuted = Color(0xFF64748B)
-
-// Tema Değişkenleri (Default Midnight Değerleri)
-// Bunları dinamik olarak değiştirmek compose recomposition gerektirir, 
-// o yüzden MaterialTheme.colorScheme.* kullanılması gerekir, ama var olan 
-// static referansları kırmamak için static bırakıp Theme'de custom LocalColor sağlayabiliriz.
-// En garantisi Tivi* değişkenlerini dinamik "ThemeColor" objesine çevirmektir.
-
-// Eski yapıyı kırmamak için var olan statik referanslar:
-var TiviBackground = Color(0xFF000000)      // Saf OLED Midnight Siyahı
-var TiviSurface = Color(0xFF0F141C)         // Sinematik Gece Yüzeyi
-var TiviSurfaceVariant = Color(0xFF161D28)  // Yarı Vurgulu Yüzey
-var TiviCard = Color(0xFF0F141C)            // Standart Kart Rengi
-var TiviCardBorder = Color(0xFF1E2638)      // İnce Zarif Kart Çerçevesi
-
-var TiviPrimary = Color(0xFF00E5FF)         // Tek Vurgu Rengi (Opus IPTV Neon Camgöbeği)
-var TiviPrimaryDark = Color(0xFF00E5FF)     // Koyu Vurgu
-var TiviSecondary = Color(0xFF00E5FF)       // Standart Vurgu
-var TiviAccentLive = Color(0xFFFF2A55)      // Canlı Yayın Kırmızısı
-var OpusCyan = Color(0xFF00E5FF)            // Opus IPTV Neon Camgöbeği
-var OpusPurple = Color(0xFF8B5CF6)          // Opus IPTV Neon Mor
-var TiviCardDark = Color(0xFF121824)        // Koyu Kart Yüzeyi
-
-val TiviOverlayDark = Color(0xCC0F141C)     // %80 Opak Buzlu Cam Paneli
-val TiviGlassmorphism = Color(0x990F141C)
-
-// ==========================================
-// TEMA PALETLERİ
-// ==========================================
+/**
+ * Vega IPTV Renk Paleti (StreamVault görsel diline uyarlı, anlık reaktif tema desteği)
+ */
+data class VegaPalette(
+    val id: String,
+    val canvas: Color,
+    val canvasElevated: Color,
+    val surface: Color,
+    val surfaceElevated: Color,
+    val surfaceVariant: Color,
+    val surfaceAccent: Color,
+    val border: Color,
+    val brand: Color,
+    val brandStrong: Color,
+    val onAccent: Color,
+    val live: Color,
+    val success: Color,
+    val gold: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val textMuted: Color,
+    val overlayPanel: Color,
+    val overlayPill: Color
+)
 
 object AppThemes {
-    // 1. MIDNIGHT (Mevcut Orijinal OLED Tema)
-    val MidnightPrimary = Color(0xFF00E5FF)
-    val MidnightCyan = Color(0xFF00E5FF)
-    val MidnightBackground = Color(0xFF000000)
-    val MidnightSurface = Color(0xFF0F141C)
-    val MidnightCard = Color(0xFF0F141C)
-    val MidnightCardDark = Color(0xFF121824)
-    val MidnightCardBorder = Color(0xFF1E2638)
-    val MidnightAccentLive = Color(0xFFFF2A55)
+    // 1. KLASİK MAVİ (Varsayılan — StreamVault derin gece laciverti + parlak gök mavisi)
+    val ClassicBlue = VegaPalette(
+        id = "MIDNIGHT",
+        canvas = Color(0xFF050C13),
+        canvasElevated = Color(0xFF08121D),
+        surface = Color(0xFF0D1826),
+        surfaceElevated = Color(0xFF132236),
+        surfaceVariant = Color(0xFF1B2E47),
+        surfaceAccent = Color(0xFF233956),
+        border = Color(0x305579A6),
+        brand = Color(0xFF69A8FF),
+        brandStrong = Color(0xFF93C1FF),
+        onAccent = Color(0xFF041120),
+        live = Color(0xFFFF5C61),
+        success = Color(0xFF4FD39A),
+        gold = Color(0xFFFFC766),
+        textPrimary = Color(0xFFF5F7FB),
+        textSecondary = Color(0xFFBBC6D8),
+        textMuted = Color(0xFF7F8DA5),
+        overlayPanel = Color(0xE80A1524),
+        overlayPill = Color(0xA60B1726)
+    )
 
-    // 2. OCEAN (Koyu Lacivert ve Turkuaz Tema)
-    val OceanPrimary = Color(0xFF0EA5E9)
-    val OceanCyan = Color(0xFF38BDF8)
-    val OceanBackground = Color(0xFF020617)
-    val OceanSurface = Color(0xFF0F172A)
-    val OceanCard = Color(0xFF0F172A)
-    val OceanCardDark = Color(0xFF1E293B)
-    val OceanCardBorder = Color(0xFF334155)
-    val OceanAccentLive = Color(0xFFF43F5E)
+    // 2. AMOLED SİYAH (Saf OLED siyah + neon camgöbeği)
+    val AmoledBlack = VegaPalette(
+        id = "AMOLED",
+        canvas = Color(0xFF000000),
+        canvasElevated = Color(0xFF05080D),
+        surface = Color(0xFF0B1018),
+        surfaceElevated = Color(0xFF121924),
+        surfaceVariant = Color(0xFF192231),
+        surfaceAccent = Color(0xFF212C3E),
+        border = Color(0x2E5C7599),
+        brand = Color(0xFF00E5FF),
+        brandStrong = Color(0xFF66F0FF),
+        onAccent = Color(0xFF001418),
+        live = Color(0xFFFF3B5C),
+        success = Color(0xFF10B981),
+        gold = Color(0xFFFFC766),
+        textPrimary = Color(0xFFF8FAFC),
+        textSecondary = Color(0xFF94A3B8),
+        textMuted = Color(0xFF64748B),
+        overlayPanel = Color(0xEB080C12),
+        overlayPill = Color(0xA6080C12)
+    )
 
-    // 3. FOREST (Koyu Zümrüt Yeşili Tema)
-    val ForestPrimary = Color(0xFF10B981)
-    val ForestCyan = Color(0xFF34D399)
-    val ForestBackground = Color(0xFF022C22)
-    val ForestSurface = Color(0xFF064E3B)
-    val ForestCard = Color(0xFF064E3B)
-    val ForestCardDark = Color(0xFF065F46)
-    val ForestCardBorder = Color(0xFF047857)
-    val ForestAccentLive = Color(0xFFEF4444)
+    // 3. OKYANUS (Derin petrol + turkuaz)
+    val Ocean = VegaPalette(
+        id = "OCEAN",
+        canvas = Color(0xFF041014),
+        canvasElevated = Color(0xFF07181E),
+        surface = Color(0xFF0B2128),
+        surfaceElevated = Color(0xFF122F38),
+        surfaceVariant = Color(0xFF1A414C),
+        surfaceAccent = Color(0xFF22525F),
+        border = Color(0x33517F87),
+        brand = Color(0xFF67D9D5),
+        brandStrong = Color(0xFF9AF2E8),
+        onAccent = Color(0xFF002B2A),
+        live = Color(0xFFFF6868),
+        success = Color(0xFF7BD8A8),
+        gold = Color(0xFFFFC875),
+        textPrimary = Color(0xFFF0FAFA),
+        textSecondary = Color(0xFFB9D0D3),
+        textMuted = Color(0xFF7F9CA1),
+        overlayPanel = Color(0xE8081B22),
+        overlayPill = Color(0xA6081B22)
+    )
 
-    // 4. VIOLET (Ametist / Koyu Mor Tema)
-    val VioletPrimary = Color(0xFF8B5CF6)
-    val VioletCyan = Color(0xFFA78BFA)
-    val VioletBackground = Color(0xFF2E1065)
-    val VioletSurface = Color(0xFF4C1D95)
-    val VioletCard = Color(0xFF4C1D95)
-    val VioletCardDark = Color(0xFF5B21B6)
-    val VioletCardBorder = Color(0xFF7C3AED)
-    val VioletAccentLive = Color(0xFFF97316)
+    // 4. ORMAN (Derin zümrüt yeşili)
+    val Forest = VegaPalette(
+        id = "FOREST",
+        canvas = Color(0xFF050F0B),
+        canvasElevated = Color(0xFF081711),
+        surface = Color(0xFF0E2018),
+        surfaceElevated = Color(0xFF162E23),
+        surfaceVariant = Color(0xFF204031),
+        surfaceAccent = Color(0xFF28503D),
+        border = Color(0x335B8A70),
+        brand = Color(0xFF79D6A5),
+        brandStrong = Color(0xFFA2F0C5),
+        onAccent = Color(0xFF052817),
+        live = Color(0xFFFF6868),
+        success = Color(0xFF79D6A5),
+        gold = Color(0xFFFFC66D),
+        textPrimary = Color(0xFFF1F8F3),
+        textSecondary = Color(0xFFBDCEC2),
+        textMuted = Color(0xFF83978A),
+        overlayPanel = Color(0xE80A1A13),
+        overlayPill = Color(0xA60A1A13)
+    )
+
+    // 5. MOR (M3 Koyu Grafit + Lavanta)
+    val Violet = VegaPalette(
+        id = "VIOLET",
+        canvas = Color(0xFF08080C),
+        canvasElevated = Color(0xFF0D0D13),
+        surface = Color(0xFF13131B),
+        surfaceElevated = Color(0xFF1B1B26),
+        surfaceVariant = Color(0xFF242433),
+        surfaceAccent = Color(0xFF2E2E42),
+        border = Color(0x2E9B8CC2),
+        brand = Color(0xFFD0BCFF),
+        brandStrong = Color(0xFFEADDFF),
+        onAccent = Color(0xFF2B1459),
+        live = Color(0xFFFF5C61),
+        success = Color(0xFF4FD39A),
+        gold = Color(0xFFFFC766),
+        textPrimary = Color(0xFFF5F7FB),
+        textSecondary = Color(0xFFC2C2C8),
+        textMuted = Color(0xFF8A8A92),
+        overlayPanel = Color(0xE8101018),
+        overlayPill = Color(0xA6101018)
+    )
+
+    // 6. GÜN BATIMI (Sıcak kestane + şeftali)
+    val Sunset = VegaPalette(
+        id = "SUNSET",
+        canvas = Color(0xFF130B0A),
+        canvasElevated = Color(0xFF1B100E),
+        surface = Color(0xFF241613),
+        surfaceElevated = Color(0xFF33201A),
+        surfaceVariant = Color(0xFF432920),
+        surfaceAccent = Color(0xFF543326),
+        border = Color(0x337B5747),
+        brand = Color(0xFFFFB27F),
+        brandStrong = Color(0xFFFFD0AD),
+        onAccent = Color(0xFF3A1809),
+        live = Color(0xFFFF6969),
+        success = Color(0xFF8BD3A8),
+        gold = Color(0xFFFFCA77),
+        textPrimary = Color(0xFFFFF6F0),
+        textSecondary = Color(0xFFD9C4B8),
+        textMuted = Color(0xFFA88D80),
+        overlayPanel = Color(0xE81E120F),
+        overlayPill = Color(0xA61E120F)
+    )
+
+    // 7. GÜL (Derin mürdüm + gül pembesi)
+    val Rose = VegaPalette(
+        id = "ROSE",
+        canvas = Color(0xFF120A11),
+        canvasElevated = Color(0xFF1A0F19),
+        surface = Color(0xFF241522),
+        surfaceElevated = Color(0xFF321E30),
+        surfaceVariant = Color(0xFF432841),
+        surfaceAccent = Color(0xFF53324F),
+        border = Color(0x337D5873),
+        brand = Color(0xFFF0A4CC),
+        brandStrong = Color(0xFFFFC6E2),
+        onAccent = Color(0xFF3E122B),
+        live = Color(0xFFFF6C70),
+        success = Color(0xFF83D2AA),
+        gold = Color(0xFFFFC878),
+        textPrimary = Color(0xFFFFF5FA),
+        textSecondary = Color(0xFFD9C1D0),
+        textMuted = Color(0xFFA88C9E),
+        overlayPanel = Color(0xE81C101B),
+        overlayPill = Color(0xA61C101B)
+    )
+
+    // 8. VİNTAGE (Koyu kahve + sıcak altın)
+    val Vintage = VegaPalette(
+        id = "VINTAGE",
+        canvas = Color(0xFF100D0A),
+        canvasElevated = Color(0xFF17130E),
+        surface = Color(0xFF201A14),
+        surfaceElevated = Color(0xFF2D251C),
+        surfaceVariant = Color(0xFF3B3024),
+        surfaceAccent = Color(0xFF4A3D2E),
+        border = Color(0x337D6B54),
+        brand = Color(0xFFE5C07B),
+        brandStrong = Color(0xFFF4D9A0),
+        onAccent = Color(0xFF2B200B),
+        live = Color(0xFFE86A5D),
+        success = Color(0xFF8EC07C),
+        gold = Color(0xFFE5C07B),
+        textPrimary = Color(0xFFF8F2E8),
+        textSecondary = Color(0xFFD1C4B2),
+        textMuted = Color(0xFF9C8D79),
+        overlayPanel = Color(0xE81A1510),
+        overlayPill = Color(0xA61A1510)
+    )
+
+    fun forName(themeName: String?): VegaPalette = when (themeName?.trim()?.uppercase()) {
+        "AMOLED" -> AmoledBlack
+        "OCEAN" -> Ocean
+        "FOREST" -> Forest
+        "VIOLET" -> Violet
+        "SUNSET" -> Sunset
+        "ROSE" -> Rose
+        "VINTAGE" -> Vintage
+        else -> ClassicBlue // "MIDNIGHT" / "CLASSIC_BLUE" varsayılan
+    }
+
+    // Eski referans uyumluluğu için
+    val MidnightPrimary get() = ClassicBlue.brand
+    val MidnightCyan get() = ClassicBlue.brand
+    val MidnightBackground get() = ClassicBlue.canvas
+    val MidnightSurface get() = ClassicBlue.surface
+    val MidnightCard get() = ClassicBlue.surfaceElevated
+    val MidnightCardDark get() = ClassicBlue.surfaceVariant
+    val MidnightCardBorder get() = ClassicBlue.border
+    val MidnightAccentLive get() = ClassicBlue.live
 }
+
+object ActivePaletteHolder {
+    private val state: MutableState<VegaPalette> = mutableStateOf(AppThemes.ClassicBlue)
+    var current: VegaPalette
+        get() = state.value
+        set(value) {
+            state.value = value
+        }
+}
+
+fun contentInkFor(color: Color): Color = if (color.luminance() > 0.179f) Color(0xFF041120) else Color.White
+
+// Reaktif global renk referansları (tüm eski ekranlarla %100 uyumlu + tema değişince anında güncellenir)
+val TiviGold: Color get() = ActivePaletteHolder.current.gold
+val TiviGreen: Color get() = ActivePaletteHolder.current.success
+val TiviTextPrimary: Color get() = ActivePaletteHolder.current.textPrimary
+val TiviTextSecondary: Color get() = ActivePaletteHolder.current.textSecondary
+val TiviTextMuted: Color get() = ActivePaletteHolder.current.textMuted
+
+val TiviBackground: Color get() = ActivePaletteHolder.current.canvas
+val TiviSurface: Color get() = ActivePaletteHolder.current.surface
+val TiviSurfaceVariant: Color get() = ActivePaletteHolder.current.surfaceVariant
+val TiviCard: Color get() = ActivePaletteHolder.current.surfaceElevated
+val TiviCardBorder: Color get() = ActivePaletteHolder.current.border
+
+val TiviPrimary: Color get() = ActivePaletteHolder.current.brand
+val TiviPrimaryDark: Color get() = ActivePaletteHolder.current.brand
+val TiviSecondary: Color get() = ActivePaletteHolder.current.brandStrong
+val TiviAccentLive: Color get() = ActivePaletteHolder.current.live
+val OpusCyan: Color get() = ActivePaletteHolder.current.brand
+val OpusPurple: Color get() = Color(0xFF8B5CF6)
+val TiviCardDark: Color get() = ActivePaletteHolder.current.surfaceVariant
+
+val TiviOverlayDark: Color get() = ActivePaletteHolder.current.overlayPanel
+val TiviGlassmorphism: Color get() = ActivePaletteHolder.current.overlayPill

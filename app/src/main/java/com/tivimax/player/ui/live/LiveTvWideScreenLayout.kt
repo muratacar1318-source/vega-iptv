@@ -46,6 +46,8 @@ import com.tivimax.player.ui.components.CategoryItem
 import com.tivimax.player.ui.components.QualityBadge
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.vegaPanel
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.focus.FocusRequester
@@ -105,17 +107,17 @@ fun LiveTvWideScreenLayout(
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(TiviBackground)
+            .padding(start = 14.dp, end = 14.dp, bottom = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // ====================================================================
-        // 1. SÜTUN (SOL - 220.dp - KATEGORİLER)
+        // 1. SÜTUN (SOL - 224.dp - KATEGORİLER, STREAMVAULT PANEL)
         // ====================================================================
-        Surface(
+        Box(
             modifier = Modifier
-                .width(220.dp)
-                .fillMaxHeight(),
-            color = TiviSurface,
-            tonalElevation = 2.dp
+                .width(224.dp)
+                .fillMaxHeight()
+                .vegaPanel(VegaShapes.Large)
         ) {
             Column(
                 modifier = Modifier
@@ -376,16 +378,14 @@ fun LiveTvWideScreenLayout(
             }
         }
 
-        VerticalDivider(color = TiviCardBorder.copy(alpha = 0.6f), thickness = 1.dp)
-
         // ====================================================================
-        // 2. SÜTUN (ORTA - 248.dp - TEMİZ VE HIZLI KANAL LİSTESİ)
+        // 2. SÜTUN (ORTA - 280.dp - STREAMVAULT KANAL LİSTESİ)
         // ====================================================================
-        Surface(
+        Box(
             modifier = Modifier
-                .width(248.dp)
-                .fillMaxHeight(),
-            color = TiviBackground
+                .width(280.dp)
+                .fillMaxHeight()
+                .vegaPanel(VegaShapes.Large)
         ) {
             Column(
                 modifier = Modifier
@@ -639,18 +639,23 @@ fun LiveTvWideScreenLayout(
             }
         }
 
-        VerticalDivider(color = TiviCardBorder.copy(alpha = 0.6f), thickness = 1.dp)
-
         // ====================================================================
-        // 3. SÜTUN (SAĞ - KALAN GENİŞLİK - CANLI ÖNİZLEME VE PROGRAM REHBERİ)
+        // 3. SÜTUN (SAĞ - KALAN GENİŞLİK - STREAMVAULT KANAL ÖNİZLEME PANELİ)
         // ====================================================================
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .vegaPanel(VegaShapes.Large)
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            Text(
+                text = "Kanal Önizleme",
+                color = VegaColors.Accent,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
             // --- ÜST KISIM: 16:9 CANLI ÖNİZLEME PENCERESİ ---
             Card(
                 shape = RoundedCornerShape(12.dp),

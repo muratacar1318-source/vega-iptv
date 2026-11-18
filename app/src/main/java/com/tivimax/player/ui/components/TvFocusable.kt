@@ -1,6 +1,7 @@
 package com.tivimax.player.ui.components
 
-import com.tivimax.player.ui.design.VegaColors
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -20,18 +21,25 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.tivimax.player.theme.OpusCyan
+import androidx.compose.ui.zIndex
+import com.tivimax.player.ui.design.VegaColors
 
 fun Modifier.dpadFocusable(
-    focusedBorderColor: Color = OpusCyan,
+    focusedBorderColor: Color = VegaColors.FocusBorder,
     shape: Shape = RoundedCornerShape(10.dp),
-    scale: Float = 1.03f,
+    scale: Float = 1.035f,
     onClick: (() -> Unit)? = null,
     onFocusStateChange: ((Boolean) -> Unit)? = null
 ): Modifier = composed {
     var isFocused by remember { mutableStateOf(false) }
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isFocused) scale else 1.0f,
+        animationSpec = tween(durationMillis = 130),
+        label = "dpadFocusScale"
+    )
 
     this
+        .zIndex(if (isFocused) 1f else 0f)
         .onFocusChanged { state ->
             isFocused = state.isFocused
             onFocusStateChange?.invoke(state.isFocused)
@@ -48,8 +56,8 @@ fun Modifier.dpadFocusable(
             }
         )
         .graphicsLayer {
-            scaleX = if (isFocused) scale else 1.0f
-            scaleY = if (isFocused) scale else 1.0f
+            scaleX = animatedScale
+            scaleY = animatedScale
         }
         .then(
             if (isFocused) Modifier.border(2.dp, focusedBorderColor, shape) else Modifier

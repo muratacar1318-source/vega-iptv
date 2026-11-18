@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.data.config.AppConfig
 import com.tivimax.player.theme.*
+import com.tivimax.player.ui.design.vegaBackdrop
 import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.Screen
 import com.tivimax.player.ui.devicemode.DeviceModeSetupScreen
@@ -104,7 +105,7 @@ fun SplashScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(TiviBackground),
+            .vegaBackdrop(),
         contentAlignment = Alignment.Center
     ) {
         Column(

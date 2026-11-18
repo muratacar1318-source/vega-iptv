@@ -13,9 +13,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -23,7 +22,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -37,8 +35,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
-import coil.compose.AsyncImage
 import com.tivimax.player.data.model.SeriesEpisode
 import com.tivimax.player.data.model.SeriesStream
 import com.tivimax.player.data.preferences.WatchProgress
@@ -49,17 +45,25 @@ import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.components.extractQualityBadges
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.vegaBackdrop
+import com.tivimax.player.ui.vod.StreamVaultDetailHeading
+import com.tivimax.player.ui.vod.StreamVaultMetaStrip
 import kotlinx.coroutines.delay
 
+/**
+ * STREAMVAULT DİZİ DETAY VE BÖLÜM LİSTESİ (SeriesEpisodes.png ile birebir görsel dil)
+ * - Tam ekran sinematik arka plan + "Kütüphaneye dön" hapı
+ * - Afiş + başlık + noktalı meta şerit + Devam et / Oynat + Fragman + Yuvarlak Kalp Favori
+ * - Dikey mavi vurgu çubuklu "Sezonlar" ve "Bölümler (N)" başlıkları
+ * - Geniş yuvarlatılmış 16:9 görselli StreamVault bölüm satır kartları
+ */
 @Composable
 fun SeriesDetailScreen(
     series: SeriesStream,
     viewModel: MainViewModel,
     onBack: () -> Unit
 ) {
-    BackHandler {
-        onBack()
-    }
+    BackHandler { onBack() }
 
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
@@ -68,23 +72,18 @@ fun SeriesDetailScreen(
     val seriesInfoResponse by viewModel.currentSeriesInfo.collectAsState()
     val episodesMap = seriesInfoResponse?.episodes ?: emptyMap()
     val watchProgressMap by viewModel.watchProgressMap.collectAsState()
-
     val favoriteSeriesIds by viewModel.favoriteSeriesIds.collectAsState()
     val isFavorite = favoriteSeriesIds.contains(series.seriesId.toString())
 
     val playButtonFocusRequester = remember { FocusRequester() }
 
-    // Mevcut Sezonlar
     val seasonKeys = remember(episodesMap) {
         episodesMap.keys.sortedBy { it.toIntOrNull() ?: 1 }
     }
-
-    // Toplam Bölüm Sayısı
     val totalEpisodeCount = remember(episodesMap) {
         episodesMap.values.sumOf { it.size }
     }
 
-    // G-047: "Oynat" kaldığın bölümü açsın — en son izlenen bölüm; o bölüm bitmişse sıradaki bölüm
     val resumeEpisode = remember(episodesMap, seasonKeys, watchProgressMap) {
         val all = seasonKeys.flatMap { episodesMap[it] ?: emptyList() }
         val last = all
@@ -97,8 +96,6 @@ fun SeriesDetailScreen(
         }
     }
 
-    // G-047: Oynatıcıdan dönünce aynı sezon açık kalsın (son seçilen sezon hatırlanır;
-    // hiç seçilmediyse kaldığın bölümün sezonu açılır)
     var selectedSeason by remember(seasonKeys) {
         mutableStateOf(
             viewModel.lastSelectedSeasonBySeries[series.seriesId]?.takeIf { it in seasonKeys }
@@ -116,7 +113,7 @@ fun SeriesDetailScreen(
         episodesMap[selectedSeason] ?: emptyList()
     }
 
-    // Dizi Bölümü Ön Isıtma (Seçili sezonun 1. bölümü, sezon değişince veya çıkınca iptal et)
+    // Dizi Bölümü Akıllı Ön Isıtma
     val nextEpForPrewarm = episodesForSeason.firstOrNull()
     DisposableEffect(series.seriesId, selectedSeason, nextEpForPrewarm?.id) {
         if (nextEpForPrewarm != null && series.seriesId !in listOf(101, 102, 103, 201)) {
@@ -131,32 +128,6 @@ fun SeriesDetailScreen(
         }
     }
 
-    val info = seriesInfoResponse?.info
-    val seriesTitle = info?.name ?: series.name
-    val backdropUrl = series.backdropPath?.firstOrNull()
-        ?: info?.backdropPath?.firstOrNull()
-        ?: info?.cover
-        ?: series.cover
-    val coverUrl = info?.cover ?: series.cover
-
-    val qualityBadges = remember(series.name, info?.name) {
-        val detected = extractQualityBadges(series.name + " " + (info?.name ?: ""))
-        if (detected.isEmpty()) listOf("FHD") else detected
-    }
-
-    val genreList = remember(info?.genre, series.genre) {
-        val raw = info?.genre?.takeIf { it.isNotBlank() } ?: series.genre
-        raw?.split(',', '/', '•')?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
-    }
-
-    val castList = remember(info?.cast, series.cast) {
-        val raw = info?.cast?.takeIf { it.isNotBlank() } ?: series.cast
-        raw?.split(',', ';')?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
-    }
-
-    val trailerUrl = series.youtubeTrailer
-
-    // Detay ekranı açıldığı anda otomatik olarak "1. Bölümü Oynat / Devam Et" butonuna focus ver
     LaunchedEffect(Unit) {
         delay(180)
         try {
@@ -164,150 +135,128 @@ fun SeriesDetailScreen(
         } catch (_: Exception) {}
     }
 
+    val info = seriesInfoResponse?.info
+    val seriesTitle = info?.name?.takeIf { it.isNotBlank() } ?: series.name
+    val backdropUrl = series.backdropPath?.firstOrNull()
+        ?: info?.backdropPath?.firstOrNull()
+        ?: info?.cover
+        ?: series.cover
+    val coverUrl = info?.cover ?: series.cover
+    val qualityBadges = remember(series.name, info?.name) {
+        extractQualityBadges(series.name + " " + (info?.name ?: ""))
+    }
+    val ratingText = remember(info?.rating, series.rating, series.rating5Based) {
+        val raw = info?.rating ?: series.rating ?: series.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) }
+        val num = raw?.trim()?.substringBefore("/")?.replace(',', '.')?.toFloatOrNull()
+        if (num != null && num > 0f) {
+            val f = if (num == num.toInt().toFloat()) "${num.toInt()}" else String.format(java.util.Locale.US, "%.1f", num)
+            if (num <= 5f) "$f/5" else "$f/10"
+        } else null
+    }
+    val genreText = info?.genre?.takeIf { it.isNotBlank() } ?: series.genre?.takeIf { it.isNotBlank() }
+    val releaseDate = info?.releaseDate?.takeIf { it.isNotBlank() } ?: series.releaseDate?.takeIf { it.isNotBlank() }
+    val trailerUrl = series.youtubeTrailer
+    val plot = info?.plot?.takeIf { it.isNotBlank() } ?: series.plot?.takeIf { it.isNotBlank() }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(VegaColors.Background)
+            .vegaBackdrop()
     ) {
-        // ==========================================
-        // 1. SİNEMATİK ARKA PLAN (VIP BACKDROP & GRADIENT BLEED)
-        // ==========================================
+        // 1. SİNEMATİK ARKA PLAN
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(if (isWideScreen) 1f else 0.58f)
-                .align(Alignment.TopEnd)
+                .height(if (isWideScreen) 440.dp else 300.dp)
+                .align(Alignment.TopCenter)
         ) {
             AsyncShimmerImage(
                 model = backdropUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 placeholderIcon = Icons.Default.VideoLibrary,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                            Modifier.blur(14.dp)
-                        } else {
-                            Modifier
-                        }
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to VegaColors.Background.copy(alpha = 0.35f),
+                                0.50f to VegaColors.Background.copy(alpha = 0.72f),
+                                0.88f to VegaColors.Background.copy(alpha = 0.95f),
+                                1.0f to VegaColors.Background
+                            )
+                        )
                     )
             )
-
-            // Sinematik Karartma Maskeleri
-            if (isWideScreen) {
-                // Yatay / TV: Soldan sağa derin karartma (sol sütun tamamen siyah, sağda görsel görünür)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.horizontalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to VegaColors.Background,
-                                    0.40f to VegaColors.Background,
-                                    0.60f to VegaColors.Background.copy(alpha = 0.90f),
-                                    0.80f to VegaColors.Background.copy(alpha = 0.50f),
-                                    1.0f to VegaColors.Background.copy(alpha = 0.70f)
-                                )
-                            )
-                        )
-                )
-                // Alttan yukarı dikey geçiş
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color.Transparent,
-                                    0.65f to Color.Transparent,
-                                    1.0f to VegaColors.Background
-                                )
-                            )
-                        )
-                )
-            } else {
-                // Dikey Mod: Üstten alta derin karartma
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color.Transparent,
-                                    0.35f to VegaColors.Background.copy(alpha = 0.40f),
-                                    0.75f to VegaColors.Background.copy(alpha = 0.92f),
-                                    1.0f to VegaColors.Background
-                                )
-                            )
-                        )
-                )
-            }
         }
 
-        // ==========================================
-        // 2. GERİ DÖNÜŞ BUTONU
-        // ==========================================
-        Surface(
-            onClick = onBack,
-            shape = CircleShape,
-            color = VegaColors.OverlayPill,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.20f)),
+        // 2. AKICI LAZYCOLUMN (Hero + Sezonlar + Geniş StreamVault Bölüm Satırları)
+        LazyColumn(
             modifier = Modifier
-                .statusBarsPadding()
-                .padding(start = if (isWideScreen) 28.dp else 16.dp, top = 16.dp)
-                .size(44.dp)
-                .zIndex(10f)
-                .dpadFocusable(
-                    focusedBorderColor = VegaColors.Accent,
-                    shape = CircleShape,
-                    scale = 1.08f
-                )
+                .fillMaxSize()
+                .statusBarsPadding(),
+            contentPadding = PaddingValues(
+                horizontal = if (isWideScreen) 48.dp else 16.dp,
+                vertical = if (isWideScreen) 24.dp else 14.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Geri",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        // ==========================================
-        // 3. İÇERİK DÜZENİ (YATAY/TV: 2 SÜTUN, DİKEY: AKICI SAYFA)
-        // ==========================================
-        if (isWideScreen) {
-            // YATAY MOD / ANDROID TV: 2 SÜTUNLU SİNEMATİK DÜZEN
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 90.dp, end = 32.dp, top = 28.dp, bottom = 28.dp),
-                horizontalArrangement = Arrangement.spacedBy(36.dp)
-            ) {
-                // SOL SÜTUN (Afiş, Butonlar, Konu Özeti & Oyuncular)
-                Column(
+            // SOL ÜST: Kütüphaneye dön hapı
+            item(key = "series_back") {
+                Surface(
+                    shape = VegaShapes.Medium,
+                    color = VegaColors.TextPrimary,
                     modifier = Modifier
-                        .width(320.dp)
-                        .fillMaxHeight(),
-                    horizontalAlignment = Alignment.Start
+                        .height(40.dp)
+                        .dpadFocusable(
+                            focusedBorderColor = VegaColors.FocusBorder,
+                            shape = VegaShapes.Medium,
+                            scale = 1.04f,
+                            onClick = onBack
+                        )
                 ) {
-                    // Dizi Afiş Kartı (16:9 Sinematik Kart)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null,
+                            tint = VegaColors.Background,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Kütüphaneye dön",
+                            color = VegaColors.Background,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            // HERO BÖLÜMÜ
+            item(key = "series_hero") {
+                val primaryEp = resumeEpisode ?: episodesForSeason.firstOrNull()
+                val primaryProg = primaryEp?.let { watchProgressMap[it.id] }
+                val hasPrimaryProg = primaryProg != null && primaryProg.positionMs > 10_000L && primaryProg.durationMs > 0L
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(if (isWideScreen) 28.dp else 14.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(175.dp)
-                            .clip(VegaShapes.Large)
-                            .background(VegaColors.Card)
-                            .border(
-                                BorderStroke(
-                                    1.dp,
-                                    Brush.verticalGradient(
-                                        listOf(Color.White.copy(alpha = 0.25f), Color.Transparent)
-                                    )
-                                ),
-                                VegaShapes.Large
-                            )
+                            .width(if (isWideScreen) 196.dp else 118.dp)
+                            .aspectRatio(2f / 3f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(VegaColors.SurfaceElevated)
+                            .border(1.dp, VegaColors.Border, RoundedCornerShape(14.dp))
                     ) {
                         AsyncShimmerImage(
                             model = coverUrl,
@@ -318,370 +267,216 @@ fun SeriesDetailScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Oynat / Kaldığın Yerden Devam Et Butonu
-                    if (episodesForSeason.isNotEmpty()) {
-                        val nextEp = resumeEpisode ?: episodesForSeason.first() // G-047
-                        val nextEpProgress = watchProgressMap[nextEp.id]
-                        val hasNextProgress = nextEpProgress != null && nextEpProgress.positionMs > 10_000L && nextEpProgress.durationMs > 0
-
-                        Button(
-                            onClick = { viewModel.playSeriesEpisode(nextEp, series.name, resume = true) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = VegaColors.Accent,
-                                contentColor = VegaColors.OnAccent
-                            ),
-                            shape = VegaShapes.Medium,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .focusRequester(playButtonFocusRequester)
-                                .dpadFocusable(
-                                    focusedBorderColor = Color.White,
-                                    shape = VegaShapes.Medium
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                tint = VegaColors.OnAccent
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (hasNextProgress) {
-                                    val mins = (nextEpProgress.positionMs / 60000)
-                                    val secs = ((nextEpProgress.positionMs % 60000) / 1000)
-                                    "Devam et (S${nextEp.season}:B${nextEp.episodeNum} • ${String.format("%02d:%02d", mins, secs)})"
-                                } else {
-                                    "Bölümü oynat (S${nextEp.season}:B${nextEp.episodeNum})"
-                                },
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-
-                    // Favori ve Fragman Butonları Satırı
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) },
-                            shape = VegaShapes.Medium,
-                            border = BorderStroke(
-                                1.dp,
-                                if (isFavorite) VegaColors.Gold.copy(alpha = 0.5f) else VegaColors.Border
-                            ),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isFavorite) VegaColors.Gold.copy(alpha = 0.12f) else VegaColors.SurfaceVariant
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .dpadFocusable(
-                                    focusedBorderColor = VegaColors.Accent,
-                                    shape = VegaShapes.Medium
-                                )
-                        ) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.BookmarkAdded else Icons.Default.BookmarkBorder,
-                                contentDescription = null,
-                                tint = if (isFavorite) VegaColors.Gold else VegaColors.TextSecondary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (isFavorite) "Listede" else "Listeme ekle",
-                                color = if (isFavorite) VegaColors.Gold else VegaColors.TextPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = if (isFavorite) FontWeight.Bold else FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        if (!trailerUrl.isNullOrBlank()) {
-                            OutlinedButton(
-                                onClick = { openTrailer(context, trailerUrl) },
-                                shape = VegaShapes.Medium,
-                                border = BorderStroke(1.dp, VegaColors.Border),
-                                colors = ButtonDefaults.outlinedButtonColors(containerColor = VegaColors.SurfaceVariant),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(44.dp)
-                                    .dpadFocusable(
-                                        focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayCircleOutline,
-                                    contentDescription = null,
-                                    tint = VegaColors.TextSecondary
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Fragman",
-                                    color = VegaColors.TextPrimary,
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Kaydırılabilir Konu Özeti & Oyuncular
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        val plot = info?.plot ?: series.plot
-                        if (!plot.isNullOrEmpty()) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = VegaColors.SurfaceAccent.copy(alpha = 0.85f),
+                                border = BorderStroke(1.dp, VegaColors.Border)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(3.dp)
-                                        .height(13.dp)
-                                        .clip(VegaShapes.Pill)
-                                        .background(VegaColors.Accent)
-                                )
-                                Text(
-                                    text = "Dizi Konusu",
-                                    color = VegaColors.TextPrimary,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Text("Diziler", color = VegaColors.TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = plot,
-                                color = VegaColors.TextSecondary,
-                                fontSize = 13.sp,
-                                lineHeight = 19.sp
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            if (ratingText != null) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = VegaColors.Gold.copy(alpha = 0.16f),
+                                    border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.35f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(Icons.Default.Star, contentDescription = null, tint = VegaColors.Gold, modifier = Modifier.size(13.dp))
+                                        Text(ratingText, color = VegaColors.Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                            qualityBadges.forEach { QualityBadge(tag = it) }
                         }
 
-                        info?.director?.takeIf { it.isNotBlank() }?.let { directorName ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MovieFilter,
-                                    contentDescription = null,
-                                    tint = VegaColors.TextMuted,
-                                    modifier = Modifier.size(13.dp)
-                                )
-                                Text(
-                                    text = "Yönetmen: $directorName",
-                                    color = VegaColors.TextSecondary,
-                                    fontSize = 12.sp
-                                )
+                        Text(
+                            text = seriesTitle,
+                            color = VegaColors.TextPrimary,
+                            fontSize = if (isWideScreen) 26.sp else 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = (-0.4).sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        val metaList = buildList {
+                            releaseDate?.let { add(it) }
+                            if (seasonKeys.isNotEmpty()) {
+                                add(if (totalEpisodeCount > 0) "${seasonKeys.size} Sezon • $totalEpisodeCount Bölüm" else "${seasonKeys.size} Sezon")
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
+                            genreText?.let { add(it) }
+                        }
+                        if (metaList.isNotEmpty()) {
+                            StreamVaultMetaStrip(values = metaList)
                         }
 
-                        if (castList.isNotEmpty()) {
-                            Text(
-                                text = "Oyuncular",
-                                color = VegaColors.TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                items(castList.take(8)) { actor ->
+                        // Aksiyon Butonları
+                        val actionShape = RoundedCornerShape(11.dp)
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (primaryEp != null) {
+                                item(key = "ser_play") {
                                     Surface(
-                                        shape = VegaShapes.Pill,
-                                        color = VegaColors.SurfaceVariant,
-                                        border = BorderStroke(1.dp, VegaColors.Border),
-                                        modifier = Modifier.dpadFocusable(
-                                            focusedBorderColor = VegaColors.Accent,
-                                            shape = VegaShapes.Pill
-                                        )
+                                        shape = actionShape,
+                                        color = VegaColors.Accent,
+                                        modifier = Modifier
+                                            .height(44.dp)
+                                            .focusRequester(playButtonFocusRequester)
+                                            .dpadFocusable(
+                                                focusedBorderColor = Color.White,
+                                                shape = actionShape,
+                                                scale = 1.04f,
+                                                onClick = { viewModel.playSeriesEpisode(primaryEp, series.name, resume = true) }
+                                            )
                                     ) {
                                         Row(
+                                            modifier = Modifier.padding(horizontal = 18.dp),
                                             verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Person,
-                                                contentDescription = null,
-                                                tint = VegaColors.TextMuted,
-                                                modifier = Modifier.size(12.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Icon(Icons.Default.PlayArrow, contentDescription = null, tint = VegaColors.OnAccent, modifier = Modifier.size(20.dp))
                                             Text(
-                                                text = actor,
-                                                color = VegaColors.TextPrimary,
-                                                fontSize = 11.sp
+                                                text = if (hasPrimaryProg) {
+                                                    "Devam et (S${primaryEp.season}:B${primaryEp.episodeNum})"
+                                                } else {
+                                                    "Oynat (S${primaryEp.season}:B${primaryEp.episodeNum})"
+                                                },
+                                                color = VegaColors.OnAccent,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
-                }
 
-                // SAĞ SÜTUN (Başlık, Rozetler, Sezon Sekmeleri & 16:9 Bölüm Kartları Listesi)
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                ) {
-                    // Dizi Başlığı
-                    Text(
-                        text = seriesTitle,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = VegaColors.TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                            if (!trailerUrl.isNullOrBlank()) {
+                                item(key = "ser_trailer") {
+                                    Surface(
+                                        shape = actionShape,
+                                        color = VegaColors.SurfaceAccent,
+                                        border = BorderStroke(1.dp, VegaColors.Border),
+                                        modifier = Modifier
+                                            .height(44.dp)
+                                            .dpadFocusable(
+                                                focusedBorderColor = VegaColors.FocusBorder,
+                                                shape = actionShape,
+                                                scale = 1.04f,
+                                                onClick = { openTrailer(context, trailerUrl) }
+                                            )
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("Fragman", color = VegaColors.TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
+                            }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Meta Rozetler Şeridi
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
-                            shape = VegaShapes.Small,
-                            color = VegaColors.Accent.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f))
-                        ) {
-                            Text(
-                                text = "DİZİ",
-                                color = VegaColors.Accent,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-
-                        val rating = info?.rating ?: series.rating
-                        if (!rating.isNullOrEmpty()) {
-                            Surface(
-                                shape = VegaShapes.Small,
-                                color = VegaColors.Gold.copy(alpha = 0.18f),
-                                border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.4f))
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            item(key = "ser_fav") {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isFavorite) VegaColors.Live.copy(alpha = 0.20f) else VegaColors.SurfaceAccent,
+                                    border = BorderStroke(1.dp, if (isFavorite) VegaColors.Live.copy(alpha = 0.55f) else VegaColors.Border),
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .dpadFocusable(
+                                            focusedBorderColor = VegaColors.FocusBorder,
+                                            shape = CircleShape,
+                                            scale = 1.06f,
+                                            onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) }
+                                        )
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = null,
-                                        tint = VegaColors.Gold,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "IMDb $rating",
-                                        color = VegaColors.Gold,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = if (isFavorite) "Favorilerden çıkar" else "Favorilere ekle",
+                                            tint = if (isFavorite) VegaColors.Live else VegaColors.TextPrimary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        qualityBadges.forEach { badge ->
-                            QualityBadge(tag = badge)
-                        }
-
-                        if (seasonKeys.isNotEmpty()) {
-                            Surface(
-                                shape = VegaShapes.Small,
-                                color = VegaColors.SurfaceVariant,
-                                border = BorderStroke(1.dp, VegaColors.Border)
-                            ) {
-                                Text(
-                                    text = if (totalEpisodeCount > 0) "${seasonKeys.size} Sezon • $totalEpisodeCount Bölüm" else "${seasonKeys.size} Sezon",
-                                    color = VegaColors.TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
-
-                        genreList.take(2).forEach { genre ->
-                            Surface(
-                                shape = VegaShapes.Pill,
-                                color = VegaColors.SurfaceVariant.copy(alpha = 0.6f),
-                                border = BorderStroke(1.dp, VegaColors.Border)
-                            ) {
-                                Text(
-                                    text = genre,
-                                    color = VegaColors.TextSecondary,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                )
-                            }
+                        if (plot != null && isWideScreen) {
+                            Text(
+                                text = plot,
+                                color = VegaColors.TextSecondary,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
+                }
+            }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+            if (plot != null && !isWideScreen) {
+                item(key = "series_plot_mobile") {
+                    Text(
+                        text = plot,
+                        color = VegaColors.TextSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp
+                    )
+                }
+            }
 
-                    // Sezon Seçici Sekmeler (D-Pad Odaklanabilir & focusRestorer)
-                    if (seasonKeys.isNotEmpty()) {
+            // SEZONLAR BÖLÜMÜ (StreamVault SeriesEpisodes.png)
+            if (seasonKeys.isNotEmpty()) {
+                item(key = "seasons_section") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StreamVaultDetailHeading(title = "Sezonlar")
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .focusRestorer() // G-047
+                                .focusRestorer()
                         ) {
-                            items(seasonKeys) { seasonNum ->
+                            items(seasonKeys, key = { "season_$it" }) { seasonNum ->
                                 val isSelected = seasonNum == selectedSeason
+                                val seasonShape = RoundedCornerShape(10.dp)
                                 Surface(
-                                    shape = VegaShapes.Medium,
-                                    color = if (isSelected) VegaColors.Accent.copy(alpha = 0.20f) else VegaColors.Card,
+                                    shape = seasonShape,
+                                    color = if (isSelected) VegaColors.Accent.copy(alpha = 0.18f) else VegaColors.SurfaceElevated,
                                     border = BorderStroke(
-                                        1.dp,
-                                        if (isSelected) VegaColors.Accent else VegaColors.Border
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) VegaColors.Accent else VegaColors.Border
                                     ),
-                                    modifier = Modifier.dpadFocusable(
-                                        focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium,
-                                        onClick = { selectedSeason = seasonNum }
-                                    )
+                                    modifier = Modifier
+                                        .height(40.dp)
+                                        .dpadFocusable(
+                                            focusedBorderColor = VegaColors.FocusBorder,
+                                            shape = seasonShape,
+                                            scale = 1.04f,
+                                            onClick = { selectedSeason = seasonNum }
+                                        )
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                                    Box(
+                                        modifier = Modifier.padding(horizontal = 18.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        if (isSelected) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .clip(CircleShape)
-                                                    .background(VegaColors.Accent)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                        }
                                         Text(
                                             text = "Sezon $seasonNum",
-                                            color = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
+                                            color = if (isSelected) VegaColors.TextPrimary else VegaColors.TextSecondary,
                                             fontSize = 13.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                         )
@@ -690,495 +485,170 @@ fun SeriesDetailScreen(
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Bölüm Listesi
-                    if (episodesForSeason.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Bölümler yükleniyor...",
-                                color = VegaColors.TextSecondary,
-                                fontSize = 14.sp
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .focusRestorer(), // G-047
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(bottom = 16.dp)
-                        ) {
-                            items(episodesForSeason, key = { it.id }) { episode ->
-                                EpisodeCard(
-                                    episode = episode,
-                                    fallbackImage = backdropUrl,
-                                    watchProgress = watchProgressMap[episode.id],
-                                    onEpisodeClick = { viewModel.playSeriesEpisode(episode, series.name, resume = true) }
-                                )
-                            }
-                        }
-                    }
                 }
             }
-        } else {
-            // ==========================================
-            // DİKEY MOD (Telefon / Tablet Dikey)
-            // ==========================================
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp),
-                contentPadding = PaddingValues(bottom = 32.dp)
-            ) {
-                item {
-                    Spacer(modifier = Modifier.height(190.dp))
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // BÖLÜMLER BAŞLIĞI (StreamVault SeriesEpisodes.png)
+            item(key = "episodes_heading") {
+                StreamVaultDetailHeading(
+                    title = "Bölümler (${episodesForSeason.size})",
+                    subtitle = "Sezon $selectedSeason"
+                )
+            }
+
+            if (seriesInfoResponse == null) {
+                item(key = "episodes_loading") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 36.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Surface(
-                            shape = VegaShapes.Small,
-                            color = VegaColors.Accent.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.35f))
-                        ) {
-                            Text(
-                                text = "DİZİ",
-                                color = VegaColors.Accent,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-
-                        qualityBadges.firstOrNull()?.let { badge ->
-                            QualityBadge(tag = badge)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Text(
-                        text = seriesTitle,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = VegaColors.TextPrimary,
-                        lineHeight = 28.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        val rating = info?.rating ?: series.rating
-                        if (!rating.isNullOrEmpty()) {
-                            Surface(
-                                shape = VegaShapes.Small,
-                                color = VegaColors.Gold.copy(alpha = 0.18f),
-                                border = BorderStroke(1.dp, VegaColors.Gold.copy(alpha = 0.4f))
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = null,
-                                        tint = VegaColors.Gold,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "IMDb $rating",
-                                        color = VegaColors.Gold,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-
-                        if (seasonKeys.isNotEmpty()) {
-                            Text(
-                                text = "${seasonKeys.size} Sezon",
-                                color = VegaColors.TextSecondary,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-
-                    if (genreList.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            genreList.take(3).forEach { genre ->
-                                Surface(
-                                    shape = VegaShapes.Pill,
-                                    color = VegaColors.SurfaceVariant,
-                                    border = BorderStroke(1.dp, VegaColors.Border)
-                                ) {
-                                    Text(
-                                        text = genre,
-                                        color = VegaColors.TextSecondary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    val plot = info?.plot ?: series.plot
-                    if (!plot.isNullOrEmpty()) {
-                        Text(
-                            text = plot,
-                            color = VegaColors.TextSecondary,
-                            fontSize = 14.sp,
-                            lineHeight = 21.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    // 1. Bölümü Oynat Butonu
-                    if (episodesForSeason.isNotEmpty()) {
-                        val nextEp = resumeEpisode ?: episodesForSeason.first() // G-047
-                        val nextEpProgress = watchProgressMap[nextEp.id]
-                        val hasNextProgress = nextEpProgress != null && nextEpProgress.positionMs > 10_000L && nextEpProgress.durationMs > 0
-                        Button(
-                            onClick = { viewModel.playSeriesEpisode(nextEp, series.name, resume = true) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = VegaColors.Accent,
-                                contentColor = VegaColors.OnAccent
-                            ),
-                            shape = VegaShapes.Medium,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp)
-                                .focusRequester(playButtonFocusRequester)
-                                .dpadFocusable(
-                                    focusedBorderColor = Color.White,
-                                    shape = VegaShapes.Medium
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = null,
-                                tint = VegaColors.OnAccent
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (hasNextProgress) {
-                                    val mins = (nextEpProgress.positionMs / 60000)
-                                    val secs = ((nextEpProgress.positionMs % 60000) / 1000)
-                                    "Devam et (S${nextEp.season}:B${nextEp.episodeNum} • ${String.format("%02d:%02d", mins, secs)})"
-                                } else {
-                                    "Bölümü oynat (S${nextEp.season}:B${nextEp.episodeNum})"
-                                },
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { viewModel.toggleFavoriteSeries(series.seriesId.toString()) },
-                            shape = VegaShapes.Medium,
-                            border = BorderStroke(
-                                1.dp,
-                                if (isFavorite) VegaColors.Gold.copy(alpha = 0.5f) else VegaColors.Border
-                            ),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = if (isFavorite) VegaColors.Gold.copy(alpha = 0.12f) else VegaColors.SurfaceVariant
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .dpadFocusable(
-                                    focusedBorderColor = VegaColors.Accent,
-                                    shape = VegaShapes.Medium
-                                )
-                        ) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.BookmarkAdded else Icons.Default.BookmarkBorder,
-                                contentDescription = null,
-                                tint = if (isFavorite) VegaColors.Gold else VegaColors.TextSecondary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = if (isFavorite) "Listede" else "Listeme ekle",
-                                color = if (isFavorite) VegaColors.Gold else VegaColors.TextPrimary,
-                                fontSize = 13.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        if (!trailerUrl.isNullOrBlank()) {
-                            OutlinedButton(
-                                onClick = { openTrailer(context, trailerUrl) },
-                                shape = VegaShapes.Medium,
-                                border = BorderStroke(1.dp, VegaColors.Border),
-                                colors = ButtonDefaults.outlinedButtonColors(containerColor = VegaColors.SurfaceVariant),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .dpadFocusable(
-                                        focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayCircleOutline,
-                                    contentDescription = null,
-                                    tint = VegaColors.TextSecondary
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Fragman",
-                                    color = VegaColors.TextPrimary,
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Text(
-                        text = "Bölümler",
-                        color = VegaColors.TextPrimary,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    if (seasonKeys.isNotEmpty()) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRestorer() // G-047
-                        ) {
-                            items(seasonKeys) { seasonNum ->
-                                val isSelected = seasonNum == selectedSeason
-                                Surface(
-                                    shape = VegaShapes.Medium,
-                                    color = if (isSelected) VegaColors.Accent.copy(alpha = 0.20f) else VegaColors.Card,
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (isSelected) VegaColors.Accent else VegaColors.Border
-                                    ),
-                                    modifier = Modifier.dpadFocusable(
-                                        focusedBorderColor = VegaColors.Accent,
-                                        shape = VegaShapes.Medium,
-                                        onClick = { selectedSeason = seasonNum }
-                                    )
-                                ) {
-                                    Text(
-                                        text = "Sezon $seasonNum",
-                                        color = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-                }
-
-                if (episodesForSeason.isEmpty()) {
-                    item {
-                        Text(
-                            text = "Bölümler yükleniyor...",
-                            color = VegaColors.TextSecondary,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(vertical = 16.dp)
-                        )
-                    }
-                } else {
-                    items(episodesForSeason, key = { it.id }) { episode ->
-                        EpisodeCard(
-                            episode = episode,
-                            fallbackImage = backdropUrl,
-                            watchProgress = watchProgressMap[episode.id],
-                            onEpisodeClick = { viewModel.playSeriesEpisode(episode, series.name, resume = true) }
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+                        CircularProgressIndicator(color = VegaColors.Accent, strokeWidth = 2.5.dp)
                     }
                 }
+            } else if (episodesForSeason.isEmpty()) {
+                item(key = "episodes_empty") {
+                    Text(
+                        text = "Bu sezon için bölüm bulunamadı.",
+                        color = VegaColors.TextMuted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                    )
+                }
+            } else {
+                items(episodesForSeason, key = { "ep_${it.id}_${it.episodeNum}" }) { episode ->
+                    StreamVaultEpisodeRowCard(
+                        episode = episode,
+                        fallbackCover = coverUrl,
+                        watchProgress = watchProgressMap[episode.id],
+                        isWideScreen = isWideScreen,
+                        onClick = { viewModel.playSeriesEpisode(episode, series.name, resume = true) }
+                    )
+                }
+            }
+
+            item(key = "series_bottom_space") {
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 }
 
 /**
- * 16:9 Sinematik Bölüm Kartı
+ * STREAMVAULT BÖLÜM SATIR KARTI (SeriesEpisodes.png ile birebir tasarım)
  */
 @Composable
-fun EpisodeCard(
+private fun StreamVaultEpisodeRowCard(
     episode: SeriesEpisode,
-    fallbackImage: String? = null,
-    watchProgress: WatchProgress? = null,
-    onEpisodeClick: () -> Unit
+    fallbackCover: String?,
+    watchProgress: WatchProgress?,
+    isWideScreen: Boolean,
+    onClick: () -> Unit
 ) {
+    val cardShape = RoundedCornerShape(14.dp)
+    val thumbUrl = episode.info?.movieImage?.takeIf { it.isNotBlank() } ?: fallbackCover
+    val hasProgress = watchProgress != null && watchProgress.durationMs > 0L && watchProgress.positionMs > 10_000L
+    val progressFraction = if (hasProgress) {
+        (watchProgress!!.positionMs.toFloat() / watchProgress.durationMs.toFloat()).coerceIn(0f, 1f)
+    } else 0f
+
     Surface(
-        onClick = onEpisodeClick,
-        shape = VegaShapes.Medium,
-        color = VegaColors.Card,
+        shape = cardShape,
+        color = VegaColors.SurfaceElevated.copy(alpha = 0.92f),
         border = BorderStroke(1.dp, VegaColors.Border),
         modifier = Modifier
             .fillMaxWidth()
             .dpadFocusable(
-                focusedBorderColor = VegaColors.Accent,
-                shape = VegaShapes.Medium,
-                scale = 1.02f
+                focusedBorderColor = VegaColors.FocusBorder,
+                shape = cardShape,
+                scale = 1.02f,
+                onClick = onClick
             )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
+                .padding(if (isWideScreen) 14.dp else 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (isWideScreen) 18.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 16:9 Bölüm Görseli / Önizlemesi
+            // SOL: 16:9 Bölüm Önizleme Görseli + "Bölüm X" Rozeti + İlerleme Çubuğu
             Box(
                 modifier = Modifier
-                    .size(width = 120.dp, height = 68.dp)
-                    .clip(VegaShapes.Small)
-                    .background(VegaColors.Surface),
-                contentAlignment = Alignment.Center
+                    .width(if (isWideScreen) 168.dp else 120.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(VegaColors.SurfaceAccent)
             ) {
-                val imageUrl = episode.info?.movieImage?.takeIf { it.isNotBlank() } ?: fallbackImage
-                if (!imageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                // Karartma Maskesi
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.35f))
+                AsyncShimmerImage(
+                    model = thumbUrl,
+                    contentDescription = episode.title,
+                    contentScale = ContentScale.Crop,
+                    placeholderIcon = Icons.Default.PlayArrow,
+                    modifier = Modifier.fillMaxSize()
                 )
 
-                // Ortalanmış Oynatma İkonu
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.60f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.30f)),
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Oynat",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-
-                // Sol Üst: Bölüm Numarası Rozeti
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(4.dp)
-                        .clip(VegaShapes.Small)
-                        .background(Color.Black.copy(alpha = 0.70f))
-                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.Black.copy(alpha = 0.72f))
+                        .padding(horizontal = 7.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = "B.${episode.episodeNum}",
+                        text = "Bölüm ${episode.episodeNum}",
                         color = Color.White,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 
-                // Kaldığı Yer İlerleme Çizgisi (Thumbnail Altı)
-                if (watchProgress != null && watchProgress.durationMs > 0 && watchProgress.positionMs > 10_000L) {
-                    val progressFraction = (watchProgress.positionMs.toFloat() / watchProgress.durationMs.toFloat()).coerceIn(0f, 1f)
-                    Box(
+                if (hasProgress) {
+                    LinearProgressIndicator(
+                        progress = { progressFraction },
+                        color = VegaColors.Accent,
+                        trackColor = Color.Black.copy(alpha = 0.55f),
                         modifier = Modifier
+                            .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .height(3.dp)
-                            .align(Alignment.BottomCenter)
-                            .background(Color.Black.copy(alpha = 0.6f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(progressFraction)
-                                .fillMaxHeight()
-                                .background(VegaColors.Accent)
-                        )
-                    }
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
-
-            // Bölüm Bilgileri
-            Column(modifier = Modifier.weight(1f)) {
-                val epTitle = episode.title.ifEmpty { "Bölüm ${episode.episodeNum}" }
+            // SAĞ: S01B01 Başlığı + Mavi Süre + 2 Satır Açıklama
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val epCode = "S${episode.season.toString().padStart(2, '0')}B${episode.episodeNum.toString().padStart(2, '0')}"
+                val cleanTitle = episode.title.trim().takeIf { it.isNotBlank() && !it.equals(epCode, ignoreCase = true) }
                 Text(
-                    text = "${episode.episodeNum}. $epTitle",
+                    text = if (cleanTitle != null) "$epCode  •  $cleanTitle" else epCode,
                     color = VegaColors.TextPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = if (isWideScreen) 15.sp else 13.sp,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(3.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    episode.info?.duration?.let { dur ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    episode.info?.duration?.takeIf { it.isNotBlank() }?.let { dur ->
                         Text(
                             text = dur,
-                            color = VegaColors.TextMuted,
-                            fontSize = 11.sp
+                            color = VegaColors.Accent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
-                    if (watchProgress != null && watchProgress.durationMs > 0 && watchProgress.positionMs > 10_000L) {
-                        if (episode.info?.duration != null) {
-                            Text(text = " • ", color = VegaColors.TextMuted, fontSize = 11.sp)
-                        }
-                        val mins = (watchProgress.positionMs / 60000)
-                        val secs = ((watchProgress.positionMs % 60000) / 1000)
+                    if (hasProgress) {
+                        val mins = watchProgress!!.positionMs / 60000L
+                        val secs = (watchProgress.positionMs % 60000L) / 1000L
                         Text(
                             text = "Kaldığın yer: ${String.format("%02d:%02d", mins, secs)}",
                             color = VegaColors.Gold,
@@ -1188,14 +658,12 @@ fun EpisodeCard(
                     }
                 }
 
-                // Bölüm Konusu Özeti (Varsa 2 satır)
                 episode.info?.plot?.takeIf { it.isNotBlank() }?.let { epPlot ->
-                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
                         text = epPlot,
                         color = VegaColors.TextSecondary,
-                        fontSize = 11.sp,
-                        lineHeight = 15.sp,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )

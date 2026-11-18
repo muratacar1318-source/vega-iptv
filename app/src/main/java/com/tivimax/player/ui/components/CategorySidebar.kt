@@ -36,6 +36,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tivimax.player.ui.design.VegaColors
+import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.vegaPanel
+import com.tivimax.player.ui.tv.StreamVaultSearchField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -93,28 +96,34 @@ fun CategorySidebar(
         }
     }
 
+    var categorySearchQuery by remember { mutableStateOf("") }
+    val filteredSidebarCategories = remember(safeCategories, categorySearchQuery) {
+        val q = categorySearchQuery.trim()
+        if (q.isEmpty()) safeCategories
+        else safeCategories.filter { it.name.contains(q, ignoreCase = true) }
+    }
+
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .widthIn(min = 110.dp)
-            .fillMaxWidth(0.31f)
-            .background(VegaColors.Background)
-            .padding(horizontal = 4.dp, vertical = 6.dp)
+            .widthIn(min = 120.dp, max = 250.dp)
+            .fillMaxWidth(0.26f)
+            .vegaPanel(VegaShapes.Large)
+            .padding(horizontal = 10.dp, vertical = 10.dp)
     ) {
         // Üst Başlık: "Kategoriler" / "Türler" + Filtre İkonu
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 6.dp),
+                .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = title,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = VegaColors.TextSecondary,
-                letterSpacing = 0.5.sp,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = VegaColors.TextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -122,22 +131,23 @@ fun CategorySidebar(
                 Icon(
                     imageVector = Icons.Default.Tune,
                     contentDescription = "Filtrele",
-                    tint = VegaColors.TextSecondary,
+                    tint = VegaColors.Accent,
                     modifier = Modifier
-                        .size(16.dp)
+                        .size(18.dp)
                         .clickable { onFilterClick() }
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = "Filtre",
-                    tint = VegaColors.TextSecondary,
-                    modifier = Modifier.size(16.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(6.dp))
+
+        StreamVaultSearchField(
+            value = categorySearchQuery,
+            onValueChange = { categorySearchQuery = it },
+            placeholder = "Kategori ara..."
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
             modifier = Modifier
@@ -159,25 +169,27 @@ fun CategorySidebar(
             contentPadding = PaddingValues(bottom = 90.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            item(key = "sidebar_cat_all") {
-                val isSelected = selectedCategoryId == "all" || selectedCategoryId.isEmpty()
-                SelectedCategoryAnchor(
-                    isSelected = isSelected,
-                    requester = selectedRequester,
-                    onAttachedChange = { selectedItemAttached = it }
-                ) {
-                    CategoryItem(
-                        name = allLabel,
-                        count = effectiveTotalCount,
-                        icon = Icons.Default.Folder,
-                        iconTint = VegaColors.Accent,
+            if (categorySearchQuery.isBlank()) {
+                item(key = "sidebar_cat_all") {
+                    val isSelected = selectedCategoryId == "all" || selectedCategoryId.isEmpty()
+                    SelectedCategoryAnchor(
                         isSelected = isSelected,
-                        onClick = { selectCategory("all") }
-                    )
+                        requester = selectedRequester,
+                        onAttachedChange = { selectedItemAttached = it }
+                    ) {
+                        CategoryItem(
+                            name = allLabel,
+                            count = effectiveTotalCount,
+                            icon = Icons.Default.Folder,
+                            iconTint = VegaColors.Accent,
+                            isSelected = isSelected,
+                            onClick = { selectCategory("all") }
+                        )
+                    }
                 }
             }
 
-            items(safeCategories, key = { "sidebar_cat_${it.id}" }) { cat ->
+            items(filteredSidebarCategories, key = { "sidebar_cat_${it.id}" }) { cat ->
                 val isSelected = cat.id == selectedCategoryId
                 SelectedCategoryAnchor(
                     isSelected = isSelected,

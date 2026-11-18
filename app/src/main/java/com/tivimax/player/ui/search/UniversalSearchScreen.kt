@@ -53,6 +53,7 @@ import com.tivimax.player.ui.components.MediaPosterCard
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.vegaBackdrop
 import kotlinx.coroutines.delay
 
 @Composable
@@ -91,12 +92,12 @@ fun UniversalSearchScreen(
     val totalCount = liveResults.size + vodResults.size + seriesResults.size
 
     Scaffold(
-        containerColor = VegaColors.Background,
+        containerColor = Color.Transparent,
         topBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(VegaColors.Background)
+                    .background(VegaColors.Surface.copy(alpha = 0.92f))
                     .statusBarsPadding()
             ) {
                 // Üst Bar: Geri Butonu + Arama Kutusu
@@ -256,7 +257,9 @@ fun UniversalSearchScreen(
                 }
             }
         },
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .vegaBackdrop()
     ) { innerPadding ->
         Box(
             modifier = Modifier

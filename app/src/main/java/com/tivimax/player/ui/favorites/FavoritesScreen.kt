@@ -37,7 +37,7 @@ fun FavoritesScreen(viewModel: MainViewModel) {
     // G-034: Seçili sekme ve ızgara konumu bellekte saklanır; detaydan dönünce aynı yerden başlar
     val positionStore = viewModel.catalogPositions
     var selectedTab by remember { mutableIntStateOf(positionStore.get("fav:sekme")?.firstIndex ?: 0) }
-    val tabs = listOf("Tümü", "Canlı TV", "Filmler & Diziler")
+    val tabs = listOf("Tümü", "Canlı TV", "Filmler ve Diziler")
 
     val isTvDevice = LocalIsTvDevice.current
     BackHandler(enabled = !isTvDevice && selectedTab != 0) {
@@ -88,7 +88,6 @@ fun FavoritesScreen(viewModel: MainViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(VegaColors.Background)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // ÜST KAPSÜL FİLTRE SEKMELERİ (SEGMENTED CONTROL)

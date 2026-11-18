@@ -56,6 +56,8 @@ import com.tivimax.player.ui.design.VegaButtonVariant
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.util.CrashLogger
 import com.tivimax.player.ui.design.VegaShapes
+import com.tivimax.player.ui.design.vegaBackdrop
+import com.tivimax.player.ui.design.vegaPanel
 import kotlinx.coroutines.launch
 import com.tivimax.player.util.DeviceMode
 
@@ -116,19 +118,24 @@ fun SettingsScreen(viewModel: MainViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(VegaColors.Background)
+            .vegaBackdrop()
     ) {
         if (isWideScreen) {
             // ==========================================
-            // YATAY / ANDROID TV EKRANI (TIVIMATE TARZI SOL MENÜ + SAĞ PANEL)
+            // YATAY / ANDROID TV EKRANI (STREAMVAULT TARZI YÜZEN SOL PANEL + SAĞ İÇERİK)
             // ==========================================
-            Row(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 // SOL MENÜ: Kategori Sekmeleri (D-Pad Odaklanabilir)
                 Column(
                     modifier = Modifier
-                        .width(260.dp)
+                        .width(256.dp)
                         .fillMaxHeight()
-                        .background(VegaColors.Surface)
+                        .vegaPanel(VegaShapes.Large)
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 12.dp, vertical = 16.dp)
                 ) {
@@ -1147,39 +1154,50 @@ private fun RenderSelectedSection(
                             .horizontalScroll(rememberScrollState())
                     ) {
                         listOf(
-                            "MIDNIGHT" to "Gece Mavisi",
-                            "OCEAN" to "Okyanus",
-                            "FOREST" to "Zümrüt",
-                            "VIOLET" to "Ametist"
-                        ).forEach { (key, label) ->
-                            val isSelected = appTheme == key
+                            Triple("MIDNIGHT", "Klasik Mavi", AppThemes.ClassicBlue.brand),
+                            Triple("AMOLED", "AMOLED Siyah", AppThemes.AmoledBlack.brand),
+                            Triple("OCEAN", "Okyanus", AppThemes.Ocean.brand),
+                            Triple("FOREST", "Orman", AppThemes.Forest.brand),
+                            Triple("VIOLET", "Mor", AppThemes.Violet.brand),
+                            Triple("SUNSET", "Gün Batımı", AppThemes.Sunset.brand),
+                            Triple("ROSE", "Gül", AppThemes.Rose.brand),
+                            Triple("VINTAGE", "Vintage", AppThemes.Vintage.brand)
+                        ).forEach { (key, label, swatchColor) ->
+                            val isSelected = appTheme == key || (key == "MIDNIGHT" && appTheme.equals("CLASSIC_BLUE", ignoreCase = true))
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) OpusCyan.copy(alpha = 0.2f) else TiviSurfaceVariant,
-                                border = BorderStroke(1.dp, if (isSelected) OpusCyan else TiviCardBorder),
+                                shape = VegaShapes.Medium,
+                                color = if (isSelected) VegaColors.Accent.copy(alpha = 0.2f) else VegaColors.SurfaceVariant,
+                                border = BorderStroke(1.dp, if (isSelected) VegaColors.Accent else VegaColors.Border),
                                 modifier = Modifier
                                     .dpadFocusable(
-                                        focusedBorderColor = OpusCyan,
-                                        shape = RoundedCornerShape(10.dp),
+                                        focusedBorderColor = VegaColors.FocusBorder,
+                                        shape = VegaShapes.Medium,
                                         onClick = {
                                             scope.launch { viewModel.preferences.setAppTheme(key) }
                                             Toast.makeText(context, "Renk teması: $label", Toast.LENGTH_SHORT).show()
                                         }
                                     )
                             ) {
-                                Box(
+                                Row(
                                     modifier = Modifier
                                         .clickable {
                                             scope.launch { viewModel.preferences.setAppTheme(key) }
                                             Toast.makeText(context, "Renk teması: $label", Toast.LENGTH_SHORT).show()
                                         }
-                                        .padding(horizontal = 14.dp, vertical = 9.dp),
-                                    contentAlignment = Alignment.Center
+                                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(7.dp)
                                 ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(10.dp)
+                                            .clip(VegaShapes.Pill)
+                                            .background(swatchColor)
+                                    )
                                     Text(
                                         text = label,
-                                        color = if (isSelected) OpusCyan else TiviTextSecondary,
-                                        fontSize = 11.5.sp,
+                                        color = if (isSelected) VegaColors.Accent else VegaColors.TextSecondary,
+                                        fontSize = 12.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                         maxLines = 1,
                                         softWrap = false,

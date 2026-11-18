@@ -47,7 +47,9 @@ import com.tivimax.player.ui.MainViewModel
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.components.AsyncShimmerImage
+import com.tivimax.player.ui.components.MediaPosterCard
 import com.tivimax.player.ui.components.dpadFocusable
+import com.tivimax.player.ui.main.StreamVaultSectionHeader
 
 @Composable
 fun VodScreen(viewModel: MainViewModel) {
@@ -149,19 +151,160 @@ fun VodScreen(viewModel: MainViewModel) {
         )
     }
 
-    if (isWideScreen || portraitNavStyle == com.tivimax.player.data.preferences.UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) {
+    var useShelfMode by remember { mutableStateOf(true) }
+    val favoriteVodIds by viewModel.favoriteVodIds.collectAsState()
+
+    if (isWideScreen && useShelfMode && !hasActiveCategory && !hasSearch && !isLoading && movies.isNotEmpty()) {
+        // STREAMVAULT MODERN RAF GÖRÜNÜMÜ (Movies.png)
+        val moviesByCat = remember(movies) { movies.groupBy { it.categoryId } }
+        val topRatedMovies = remember(movies) {
+            movies
+                .sortedByDescending { it.rating?.replace(',', '.')?.toFloatOrNull() ?: (it.rating5Based?.toFloat()?.times(2f) ?: 0f) }
+                .take(18)
+        }
+        val shelfCategories = remember(uiCategories, moviesByCat) {
+            uiCategories.mapNotNull { cat ->
+                val list = moviesByCat[cat.id]?.take(16)
+                if (!list.isNullOrEmpty()) cat to list else null
+            }.take(20)
+        }
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 6.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // Üst Kontrol Satırı (Klasik Görünüm & Kategori Düzenleme)
+            item(key = "vod_shelf_controls") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Filmler ($totalVodCount)",
+                        color = VegaColors.TextPrimary,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = VegaColors.SurfaceElevated,
+                            border = BorderStroke(1.dp, VegaColors.Border),
+                            modifier = Modifier.dpadFocusable(
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                onClick = { useShelfMode = false }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.MenuOpen, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(14.dp))
+                                Text("Klasik liste", color = VegaColors.TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = VegaColors.SurfaceElevated,
+                            border = BorderStroke(1.dp, VegaColors.Border),
+                            modifier = Modifier.dpadFocusable(
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                onClick = { showCategoryDialog = true }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(Icons.Default.Tune, contentDescription = null, tint = VegaColors.TextSecondary, modifier = Modifier.size(14.dp))
+                                Text("Kategoriler", color = VegaColors.TextSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Üst Vitrin Rafı (En Yüksek Puanlılar)
+            if (topRatedMovies.isNotEmpty()) {
+                item(key = "vod_shelf_top") {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(topRatedMovies, key = { "top_vod_${it.streamId}" }) { movie ->
+                            val prog = watchProgressMap[movie.streamId.toString()]
+                            val progFraction = if (prog != null && prog.durationMs > 0L) {
+                                (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
+                            } else 0f
+                            Box(modifier = Modifier.width(152.dp)) {
+                                MediaPosterCard(
+                                    imageUrl = movie.streamIcon,
+                                    title = movie.name,
+                                    subtitle = "",
+                                    rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                    watchProgress = progFraction,
+                                    isFavorite = favoriteVodIds.contains(movie.streamId.toString()),
+                                    onClick = { viewModel.loadVodDetail(movie) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Kategori Rafları (StreamVault Movies.png)
+            items(shelfCategories, key = { "vod_shelf_${it.first.id}" }) { (cat, catMovies) ->
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    StreamVaultSectionHeader(
+                        title = cat.name,
+                        onSeeAllClick = { viewModel.loadVodStreams(cat.id) }
+                    )
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(catMovies, key = { "shelf_${cat.id}_${it.streamId}" }) { movie ->
+                            val prog = watchProgressMap[movie.streamId.toString()]
+                            val progFraction = if (prog != null && prog.durationMs > 0L) {
+                                (prog.positionMs.toFloat() / prog.durationMs.toFloat()).coerceIn(0f, 1f)
+                            } else 0f
+                            Box(modifier = Modifier.width(148.dp)) {
+                                MediaPosterCard(
+                                    imageUrl = movie.streamIcon,
+                                    title = movie.name,
+                                    subtitle = "",
+                                    rating = movie.rating ?: movie.rating5Based?.let { String.format(java.util.Locale.US, "%.1f", it * 2) },
+                                    watchProgress = progFraction,
+                                    isFavorite = favoriteVodIds.contains(movie.streamId.toString()),
+                                    onClick = { viewModel.loadVodDetail(movie) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else if (isWideScreen || portraitNavStyle == com.tivimax.player.data.preferences.UserPreferences.PORTRAIT_CAT_NAV_SIDEBAR) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Ortak Sol Kategori Menüsü
+            // Ortak Sol Kategori Menüsü (StreamVault yüzen panel)
             com.tivimax.player.ui.components.CategorySidebar(
                 categories = uiCategories,
                 selectedCategoryId = selectedCategory,
                 onCategorySelected = { viewModel.loadVodStreams(it) },
-                title = "TÜRLER",
+                title = "Türler",
                 totalCount = totalVodCount,
                 allLabel = "Tüm Filmler",
                 onFilterClick = { showCategoryDialog = true },
@@ -174,29 +317,71 @@ fun VodScreen(viewModel: MainViewModel) {
                 } else null
             )
 
-            Box(
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                VodMediaContentGrid(
-                    viewModel = viewModel,
-                    filteredMovies = filteredMovies,
-                    pagedMovies = pagedMovies,
-                    featuredMovie = featuredMovie,
-                    selectedHeroMovie = selectedHeroMovie,
-                    onSelectHeroMovie = { selectedHeroMovie = it },
-                    watchProgressMap = watchProgressMap,
-                    searchQuery = searchQuery,
-                    selectedCategory = selectedCategory,
-                    currentSort = currentSort,
-                    isLoading = isLoading,
-                    gridColumns = if (isWideScreen) (configuration.screenWidthDp / 140).coerceIn(5, 7) else 2,
-                    isWideScreen = isWideScreen,
-                    portraitNavStyle = portraitNavStyle,
-                    visibleLimit = visibleLimit,
-                    onLoadMore = { visibleLimit += 30 }
-                )
+                if (isWideScreen) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = selectedCategoryName,
+                            color = VegaColors.TextPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Surface(
+                            shape = VegaShapes.Pill,
+                            color = VegaColors.Accent.copy(alpha = 0.14f),
+                            border = BorderStroke(1.dp, VegaColors.Accent.copy(alpha = 0.30f)),
+                            modifier = Modifier.dpadFocusable(
+                                shape = VegaShapes.Pill,
+                                focusedBorderColor = VegaColors.FocusBorder,
+                                onClick = {
+                                    useShelfMode = true
+                                    if (hasActiveCategory) viewModel.loadVodStreams("all")
+                                }
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(Icons.Default.ViewCarousel, contentDescription = null, tint = VegaColors.Accent, modifier = Modifier.size(14.dp))
+                                Text("Raf görünümü", color = VegaColors.Accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                }
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    VodMediaContentGrid(
+                        viewModel = viewModel,
+                        filteredMovies = filteredMovies,
+                        pagedMovies = pagedMovies,
+                        featuredMovie = featuredMovie,
+                        selectedHeroMovie = selectedHeroMovie,
+                        onSelectHeroMovie = { selectedHeroMovie = it },
+                        watchProgressMap = watchProgressMap,
+                        searchQuery = searchQuery,
+                        selectedCategory = selectedCategory,
+                        currentSort = currentSort,
+                        isLoading = isLoading,
+                        gridColumns = if (isWideScreen) (configuration.screenWidthDp / 145).coerceIn(4, 6) else 2,
+                        isWideScreen = isWideScreen,
+                        portraitNavStyle = portraitNavStyle,
+                        visibleLimit = visibleLimit,
+                        onLoadMore = { visibleLimit += 30 }
+                    )
+                }
             }
         }
     } else {
