@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,7 +59,7 @@ import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 import kotlinx.coroutines.delay
 
-/** Tüm otomatik denemeler tükenince gösterilen hata katmanı (TV kumanda odaklı). */
+/** Tüm otomatik denemeler tükenince gösterilen sakin koyu yayın hata katmanı (TV kumanda odaklı). */
 @Composable
 internal fun PlayerErrorOverlay(
     error: String,
@@ -77,37 +78,28 @@ internal fun PlayerErrorOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.72f)),
+            .background(Color.Black.copy(alpha = 0.78f)),
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = VegaShapes.Large,
+            shape = VegaShapes.Medium,
             color = VegaColors.OverlayPanel,
-            border = BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.55f)),
-            shadowElevation = 12.dp,
+            border = BorderStroke(0.5.dp, VegaColors.Border.copy(alpha = 0.45f)),
             modifier = Modifier
                 .padding(24.dp)
-                .widthIn(max = 440.dp)
+                .widthIn(max = 420.dp)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 22.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(VegaColors.Danger.copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = VegaColors.Danger,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(14.dp))
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = VegaColors.Danger,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
                     text = error,
                     color = VegaColors.TextPrimary,
@@ -120,21 +112,26 @@ internal fun PlayerErrorOverlay(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        shape = VegaShapes.Medium,
-                        color = VegaColors.Accent,
+                    var retryFocused by remember { mutableStateOf(false) }
+                    Box(
                         modifier = Modifier
                             .height(VegaSizes.ButtonHeight)
+                            .clip(VegaShapes.Small)
+                            .background(
+                                if (retryFocused) VegaColors.Accent else VegaColors.Accent.copy(alpha = 0.88f)
+                            )
                             .focusRequester(retryFocus)
                             .dpadFocusable(
-                                shape = VegaShapes.Medium,
-                                focusedBorderColor = Color.White,
-                                scale = 1.04f,
-                                onClick = onRetry
+                                shape = VegaShapes.Small,
+                                drawFocusBorder = false,
+                                scale = 1.0f,
+                                onClick = onRetry,
+                                onFocusStateChange = { retryFocused = it }
                             )
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
@@ -148,7 +145,7 @@ internal fun PlayerErrorOverlay(
                                 text = "Tekrar dene",
                                 color = VegaColors.OnAccent,
                                 fontSize = VegaText.Body,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -156,89 +153,84 @@ internal fun PlayerErrorOverlay(
                     }
 
                     var altFocused by remember { mutableStateOf(false) }
-                    Surface(
-                        shape = VegaShapes.Medium,
-                        color = if (altFocused) VegaColors.Accent else Color.White.copy(alpha = 0.08f),
-                        border = if (altFocused) null else BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.6f)),
+                    Box(
                         modifier = Modifier
                             .height(VegaSizes.ButtonHeight)
+                            .clip(VegaShapes.Small)
+                            .background(
+                                if (altFocused) VegaColors.Accent else Color.White.copy(alpha = 0.08f)
+                            )
                             .dpadFocusable(
-                                shape = VegaShapes.Medium,
-                                focusedBorderColor = Color.White,
-                                scale = 1.04f,
+                                shape = VegaShapes.Small,
+                                drawFocusBorder = false,
+                                scale = 1.0f,
                                 onClick = onRetryFallback,
                                 onFocusStateChange = { altFocused = it }
                             )
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Alternatif akış dene",
-                                color = if (altFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
-                                fontSize = VegaText.Body,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-                var backFocused by remember { mutableStateOf(false) }
-                Surface(
-                    shape = VegaShapes.Medium,
-                    color = if (backFocused) Color.White.copy(alpha = 0.10f) else Color.Transparent,
-                    modifier = Modifier
-                        .height(40.dp)
-                        .dpadFocusable(
-                            shape = VegaShapes.Medium,
-                            focusedBorderColor = VegaColors.Accent,
-                            scale = 1.03f,
-                            onClick = onBack,
-                            onFocusStateChange = { backFocused = it }
-                        )
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                            .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Listeye geri dön",
-                            color = if (backFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
-                            fontSize = VegaText.Secondary,
+                            text = "Alternatif akış dene",
+                            color = if (altFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
+                            fontSize = VegaText.Body,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(10.dp))
+                var backFocused by remember { mutableStateOf(false) }
+                Box(
+                    modifier = Modifier
+                        .height(38.dp)
+                        .clip(VegaShapes.Small)
+                        .background(if (backFocused) VegaColors.SurfaceVariant else Color.Transparent)
+                        .dpadFocusable(
+                            shape = VegaShapes.Small,
+                            drawFocusBorder = false,
+                            scale = 1.0f,
+                            onClick = onBack,
+                            onFocusStateChange = { backFocused = it }
+                        )
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Listeye geri dön",
+                        color = if (backFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                        fontSize = VegaText.Secondary,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
 }
 
-/** Sol kenardaki ince dikey parlaklık göstergesi. */
+/** Sol kenardaki ince dikey yayın parlaklık kapsülü (34x156dp). */
 @Composable
 internal fun BoxScope.BrightnessFeedbackBar(brightnessFeedback: Int?) {
     AnimatedVisibility(
         visible = brightnessFeedback != null,
-        enter = fadeIn(tween(140)),
-        exit = fadeOut(tween(260)),
+        enter = fadeIn(tween(120)),
+        exit = fadeOut(tween(220)),
         modifier = Modifier
             .align(Alignment.CenterStart)
-            .padding(start = 24.dp)
+            .padding(start = 22.dp)
     ) {
         brightnessFeedback?.let { pct ->
             val fraction = (pct / 100f).coerceIn(0f, 1f)
             Surface(
-                shape = RoundedCornerShape(19.dp),
-                color = Color.Black.copy(alpha = 0.62f),
-                border = BorderStroke(0.75.dp, Color.White.copy(alpha = 0.14f)),
+                shape = RoundedCornerShape(17.dp),
+                color = Color.Black.copy(alpha = 0.68f),
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.14f)),
                 modifier = Modifier
-                    .width(38.dp)
-                    .height(164.dp)
+                    .width(34.dp)
+                    .height(156.dp)
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -251,14 +243,14 @@ internal fun BoxScope.BrightnessFeedbackBar(brightnessFeedback: Int?) {
                         imageVector = Icons.Default.BrightnessMedium,
                         contentDescription = null,
                         tint = VegaColors.Gold,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                     Box(
                         modifier = Modifier
-                            .width(4.dp)
-                            .height(94.dp)
+                            .width(3.dp)
+                            .height(90.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.22f)),
+                            .background(Color.White.copy(alpha = 0.20f)),
                         contentAlignment = Alignment.BottomCenter
                     ) {
                         Box(
@@ -271,9 +263,9 @@ internal fun BoxScope.BrightnessFeedbackBar(brightnessFeedback: Int?) {
                     }
                     Text(
                         text = "%$pct",
-                        color = Color.White.copy(alpha = 0.92f),
+                        color = Color.White.copy(alpha = 0.90f),
                         fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
@@ -281,26 +273,26 @@ internal fun BoxScope.BrightnessFeedbackBar(brightnessFeedback: Int?) {
     }
 }
 
-/** Sağ kenardaki ince dikey ses seviyesi göstergesi. */
+/** Sağ kenardaki ince dikey yayın ses seviyesi kapsülü (34x156dp). */
 @Composable
 internal fun BoxScope.VolumeFeedbackBar(volumeFeedback: Int?) {
     AnimatedVisibility(
         visible = volumeFeedback != null,
-        enter = fadeIn(tween(140)),
-        exit = fadeOut(tween(260)),
+        enter = fadeIn(tween(120)),
+        exit = fadeOut(tween(220)),
         modifier = Modifier
             .align(Alignment.CenterEnd)
-            .padding(end = 24.dp)
+            .padding(end = 22.dp)
     ) {
         volumeFeedback?.let { pct ->
             val fraction = (pct / 100f).coerceIn(0f, 1f)
             Surface(
-                shape = RoundedCornerShape(19.dp),
-                color = Color.Black.copy(alpha = 0.62f),
-                border = BorderStroke(0.75.dp, Color.White.copy(alpha = 0.14f)),
+                shape = RoundedCornerShape(17.dp),
+                color = Color.Black.copy(alpha = 0.68f),
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.14f)),
                 modifier = Modifier
-                    .width(38.dp)
-                    .height(164.dp)
+                    .width(34.dp)
+                    .height(156.dp)
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -313,14 +305,14 @@ internal fun BoxScope.VolumeFeedbackBar(volumeFeedback: Int?) {
                         imageVector = if (pct == 0) Icons.AutoMirrored.Filled.VolumeMute else Icons.AutoMirrored.Filled.VolumeUp,
                         contentDescription = null,
                         tint = VegaColors.Accent,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                     Box(
                         modifier = Modifier
-                            .width(4.dp)
-                            .height(94.dp)
+                            .width(3.dp)
+                            .height(90.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.22f)),
+                            .background(Color.White.copy(alpha = 0.20f)),
                         contentAlignment = Alignment.BottomCenter
                     ) {
                         Box(
@@ -333,9 +325,9 @@ internal fun BoxScope.VolumeFeedbackBar(volumeFeedback: Int?) {
                     }
                     Text(
                         text = "%$pct",
-                        color = Color.White.copy(alpha = 0.92f),
+                        color = Color.White.copy(alpha = 0.90f),
                         fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
@@ -343,7 +335,7 @@ internal fun BoxScope.VolumeFeedbackBar(volumeFeedback: Int?) {
     }
 }
 
-/** Uyku zamanlayıcısı seçim diyaloğu (ince ayırıcılı obsidyen liste + tek odaklı TV desteği). */
+/** TiviMate tarzı uyku zamanlayıcısı seçim menüsü (düz 48dp satırlar, 0.5dp ayırıcı, sol 3dp şerit). */
 @Composable
 internal fun SleepTimerDialog(
     sleepTimerSeconds: Int?,
@@ -363,17 +355,16 @@ internal fun SleepTimerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
-            shape = VegaShapes.Large,
+            shape = VegaShapes.Medium,
             color = VegaColors.OverlayPanel,
-            border = BorderStroke(0.75.dp, VegaColors.Border.copy(alpha = 0.55f)),
-            shadowElevation = 16.dp,
-            modifier = Modifier.widthIn(min = 280.dp, max = 340.dp)
+            border = BorderStroke(0.5.dp, VegaColors.Border.copy(alpha = 0.45f)),
+            modifier = Modifier.widthIn(min = 280.dp, max = 336.dp)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp)) {
+            Column(modifier = Modifier.padding(vertical = 14.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(horizontal = 4.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Bedtime,
@@ -389,7 +380,7 @@ internal fun SleepTimerDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 HorizontalDivider(thickness = 0.5.dp, color = VegaColors.Border.copy(alpha = 0.45f))
 
                 val options = listOf(15, 30, 45, 60, 90)
@@ -400,46 +391,47 @@ internal fun SleepTimerDialog(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(VegaSizes.ButtonHeight)
-                            .clip(VegaShapes.Small)
-                            .background(
-                                when {
-                                    isFocused -> VegaColors.Accent
-                                    isSelected -> VegaColors.Accent.copy(alpha = 0.14f)
-                                    else -> Color.Transparent
-                                }
-                            )
+                            .height(48.dp)
+                            .background(if (isFocused) VegaColors.SurfaceVariant else Color.Transparent)
                             .then(if (idx == 0) Modifier.focusRequester(firstOptionFocus) else Modifier)
                             .dpadFocusable(
-                                shape = VegaShapes.Small,
-                                focusedBorderColor = Color.White,
-                                scale = 1.02f,
+                                shape = RectangleShape,
+                                drawFocusBorder = false,
+                                scale = 1.0f,
                                 onClick = {
                                     onSetTimer(mins)
                                     onDismiss()
                                 },
                                 onFocusStateChange = { isFocused = it }
-                            )
-                            .padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .fillMaxHeight()
+                                .background(if (isFocused || isSelected) VegaColors.Accent else Color.Transparent)
+                        )
+                        Spacer(modifier = Modifier.width(13.dp))
                         Text(
                             text = "$mins dakika sonra kapat",
                             color = when {
-                                isFocused -> VegaColors.OnAccent
                                 isSelected -> VegaColors.Accent
-                                else -> VegaColors.TextPrimary
+                                isFocused -> VegaColors.TextPrimary
+                                else -> VegaColors.TextPrimary.copy(alpha = 0.92f)
                             },
                             fontSize = VegaText.Body,
-                            fontWeight = if (isFocused || isSelected) FontWeight.SemiBold else FontWeight.Normal
+                            fontWeight = if (isFocused || isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
                         )
                         if (isSelected) {
                             Icon(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
-                                tint = if (isFocused) VegaColors.OnAccent else VegaColors.Accent,
-                                modifier = Modifier.size(18.dp)
+                                tint = VegaColors.Accent,
+                                modifier = Modifier
+                                    .padding(end = 14.dp)
+                                    .size(18.dp)
                             )
                         }
                     }
@@ -450,64 +442,71 @@ internal fun SleepTimerDialog(
                 }
 
                 if (sleepTimerSeconds != null) {
-                    Spacer(modifier = Modifier.height(10.dp))
+                    HorizontalDivider(thickness = 0.5.dp, color = VegaColors.Border.copy(alpha = 0.45f))
                     var cancelFocused by remember { mutableStateOf(false) }
-                    Surface(
-                        shape = VegaShapes.Small,
-                        color = if (cancelFocused) VegaColors.Danger else VegaColors.Danger.copy(alpha = 0.14f),
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(VegaSizes.ButtonHeight)
+                            .height(48.dp)
+                            .background(if (cancelFocused) VegaColors.SurfaceVariant else Color.Transparent)
                             .dpadFocusable(
-                                shape = VegaShapes.Small,
-                                focusedBorderColor = Color.White,
-                                scale = 1.02f,
+                                shape = RectangleShape,
+                                drawFocusBorder = false,
+                                scale = 1.0f,
                                 onClick = {
                                     onCancelTimer()
                                     onDismiss()
                                 },
                                 onFocusStateChange = { cancelFocused = it }
-                            )
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = "Zamanlayıcıyı kapat",
-                                color = if (cancelFocused) Color.White else VegaColors.Danger,
-                                fontSize = VegaText.Body,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                        Box(
+                            modifier = Modifier
+                                .width(3.dp)
+                                .fillMaxHeight()
+                                .background(if (cancelFocused) VegaColors.Danger else Color.Transparent)
+                        )
+                        Spacer(modifier = Modifier.width(13.dp))
+                        Text(
+                            text = "Zamanlayıcıyı kapat",
+                            color = VegaColors.Danger,
+                            fontSize = VegaText.Body,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(thickness = 0.5.dp, color = VegaColors.Border.copy(alpha = 0.45f))
 
                 var dismissFocused by remember { mutableStateOf(false) }
-                Surface(
-                    shape = VegaShapes.Small,
-                    color = if (dismissFocused) Color.White.copy(alpha = 0.10f) else Color.Transparent,
+                Row(
                     modifier = Modifier
-                        .align(Alignment.End)
-                        .height(38.dp)
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .background(if (dismissFocused) VegaColors.SurfaceVariant else Color.Transparent)
                         .dpadFocusable(
-                            shape = VegaShapes.Small,
-                            focusedBorderColor = VegaColors.Accent,
-                            scale = 1.03f,
+                            shape = RectangleShape,
+                            drawFocusBorder = false,
+                            scale = 1.0f,
                             onClick = onDismiss,
                             onFocusStateChange = { dismissFocused = it }
-                        )
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        modifier = Modifier.padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Vazgeç",
-                            color = if (dismissFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
-                            fontSize = VegaText.Secondary,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
+                        modifier = Modifier
+                            .width(3.dp)
+                            .fillMaxHeight()
+                            .background(if (dismissFocused) VegaColors.Accent else Color.Transparent)
+                    )
+                    Spacer(modifier = Modifier.width(13.dp))
+                    Text(
+                        text = "Vazgeç",
+                        color = if (dismissFocused) VegaColors.TextPrimary else VegaColors.TextSecondary,
+                        fontSize = VegaText.Secondary,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }

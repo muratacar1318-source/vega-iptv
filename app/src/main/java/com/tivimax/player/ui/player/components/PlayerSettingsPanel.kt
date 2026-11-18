@@ -1,12 +1,14 @@
 package com.tivimax.player.ui.player.components
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,7 +35,6 @@ import androidx.compose.material.icons.filled.SubtitlesOff
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,6 +47,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -117,66 +119,68 @@ fun PlayerSettingsPanel(
         firstFocusRequester = firstFocus,
         headerIcon = Icons.Default.Tune
     ) {
-        // BİRLEŞİK SEGMENTLİ SEKME ÇUBUĞU (Tek odak + tıklama hedefi, kart içi kart yok)
-        Surface(
-            shape = VegaShapes.Small,
-            color = Color.White.copy(alpha = 0.05f),
-            border = BorderStroke(0.5.dp, VegaColors.Border.copy(alpha = 0.45f)),
+        // DÜZ ALT ÇİZGİLİ TIVIMATE SEKME ŞERİDİ (Kutu / çerçeve yok)
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(40.dp)
+                .height(40.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(3.dp),
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                availableTabs.forEach { tab ->
-                    val isSelected = (selectedTab == tab)
-                    var isFocused by remember { mutableStateOf(false) }
+            availableTabs.forEach { tab ->
+                val isSelected = (selectedTab == tab)
+                var isFocused by remember { mutableStateOf(false) }
 
-                    val bgColor = when {
-                        isFocused -> VegaColors.Accent
-                        isSelected -> VegaColors.Accent.copy(alpha = 0.20f)
-                        else -> Color.Transparent
-                    }
-                    val textColor = when {
-                        isFocused -> VegaColors.OnAccent
-                        isSelected -> VegaColors.Accent
-                        else -> VegaColors.TextSecondary
-                    }
+                val bgColor = if (isFocused) VegaColors.SurfaceVariant else Color.Transparent
+                val textColor = when {
+                    isSelected -> VegaColors.Accent
+                    isFocused -> VegaColors.TextPrimary
+                    else -> VegaColors.TextSecondary
+                }
 
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxSize()
-                            .clip(VegaShapes.Small)
-                            .background(bgColor)
-                            .then(if (isSelected) Modifier.focusRequester(firstFocus) else Modifier)
-                            .dpadFocusable(
-                                shape = VegaShapes.Small,
-                                focusedBorderColor = Color.White,
-                                scale = 1.02f,
-                                onClick = { selectedTab = tab },
-                                onFocusStateChange = { isFocused = it }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = tab.title,
-                            fontSize = VegaText.Secondary,
-                            fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium,
-                            color = textColor,
-                            maxLines = 1
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(bgColor)
+                        .then(if (isSelected) Modifier.focusRequester(firstFocus) else Modifier)
+                        .dpadFocusable(
+                            shape = RectangleShape,
+                            drawFocusBorder = false,
+                            scale = 1.0f,
+                            onClick = { selectedTab = tab },
+                            onFocusStateChange = { isFocused = it }
+                        )
+                ) {
+                    Text(
+                        text = tab.title,
+                        fontSize = VegaText.Secondary,
+                        fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium,
+                        color = textColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                    if (isSelected || isFocused) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .background(
+                                    if (isSelected) VegaColors.Accent else VegaColors.Accent.copy(alpha = 0.55f)
+                                )
                         )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = VegaColors.Border.copy(alpha = 0.45f)
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
 
         // AKTİF SEKME İÇERİĞİ
         Box(
@@ -219,7 +223,7 @@ fun PlayerSettingsPanel(
 }
 
 /**
- * Obsidyen liste seçim satırı: çerçevesiz, ince ayırıcılı, tek odak + tıklama hedefli.
+ * TiviMate düz seçim satırı: 48dp yükseklik, sol 3dp vurgu şeridi, odaklanınca anlık `SurfaceVariant`.
  */
 @Composable
 private fun SettingsSelectionRow(
@@ -231,55 +235,68 @@ private fun SettingsSelectionRow(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    val containerColor = when {
-        isFocused -> VegaColors.Accent
-        selected -> VegaColors.Accent.copy(alpha = 0.14f)
-        else -> Color.Transparent
+    val rowBackground = if (isFocused) VegaColors.SurfaceVariant else Color.Transparent
+    val showIndicator = selected || isFocused
+    val iconTint = when {
+        selected || isFocused -> VegaColors.Accent
+        else -> VegaColors.TextSecondary
     }
-    val contentColor = when {
-        isFocused -> VegaColors.OnAccent
+    val textColor = when {
         selected -> VegaColors.Accent
-        else -> VegaColors.TextPrimary
+        isFocused -> VegaColors.TextPrimary
+        else -> VegaColors.TextPrimary.copy(alpha = 0.92f)
     }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 46.dp)
-            .clip(VegaShapes.Small)
-            .background(containerColor)
+            .height(48.dp)
+            .background(rowBackground)
             .dpadFocusable(
-                shape = VegaShapes.Small,
-                focusedBorderColor = Color.White,
-                scale = 1.02f,
+                shape = RectangleShape,
+                drawFocusBorder = false,
+                scale = 1.0f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
-            )
-            .padding(horizontal = 10.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .background(if (showIndicator) VegaColors.Accent else Color.Transparent)
+        )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (isFocused) VegaColors.OnAccent else if (selected) VegaColors.Accent else VegaColors.TextSecondary,
-            modifier = Modifier.size(18.dp)
+            tint = iconTint,
+            modifier = Modifier.size(19.dp)
         )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
         Text(
             text = title,
-            color = contentColor,
+            color = textColor,
             fontWeight = if (selected || isFocused) FontWeight.SemiBold else FontWeight.Normal,
             fontSize = VegaText.Body,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
+
         if (selected) {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Seçili",
-                tint = if (isFocused) VegaColors.OnAccent else VegaColors.Accent,
-                modifier = Modifier.size(18.dp)
+                tint = VegaColors.Accent,
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .size(18.dp)
             )
         }
     }
@@ -337,7 +354,7 @@ private fun AudioTabContent(
 }
 
 // ----------------------------------------------------------------------------
-// 2. ALTYAZI SEKMESİ İÇERİĞİ (Tek dikey kaydırma, ince ayırıcılar)
+// 2. ALTYAZI SEKMESİ İÇERİĞİ (Düz satırlar + 0.5dp ince ayırıcılar)
 // ----------------------------------------------------------------------------
 @Composable
 private fun SubtitleTabContent(
@@ -379,22 +396,23 @@ private fun SubtitleTabContent(
 
         HorizontalDivider(
             thickness = 0.5.dp,
-            color = VegaColors.Border.copy(alpha = 0.5f),
-            modifier = Modifier.padding(vertical = 8.dp)
+            color = VegaColors.Border.copy(alpha = 0.50f),
+            modifier = Modifier.padding(vertical = 6.dp)
         )
 
         // GECİKME SATIRI
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .heightIn(min = 48.dp)
+                .padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = "Gecikme",
-                    fontSize = VegaText.Secondary,
+                    fontSize = VegaText.Body,
                     fontWeight = FontWeight.Medium,
                     color = if (anySubSelected) VegaColors.TextPrimary else VegaColors.TextMuted
                 )
@@ -444,13 +462,14 @@ private fun SubtitleTabContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .heightIn(min = 48.dp)
+                .padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = "Boyut",
-                fontSize = VegaText.Secondary,
+                fontSize = VegaText.Body,
                 fontWeight = FontWeight.Medium,
                 color = VegaColors.TextPrimary
             )
@@ -481,14 +500,14 @@ private fun SubtitleTabContent(
                             .background(
                                 when {
                                     isSizeFocused -> VegaColors.Accent
-                                    isSelected -> VegaColors.Accent.copy(alpha = 0.20f)
+                                    isSelected -> VegaColors.Accent.copy(alpha = 0.22f)
                                     else -> Color.White.copy(alpha = 0.06f)
                                 }
                             )
                             .dpadFocusable(
                                 shape = VegaShapes.Small,
-                                focusedBorderColor = Color.White,
-                                scale = 1.05f,
+                                drawFocusBorder = false,
+                                scale = 1.0f,
                                 onClick = { onSubtitleSizeChange(sizeVal) },
                                 onFocusStateChange = { isSizeFocused = it }
                             ),
@@ -515,13 +534,14 @@ private fun SubtitleTabContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 8.dp),
+                .heightIn(min = 48.dp)
+                .padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = "Renk",
-                fontSize = VegaText.Secondary,
+                fontSize = VegaText.Body,
                 fontWeight = FontWeight.Medium,
                 color = VegaColors.TextPrimary
             )
@@ -538,34 +558,37 @@ private fun SubtitleTabContent(
                     val isSelected = (subtitleColor == colorKey)
                     var isColorFocused by remember { mutableStateOf(false) }
 
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isSelected) VegaColors.Accent.copy(alpha = 0.16f) else Color.Transparent,
-                        border = if (isColorFocused) null else BorderStroke(
-                            width = if (isSelected) 1.5.dp else 0.75.dp,
-                            color = if (isSelected) VegaColors.Accent else VegaColors.Border.copy(alpha = 0.5f)
-                        ),
+                    Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isColorFocused) VegaColors.SurfaceVariant else Color.Transparent
+                            )
+                            .then(
+                                if (isSelected || isColorFocused) {
+                                    Modifier.border(
+                                        width = if (isColorFocused) 2.dp else 1.5.dp,
+                                        color = VegaColors.Accent,
+                                        shape = CircleShape
+                                    )
+                                } else Modifier
+                            )
                             .dpadFocusable(
                                 shape = CircleShape,
-                                focusedBorderColor = Color.White,
-                                scale = 1.06f,
+                                drawFocusBorder = false,
+                                scale = 1.0f,
                                 onClick = { onSubtitleColorChange(colorKey) },
                                 onFocusStateChange = { isColorFocused = it }
-                            )
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
                         Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(colorVal)
-                            )
-                        }
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(colorVal)
+                        )
                     }
                 }
             }
@@ -598,8 +621,8 @@ private fun StepperIconButton(
                 if (enabled) {
                     Modifier.dpadFocusable(
                         shape = VegaShapes.Small,
-                        focusedBorderColor = Color.White,
-                        scale = 1.05f,
+                        drawFocusBorder = false,
+                        scale = 1.0f,
                         onClick = onClick,
                         onFocusStateChange = { isFocused = it }
                     )
@@ -687,7 +710,7 @@ private fun SpeedTabContent(
 }
 
 // ----------------------------------------------------------------------------
-// YAYIN BİLGİSİ ALT ALANI (İnce ayırıcılı, tek odaklı genişletilebilir satır)
+// YAYIN BİLGİSİ ALT ALANI (Düz ince ayırıcılı, tek odaklı genişletilebilir satır)
 // ----------------------------------------------------------------------------
 @Composable
 internal fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
@@ -697,7 +720,7 @@ internal fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
     val resBadge = diagnostics.resolutionBadge.ifBlank { diagnostics.resolution }.trim()
     val headerParts = listOf(resBadge, diagnostics.bitrate.trim()).filter { it.isNotBlank() }
     val headerText = if (headerParts.isNotEmpty()) {
-        headerParts.joinToString(" • ")
+        headerParts.joinToString(" · ")
     } else {
         "Bilgi bekleniyor…"
     }
@@ -713,76 +736,93 @@ internal fun DiagnosticsFooter(diagnostics: StreamDiagnostics) {
 
     val audioPart = if (diagnostics.audioCodec.isNotBlank()) "Ses: ${diagnostics.audioCodec}" else ""
     val bufferPart = if (diagnostics.bufferHealthSecs.isNotBlank()) "Önbellek: ${diagnostics.bufferHealthSecs}" else ""
-    val audioBufferText = listOf(audioPart, bufferPart).filter { it.isNotBlank() }.joinToString(" • ")
+    val audioBufferText = listOf(audioPart, bufferPart).filter { it.isNotBlank() }.joinToString(" · ")
 
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-        HorizontalDivider(thickness = 0.5.dp, color = VegaColors.Border.copy(alpha = 0.45f))
-        Spacer(modifier = Modifier.height(6.dp))
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp)
+    ) {
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = VegaColors.Border.copy(alpha = 0.45f)
+        )
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(VegaShapes.Small)
-                .background(if (isFocused) VegaColors.Accent.copy(alpha = 0.18f) else Color.Transparent)
+                .height(IntrinsicSize.Min)
+                .background(if (isFocused) VegaColors.SurfaceVariant else Color.Transparent)
                 .dpadFocusable(
-                    shape = VegaShapes.Small,
-                    focusedBorderColor = VegaColors.Accent,
-                    scale = 1.01f,
+                    shape = RectangleShape,
+                    drawFocusBorder = false,
+                    scale = 1.0f,
                     onClick = { isExpanded = !isExpanded },
                     onFocusStateChange = { isFocused = it }
                 )
-                .padding(horizontal = 8.dp, vertical = 8.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .fillMaxHeight()
+                    .background(if (isFocused) VegaColors.Accent else Color.Transparent)
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp, vertical = 10.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = if (isFocused) VegaColors.Accent else VegaColors.TextMuted,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Yayın bilgisi",
-                        fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isFocused) VegaColors.TextPrimary else VegaColors.TextSecondary
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = if (isFocused) VegaColors.Accent else VegaColors.TextMuted,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Yayın bilgisi",
+                            fontSize = VegaText.Caption,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isFocused) VegaColors.TextPrimary else VegaColors.TextSecondary
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = headerText,
+                            fontSize = VegaText.Caption,
+                            fontWeight = FontWeight.Medium,
+                            color = VegaColors.Accent
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = VegaColors.TextMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = headerText,
-                        fontSize = VegaText.Caption,
-                        fontWeight = FontWeight.Medium,
-                        color = VegaColors.Accent
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        tint = VegaColors.TextMuted,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-            if (isExpanded && (videoText.isNotBlank() || audioBufferText.isNotBlank())) {
-                Spacer(modifier = Modifier.height(6.dp))
-                if (videoText.isNotBlank()) {
-                    Text(
-                        text = videoText,
-                        fontSize = VegaText.Caption,
-                        color = VegaColors.TextSecondary
-                    )
-                }
-                if (audioBufferText.isNotBlank()) {
-                    Text(
-                        text = audioBufferText,
-                        fontSize = VegaText.Caption,
-                        color = VegaColors.TextSecondary
-                    )
+                if (isExpanded && (videoText.isNotBlank() || audioBufferText.isNotBlank())) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    if (videoText.isNotBlank()) {
+                        Text(
+                            text = videoText,
+                            fontSize = VegaText.Caption,
+                            color = VegaColors.TextSecondary
+                        )
+                    }
+                    if (audioBufferText.isNotBlank()) {
+                        Text(
+                            text = audioBufferText,
+                            fontSize = VegaText.Caption,
+                            color = VegaColors.TextSecondary
+                        )
+                    }
                 }
             }
         }

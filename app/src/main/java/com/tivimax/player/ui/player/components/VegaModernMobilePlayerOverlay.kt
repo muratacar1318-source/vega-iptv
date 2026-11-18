@@ -2,19 +2,54 @@ package com.tivimax.player.ui.player.components
 
 import android.content.res.Configuration
 import android.view.KeyEvent
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.ClosedCaption
+import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPictureAlt
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,6 +59,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalConfiguration
@@ -34,13 +70,15 @@ import androidx.compose.ui.unit.sp
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaColors
 import com.tivimax.player.ui.design.VegaShapes
-import com.tivimax.player.ui.design.VegaSizes
 import com.tivimax.player.ui.design.VegaText
 import com.tivimax.player.util.LocalIsTvDevice
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ============================================================================
-// VEGA SİNEMA OYNATICI KATMANI (MİNİMAL VİDEO ÜSTÜ HUD + TV KUMANDA UYUMLU)
+// VEGA TIVIMATE MOBİL OYNATICI KATMANI (SAF YAYIN HUD + TV KUMANDA UYUMLU)
 // ============================================================================
 
 val NeonPurple: Color get() = VegaColors.Accent
@@ -180,49 +218,46 @@ private fun UnlockOverlayPill(
             .background(Color.Black.copy(alpha = 0.30f)),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
-            shape = VegaShapes.Pill,
-            color = if (isFocused) VegaColors.Accent else Color.Black.copy(alpha = 0.65f),
-            border = if (isFocused) null else BorderStroke(0.75.dp, Color.White.copy(alpha = 0.22f)),
+        Row(
             modifier = Modifier
+                .clip(VegaShapes.Pill)
+                .background(if (isFocused) VegaColors.Accent else Color.Black.copy(alpha = 0.68f))
                 .focusRequester(focusRequester)
                 .dpadFocusable(
                     shape = VegaShapes.Pill,
-                    focusedBorderColor = Color.White,
-                    scale = 1.04f,
+                    drawFocusBorder = false,
+                    scale = 1.0f,
                     onClick = onUnlock,
                     onFocusStateChange = { isFocused = it }
                 )
+                .padding(horizontal = 20.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = label,
-                    tint = if (isFocused) VegaColors.OnAccent else Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = label,
-                    color = if (isFocused) VegaColors.OnAccent else Color.White,
-                    fontSize = VegaText.Secondary,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = label,
+                tint = if (isFocused) VegaColors.OnAccent else Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = label,
+                color = if (isFocused) VegaColors.OnAccent else Color.White,
+                fontSize = VegaText.Secondary,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
 
 /**
- * Minimal sinema oynatıcı katmanı (Infuse / Apple TV+ yaklaşımı):
+ * TiviMate yayın diline uyumlu temiz mobil oynatıcı katmanı:
  *
- * - Üst ve alt yumuşak gradyan karartma, video ortası tamamen açık.
- * - Üst şerit: yuvarlak çerçevesiz geri düğmesi, tek satır başlık (+ canlı noktası / bölüm bilgisi), sağda kompakt çerçevesiz ikonlar.
- * - Orta ulaşım kontrolleri: -10 sn, büyük Oynat/Duraklat (64dp), +10 sn (parıltı/kutu karmaşası yok).
- * - Alt şerit: ince sarma çubuğu, geçen süre & kalan süre (-42 dk), sade ikincil aksiyon satırı.
+ * - Üst gradyan karartma (`0.72f -> Transparent`): çerçevesiz geri düğmesi, tek satır başlık,
+ *   sade canlı/bölüm alt satırı ve sağda kompakt çerçevesiz ikonlar (Küçük pencere, Oran, Ses/Altyazı, Ayarlar).
+ * - Orta kontroller: `54dp` -10 sn / `64dp` Oynat-Duraklat / `54dp` +10 sn, çerçevesiz ve parıltısız.
+ * - Alt şerit: ince zaman çubuğu, solda geçen süre (`00:42:15`), sağda kalan + bitiş saati
+ *   (`-42 dk · Bitiş 21:36`) ve hemen altında kutusuz yatay ikon+etiket şeridi.
  */
 @Composable
 fun VegaPlayerControlsOverlay(
@@ -277,17 +312,17 @@ fun VegaPlayerControlsOverlay(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // ÜST YUMUŞAK GRADYAN KARARTMA
+        // ÜST YUMUŞAK GRADYAN KARARTMA (0.72f -> Transparent)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.32f)
+                .fillMaxHeight(0.30f)
                 .align(Alignment.TopCenter)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.75f),
-                            Color.Black.copy(alpha = 0.25f),
+                            Color.Black.copy(alpha = 0.72f),
+                            Color.Black.copy(alpha = 0.22f),
                             Color.Transparent
                         )
                     )
@@ -298,27 +333,27 @@ fun VegaPlayerControlsOverlay(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.40f)
+                .fillMaxHeight(0.42f)
                 .align(Alignment.BottomCenter)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.38f),
-                            Color.Black.copy(alpha = 0.78f)
+                            Color.Black.copy(alpha = 0.40f),
+                            Color.Black.copy(alpha = 0.80f)
                         )
                     )
                 )
         )
 
         // ====================================================================
-        // ÜST ŞERİT (Minimal geri düğmesi + tek satır başlık + çerçevesiz ikonlar)
+        // ÜST ŞERİT (Çerçevesiz geri + 1 satır başlık + sade alt satır + sağ ikonlar)
         // ====================================================================
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
-                .padding(horizontal = 18.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -337,58 +372,58 @@ fun VegaPlayerControlsOverlay(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = title,
-                            color = Color.White,
-                            fontSize = VegaText.SectionTitle,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontSize = VegaText.SectionTitle,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                        if (isLive) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
+                    val hasSubline = isLive || subtitle.isNotBlank() || !qualityBadge.isNullOrBlank()
+                    if (hasSubline) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isLive) {
                                 Box(
                                     modifier = Modifier
-                                        .size(7.dp)
+                                        .size(6.dp)
                                         .clip(CircleShape)
                                         .background(VegaColors.Live)
                                 )
                                 Text(
                                     text = "Canlı",
-                                    color = Color.White.copy(alpha = 0.88f),
+                                    color = Color.White.copy(alpha = 0.86f),
                                     fontSize = VegaText.Caption,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            val metaParts = buildList {
+                                if (subtitle.isNotBlank()) add(subtitle)
+                                if (!qualityBadge.isNullOrBlank()) add(qualityBadge)
+                            }.joinToString(" · ")
+
+                            if (metaParts.isNotBlank()) {
+                                if (isLive) {
+                                    Text(
+                                        text = "·",
+                                        color = Color.White.copy(alpha = 0.45f),
+                                        fontSize = VegaText.Caption
+                                    )
+                                }
+                                Text(
+                                    text = metaParts,
+                                    color = Color.White.copy(alpha = 0.70f),
+                                    fontSize = VegaText.Caption,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
-
-                        if (!qualityBadge.isNullOrBlank()) {
-                            Text(
-                                text = qualityBadge,
-                                color = Color.White.copy(alpha = 0.68f),
-                                fontSize = VegaText.Caption,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    if (subtitle.isNotBlank()) {
-                        Text(
-                            text = subtitle,
-                            color = Color.White.copy(alpha = 0.72f),
-                            fontSize = VegaText.Secondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
                     }
                 }
             }
@@ -396,7 +431,7 @@ fun VegaPlayerControlsOverlay(
             // Sağ: Saat ve Kompakt Çerçevesiz İkonlar
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 if (clockText.isNotBlank()) {
                     Text(
@@ -404,14 +439,14 @@ fun VegaPlayerControlsOverlay(
                         color = Color.White.copy(alpha = 0.86f),
                         fontSize = VegaText.Body,
                         fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(end = 6.dp)
+                        modifier = Modifier.padding(end = 4.dp)
                     )
                 }
 
                 if (!isTv) {
                     OverlayCircleButton(
-                        icon = Icons.Default.Cast,
-                        contentDescription = "Yansıt",
+                        icon = Icons.Default.PictureInPictureAlt,
+                        contentDescription = "Küçük pencere",
                         onClick = onCastClick
                     )
                 }
@@ -437,12 +472,12 @@ fun VegaPlayerControlsOverlay(
         }
 
         // ====================================================================
-        // ORTA ULAŞIM KONTROLLERİ (-10 / Oynat-Duraklat / +10)
+        // ORTA ULAŞIM KONTROLLERİ (54dp -10 / 64dp Oynat-Duraklat / 54dp +10)
         // ====================================================================
         Box(modifier = Modifier.align(Alignment.Center)) {
             if (isBuffering) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(46.dp),
+                    modifier = Modifier.size(44.dp),
                     strokeWidth = 2.5.dp,
                     color = Color.White,
                     trackColor = Color.White.copy(alpha = 0.16f)
@@ -516,20 +551,23 @@ fun VegaPlayerControlsOverlay(
         }
 
         // ====================================================================
-        // ALT ŞERİT (İnce zaman çubuğu + geçen/kalan süre + sade ikincil aksiyonlar)
+        // ALT ŞERİT (Zaman çubuğu + geçen/kalan & bitiş saati + kutusuz ikon-etiket şeridi)
         // ====================================================================
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             // 1. İNCE ZAMAN ÇUBUĞU (Sadece Film/Dizi)
             if (!isLive && totalDurationMs > 0L) {
                 var isTimelineFocused by remember { mutableStateOf(false) }
                 val progress = (currentTimeMs.toFloat() / totalDurationMs.toFloat()).coerceIn(0f, 1f)
                 val remainingMs = (totalDurationMs - currentTimeMs).coerceAtLeast(0L)
+                val remainingWithFinish = remember(remainingMs / 1000L) {
+                    formatRemainingWithFinish(remainingMs)
+                }
 
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Slider(
@@ -539,7 +577,7 @@ fun VegaPlayerControlsOverlay(
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(26.dp)
+                            .height(24.dp)
                             .focusRequester(timelineFocus)
                             .focusProperties {
                                 up = playFocus
@@ -587,7 +625,7 @@ fun VegaPlayerControlsOverlay(
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = formatRemainingCompact(remainingMs),
+                            text = remainingWithFinish,
                             color = Color.White.copy(alpha = 0.72f),
                             fontSize = VegaText.Caption,
                             fontWeight = FontWeight.Medium
@@ -596,16 +634,16 @@ fun VegaPlayerControlsOverlay(
                 }
             }
 
-            // 2. SADE İKİNCİL AKSİYON SATIRI (Çerçevesiz minimal düğmeler)
+            // 2. TEK TEMİZ YATAY TIVIMATE İKON + ETİKET ŞERİDİ (Kutu / hap / çerçeve yok)
             val upTarget = if (!isLive && totalDurationMs > 0L) timelineFocus else playFocus
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OverlayInlineAction(
+                OverlayStripAction(
                     icon = if (isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
                     label = if (isLocked) "Kilitli" else "Kilit",
                     isActive = isLocked,
@@ -616,29 +654,22 @@ fun VegaPlayerControlsOverlay(
                 )
 
                 if (!isLive) {
-                    OverlayInlineAction(
+                    OverlayStripAction(
                         icon = Icons.AutoMirrored.Filled.List,
                         label = "Bölümler",
                         onClick = onEpisodesClick,
                         modifier = Modifier.focusProperties { up = upTarget }
                     )
-                    OverlayInlineAction(
-                        icon = Icons.Default.Speed,
-                        label = playbackSpeedLabel,
-                        isActive = playbackSpeedLabel != "1.0x",
-                        onClick = onSpeedClick ?: onSettingsClick,
-                        modifier = Modifier.focusProperties { up = upTarget }
-                    )
                 }
 
-                OverlayInlineAction(
+                OverlayStripAction(
                     icon = Icons.Default.Audiotrack,
                     label = audioLabel.takeIf { it.isNotBlank() && it != "Varsayılan" } ?: "Ses",
                     onClick = onAudioClick ?: onSettingsClick,
                     modifier = Modifier.focusProperties { up = upTarget }
                 )
 
-                OverlayInlineAction(
+                OverlayStripAction(
                     icon = Icons.Default.ClosedCaption,
                     label = subtitleLabel.takeIf { it.isNotBlank() && it != "Kapalı" } ?: "Altyazı",
                     isActive = subtitleLabel.isNotBlank() && subtitleLabel != "Kapalı",
@@ -646,16 +677,27 @@ fun VegaPlayerControlsOverlay(
                     modifier = Modifier.focusProperties { up = upTarget }
                 )
 
-                OverlayInlineAction(
+                if (!isLive) {
+                    OverlayStripAction(
+                        icon = Icons.Default.Speed,
+                        label = playbackSpeedLabel.takeIf { it.isNotBlank() && it != "1.0x" } ?: "Hız",
+                        isActive = playbackSpeedLabel.isNotBlank() && playbackSpeedLabel != "1.0x",
+                        onClick = onSpeedClick ?: onSettingsClick,
+                        modifier = Modifier.focusProperties { up = upTarget }
+                    )
+                }
+
+                OverlayStripAction(
                     icon = Icons.Default.AspectRatio,
-                    label = aspectRatioLabel,
+                    label = aspectRatioLabel.takeIf { it.isNotBlank() && it != "Orijinal" } ?: "Oran",
+                    isActive = aspectRatioLabel.isNotBlank() && aspectRatioLabel != "Orijinal",
                     onClick = onAspectRatioClick ?: onSettingsClick,
                     modifier = Modifier.focusProperties { up = upTarget }
                 )
 
-                OverlayInlineAction(
-                    icon = Icons.Default.Tune,
-                    label = qualityBadge?.takeIf { it.isNotBlank() } ?: "Kalite",
+                OverlayStripAction(
+                    icon = Icons.Default.Settings,
+                    label = "Ayarlar",
                     onClick = onSettingsClick,
                     modifier = Modifier.focusProperties { up = upTarget }
                 )
@@ -678,19 +720,19 @@ private fun OverlayCircleButton(
 
     Box(
         modifier = modifier
-            .size(VegaSizes.IconButton)
+            .size(40.dp)
             .clip(VegaShapes.Pill)
             .background(
                 when {
                     isFocused -> VegaColors.Accent
-                    isHighlighted -> VegaColors.Accent.copy(alpha = 0.24f)
-                    else -> Color.Black.copy(alpha = 0.26f)
+                    isHighlighted -> VegaColors.Accent.copy(alpha = 0.22f)
+                    else -> Color.White.copy(alpha = 0.08f)
                 }
             )
             .dpadFocusable(
                 shape = VegaShapes.Pill,
-                focusedBorderColor = Color.White,
-                scale = 1.06f,
+                drawFocusBorder = false,
+                scale = 1.0f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             ),
@@ -699,8 +741,8 @@ private fun OverlayCircleButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (isFocused) VegaColors.OnAccent else Color.White,
-            modifier = Modifier.size(21.dp)
+            tint = if (isFocused) VegaColors.OnAccent else Color.White.copy(alpha = 0.92f),
+            modifier = Modifier.size(20.dp)
         )
     }
 }
@@ -716,51 +758,50 @@ private fun OverlayTransportButton(
     var isFocused by remember { mutableStateOf(false) }
     val sizeDp = when (sizeType) {
         TransportSize.PRIMARY -> 64.dp
-        TransportSize.SECONDARY -> 56.dp
-        TransportSize.COMPACT -> 48.dp
+        TransportSize.SECONDARY -> 54.dp
+        TransportSize.COMPACT -> 46.dp
     }
     val iconDp = when (sizeType) {
-        TransportSize.PRIMARY -> 38.dp
-        TransportSize.SECONDARY -> 30.dp
+        TransportSize.PRIMARY -> 36.dp
+        TransportSize.SECONDARY -> 28.dp
         TransportSize.COMPACT -> 24.dp
     }
 
     val containerColor = when {
         isFocused -> VegaColors.Accent
         sizeType == TransportSize.PRIMARY -> Color.Black.copy(alpha = 0.44f)
-        else -> Color.Black.copy(alpha = 0.24f)
+        else -> Color.Black.copy(alpha = 0.28f)
     }
     val tintColor = if (isFocused) VegaColors.OnAccent else Color.White
 
-    Surface(
-        shape = VegaShapes.Pill,
-        color = containerColor,
-        border = if (!isFocused && sizeType == TransportSize.PRIMARY) {
-            BorderStroke(0.75.dp, Color.White.copy(alpha = 0.20f))
-        } else null,
+    Box(
         modifier = modifier
             .size(sizeDp)
+            .clip(VegaShapes.Pill)
+            .background(containerColor)
             .dpadFocusable(
                 shape = VegaShapes.Pill,
-                focusedBorderColor = Color.White,
-                scale = if (sizeType == TransportSize.PRIMARY) 1.06f else 1.05f,
+                drawFocusBorder = false,
+                scale = 1.0f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
-            )
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = tintColor,
-                modifier = Modifier.size(iconDp)
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tintColor,
+            modifier = Modifier.size(iconDp)
+        )
     }
 }
 
+/**
+ * Kutusuz, çerçevesiz, sade TiviMate alt aksiyon şeridi öğesi (ikon + tek satır etiket).
+ */
 @Composable
-private fun OverlayInlineAction(
+private fun OverlayStripAction(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
@@ -769,38 +810,34 @@ private fun OverlayInlineAction(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    val containerColor = when {
-        isFocused -> VegaColors.Accent
-        isActive -> VegaColors.Accent.copy(alpha = 0.20f)
-        else -> Color.White.copy(alpha = 0.08f)
-    }
+    val containerColor = if (isFocused) VegaColors.Accent else Color.Transparent
     val contentColor = when {
         isFocused -> VegaColors.OnAccent
         isActive -> VegaColors.Accent
-        else -> Color.White.copy(alpha = 0.90f)
+        else -> Color.White.copy(alpha = 0.88f)
     }
 
     Row(
         modifier = modifier
             .height(36.dp)
-            .clip(VegaShapes.Pill)
+            .clip(VegaShapes.Small)
             .background(containerColor)
             .dpadFocusable(
-                shape = VegaShapes.Pill,
-                focusedBorderColor = Color.White,
-                scale = 1.04f,
+                shape = VegaShapes.Small,
+                drawFocusBorder = false,
+                scale = 1.0f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
             )
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = contentColor,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(17.dp)
         )
         Text(
             text = label,
@@ -842,8 +879,10 @@ fun VegaPlayerPortraitMenuArea(
         Spacer(modifier = Modifier.height(10.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(38.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             tabs.forEachIndexed { index, tabName ->
                 val isSelected = selectedTab == index
@@ -851,40 +890,47 @@ fun VegaPlayerPortraitMenuArea(
 
                 Box(
                     modifier = Modifier
-                        .clip(VegaShapes.Pill)
-                        .background(
-                            when {
-                                isFocused -> VegaColors.Accent
-                                isSelected -> VegaColors.Accent.copy(alpha = 0.18f)
-                                else -> Color.White.copy(alpha = 0.06f)
-                            }
-                        )
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(if (isFocused) VegaColors.SurfaceVariant else Color.Transparent)
                         .dpadFocusable(
-                            shape = VegaShapes.Pill,
-                            focusedBorderColor = Color.White,
-                            scale = 1.03f,
+                            shape = RectangleShape,
+                            drawFocusBorder = false,
+                            scale = 1.0f,
                             onClick = { selectedTab = index },
                             onFocusStateChange = { isFocused = it }
                         )
-                        .padding(horizontal = 12.dp, vertical = 7.dp)
                 ) {
                     Text(
                         text = tabName,
                         color = when {
-                            isFocused -> VegaColors.OnAccent
                             isSelected -> VegaColors.Accent
+                            isFocused -> VegaColors.TextPrimary
                             else -> VegaColors.TextSecondary
                         },
                         fontSize = VegaText.Secondary,
-                        fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium
+                        fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.align(Alignment.Center)
                     )
+                    if (isSelected || isFocused) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .background(
+                                    if (isSelected) VegaColors.Accent else VegaColors.Accent.copy(alpha = 0.55f)
+                                )
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-        HorizontalDivider(thickness = 0.5.dp, color = VegaColors.Border.copy(alpha = 0.4f))
-        Spacer(modifier = Modifier.height(10.dp))
+        HorizontalDivider(thickness = 0.5.dp, color = VegaColors.Border.copy(alpha = 0.40f))
+        Spacer(modifier = Modifier.height(8.dp))
 
         when (selectedTab) {
             0 -> {
@@ -894,32 +940,36 @@ fun VegaPlayerPortraitMenuArea(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(VegaShapes.Small)
-                                .background(
-                                    if (isNextFocused) VegaColors.Accent else Color.Transparent
-                                )
+                                .height(48.dp)
+                                .background(if (isNextFocused) VegaColors.SurfaceVariant else Color.Transparent)
                                 .dpadFocusable(
-                                    shape = VegaShapes.Small,
-                                    focusedBorderColor = Color.White,
-                                    scale = 1.02f,
+                                    shape = RectangleShape,
+                                    drawFocusBorder = false,
+                                    scale = 1.0f,
                                     onClick = onNextEpisode,
                                     onFocusStateChange = { isNextFocused = it }
-                                )
-                                .padding(horizontal = 10.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(3.dp)
+                                    .fillMaxHeight()
+                                    .background(if (isNextFocused) VegaColors.Accent else Color.Transparent)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
                             Icon(
                                 imageVector = Icons.Default.SkipNext,
                                 contentDescription = null,
-                                tint = if (isNextFocused) VegaColors.OnAccent else VegaColors.Accent,
+                                tint = VegaColors.Accent,
                                 modifier = Modifier.size(20.dp)
                             )
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "Sonraki bölüme geç",
-                                color = if (isNextFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
+                                color = VegaColors.TextPrimary,
                                 fontSize = VegaText.Body,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = if (isNextFocused) FontWeight.SemiBold else FontWeight.Normal
                             )
                         }
                     }
@@ -951,16 +1001,16 @@ private fun formatDuration(millis: Long): String {
     val minutes = (totalSeconds % 3600L) / 60L
     val seconds = totalSeconds % 60L
     return if (hours > 0L) {
-        String.format("%02d:%02d:%02d", hours, minutes, seconds)
+        String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
     } else {
-        String.format("%02d:%02d", minutes, seconds)
+        String.format(Locale.US, "%02d:%02d", minutes, seconds)
     }
 }
 
-private fun formatRemainingCompact(remainingMs: Long): String {
+private fun formatRemainingWithFinish(remainingMs: Long): String {
     val totalSeconds = (remainingMs / 1000L).coerceAtLeast(0L)
     val totalMinutes = (totalSeconds + 59L) / 60L
-    return when {
+    val remainingPart = when {
         totalSeconds < 60L -> "-$totalSeconds sn"
         totalMinutes >= 60L -> {
             val hours = totalMinutes / 60L
@@ -969,4 +1019,7 @@ private fun formatRemainingCompact(remainingMs: Long): String {
         }
         else -> "-$totalMinutes dk"
     }
+    val finishTimeMs = System.currentTimeMillis() + remainingMs.coerceAtLeast(0L)
+    val finishStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(finishTimeMs))
+    return "$remainingPart · Bitiş $finishStr"
 }

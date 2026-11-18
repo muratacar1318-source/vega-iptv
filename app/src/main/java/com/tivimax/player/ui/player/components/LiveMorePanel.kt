@@ -1,7 +1,16 @@
 package com.tivimax.player.ui.player.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Bedtime
@@ -19,21 +28,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tivimax.player.player.StreamDiagnostics
 import com.tivimax.player.ui.components.dpadFocusable
 import com.tivimax.player.ui.design.VegaColors
-import com.tivimax.player.ui.design.VegaShapes
 import com.tivimax.player.ui.design.VegaText
 
 /**
- * Canlı TV Oynatıcı "Daha fazla" Yan Paneli (İnce ayırıcılı obsidyen liste, tek odaklı satırlar).
+ * Canlı TV oynatıcı "Daha fazla" TiviMate yan çekmece menüsü.
+ * Düz 48dp satırlar, 0.5dp ayırıcılar, odaklanınca anlık `SurfaceVariant` vurgusu ve sol 3dp vurgu şeridi.
  */
 @Composable
 fun LiveMorePanel(
@@ -86,22 +96,22 @@ fun LiveMorePanel(
             MoreActionRow(
                 icon = Icons.Default.GridView,
                 title = "Çift ekran",
-                badge = if (isDualViewActive) "Açık" else null,
-                isHighlighted = isDualViewActive,
+                valueText = if (isDualViewActive) "Açık" else null,
+                isActive = isDualViewActive,
                 onClick = onOpenDualView
             )
             MoreHairlineDivider()
 
             // 4. Uyku zamanlayıcısı
-            val sleepBadge = if (sleepTimerSeconds != null && sleepTimerSeconds > 0) {
+            val sleepValue = if (sleepTimerSeconds != null && sleepTimerSeconds > 0) {
                 val mins = (sleepTimerSeconds + 59) / 60
                 "$mins dk"
             } else null
             MoreActionRow(
                 icon = Icons.Default.Bedtime,
                 title = "Uyku zamanlayıcısı",
-                badge = sleepBadge,
-                isHighlighted = sleepBadge != null,
+                valueText = sleepValue,
+                isActive = sleepValue != null,
                 onClick = onOpenSleepTimer
             )
 
@@ -123,45 +133,49 @@ private fun MoreHairlineDivider() {
 private fun MoreActionRow(
     icon: ImageVector,
     title: String,
-    badge: String? = null,
-    isHighlighted: Boolean = false,
+    valueText: String? = null,
+    isActive: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    val containerColor = when {
-        isFocused -> VegaColors.Accent
-        isHighlighted -> VegaColors.Accent.copy(alpha = 0.14f)
-        else -> Color.Transparent
-    }
-    val contentColor = when {
-        isFocused -> VegaColors.OnAccent
-        isHighlighted -> VegaColors.Accent
+    val rowBackground = if (isFocused) VegaColors.SurfaceVariant else Color.Transparent
+    val showIndicator = isFocused || isActive
+    val iconTint = when {
+        isFocused || isActive -> VegaColors.Accent
         else -> VegaColors.TextSecondary
     }
 
-    // Tek odak + tıklama hedefi: sadece dpadFocusable(onClick) kullanılır.
+    // Tek odak + tıklama hedefi: düz TiviMate menü satırı (kart/hap/çerçeve yok)
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(50.dp)
-            .clip(VegaShapes.Small)
-            .background(containerColor)
+            .height(48.dp)
+            .background(rowBackground)
             .dpadFocusable(
-                shape = VegaShapes.Small,
-                focusedBorderColor = Color.White,
-                scale = 1.02f,
+                shape = RectangleShape,
+                drawFocusBorder = false,
+                scale = 1.0f,
                 onClick = onClick,
                 onFocusStateChange = { isFocused = it }
-            )
-            .padding(horizontal = 10.dp),
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Sol 3dp aktif/odak göstergesi
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight()
+                .background(if (showIndicator) VegaColors.Accent else Color.Transparent)
+        )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = contentColor,
+            tint = iconTint,
             modifier = Modifier.size(20.dp)
         )
 
@@ -169,35 +183,31 @@ private fun MoreActionRow(
 
         Text(
             text = title,
-            color = if (isFocused) VegaColors.OnAccent else VegaColors.TextPrimary,
+            color = if (isFocused || isActive) VegaColors.TextPrimary else VegaColors.TextPrimary.copy(alpha = 0.92f),
             fontSize = VegaText.Body,
-            fontWeight = if (isFocused || isHighlighted) FontWeight.SemiBold else FontWeight.Normal,
+            fontWeight = if (isFocused || isActive) FontWeight.SemiBold else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
 
-        if (!badge.isNullOrBlank()) {
-            Box(
-                modifier = Modifier
-                    .clip(VegaShapes.Small)
-                    .background(
-                        if (isFocused) VegaColors.OnAccent.copy(alpha = 0.16f)
-                        else VegaColors.Accent.copy(alpha = 0.16f)
-                    )
-                    .padding(horizontal = 8.dp, vertical = 3.dp)
-            ) {
-                Text(
-                    text = badge,
-                    color = if (isFocused) VegaColors.OnAccent else VegaColors.Accent,
-                    fontSize = VegaText.Caption,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+        if (!valueText.isNullOrBlank()) {
+            Text(
+                text = valueText,
+                color = VegaColors.Accent,
+                fontSize = VegaText.Secondary,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                modifier = Modifier.padding(end = 6.dp)
+            )
         } else {
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = if (isFocused) VegaColors.OnAccent.copy(alpha = 0.75f) else VegaColors.TextMuted,
-                modifier = Modifier.size(18.dp)
+                tint = if (isFocused) VegaColors.TextPrimary else VegaColors.TextMuted,
+                modifier = Modifier
+                    .padding(end = 4.dp)
+                    .size(18.dp)
             )
         }
     }
